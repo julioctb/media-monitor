@@ -22,7 +22,19 @@ to phase 2 with client negotiation.
 - X via third-party (e.g. twitterapi.io): ~$0.15/1,000 reads, 7-day+ archive.
 - News/web: Google News RSS (free), GDELT (free), NewsAPI (optional $0–50/mo).
 - Reddit/YouTube: free APIs, out of MVP scope, architecture allows adding.
-- FB/IG: restricted; phase 2.
+- FB/IG broad listening: restricted; IG stays phase 2. Facebook PAGES
+  monitoring added to MVP as T8: client-owned pages via Graph API now
+  (pages_read_engagement, verified against Meta docs 2026-10-08);
+  third-party pages need one-time Page Public Content Access app review
+  + business verification (client ops task, no code change) or scraper
+  fallback (Apify).
+- Sentiment engine: Laya (Apache-2.0, self-hosted encoder, typed decisions)
+  behind a pluggable SentimentAnalyzer interface. pysentimiento REJECTED:
+  its Spanish sentiment model is trained on TASS dataset with a
+  non-commercial license — legal risk for a client project. Jev (closed
+  API, paid per call) rejected: per-mention cost + external dependency in
+  the core pipeline. Must validate Laya's Spanish sentiment quality with
+  ~50 hand-labeled Spanish mentions before lock-in.
 
 ## Architecture
 ```
@@ -48,11 +60,23 @@ Deploy: Docker Compose (api, worker, db, dashboard) on a VPS
       alerts tables (SQLAlchemy + Alembic), all rows carry client_id
       (commit fad8613; offline SQL up/down verified; queries.py contract:
       insert_mention dedupes on url_hash, all reads client-scoped)
-- [ ] T3: Ingest core — source adapter interface + Google News RSS adapter +
+- [x] T3: Ingest core — source adapter interface + Google News RSS adapter +
       GDELT adapter, dedupe pipeline, keyword matching (regex, ES+EN)
-- [ ] T4: X/Twitter adapter — pluggable provider interface, twitterapi.io-
+      (commit 306fa9a; live smoke vs real Google News RSS: 50 items parsed;
+      bug found+fixed: Google 302s hl=es→hl=es-419, needs follow_redirects)
+- [x] T4: X/Twitter adapter — pluggable provider interface, twitterapi.io-
       compatible client, rate limiting, cost tracking per query
-- [ ] T5: Sentiment — pysentimiento integration, runs on ingest, es + en
+      (commit 1f63e0b; token bucket X_PROVIDER_RATE_PER_MIN, JSON cost logs,
+      graceful disable when X_PROVIDER_API_KEY unset)
+- [x] T5: Sentiment — SentimentAnalyzer pluggable interface + Laya engine
+      (Apache-2.0, self-hosted), es + en; eval task with ~50 hand-labeled
+      Spanish mentions before lock-in
+      (commit e785ac2; EVAL RAN: Laya multilingual 82% acc (41/50) — pos 71%/83%,
+      neu 87%/87%, neg 86%/78%, sarcasm 3/5; baseline keyword floor 42%.
+      Verified API: laya.load('convaiinnovations/laya', subfolder='multilingual')
+      -> agent.predict(state, questions) criteria-dict form; ROOT ckpt is
+      EN-only, Spanish REQUIRES subfolder='multilingual' (mmBERT 322M).
+      77 tests green, fully offline)
 - [ ] P1: FastAPI app — /mentions, /stats, /keywords, /alerts endpoints
 - [ ] P2: Alert engine — email alerts on new matching mentions (SMTP),
       digest mode (daily/weekly), per-keyword alert config
@@ -61,6 +85,10 @@ Deploy: Docker Compose (api, worker, db, dashboard) on a VPS
 - [ ] T6: E2E verification — docker compose up, ingest real data for a test
       keyword, verify mentions in dashboard, alert email sent
 - [ ] T7: Docs — README with setup, .env.example, architecture doc
+- [ ] T8: Facebook Pages adapter — Graph API /page/feed poll for client-owned
+      pages (page token + pages_read_engagement), source enum value
+      facebook_page + Alembic migration, per-page token config, fixture tests;
+      ops note: PPCA app review extends same adapter to third-party pages
 
 ## Phase 2 (future, not in MVP scope)
 - **Flutter mobile app** (iOS + Android) consuming the same FastAPI API:
@@ -68,8 +96,8 @@ Deploy: Docker Compose (api, worker, db, dashboard) on a VPS
   web MVP stays SvelteKit (DOM is right for dashboards, user prefers SvelteKit
   for maintainability); Flutter is the right tool when native mobile + push
   is required. Backend is client-agnostic — zero rework needed.
-- **Facebook/Instagram sources** — requires Meta access negotiation
-  (Content Library API is research-only) or third-party providers.
+- **Instagram sources** — Graph API via linked FB page (instagram_basic) for
+  owned accounts; broader IG listening limited by Meta.
 - **Reddit + YouTube sources** — free APIs, easy to add via source adapter.
 - **Full-archive X search / streaming** — enterprise-tier features.
 
