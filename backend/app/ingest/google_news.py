@@ -92,7 +92,10 @@ class GoogleNewsAdapter(SourceAdapter):
                     "ceid": self._ceid,
                 }
                 try:
-                    resp = client.get(GOOGLE_NEWS_RSS_URL, params=params)
+                    # Google News 302s hl=es to hl=es-419; follow it.
+                    resp = client.get(
+                        GOOGLE_NEWS_RSS_URL, params=params, follow_redirects=True
+                    )
                     resp.raise_for_status()
                     items = parse_google_rss(resp.text, keyword)
                 except httpx.HTTPError as exc:

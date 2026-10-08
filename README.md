@@ -42,8 +42,45 @@ pytest
     backend/app/config.py     pydantic-settings configuration (env-driven)
     backend/app/db.py         SQLAlchemy engine + session factory
     backend/app/models/       domain model: clients, keywords, mentions, alert_settings
-    backend/app/ingest/       source adapters (RSS, GDELT, X provider) — upcoming
+    backend/app/ingest/       source adapters: base, google_news, gdelt, twitter_x,
+                              matching (ES+EN regex), pipeline, rate_limit
+    backend/app/sentiment/    SentimentAnalyzer interface + Laya engine + keyword baseline
     backend/app/api/          REST API routers — upcoming
     backend/app/alerts/       email alert engine — upcoming
-    backend/app/worker.py     ingest worker entrypoint (placeholder loop)
+    backend/app/worker.py     APScheduler ingest loop (INGEST_INTERVAL_MIN)
+    backend/scripts/          eval_sentiment.py + eval_mentions_es.jsonl (50 hand-labeled)
     backend/migrations/       Alembic migrations
+
+## Sentiment
+
+Sentiment runs in the ingest pipeline right after keyword matching and fills
+`mentions.sentiment` / `sentiment_score`. The engine is
+[Laya](https://huggingface.co/convaiinnovations/laya) (Apache-2.0,
+self-hosted typed-decision encoder, `pip install laya==0.3.4`), invoked
+through its `choice` primitive with positive/neutral/negative options.
+pysentimiento is intentionally NOT used (its Spanish model trains on the
+TASS dataset, non-commercial license).
+
+- The model (~421M params, multilingual checkpoint) downloads lazily on
+  first analyze; tests always use a mock analyzer.
+- `KeywordBaselineAnalyzer` is a trivial word-list fallback (ES+EN,
+  accent-insensitive) kept so the pipeline stays testable without the model.
+
+Evaluate the engine against 50 hand-labeled Mexican-Spanish mentions
+(14 positive / 16 negative / 15 neutral / 5 sarcastic):
+
+```bash
+.venv/bin/python backend/scripts/eval_sentiment.py             # real Laya model
+.venv/bin/python backend/scripts/eval_sentiment.py --baseline  # word-list floor
+```
+
+Latest results: Laya 82% accuracy (sarcasm subset 3/5) vs baseline 42%.
+
+## X/Twitter provider
+
+Ingest via a twitterapi.io-compatible provider (`X_PROVIDER_BASE_URL` is
+configurable). Each search request is rate-limited client-side
+(`X_PROVIDER_RATE_PER_MIN`, token bucket) and logged as one structured JSON
+line with estimated cost at $0.15 per 1,000 tweets. With
+`X_PROVIDER_API_KEY` unset the adapter is skipped and the worker logs it
+once — everything else keeps running.
