@@ -1,10 +1,14 @@
 """Ingest package: source adapters that poll providers and insert mentions.
 
-Planned adapters (implemented by ingest writers):
-- google_news.py — Google News RSS poll
-- gdelt.py       — GDELT 2.0 doc API poll
-- twitter_x.py   — X/Twitter third-party provider poll
+Adapters (transport only, no DB):
+- base.py        — SourceAdapter contract + RawMention dataclass
+- google_news.py — Google News RSS poll (free)
+- gdelt.py       — GDELT 2.0 doc API poll (free)
+- twitter_x.py   — X/Twitter third-party provider poll (paid, pluggable)
+- matching.py    — accent/case-insensitive keyword matching engine (ES+EN)
+- pipeline.py    — fetch -> match -> sentiment -> dedupe insert orchestration
 
-Every adapter MUST insert mentions scoped to a client_id and dedupe on
-mentions.url_hash. Polling cadence comes from INGEST_INTERVAL_MIN.
+Every adapter returns RawMention values; persistence goes exclusively
+through app.models.queries.insert_mention (url_hash dedupe, client scoping).
+Polling cadence comes from INGEST_INTERVAL_MIN (app.worker).
 """

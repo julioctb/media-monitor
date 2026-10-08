@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>BUAP - Google News</title>
+    <link>https://news.google.com/search?q=BUAP&amp;hl=es&amp;gl=MX&amp;ceid=MX:es</link>
+    <description>Google Noticias</description>
+    <item>
+      <title>La BUAP anunció nuevos laboratorios</title>
+      <link>https://news.google.com/rss/articles/CBMiKGFhMXNkcW5fQnVhcF9sYWJvcmF0b3Jpb3NfMjAyNg?oc=5</link>
+      <guid isPermaLink="false">CBMiKGFhMXNkcW5fQnVhcF9sYWJvcmF0b3Jpb3NfMjAyNg</guid>
+      <pubDate>Thu, 08 Oct 2026 12:00:00 GMT</pubDate>
+      <source url="https://www.e-consulta.com">e-Consulta</source>
+    </item>
+    <item>
+      <title>Estudiantes de la BUAP ganan concurso nacional de robótica</title>
+      <link>https://news.google.com/rss/articles/CBMiQ2h0dHBzXHJvYm90aWNhX25hY2lvbmFsX2J1YXBfMjAyNg?oc=5</link>
+      <guid isPermaLink="false">CBMiQ2h0dHBzXHJvYm90aWNhX25hY2lvbmFsX2J1YXBfMjAyNg</guid>
+      <pubDate>Thu, 08 Oct 2026 09:30:00 GMT</pubDate>
+      <source url="https://www.milenio.com">Milenio</source>
+    </item>
+    <item>
+      <title>Convenio BUAP-empresa impulsará la investigación en Puebla</title>
+      <link>https://news.google.com/rss/articles/CBMiU2NvbnZlbmlvX2J1YXBfZW1wcmVzYV9pbnZlc3RpZ2FjaW9u?oc=5</link>
+      <guid isPermaLink="false">CBMiU2NvbnZlbmlvX2J1YXBfZW1wcmVzYV9pbnZlc3RpZ2FjaW9u</guid>
+      <pubDate>Wed, 07 Oct 2026 18:45:00 GMT</pubDate>
+      <source url="https://www.elsoldepuebla.com.mx">El Sol de Puebla</source>
+    </item>
+  </channel>
+</rss>

@@ -1,0 +1,26 @@
+{
+  "articles": [
+    {
+      "url": "https://www.e-consulta.com/nota/2026-10-08/buap-convenio",
+      "url_mobile": "",
+      "title": "BUAP firma convenio internacional",
+      "seendate": "20261008T103000Z",
+      "socialimage": "https://www.e-consulta.com/img/2026/10/buap.jpg",
+      "domain": "e-consulta.com",
+      "language": "Spanish",
+      "sourcecountry": "Mexico",
+      "snippet": "La Benemérita Universidad Autónoma de Puebla firmó un convenio de colaboración con universidades de Canadá para movilidad estudiantil."
+    },
+    {
+      "url": "https://www.radioformula.com.mx/nota/2026-10-08/buap-investigacion",
+      "url_mobile": "",
+      "title": "Investigadores de la BUAP desarrollan prototipo de panel solar",
+      "seendate": "20261008T091500Z",
+      "socialimage": "",
+      "domain": "radioformula.com.mx",
+      "language": "Spanish",
+      "sourcecountry": "Mexico",
+      "snippet": "El equipo de la Facultad de Ingeniería de la BUAP presentó un prototipo de panel solar de bajo costo."
+    }
+  ]
+}
