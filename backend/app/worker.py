@@ -16,12 +16,13 @@ from datetime import datetime, timezone
 from apscheduler.schedulers.blocking import BlockingScheduler
 from sqlalchemy.orm import Session
 
+from app.alerts.engine import run_alert_cycle, run_digest
 from app.config import settings
 from app.db import SessionLocal
 from app.ingest.gdelt import GdeltAdapter
 from app.ingest.google_news import GoogleNewsAdapter
 from app.ingest.pipeline import run_ingest_cycle
-from app.models import queries
+from app.models import AlertDigest, queries
 
 log = logging.getLogger("worker")
 
@@ -54,29 +55,47 @@ def get_sentiment_analyzer():
 
 
 def ingest_job() -> dict[str, int]:
-    """One ingest cycle for the default client. Returns per-adapter counts."""
+    """One ingest cycle for the default client, then the alert hook.
+
+    Returns per-adapter inserted counts. The alert pass (instant email or
+    digest pending-marker) is best-effort: it must never fail the cycle.
+    """
+    cycle_started = datetime.now(tz=timezone.utc)
     adapters = build_adapters()
     analyzer = get_sentiment_analyzer()
     session: Session = SessionLocal()
     try:
         client = queries.get_or_create_client(session, "default")
         keywords = list(queries.list_keywords(session, client.id))
-        return run_ingest_cycle(
+        counts = run_ingest_cycle(
             session,
             client_id=client.id,
             keywords=keywords,
             adapters=adapters,
             sentiment_analyzer=analyzer,
         )
+        try:
+            run_alert_cycle(session, cycle_started_at=cycle_started, client_id=client.id)
+        except Exception:  # noqa: BLE001 - alerts are best-effort by design
+            log.exception("alert cycle failed")
+        return counts
     finally:
         session.close()
 
 
-def main() -> None:
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)s %(name)s %(message)s",
-    )
+DIGEST_TIMEZONE = "America/Mexico_City"  # client requirement: 08:00 local
+
+
+def _daily_digest_job() -> None:
+    run_digest(AlertDigest.daily)
+
+
+def _weekly_digest_job() -> None:
+    run_digest(AlertDigest.weekly)
+
+
+def build_scheduler() -> BlockingScheduler:
+    """Ingest interval job plus the two digest cron jobs (08:00 CDMX)."""
     scheduler = BlockingScheduler(timezone="UTC")
     scheduler.add_job(
         ingest_job,
@@ -87,15 +106,45 @@ def main() -> None:
         coalesce=True,
         next_run_time=datetime.now(tz=timezone.utc),
     )
+    scheduler.add_job(
+        _daily_digest_job,
+        "cron",
+        hour=8,
+        minute=0,
+        timezone=DIGEST_TIMEZONE,
+        id="alerts_daily",
+        max_instances=1,
+        coalesce=True,
+    )
+    scheduler.add_job(
+        _weekly_digest_job,
+        "cron",
+        day_of_week="mon",
+        hour=8,
+        minute=0,
+        timezone=DIGEST_TIMEZONE,
+        id="alerts_weekly",
+        max_instances=1,
+        coalesce=True,
+    )
+    return scheduler
+
+
+def main() -> None:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s %(message)s",
+    )
+    scheduler = build_scheduler()
     log.info(
-        "ingest worker started (interval=%s min, adapters=%s)",
+        "worker scheduled (jobs=%s, ingest_interval=%s min)",
+        [job.id for job in scheduler.get_jobs()],
         settings.ingest_interval_min,
-        [a.name for a in build_adapters()],
     )
     try:
         scheduler.start()
     except (KeyboardInterrupt, SystemExit):
-        log.info("ingest worker stopped")
+        log.info("worker stopped")
 
 
 if __name__ == "__main__":

@@ -1,6 +1,8 @@
 """AlertSettings: per-client email alert configuration."""
 
-from sqlalchemy import Boolean, Enum, ForeignKey, String
+from datetime import datetime
+
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import AlertChannel, AlertDigest, Base, IntPk
@@ -32,6 +34,15 @@ class AlertSettings(IntPk, Base):
     )
     recipient_email: Mapped[str] = mapped_column(String(320), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+    # Alert-engine bookkeeping: watermark of the last digest send and, for
+    # digest cadences, when un-notified mentions first appeared.
+    last_digest_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    digest_pending_since: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     client = relationship("Client", back_populates="alert_settings")
 
