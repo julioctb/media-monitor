@@ -19,6 +19,10 @@ class Settings(BaseSettings):
     # Postgres (plain postgres:// URLs are normalized in app.db)
     database_url: str = "postgresql+psycopg://media:media@localhost:5432/mediamonitor"
 
+    # Client scope for the API and workers (single-tenant MVP; the initial
+    # migration seeds client id=1 'default')
+    default_client_id: int = 1
+
     # X/Twitter third-party provider (twitterapi.io-compatible)
     x_provider_api_key: str = ""
     x_provider_base_url: str = "https://api.twitterapi.io"
