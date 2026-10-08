@@ -1,8 +1,13 @@
 """Application configuration via environment variables (pydantic-settings)."""
 
+import json
 from functools import lru_cache
+from typing import Annotated
 
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field, field_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
+
+from app.ingest.facebook_page import FB_GRAPH_API_VERSION, FacebookPageCredentials
 
 
 class Settings(BaseSettings):
@@ -29,6 +34,15 @@ class Settings(BaseSettings):
     # Client-side rate limit for the X provider (requests per minute)
     x_provider_rate_per_min: float = 10.0
 
+    # Facebook Pages via Graph API: JSON list of {"page_id", "token",
+    # "label"} with one page access token per page. Empty/unset disables
+    # the adapter.
+    fb_pages: Annotated[list[FacebookPageCredentials], NoDecode] = Field(
+        default_factory=list
+    )
+    # Pinned latest stable Graph API version (see app.ingest.facebook_page).
+    fb_graph_api_version: str = FB_GRAPH_API_VERSION
+
     # SMTP for alert emails
     smtp_host: str = ""
     smtp_port: int = 587
@@ -38,6 +52,21 @@ class Settings(BaseSettings):
 
     # Ingest polling interval in minutes
     ingest_interval_min: int = 15
+
+    @field_validator("fb_pages", mode="before")
+    @classmethod
+    def _parse_fb_pages(cls, value: object) -> object:
+        """Accept a JSON array; an empty env value means disabled.
+
+        NoDecode keeps the raw string away from pydantic-settings' own
+        JSON decoding, which would choke on '' (the usual `FB_PAGES=`
+        line in .env files).
+        """
+        if value is None or (isinstance(value, str) and not value.strip()):
+            return []
+        if isinstance(value, str):
+            return json.loads(value)
+        return value
 
 
 @lru_cache

@@ -2,12 +2,14 @@
 
 Every INGEST_INTERVAL_MIN minutes, for the configured client:
   1. load active keywords (client-scoped),
-  2. run every enabled adapter (Google News RSS, GDELT, X provider),
+  2. run every enabled adapter (Google News RSS, GDELT, Facebook Pages,
+     X provider),
   3. persist mentions (dedupe on url_hash) with sentiment scoring.
 
-The X provider adapter is skipped (with a single log line) when
-X_PROVIDER_API_KEY is unset. Sentiment runs lazily: the analyzer model is
-loaded on first use, and unit tests inject a mock analyzer.
+The Facebook Pages and X provider adapters are skipped (one log line
+each) when FB_PAGES / X_PROVIDER_API_KEY are unset. Sentiment runs
+lazily: the analyzer model is loaded on first use, and unit tests inject
+a mock analyzer.
 """
 
 import logging
@@ -30,6 +32,19 @@ log = logging.getLogger("worker")
 def build_adapters() -> list:
     """Enabled source adapters based on current settings."""
     adapters: list = [GoogleNewsAdapter(), GdeltAdapter()]
+    if settings.fb_pages:
+        # Imported lazily so the module (and its httpx client wiring) only
+        # loads when a page is actually configured.
+        from app.ingest.facebook_page import FacebookPageAdapter
+
+        adapters.append(
+            FacebookPageAdapter(
+                pages=settings.fb_pages,
+                graph_version=settings.fb_graph_api_version,
+            )
+        )
+    else:
+        log.info("Facebook Pages disabled: FB_PAGES not set")
     if not settings.x_provider_api_key:
         log.info("X provider disabled: X_PROVIDER_API_KEY not set")
         return adapters
