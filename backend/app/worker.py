@@ -36,7 +36,13 @@ def build_adapters() -> list:
     # when the provider is actually configured.
     from app.ingest.twitter_x import TwitterApiIoProvider
 
-    adapters.append(TwitterApiIoProvider(api_key=settings.x_provider_api_key))
+    adapters.append(
+        TwitterApiIoProvider(
+            api_key=settings.x_provider_api_key,
+            base_url=settings.x_provider_base_url,
+            rate_per_minute=settings.x_provider_rate_per_min,
+        )
+    )
     return adapters
 
 

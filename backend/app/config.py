@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     # X/Twitter third-party provider (twitterapi.io-compatible)
     x_provider_api_key: str = ""
     x_provider_base_url: str = "https://api.twitterapi.io"
+    # Client-side rate limit for the X provider (requests per minute)
+    x_provider_rate_per_min: float = 10.0
 
     # SMTP for alert emails
     smtp_host: str = ""

@@ -1,0 +1,36 @@
+{
+  "tweets": [
+    {
+      "id": "1844000000000000001",
+      "text": "La BUAP anunció becas nuevas para ingeniería, excelente noticia para los estudiantes 🎉",
+      "url": "https://x.com/reportebuap/status/1844000000000000001",
+      "createdAt": "2026-10-08T14:20:00.000Z",
+      "lang": "es",
+      "likeCount": 40,
+      "retweetCount": 5,
+      "author": {
+        "id": "1000001",
+        "userName": "reportebuap",
+        "name": "Reporte BUAP",
+        "followers": 5200
+      }
+    },
+    {
+      "id": "1844000000000000002",
+      "text": "Otra vez el transporte de la BUAP tarde, una hora esperando el camión. Insoportable.",
+      "url": "https://x.com/estudiante_pue/status/1844000000000000002",
+      "createdAt": "2026-10-08T13:05:00.000Z",
+      "lang": "es",
+      "likeCount": 12,
+      "retweetCount": 3,
+      "author": {
+        "id": "1000002",
+        "userName": "estudiante_pue",
+        "name": "Estudiante Puebla",
+        "followers": 340
+      }
+    }
+  ],
+  "cursor": "next-cursor-token",
+  "hasNext": true
+}
