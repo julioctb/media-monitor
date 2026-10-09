@@ -131,6 +131,80 @@ export interface StatsOverview {
 	daily_volume: DailyVolumePoint[];
 }
 
+/* --------------------------------- settings -------------------------------- */
+
+export type AiProvider = 'local' | 'openai';
+
+/** One monitored Facebook page (mirrors FacebookPageCredentials). */
+export interface FacebookPage {
+	page_id: string;
+	token: string;
+	label: string;
+}
+
+export interface ClientSettings {
+	id: number;
+	client_id: number;
+	client_name: string;
+	timezone: string;
+	retention_days: number;
+	gdelt_enabled: boolean;
+	facebook_pages: FacebookPage[];
+	rss_feeds: string[];
+	ai_provider: AiProvider;
+	ai_api_key: string | null;
+	ai_base_url: string | null;
+	ai_model: string | null;
+	ai_fallback_local: boolean;
+	/** ISO datetime of the last update. */
+	updated_at: string;
+}
+
+/** Partial update: absent keys keep the stored value, empty strings clear optionals. */
+export interface ClientSettingsInput {
+	client_name?: string;
+	timezone?: string;
+	retention_days?: number;
+	gdelt_enabled?: boolean;
+	facebook_pages?: FacebookPage[];
+	rss_feeds?: string[];
+	ai_provider?: AiProvider;
+	ai_api_key?: string | null;
+	ai_base_url?: string | null;
+	ai_model?: string | null;
+	ai_fallback_local?: boolean;
+}
+
+/** Result of POST /api/settings/test-facebook (always answers, ok flags success). */
+export interface FacebookProbeResult {
+	ok: boolean;
+	error: string | null;
+	name: string | null;
+	link: string | null;
+}
+
+/** Result of POST /api/settings/test-ai (always answers, ok flags success). */
+export interface AiProbeResult {
+	ok: boolean;
+	engine: string;
+	model: string | null;
+	latency_ms: number | null;
+	label: string | null;
+	error: string | null;
+}
+
+export interface FacebookProbeInput {
+	page_id: string;
+	token: string;
+}
+
+export interface AiProbeInput {
+	provider: AiProvider;
+	api_key?: string | null;
+	base_url?: string | null;
+	model?: string | null;
+}
+
 /* --------------------------------- plumbing -------------------------------- */
 
 export type FetchLike = typeof fetch;
@@ -266,4 +340,28 @@ export function updateAlertSettings(
 	options: RequestOptions = {}
 ): Promise<AlertSettings> {
 	return request<AlertSettings>('/api/alerts/settings', jsonInit('PUT', input), options);
+}
+
+/* --------------------------------- settings -------------------------------- */
+
+export function getClientSettings(options: RequestOptions = {}): Promise<ClientSettings> {
+	return request<ClientSettings>('/api/settings', { method: 'GET' }, options);
+}
+
+export function updateClientSettings(
+	input: ClientSettingsInput,
+	options: RequestOptions = {}
+): Promise<ClientSettings> {
+	return request<ClientSettings>('/api/settings', jsonInit('PUT', input), options);
+}
+
+export function testFacebookPage(
+	input: FacebookProbeInput,
+	options: RequestOptions = {}
+): Promise<FacebookProbeResult> {
+	return request<FacebookProbeResult>('/api/settings/test-facebook', jsonInit('POST', input), options);
+}
+
+export function testAi(input: AiProbeInput, options: RequestOptions = {}): Promise<AiProbeResult> {
+	return request<AiProbeResult>('/api/settings/test-ai', jsonInit('POST', input), options);
 }

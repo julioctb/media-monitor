@@ -9,7 +9,8 @@
 		{ href: '/', label: 'Feed' },
 		{ href: '/stats', label: 'Estadísticas' },
 		{ href: '/keywords', label: 'Palabras clave' },
-		{ href: '/alerts', label: 'Alertas' }
+		{ href: '/alerts', label: 'Alertas' },
+		{ href: '/settings', label: 'Configuración' }
 	];
 
 	function isActive(href: string): boolean {

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ApiError, createKeyword, deleteKeyword, listMentions } from './api';
+import { ApiError, createKeyword, deleteKeyword, getClientSettings, listMentions, testAi, testFacebookPage, updateClientSettings } from './api';
 
 function jsonResponse(status: number, body: unknown): Response {
 	return new Response(JSON.stringify(body), {
@@ -143,5 +143,110 @@ describe('api client', () => {
 
 		const [url] = fetchMock.mock.calls[0] as unknown as [string];
 		expect(url).toBe('http://api:8000/api/mentions');
+	});
+
+	it('GETs the client settings row', async () => {
+		const fetchMock = stubFetch(async () => jsonResponse(200, { id: 1, client_name: 'Grupo' }));
+
+		const settings = await getClientSettings();
+
+		const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+		expect(url).toBe('http://localhost:8000/api/settings');
+		expect(init?.method).toBe('GET');
+		expect(settings).toEqual({ id: 1, client_name: 'Grupo' });
+	});
+
+	it('PUTs the settings payload to /api/settings', async () => {
+		const savedRow = {
+			id: 1,
+			client_id: 1,
+			client_name: 'Grupo Julio',
+			timezone: 'America/Monterrey',
+			retention_days: 30,
+			gdelt_enabled: false,
+			facebook_pages: [],
+			rss_feeds: ['https://ejemplo.com/feed.xml'],
+			ai_provider: 'openai',
+			ai_api_key: 'sk-test',
+			ai_base_url: 'https://api.openai.com/v1',
+			ai_model: 'gpt-4o-mini',
+			ai_fallback_local: true,
+			updated_at: '2026-10-09T00:00:00Z'
+		};
+		const fetchMock = stubFetch(async () => jsonResponse(200, savedRow));
+
+		const saved = await updateClientSettings({
+			client_name: 'Grupo Julio',
+			timezone: 'America/Monterrey',
+			retention_days: 30,
+			gdelt_enabled: false,
+			facebook_pages: [],
+			rss_feeds: ['https://ejemplo.com/feed.xml'],
+			ai_provider: 'openai',
+			ai_api_key: 'sk-test',
+			ai_base_url: 'https://api.openai.com/v1',
+			ai_model: 'gpt-4o-mini',
+			ai_fallback_local: true
+		});
+
+		expect(saved).toEqual(savedRow);
+		const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+		expect(url).toBe('http://localhost:8000/api/settings');
+		expect(init?.method).toBe('PUT');
+		expect(init?.headers).toMatchObject({ 'content-type': 'application/json' });
+		expect(JSON.parse(String(init?.body))).toEqual({
+			client_name: 'Grupo Julio',
+			timezone: 'America/Monterrey',
+			retention_days: 30,
+			gdelt_enabled: false,
+			facebook_pages: [],
+			rss_feeds: ['https://ejemplo.com/feed.xml'],
+			ai_provider: 'openai',
+			ai_api_key: 'sk-test',
+			ai_base_url: 'https://api.openai.com/v1',
+			ai_model: 'gpt-4o-mini',
+			ai_fallback_local: true
+		});
+	});
+
+	it('probes a facebook page token via the settings endpoint', async () => {
+		const fetchMock = stubFetch(async () =>
+			jsonResponse(200, { ok: true, error: null, name: 'Mi página', link: 'https://fb/mi-pagina' })
+		);
+
+		const probe = await testFacebookPage({ page_id: '123', token: 'EAAG...' });
+
+		expect(probe.ok).toBe(true);
+		expect(probe.name).toBe('Mi página');
+		const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+		expect(url).toBe('http://localhost:8000/api/settings/test-facebook');
+		expect(init?.method).toBe('POST');
+		expect(JSON.parse(String(init?.body))).toEqual({ page_id: '123', token: 'EAAG...' });
+	});
+
+	it('probes the ai provider with the selected engine', async () => {
+		const fetchMock = stubFetch(async () =>
+			jsonResponse(200, {
+				ok: false,
+				engine: 'openai',
+				model: 'gpt-4o-mini',
+				latency_ms: null,
+				label: null,
+				error: 'api_key is required for the openai provider'
+			})
+		);
+
+		const probe = await testAi({ provider: 'openai', api_key: null, model: 'gpt-4o-mini' });
+
+		expect(probe.ok).toBe(false);
+		expect(probe.error).toContain('api_key is required');
+		const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+		expect(url).toBe('http://localhost:8000/api/settings/test-ai');
+		expect(init?.method).toBe('POST');
+		expect(JSON.parse(String(init?.body))).toEqual({
+			provider: 'openai',
+			api_key: null,
+			model: 'gpt-4o-mini'
+		});
 	});
 });
