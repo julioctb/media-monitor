@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { formatScore, formatUtcDateTime, sentimentBadgeClass, sourceLabel } from '$lib/format';
+	import { formatDisplayDateTime, formatScore, sentimentBadgeClass, sourceLabel } from '$lib/format';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -214,7 +214,7 @@
 						</span>
 					{/if}
 					<span class="ml-auto text-xs text-slate-400">
-						{formatUtcDateTime(mention.published_at ?? mention.ingested_at)}
+						{formatDisplayDateTime(mention.published_at ?? mention.ingested_at)}
 						{mention.published_at ? '' : '(ingresado)'}
 					</span>
 				</div>

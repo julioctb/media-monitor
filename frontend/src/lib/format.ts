@@ -1,7 +1,7 @@
 /**
- * Presentation helpers. Datetimes are always rendered in UTC, matching the
- * API contract; source labels are derived generically because the source set
- * is open (the backend adds e.g. facebook_page without UI changes).
+ * Presentation helpers. Datetimes render in the client display timezone
+ * (America/Mexico_City); source labels are derived generically because the
+ * source set is open (the backend adds e.g. facebook_page without UI changes).
  */
 
 /** Friendly names for known tags; unknown tags fall through to generic casing. */
@@ -48,15 +48,33 @@ export function sentimentBadgeClass(value: string | null): string {
 
 const PAD = (value: number) => String(value).padStart(2, '0');
 
-/** UTC `YYYY-MM-DD HH:MM`; the raw string when unparseable, '—' when absent. */
-export function formatUtcDateTime(value: string | null | undefined): string {
+/**
+ * Display timezone: client headquarters (America/Mexico_City, UTC-6 all
+ * year — Mexico abolished DST in 2022). When multi-timezone clients land,
+ * thread settings.timezone through the layout load instead.
+ */
+export const DISPLAY_TIMEZONE = 'America/Mexico_City';
+
+const mexicoFormatter = new Intl.DateTimeFormat('es-MX', {
+	timeZone: DISPLAY_TIMEZONE,
+	day: '2-digit',
+	month: '2-digit',
+	year: 'numeric',
+	hour: '2-digit',
+	minute: '2-digit',
+	hour12: false
+});
+
+/** `dd/mm/aaaa HH:MM` in Mexico City time; raw string when unparseable, '—' when absent. */
+export function formatDisplayDateTime(value: string | null | undefined): string {
 	if (!value) return '—';
 	const date = new Date(value);
 	if (Number.isNaN(date.getTime())) return value;
-	return (
-		`${date.getUTCFullYear()}-${PAD(date.getUTCMonth() + 1)}-${PAD(date.getUTCDate())}` +
-		` ${PAD(date.getUTCHours())}:${PAD(date.getUTCMinutes())} UTC`
-	);
+	const parts = mexicoFormatter.formatToParts(date).reduce<Record<string, string>>((acc, part) => {
+		acc[part.type] = part.value;
+		return acc;
+	}, {});
+	return `${parts.day}/${parts.month}/${parts.year} ${parts.hour}:${parts.minute}`;
 }
 
 const dayFormatter = new Intl.DateTimeFormat('es', { day: 'numeric', month: 'short', timeZone: 'UTC' });

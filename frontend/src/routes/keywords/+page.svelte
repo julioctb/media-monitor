@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { formatUtcDateTime } from '$lib/format';
+	import { formatDisplayDateTime } from '$lib/format';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
@@ -82,7 +82,7 @@
 						{/if}
 					</div>
 					<p class="mt-0.5 text-xs text-slate-400">
-						Creada {formatUtcDateTime(keyword.created_at)}
+						Creada {formatDisplayDateTime(keyword.created_at)}
 					</p>
 				</div>
 
