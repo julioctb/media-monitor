@@ -12,6 +12,7 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from sqlalchemy import (
     BigInteger,
+    CheckConstraint,
     DateTime,
     Enum,
     Float,
@@ -60,6 +61,13 @@ class Mention(IntPk, Base):
     __table_args__ = (
         Index("ix_mentions_client_published", "client_id", "published_at"),
         Index("ix_mentions_client_source", "client_id", "source"),
+        # Source domain incl. rss_custom; mirrored by migration 0002
+        # (ck_mentions_source). SQLite has no native enums, so the CHECK is
+        # the only enforcement there.
+        CheckConstraint(
+            "source IN ('news_rss', 'gdelt', 'x_twitter', 'facebook_page', 'rss_custom')",
+            name="ck_mentions_source",
+        ),
     )
 
     client_id: Mapped[int] = mapped_column(

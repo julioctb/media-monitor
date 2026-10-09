@@ -47,6 +47,8 @@ SOURCE_LABELS = {
     MentionSource.news_rss: "Noticias RSS",
     MentionSource.gdelt: "GDELT",
     MentionSource.x_twitter: "X (Twitter)",
+    MentionSource.facebook_page: "Facebook",
+    MentionSource.rss_custom: "RSS",
 }
 SENTIMENT_LABELS = {
     Sentiment.positive: "Positiva",

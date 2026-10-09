@@ -12,6 +12,7 @@ from app.models.base import (
 from app.models.client import Client
 from app.models.keyword import Keyword
 from app.models.mention import Mention, make_url_hash, normalize_url
+from app.models.settings import ClientSettings
 from app.models import queries
 
 __all__ = [
@@ -20,6 +21,7 @@ __all__ = [
     "AlertSettings",
     "Base",
     "Client",
+    "ClientSettings",
     "Keyword",
     "Mention",
     "MentionSource",

@@ -416,8 +416,8 @@ def test_worker_ingest_job_triggers_alerts_best_effort(monkeypatch, session) -> 
 
     monkeypatch.setattr(worker, "run_alert_cycle", loud_failure)
     monkeypatch.setattr(worker, "run_ingest_cycle", lambda *a, **k: {"google_news": 2})
-    monkeypatch.setattr(worker, "build_adapters", lambda: [])
-    monkeypatch.setattr(worker, "get_sentiment_analyzer", lambda: None)
+    monkeypatch.setattr(worker, "build_adapters", lambda effective: [])
+    monkeypatch.setattr(worker, "cycle_sentiment_analyzer", lambda client_id: None)
     monkeypatch.setattr(worker, "SessionLocal", lambda: session)
 
     counts = worker.ingest_job()
@@ -434,7 +434,7 @@ def test_worker_schedules_digest_crons() -> None:
 
     scheduler = worker.build_scheduler()  # not started
     jobs = {job.id: job for job in scheduler.get_jobs()}
-    assert {"ingest_cycle", "alerts_daily", "alerts_weekly"} <= set(jobs)
+    assert {"ingest_cycle", "alerts_daily", "alerts_weekly", "retention_purge"} <= set(jobs)
 
     now = datetime(2026, 10, 8, 12, 0, tzinfo=timezone.utc)  # Thursday midday UTC
     daily = jobs["alerts_daily"].trigger.get_next_fire_time(None, now)

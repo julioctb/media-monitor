@@ -28,6 +28,7 @@ class MentionSource(str, enum.Enum):
     gdelt = "gdelt"
     x_twitter = "x_twitter"
     facebook_page = "facebook_page"
+    rss_custom = "rss_custom"
 
 
 class Sentiment(str, enum.Enum):
