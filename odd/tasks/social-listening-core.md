@@ -40,8 +40,8 @@ Slack/Teams transports, Reddit/forums/Twitch sources, BYOC.
 - [x] **T2** Spike detection: pure `detect_spike(buckets, baseline_window, threshold) -> SpikeEvent|None`; hourly buckets per saved search over trailing 14d baseline, z >= 2.5 default; `spike_events` migration; worker pass `spike_scan_job` on the APScheduler. Tests: math (spike/no-spike/empty/short-history) + job integration with sqlite.
 - [x] **T3** AI spike summary: on new spike_event, top-N mentions of the spike window → provider prompt → summary stored on the event; dedupe (one summary per event); provider failure → event stays summary-less. Tests with mocked provider.
 - [x] **T4** Sentiment-shift rule in alert engine: per saved search, positive/negative share window vs previous window; threshold configurable in alert settings; reuses transport. Tests: shift fires / no-shift silent / disabled silent.
-- [ ] **T5** Frontend: `saved-searches` page (CRUD), spike markers + summary card on stats/dashboard; settings hook for shift threshold. Build passes; verify built CSS is served (rendered page → css asset → non-trivial bytes). No screenshots.
-- [ ] **T6** Full verification pass + close-out summary (commands + observed results).
+- [x] **T5** Frontend: `saved-searches` page (CRUD), spike markers + summary card on stats/dashboard; settings hook for shift threshold. Build passes; verify built CSS is served (rendered page → css asset → non-trivial bytes). No screenshots.
+- [x] **T6** Full verification pass + close-out summary (commands + observed results).
 
 ## Verification (writer runs, reports `<command>: <result>` per task and at close)
 
@@ -53,3 +53,4 @@ Slack/Teams transports, Reddit/forums/Twitch sources, BYOC.
 ## Progress log
 
 - 2026-10-09: branch `feat/social-listening-core` created from main; pre-existing WIP checkpointed as `ac3f7cb` (classifier/label mention filters — preserved, not part of this feature's tasks but T1 builds on its `_mention_filters` signature).
+- 2026-10-09: T1–T5 implemented and verified (writer run). Interpreter: repo-root `.venv` (`/Users/julioctb/Desktop/Proyectos/media-monitor/.venv/bin/python`), `python -m pytest backend/tests` → 186 passed. `svelte-check` 0 errors; `vite build` ok; adapter-node preview rendered `/`, `/saved-searches`, `/stats`, `/alerts` all HTTP 200 referencing `_app/immutable/assets/0.*.css` (21,121 bytes). Migrations 0004–0006 render clean offline PG upgrade+downgrade SQL and apply online on sqlite. DOM overflow spot-check on `/saved-searches`: 0 elements with `scrollWidth > clientWidth`, 0 page-level horizontal overflow at 1280 and 390. Known pre-existing wart (not this feature): migration 0001 creates `id BIGINT` PKs, which on sqlite are not rowid aliases, so sqlite-runtime inserts without explicit id fail (alert_settings PUT smoke); models' `BigIntPk` variant and PG are unaffected.
