@@ -52,6 +52,10 @@ services:
       dockerfile: backend/Dockerfile
     command: ["python", "-m", "app.worker"]
     environment: *backend-env
+    volumes:
+      # Persist the HuggingFace cache: the Laya sentiment model (~300MB)
+      # must survive container recreation, else every up --build re-downloads.
+      - hfcache:/root/.cache/huggingface
     depends_on:
       db:
         condition: service_healthy
@@ -78,3 +82,4 @@ services:
 
 volumes:
   pgdata:
+  hfcache:
