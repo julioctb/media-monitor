@@ -76,6 +76,33 @@
 			/>
 			Activar alertas
 		</label>
+
+		<div class="rounded-lg border border-slate-200 bg-slate-50/60 p-3">
+			<p class="text-xs font-medium text-slate-500">Sentiment shift alert (saved searches)</p>
+			<label class="mt-2 flex items-center gap-2 text-sm text-slate-700">
+				<input
+					type="checkbox"
+					name="sentiment_shift_enabled"
+					value="1"
+					checked={current.sentiment_shift_enabled}
+					class="size-4 rounded border-slate-300 text-slate-900 focus:ring-slate-300"
+				/>
+				Notify when the positive/negative balance swings
+			</label>
+			<label for="a-shift-threshold" class="mt-2 block text-xs font-medium text-slate-500">
+				Threshold in percentage points
+			</label>
+			<input
+				id="a-shift-threshold"
+				name="sentiment_shift_threshold"
+				type="number"
+				min="1"
+				max="100"
+				step="0.5"
+				value={current.sentiment_shift_threshold}
+				class="mt-1 w-32 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
+			/>
+		</div>
 	</div>
 
 	<button

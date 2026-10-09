@@ -8,6 +8,7 @@
 	const navItems = [
 		{ href: '/', label: 'Feed' },
 		{ href: '/stats', label: 'Estadísticas' },
+		{ href: '/saved-searches', label: 'Saved searches' },
 		{ href: '/keywords', label: 'Palabras clave' },
 		{ href: '/alerts', label: 'Alertas' },
 		{ href: '/settings', label: 'Configuración' }

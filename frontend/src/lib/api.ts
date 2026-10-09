@@ -116,6 +116,9 @@ export interface AlertSettings {
 	digest: AlertDigest;
 	recipient_email: string | null;
 	is_active: boolean;
+	/** Sentiment-shift rule (T4): net share swing gate, in points. */
+	sentiment_shift_enabled: boolean;
+	sentiment_shift_threshold: number;
 }
 
 export interface AlertSettingsInput {
@@ -123,6 +126,9 @@ export interface AlertSettingsInput {
 	/** The API requires a valid address on every PUT. */
 	recipient_email: string;
 	is_active: boolean;
+	/** Absent keys keep the stored values. */
+	sentiment_shift_enabled?: boolean;
+	sentiment_shift_threshold?: number;
 }
 
 export interface DailyVolumePoint {
@@ -387,4 +393,93 @@ export function testFacebookPage(
 
 export function testAi(input: AiProbeInput, options: RequestOptions = {}): Promise<AiProbeResult> {
 	return request<AiProbeResult>('/api/settings/test-ai', jsonInit('POST', input), options);
+}
+
+/* ----------------------------- saved searches ----------------------------- */
+
+/** One persisted monitoring query (social-listening core). */
+export interface SavedSearch {
+	id: number;
+	client_id: number;
+	name: string;
+	/** Case-insensitive substring probe over title/content. */
+	query: string;
+	/** Empty array = every source. */
+	sources: string[];
+	classifier: string | null;
+	label: string | null;
+	range_days: number;
+	is_active: boolean;
+	created_at: string;
+}
+
+export interface SavedSearchInput {
+	name: string;
+	query: string;
+	sources?: string[];
+	classifier?: string | null;
+	label?: string | null;
+	range_days?: number;
+	is_active?: boolean;
+}
+
+export interface SavedSearchPatch {
+	name?: string;
+	query?: string;
+	sources?: string[];
+	classifier?: string | null;
+	label?: string | null;
+	range_days?: number;
+	is_active?: boolean;
+}
+
+export interface SpikeEvent {
+	id: number;
+	saved_search_id: number;
+	saved_search_name: string;
+	window_start: string;
+	window_end: string;
+	count: number;
+	zscore: number;
+	summary: string | null;
+	summary_created_at: string | null;
+}
+
+export function listSavedSearches(options: RequestOptions = {}): Promise<SavedSearch[]> {
+	return request<SavedSearch[]>('/api/clients/1/saved-searches', { method: 'GET' }, options);
+}
+
+export function createSavedSearch(
+	input: SavedSearchInput,
+	options: RequestOptions = {}
+): Promise<SavedSearch> {
+	return request<SavedSearch>(
+		'/api/clients/1/saved-searches',
+		jsonInit('POST', input),
+		options
+	);
+}
+
+export function updateSavedSearch(
+	id: number,
+	patch: SavedSearchPatch,
+	options: RequestOptions = {}
+): Promise<SavedSearch> {
+	return request<SavedSearch>(
+		`/api/clients/1/saved-searches/${id}`,
+		jsonInit('PATCH', patch),
+		options
+	);
+}
+
+export async function deleteSavedSearch(id: number, options: RequestOptions = {}): Promise<void> {
+	await request<void>(`/api/clients/1/saved-searches/${id}`, { method: 'DELETE' }, options);
+}
+
+export function listSpikes(
+	query: { days?: number; limit?: number } = {},
+	options: RequestOptions = {}
+): Promise<SpikeEvent[]> {
+	const qs = buildQuery({ days: query.days, limit: query.limit });
+	return request<SpikeEvent[]>(`/api/clients/1/spikes${qs}`, { method: 'GET' }, options);
 }

@@ -216,3 +216,17 @@ class SavedSearchPatch(BaseModel):
     label: str | None = Field(default=None, max_length=32)
     range_days: int | None = Field(default=None, ge=1, le=365)
     is_active: bool | None = None
+
+
+class SpikeOut(BaseModel):
+    """One spike event for the dashboard timeline."""
+
+    id: int
+    saved_search_id: int
+    saved_search_name: str
+    window_start: datetime
+    window_end: datetime
+    count: int
+    zscore: float
+    summary: str | None
+    summary_created_at: datetime | None

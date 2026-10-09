@@ -1,6 +1,12 @@
 <script lang="ts">
 	import Chart from 'chart.js/auto';
-	import { classificationLabel, formatDayLabel, sentimentLabel, sourceLabel } from '$lib/format';
+	import {
+		classificationLabel,
+		formatDayLabel,
+		formatDisplayDateTime,
+		sentimentLabel,
+		sourceLabel
+	} from '$lib/format';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -39,6 +45,11 @@
 	);
 	const maxSourceCount = $derived(Math.max(1, ...sourceRows.map((row) => row.count)));
 
+	// Spike markers (social-listening core): UTC day strings with >= 1 event.
+	const spikeDays = $derived(new Set(data.spikes.map((spike) => spike.window_start.slice(0, 10))));
+	const SPIKE_BAR = 'rgba(217, 119, 6, 0.9)';
+	const BASE_BAR = 'rgba(2, 132, 199, 0.75)';
+
 	const kpis = $derived([
 		{ label: 'Total de menciones', value: data.stats.total },
 		{ label: 'Últimas 24 horas', value: data.stats.last_24h },
@@ -73,8 +84,13 @@
 					{
 						label: 'Menciones',
 						data: data.stats.daily_volume.map((point) => point.count),
-						backgroundColor: 'rgba(2, 132, 199, 0.75)',
-						hoverBackgroundColor: 'rgba(2, 132, 199, 1)',
+						// Amber bars mark days with a detected spike.
+						backgroundColor: data.stats.daily_volume.map((point) =>
+							spikeDays.has(point.date) ? SPIKE_BAR : BASE_BAR
+						),
+						hoverBackgroundColor: data.stats.daily_volume.map((point) =>
+							spikeDays.has(point.date) ? '#b45309' : 'rgba(2, 132, 199, 1)'
+						),
 						borderRadius: 4,
 						maxBarThickness: 28
 					}
@@ -182,6 +198,10 @@
 		<div class="relative mt-4 h-72" role="img" aria-label="Volumen diario de menciones">
 			<canvas bind:this={volumeCanvas}></canvas>
 		</div>
+		<p class="mt-2 flex items-center gap-1.5 text-xs text-slate-400">
+			<span class="inline-block size-2 rounded-sm" style={`background: ${SPIKE_BAR}`}></span>
+			día con pico detectado (saved searches)
+		</p>
 	</section>
 
 	<section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -191,6 +211,32 @@
 		</div>
 	</section>
 </div>
+
+<section class="mt-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+	<h2 class="text-sm font-semibold text-slate-700">Spikes (últimos 30 días)</h2>
+	{#if data.spikes.length === 0}
+		<p class="mt-3 text-sm text-slate-500">
+			Sin picos detectados: aparecen cuando una búsqueda guardada supera su baseline.
+		</p>
+	{:else}
+		<ul class="mt-4 space-y-3">
+			{#each data.spikes as spike (spike.id)}
+				<li class="rounded-lg border border-amber-200 bg-amber-50/60 p-3">
+					<div class="flex flex-wrap items-baseline justify-between gap-2">
+						<p class="text-sm font-medium text-slate-800">{spike.saved_search_name}</p>
+						<p class="text-xs tabular-nums text-slate-500">
+							{formatDisplayDateTime(spike.window_start)} · {spike.count} menciones · z =
+							{spike.zscore.toFixed(1)}
+						</p>
+					</div>
+					<p class="mt-1 text-sm text-slate-600">
+						{spike.summary ?? 'Resumen pendiente (sin proveedor de IA configurado o fallo transitorio).'}
+					</p>
+				</li>
+			{/each}
+		</ul>
+	{/if}
+</section>
 
 <section class="mt-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
 	<div class="flex flex-wrap items-baseline justify-between gap-2">
