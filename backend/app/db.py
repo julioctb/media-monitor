@@ -9,11 +9,23 @@ from app.config import settings
 
 
 def normalize_database_url(url: str) -> str:
-    """Map bare postgres:// URLs onto the psycopg driver dialect."""
+    """Map bare postgres:// URLs onto the psycopg driver dialect and heal
+    common sqlite shorthand to parseable forms.
+
+    sqlite:./rel  -> sqlite:///rel    (relative path)
+    sqlite:/abs   -> sqlite:////abs   (absolute path, slash kept)
+    """
     if url.startswith("postgresql://"):
         return url.replace("postgresql://", "postgresql+psycopg://", 1)
     if url.startswith("postgres://"):
         return url.replace("postgres://", "postgresql+psycopg://", 1)
+    # sqlite:./x is the intuitive-but-invalid relative form.
+    if url.startswith("sqlite:./"):
+        return "sqlite:///" + url[len("sqlite:./") :]
+    # sqlite:/x (single slash) is the intuitive absolute form; keep the
+    # leading slash so the result has four slashes total.
+    if url.startswith("sqlite:/") and not url.startswith("sqlite://"):
+        return "sqlite:////" + url[len("sqlite:/") :]
     return url
 
 

@@ -66,6 +66,26 @@ curl -X POST localhost:8000/api/keywords -H 'Content-Type: application/json' \
 # per-adapter fetched/inserted counts and the alert pass
 ```
 
+## Local development (no Docker)
+
+```bash
+# 1. schema (the single migration is cross-db: sqlite + postgres)
+DATABASE_URL=sqlite:///dev.db PYTHONPATH=backend .venv/bin/alembic \
+  -c backend/alembic.ini upgrade head
+
+# 2. API with hot reload
+DATABASE_URL=sqlite:///dev.db PYTHONPATH=backend .venv/bin/python \
+  -m uvicorn app.main:app --reload --port 8000
+
+# 3. dashboard
+cd frontend && npm run dev    # API_BASE_URL=http://localhost:8000
+```
+
+Canonical sqlite URLs are `sqlite:///relative` and `sqlite:////absolute`;
+common shorthand (`sqlite:./x`, `sqlite:/x`) is healed by
+`normalize_database_url`. The test suites build the schema via
+`create_all` and never touch alembic.
+
 ## Configuration
 
 All variables live in `.env` (see `.env.example`). Backend variables are read
