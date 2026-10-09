@@ -1,7 +1,15 @@
-"""initial domain model: clients, keywords, mentions, alert_settings
+"""initial domain schema (cross-db: sqlite + postgres)
 
-Creates the full domain schema with native Postgres enums and indexes, and
-seeds the default client (id=1, name='default').
+Creates the full domain schema in a dialect-agnostic way and seeds the
+default client (id=1, name='default').
+
+Enums are declared with native_enum=False so they render as VARCHAR plus a
+CHECK constraint on BOTH sqlite and postgres. Timestamps use CURRENT_TIMESTAMP,
+accepted by both backends. The postgres-only sequence sync after the seed is
+guarded by dialect.
+
+Squashes the former 0001/0002/0003 chain (pre-production; no deployed
+databases existed).
 
 Revision ID: 0001
 Revises:
@@ -13,37 +21,44 @@ from typing import Sequence, Union
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy.dialects import postgresql
 
 revision: str = "0001"
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
-mention_source_enum = postgresql.ENUM(
-    "news_rss", "gdelt", "x_twitter", name="mention_source", create_type=False
+# VARCHAR + CHECK on every backend: portable and enforceable.
+mention_source_enum = sa.Enum(
+    "news_rss",
+    "gdelt",
+    "x_twitter",
+    "facebook_page",
+    name="mention_source",
+    native_enum=False,
+    length=32,
 )
-sentiment_enum = postgresql.ENUM(
-    "positive", "negative", "neutral", name="sentiment", create_type=False
+sentiment_enum = sa.Enum(
+    "positive",
+    "negative",
+    "neutral",
+    name="sentiment",
+    native_enum=False,
+    length=16,
 )
-alert_channel_enum = postgresql.ENUM(
-    "email", name="alert_channel", create_type=False
+alert_channel_enum = sa.Enum(
+    "email", name="alert_channel", native_enum=False, length=16
 )
-alert_digest_enum = postgresql.ENUM(
-    "instant", "daily", "weekly", name="alert_digest", create_type=False
+alert_digest_enum = sa.Enum(
+    "instant",
+    "daily",
+    "weekly",
+    name="alert_digest",
+    native_enum=False,
+    length=16,
 )
 
 
 def upgrade() -> None:
-    # Enum types must exist before the tables reference them.
-    for enum_ddl in (
-        "CREATE TYPE mention_source AS ENUM ('news_rss', 'gdelt', 'x_twitter')",
-        "CREATE TYPE sentiment AS ENUM ('positive', 'negative', 'neutral')",
-        "CREATE TYPE alert_channel AS ENUM ('email')",
-        "CREATE TYPE alert_digest AS ENUM ('instant', 'daily', 'weekly')",
-    ):
-        op.execute(enum_ddl)
-
     op.create_table(
         "clients",
         sa.Column("id", sa.BigInteger(), autoincrement=True, nullable=False),
@@ -51,7 +66,7 @@ def upgrade() -> None:
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
-            server_default=sa.text("now()"),
+            server_default=sa.text("CURRENT_TIMESTAMP"),
             nullable=False,
         ),
         sa.PrimaryKeyConstraint("id"),
@@ -73,7 +88,7 @@ def upgrade() -> None:
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
-            server_default=sa.text("now()"),
+            server_default=sa.text("CURRENT_TIMESTAMP"),
             nullable=False,
         ),
         sa.PrimaryKeyConstraint("id"),
@@ -107,13 +122,13 @@ def upgrade() -> None:
         sa.Column(
             "ingested_at",
             sa.DateTime(timezone=True),
-            server_default=sa.text("now()"),
+            server_default=sa.text("CURRENT_TIMESTAMP"),
             nullable=False,
         ),
         sa.Column("sentiment", sentiment_enum, nullable=True),
         sa.Column("sentiment_score", sa.Float(), nullable=True),
         sa.Column("reach", sa.BigInteger(), nullable=True),
-        sa.Column("raw", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.Column("raw", sa.JSON(), nullable=True),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("url_hash", name="uq_mentions_url_hash"),
     )
@@ -138,15 +153,19 @@ def upgrade() -> None:
         sa.Column("digest", alert_digest_enum, nullable=False),
         sa.Column("recipient_email", sa.String(length=320), nullable=False),
         sa.Column("is_active", sa.Boolean(), nullable=False),
+        sa.Column("last_digest_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("digest_pending_since", sa.DateTime(timezone=True), nullable=True),
         sa.PrimaryKeyConstraint("id"),
     )
 
     # Seed the default tenant.
     op.execute("INSERT INTO clients (id, name) VALUES (1, 'default')")
-    # Keep the id sequence in sync with the explicit seed insert.
-    op.execute(
-        "SELECT setval(pg_get_serial_sequence('clients', 'id'), 1, true)"
-    )
+    # Postgres-only: keep the identity sequence in sync with the explicit
+    # seed insert. SQLite rowids self-adjust.
+    if op.get_bind().dialect.name == "postgresql":
+        op.execute(
+            "SELECT setval(pg_get_serial_sequence('clients', 'id'), 1, true)"
+        )
 
 
 def downgrade() -> None:
@@ -157,5 +176,3 @@ def downgrade() -> None:
     op.drop_table("mentions")
     op.drop_table("keywords")
     op.drop_table("clients")
-    for type_name in ("alert_digest", "alert_channel", "sentiment", "mention_source"):
-        op.execute(f"DROP TYPE IF EXISTS {type_name}")
