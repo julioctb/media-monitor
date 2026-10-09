@@ -9,7 +9,7 @@ import re
 import unicodedata
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import delete, func, or_, select
@@ -20,6 +20,7 @@ from app.models import (
     AlertSettings,
     Client,
     ClientSettings,
+    DailySummary,
     Keyword,
     Mention,
     MentionClassification,
@@ -782,3 +783,70 @@ def get_saved_search(
             SavedSearch.id == saved_search_id, SavedSearch.client_id == client_id
         )
     )
+
+
+# ------------------------------------------------------------- daily summaries
+
+
+def get_daily_summary(
+    session: Session, client_id: int, day: date
+) -> DailySummary | None:
+    """The stored summary for one client-day, else None."""
+    return session.scalar(
+        select(DailySummary).where(
+            DailySummary.client_id == client_id, DailySummary.summary_date == day
+        )
+    )
+
+
+def list_daily_summaries(session: Session, client_id: int) -> Sequence[DailySummary]:
+    """All stored summaries for one client, newest day first."""
+    stmt = (
+        select(DailySummary)
+        .where(DailySummary.client_id == client_id)
+        .order_by(DailySummary.summary_date.desc())
+    )
+    return session.scalars(stmt).all()
+
+
+def upsert_daily_summary(
+    session: Session,
+    *,
+    client_id: int,
+    day: date,
+    content: dict,
+    narrative: str,
+    mode: str,
+) -> DailySummary:
+    """Insert or overwrite the single summary row for (client, day).
+
+    Regeneration is the documented contract (POST /summaries/generate and
+    the nightly job share it), so an existing row gets its fields replaced
+    and ``updated_at`` bumped. A concurrent insert losing the race is
+    resolved by re-reading and updating instead of raising.
+    """
+    row = get_daily_summary(session, client_id, day)
+    if row is None:
+        row = DailySummary(
+            client_id=client_id,
+            summary_date=day,
+            content=content,
+            narrative=narrative,
+            mode=mode,
+        )
+        session.add(row)
+        try:
+            session.commit()
+        except IntegrityError:
+            # Concurrent build inserted first: fold into the stored row.
+            session.rollback()
+            row = get_daily_summary(session, client_id, day)
+            if row is None:  # pragma: no cover - row deleted mid-race
+                raise
+    if row.content != content or row.narrative != narrative or row.mode != mode:
+        row.content = content
+        row.narrative = narrative
+        row.mode = mode
+        row.updated_at = datetime.now(tz=timezone.utc)
+        session.commit()
+    return row

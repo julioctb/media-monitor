@@ -11,6 +11,7 @@ from app.models.base import (
 )
 from app.models.classification import MentionClassification
 from app.models.client import Client
+from app.models.daily_summary import DailySummary
 from app.models.keyword import Keyword
 from app.models.mention import Mention, make_url_hash, normalize_url
 from app.models.saved_search import SavedSearch
@@ -25,6 +26,7 @@ __all__ = [
     "Base",
     "Client",
     "ClientSettings",
+    "DailySummary",
     "Keyword",
     "Mention",
     "MentionClassification",
