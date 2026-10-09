@@ -22,27 +22,30 @@ MODEL_ID = "convaiinnovations/laya"
 SUBFOLDER = "multilingual"
 
 _SENTIMENT_QUESTION = {
-    "sentiment": {
-        "type": "choice",
-        "instructions": (
-            "What is the sentiment towards the brand or topic that the text mentions? "
-            "¿Cuál es el sentimiento hacia la marca o tema que menciona el texto?"
-        ),
-        "criteria": {
-            "positive": (
-                "Praise, satisfaction, approval, good news / "
-                "elogio, satisfacción, aprobación, buenas noticias"
-            ),
-            "neutral": (
-                "Factual reporting, no clear opinion / "
-                "reporte factual, sin opinión clara"
-            ),
-            "negative": (
-                "Complaint, criticism, anger, bad news / "
-                "queja, crítica, enojo, malas noticias"
-            ),
-        },
-    }
+	"sentiment": {
+		"type": "choice",
+		"instructions": (
+			"What is the sentiment towards the brand or topic that the text mentions? "
+			"Judge the SUBJECT, not the event itself. "
+			"Evalúa al sujeto, no el evento."
+		),
+		"criteria": {
+			"positive": (
+				"Praise, achievements, or news favorable to the subject / "
+				"elogio, logros o noticia favorable al sujeto"
+			),
+			"neutral": (
+				"Factual reporting, no clear opinion about the subject "
+				"(adverse events told neutrally count) / reporte factual sin "
+				"opinión sobre el sujeto (eventos adversos neutrales cuentan)"
+			),
+			"negative": (
+				"Criticism of the subject: complaints, scandals, reputational "
+				"damage / crítica al sujeto: quejas, escándalos, daño "
+				"reputacional"
+			),
+		},
+	}
 }
 
 _LABEL_TO_SENTIMENT = {
