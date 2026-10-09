@@ -147,4 +147,9 @@ Deploy: Docker Compose (api, worker, db, dashboard) on a VPS
   app review for third-party FB pages (client paperwork).
 - 2026-10-08: fix(migrations) 65b1087: squash to single cross-db revision
   (native_enum=False, JSON, CURRENT_TIMESTAMP, PG setval guarded) after
-  user hit sqlite alembic failure in dev; 132 tests re-verified.
+      user hit sqlite alembic failure in dev; 132 tests re-verified.
+- 2026-10-09: T9 settings panel DONE. Backend 1e81739 (migration 0002, runtime
+  resolver, provider factory local/openai + fallback, retention purge, test
+  endpoints), frontend f6a34ba (/settings 3 sections + validators). Purge
+  test boundary fixed; 141 tests green; live roundtrip + SSR verified.
+  Pending: load real FB token + AI key via the panel.
