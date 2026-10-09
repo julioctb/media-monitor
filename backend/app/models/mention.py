@@ -7,7 +7,7 @@ so client scoping and url_hash computation stay consistent.
 
 import hashlib
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from sqlalchemy import (
@@ -27,6 +27,9 @@ from sqlalchemy.types import JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, IntPk, MentionSource, Sentiment
+
+if TYPE_CHECKING:
+    from app.models.classification import MentionClassification
 
 # JSON on SQLite (tests), JSONB on PostgreSQL (production).
 JsonType = JSON().with_variant(JSONB(), "postgresql")
@@ -113,6 +116,12 @@ class Mention(IntPk, Base):
 
     client = relationship("Client", back_populates="mentions")
     keyword = relationship("Keyword", back_populates="mentions")
+    classifications: Mapped[list["MentionClassification"]] = relationship(
+        "MentionClassification",
+        back_populates="mention",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
 
     def __repr__(self) -> str:
         return f"<Mention id={self.id} client_id={self.client_id} source={self.source}>"

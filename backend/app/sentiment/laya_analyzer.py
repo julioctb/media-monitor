@@ -10,6 +10,7 @@ module never downloads anything.
 """
 
 import logging
+import threading
 
 from app.ingest.matching import fold_text
 from app.models.base import Sentiment
@@ -55,6 +56,33 @@ _LABEL_TO_SENTIMENT = {
 }
 
 
+class LayaRuntime:
+    """Process-wide holder of the single Laya agent.
+
+    Sentiment and the classifiers share ONE model load: the agent is
+    created on first use and reused by every caller (double-checked lock
+    for the worker thread plus ad-hoc scripts).
+    """
+
+    _agent = None
+    _lock = threading.Lock()
+
+    @classmethod
+    def agent(cls):
+        if cls._agent is None:
+            with cls._lock:
+                if cls._agent is None:
+                    import laya  # heavy: torch + transformers + weights download
+
+                    log.info("loading laya model %s [%s] (first use)", MODEL_ID, SUBFOLDER)
+                    cls._agent = laya.load(MODEL_ID, subfolder=SUBFOLDER)
+        return cls._agent
+
+    @classmethod
+    def loaded(cls) -> bool:
+        return cls._agent is not None
+
+
 class LayaAnalyzer(SentimentAnalyzer):
     """Sentiment via Laya's choice primitive; lazy single model load."""
 
@@ -70,10 +98,7 @@ class LayaAnalyzer(SentimentAnalyzer):
 
     def _ensure_agent(self):
         if self._agent is None:
-            import laya  # heavy: torch + transformers + weights download
-
-            log.info("loading laya model %s [%s] (first use)", MODEL_ID, SUBFOLDER)
-            self._agent = laya.load(MODEL_ID, subfolder=SUBFOLDER)
+            self._agent = LayaRuntime.agent()
             self._loaded = True
         return self._agent
 

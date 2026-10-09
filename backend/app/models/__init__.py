@@ -9,6 +9,7 @@ from app.models.base import (
     MentionSource,
     Sentiment,
 )
+from app.models.classification import MentionClassification
 from app.models.client import Client
 from app.models.keyword import Keyword
 from app.models.mention import Mention, make_url_hash, normalize_url
@@ -24,6 +25,7 @@ __all__ = [
     "ClientSettings",
     "Keyword",
     "Mention",
+    "MentionClassification",
     "MentionSource",
     "Sentiment",
     "make_url_hash",

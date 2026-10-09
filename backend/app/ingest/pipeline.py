@@ -8,10 +8,11 @@ in exactly one place.
 """
 
 import logging
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 
 from sqlalchemy.orm import Session
 
+from app.classifications.base import Classifier
 from app.ingest.base import RawMention, SourceAdapter
 from app.ingest.matching import find_matching_keyword, fold_text
 from app.models import Keyword, MentionSource, queries
@@ -25,6 +26,44 @@ def _text_of(item: RawMention) -> str:
     return "\n".join(p for p in parts if p)
 
 
+def _classify_mention(
+    session: Session,
+    *,
+    mention_id: int,
+    text: str,
+    lang: str,
+    classifiers: Sequence[Classifier],
+) -> int:
+    """Run every classifier over the text; store what succeeds.
+
+    A classifier failure only skips its own rows (mention stays insertable
+    and the remaining classifiers still run); rows land only via commit.
+    Returns the number of classifiers that produced a row.
+    """
+    if not text.strip():
+        return 0
+    stored = 0
+    for classifier in classifiers:
+        try:
+            result = classifier.classify(text, lang=lang)
+        except Exception as exc:  # noqa: BLE001 - one classifier must not block the rest
+            log.warning(
+                "classifier %s failed for mention %s: %s", classifier.name, mention_id, exc
+            )
+            continue
+        queries.upsert_classification(
+            session,
+            mention_id=mention_id,
+            classifier=classifier.name,
+            label=result.label,
+            score=result.score,
+        )
+        stored += 1
+    if stored:
+        session.commit()
+    return stored
+
+
 def persist_raw_mentions(
     session: Session,
     *,
@@ -33,6 +72,7 @@ def persist_raw_mentions(
     keyword_by_text: Mapping[str, Keyword],
     all_keyword_texts: list[str],
     sentiment_analyzer=None,
+    classifiers: Sequence[Classifier] | None = None,
 ) -> int:
     """Validate, score and insert raw mentions; returns inserted count.
 
@@ -43,6 +83,8 @@ def persist_raw_mentions(
     - Sentiment is scored once per inserted mention when an analyzer is
       provided; failures never block the insert (sentiment stays NULL and
       can be backfilled).
+    - Registry classifiers run after sentiment, same failure isolation:
+      a broken classifier leaves no rows instead of dropping the mention.
     """
     inserted = 0
     active_texts = set(all_keyword_texts)
@@ -87,6 +129,14 @@ def persist_raw_mentions(
                 created.sentiment = sentiment
                 created.sentiment_score = sentiment_score
                 session.commit()
+            if classifiers:
+                _classify_mention(
+                    session,
+                    mention_id=created.id,
+                    text=text,
+                    lang=item.lang or "es",
+                    classifiers=classifiers,
+                )
             inserted += 1
     return inserted
 
@@ -98,6 +148,7 @@ def run_ingest_cycle(
     keywords: list[Keyword],
     adapters: list[SourceAdapter],
     sentiment_analyzer=None,
+    classifiers: Sequence[Classifier] | None = None,
 ) -> dict[str, int]:
     """Run every adapter for the client's keywords and persist results.
 
@@ -125,6 +176,7 @@ def run_ingest_cycle(
             keyword_by_text=keyword_by_text,
             all_keyword_texts=texts,
             sentiment_analyzer=sentiment_analyzer,
+            classifiers=classifiers,
         )
         stats[adapter.name] = inserted
         log.info(

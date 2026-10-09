@@ -12,7 +12,7 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy import delete, func, or_, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.models import (
     AlertSettings,
@@ -20,6 +20,7 @@ from app.models import (
     ClientSettings,
     Keyword,
     Mention,
+    MentionClassification,
     MentionSource,
     Sentiment,
 )
@@ -60,6 +61,8 @@ def _mention_filters(
     until: datetime | None = None,
     q: str | None = None,
     ingested_since: datetime | None = None,
+    classifier: str | None = None,
+    label: str | None = None,
 ):
     """Single WHERE builder for every mention read: client scope first, then
     the optional filters shared by list/count/aggregation helpers."""
@@ -78,6 +81,21 @@ def _mention_filters(
         stmt = stmt.where(Mention.published_at <= until)
     if ingested_since is not None:
         stmt = stmt.where(Mention.ingested_at >= ingested_since)
+    if classifier is not None or label is not None:
+        # Correlated EXISTS: mention carries a row for this classifier
+        # (and label when given). Unique(mention, classifier) keeps it cheap.
+        classification_probe = select(MentionClassification.id).where(
+            MentionClassification.mention_id == Mention.id
+        )
+        if classifier is not None:
+            classification_probe = classification_probe.where(
+                MentionClassification.classifier == classifier
+            )
+        if label is not None:
+            classification_probe = classification_probe.where(
+                MentionClassification.label == label
+            )
+        stmt = stmt.where(classification_probe.exists())
     if q and q.strip():
         pattern = f"%{q.strip()}%"
         stmt = stmt.where(
@@ -98,6 +116,8 @@ def list_mentions(
     until: datetime | None = None,
     q: str | None = None,
     ingested_since: datetime | None = None,
+    classifier: str | None = None,
+    label: str | None = None,
     limit: int = 100,
     offset: int = 0,
 ) -> Sequence[Mention]:
@@ -105,7 +125,8 @@ def list_mentions(
 
     sentiment filters on an exact value; sentiment_null selects rows without
     a classification yet; q is a case-insensitive substring match over
-    title/content; ingested_since filters on the ingest watermark.
+    title/content; ingested_since filters on the ingest watermark;
+    classifier/label require a matching mention_classifications row.
     """
     stmt = _mention_filters(
         select(Mention),
@@ -118,7 +139,12 @@ def list_mentions(
         until=until,
         q=q,
         ingested_since=ingested_since,
+        classifier=classifier,
+        label=label,
     )
+    # Eager-load classifications: the API serializes them on every row and
+    # selectinload keeps it at two queries regardless of page size.
+    stmt = stmt.options(selectinload(Mention.classifications))
     stmt = stmt.order_by(Mention.published_at.desc().nullslast()).limit(limit).offset(
         offset
     )
@@ -137,6 +163,8 @@ def count_mentions(
     until: datetime | None = None,
     q: str | None = None,
     ingested_since: datetime | None = None,
+    classifier: str | None = None,
+    label: str | None = None,
 ) -> int:
     """Count of mentions matching the exact same filters as list_mentions."""
     stmt = _mention_filters(
@@ -150,6 +178,8 @@ def count_mentions(
         until=until,
         q=q,
         ingested_since=ingested_since,
+        classifier=classifier,
+        label=label,
     )
     return session.scalar(stmt)
 
@@ -201,6 +231,79 @@ def published_dates(
         .order_by(Mention.published_at)
     )
     return list(session.scalars(stmt))
+
+
+# ------------------------------------------------------------ classifications
+
+
+def upsert_classification(
+    session: Session,
+    *,
+    mention_id: int,
+    classifier: str,
+    label: str,
+    score: float,
+) -> None:
+    """Store one classifier's label for a mention, replacing any old value.
+
+    Delete + insert scoped to (mention_id, classifier): other classifiers'
+    rows are untouched. Does not commit; the caller owns the transaction
+    boundary (pipeline commits per mention, backfill per batch).
+    """
+    session.execute(
+        delete(MentionClassification).where(
+            MentionClassification.mention_id == mention_id,
+            MentionClassification.classifier == classifier,
+        )
+    )
+    session.add(
+        MentionClassification(
+            mention_id=mention_id,
+            classifier=classifier,
+            label=label,
+            score=score,
+        )
+    )
+
+
+def classifications_by_mention(
+    session: Session,
+    mention_ids: Sequence[int],
+    *,
+    classifier: str | None = None,
+) -> dict[int, list[MentionClassification]]:
+    """Batch-load classifications grouped by mention id (no lazy N+1)."""
+    if not mention_ids:
+        return {}
+    stmt = select(MentionClassification).where(
+        MentionClassification.mention_id.in_(mention_ids)
+    )
+    if classifier is not None:
+        stmt = stmt.where(MentionClassification.classifier == classifier)
+    grouped: dict[int, list[MentionClassification]] = {}
+    for row in session.scalars(stmt):
+        grouped.setdefault(row.mention_id, []).append(row)
+    return grouped
+
+
+def classification_breakdown(
+    session: Session, *, client_id: int, classifier: str
+) -> dict[str, int]:
+    """label -> mention count for one classifier, client-scoped.
+
+    Labels absent from the result simply have no rows; callers zero-fill
+    if they need a stable key set.
+    """
+    stmt = (
+        select(MentionClassification.label, func.count())
+        .join(Mention, MentionClassification.mention_id == Mention.id)
+        .where(
+            Mention.client_id == client_id,
+            MentionClassification.classifier == classifier,
+        )
+        .group_by(MentionClassification.label)
+    )
+    return {label: count for label, count in session.execute(stmt).all()}
 
 
 def insert_mention(

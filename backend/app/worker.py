@@ -8,7 +8,8 @@ Every INGEST_INTERVAL_MIN minutes, for the configured client:
      Facebook Pages, X provider) — GDELT/pages/feeds per settings,
   4. persist mentions (dedupe on url_hash) with the cycle's sentiment
      analyzer (local Laya, or an OpenAI-compatible API with optional
-     local fallback),
+     local fallback), then run the classifier registry over each new
+     mention (political v1; classifier failures never block the row),
   5. hook the alert engine (best-effort), plus the daily retention purge
      and the digest jobs scheduled in the configured timezone.
 
@@ -25,6 +26,7 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 from sqlalchemy.orm import Session
 
 from app.alerts.engine import run_alert_cycle, run_digest
+from app.classifications import build_classifiers
 from app.config import settings
 from app.db import SessionLocal
 from app.ingest.gdelt import GdeltAdapter
@@ -122,6 +124,7 @@ def ingest_job() -> dict[str, int]:
         load_cycle_settings(session, client_id=client.id)
         adapters = build_adapters(get_effective_settings(client.id))
         analyzer = cycle_sentiment_analyzer(client.id)
+        classifiers = build_classifiers()
         keywords = list(queries.list_keywords(session, client.id))
         counts = run_ingest_cycle(
             session,
@@ -129,6 +132,7 @@ def ingest_job() -> dict[str, int]:
             keywords=keywords,
             adapters=adapters,
             sentiment_analyzer=analyzer,
+            classifiers=classifiers,
         )
         try:
             run_alert_cycle(session, cycle_started_at=cycle_started, client_id=client.id)
