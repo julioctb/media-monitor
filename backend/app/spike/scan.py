@@ -19,6 +19,7 @@ from app.spike.detect import (
     DEFAULT_THRESHOLD,
     detect_spike,
 )
+from app.spike.summary import summarize_spike
 
 log = logging.getLogger("spike.scan")
 
@@ -103,7 +104,17 @@ def run_spike_scan(
             session.rollback()
             continue
         if event is not None:
+            _attach_summary(session, event)
             events.append(event)
     if events:
         session.commit()
     return events
+
+
+def _attach_summary(session: Session, event) -> None:
+    """Best-effort AI summary (T3): failure leaves the event summary-less."""
+    try:
+        summarize_spike(session, event)
+    except Exception:  # noqa: BLE001 - summaries are enhancements
+        log.exception("spike summary pass failed for event")
+        session.rollback()
