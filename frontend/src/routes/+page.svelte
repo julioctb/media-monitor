@@ -214,63 +214,69 @@
 		<p class="mt-1 text-sm text-slate-500">Ajusta los filtros o espera la próxima ingesta.</p>
 	</div>
 {:else}
-	<ul class="mt-6 space-y-3">
-		{#each data.mentions.items as mention (mention.id)}
-			{@const political = mention.classifications?.find((c) => c.classifier === 'political')}
-			<li class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-				<div class="flex flex-wrap items-center gap-2">
-					<span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
-						{sourceLabel(mention.source)}
-					</span>
-					<span
-						class={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${sentimentBadgeClass(mention.sentiment)}`}
-					>
-						{mention.sentiment ? mention.sentiment : 'Sin clasificar'}
-					</span>
-					{#if political}
-						<span
-							class={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${classificationBadgeClass(political.label)}`}
-						>
-							{classificationLabel(political.label)}
-						</span>
-					{/if}
-					{#if mention.sentiment_score !== null}
-						<span class="text-xs text-slate-400">score {formatScore(mention.sentiment_score)}</span>
-					{/if}
-					{#if mention.keyword_id !== null && keywordNames.has(mention.keyword_id)}
-						<span class="text-xs text-slate-400">
-							· {keywordNames.get(mention.keyword_id)}
-						</span>
-					{/if}
-					<span class="ml-auto text-xs text-slate-400">
-						{formatDisplayDateTime(mention.published_at ?? mention.ingested_at)}
-						{mention.published_at ? '' : '(ingresado)'}
-					</span>
-				</div>
-
-				<a
-					href={mention.url}
-					target="_blank"
-					rel="noopener noreferrer"
-					class="mt-2 block text-sm font-semibold text-slate-900 hover:underline"
-				>
-					{mention.title ?? mention.url}
-				</a>
-
-				{#if mention.content}
-					<p class="mt-1 line-clamp-2 text-sm text-slate-600">{mention.content}</p>
-				{/if}
-
-				{#if mention.author || mention.lang}
-					<p class="mt-2 text-xs text-slate-400">
-						{#if mention.author}{mention.author}{/if}
-						{#if mention.author && mention.lang} · {/if}
-						{#if mention.lang}{mention.lang}{/if}
-					</p>
-				{/if}
-			</li>
-		{/each}
-	</ul>
+	<div class="mt-6 overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+		<table class="min-w-full text-sm">
+			<thead>
+				<tr class="border-b border-slate-200 bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+					<th class="px-3 py-2 font-medium">Fecha</th>
+					<th class="px-3 py-2 font-medium">Fuente</th>
+					<th class="px-3 py-2 font-medium">Palabra clave</th>
+					<th class="px-3 py-2 font-medium">Clasificación</th>
+					<th class="px-3 py-2 font-medium">Sentimiento</th>
+					<th class="px-3 py-2 font-medium">Título</th>
+				</tr>
+			</thead>
+			<tbody class="divide-y divide-slate-100">
+				{#each data.mentions.items as mention (mention.id)}
+					{@const political = mention.classifications?.find((c) => c.classifier === 'political')}
+					<tr class="hover:bg-slate-50">
+						<td class="whitespace-nowrap px-3 py-2 text-xs text-slate-500">
+							{formatDisplayDateTime(mention.published_at ?? mention.ingested_at)}{mention.published_at ? '' : '*'}
+						</td>
+						<td class="whitespace-nowrap px-3 py-2 text-xs text-slate-600">
+							{sourceLabel(mention.source)}
+						</td>
+						<td class="whitespace-nowrap px-3 py-2 text-xs text-slate-600">
+							{#if mention.keyword_id !== null && keywordNames.has(mention.keyword_id)}
+								{keywordNames.get(mention.keyword_id)}
+							{/if}
+						</td>
+						<td class="whitespace-nowrap px-3 py-2">
+							{#if political}
+								<span
+									class={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${classificationBadgeClass(political.label)}`}
+								>
+									{classificationLabel(political.label)}
+								</span>
+							{:else}
+								<span class="text-xs text-slate-300">—</span>
+							{/if}
+						</td>
+						<td class="whitespace-nowrap px-3 py-2">
+							<span
+								class={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${sentimentBadgeClass(mention.sentiment)}`}
+							>
+								{mention.sentiment ? mention.sentiment : 'Sin clasificar'}
+							</span>
+							{#if mention.sentiment_score !== null}
+								<span class="ml-1 text-xs text-slate-400">{formatScore(mention.sentiment_score)}</span>
+							{/if}
+						</td>
+						<td class="px-3 py-2">
+							<a
+								href={mention.url}
+								target="_blank"
+								rel="noopener noreferrer"
+								class="font-medium text-slate-900 hover:underline"
+							>
+								{mention.title ?? mention.url}
+							</a>
+						</td>
+					</tr>
+				{/each}
+			</tbody>
+		</table>
+	</div>
 
 	<nav class="mt-6 flex items-center justify-between" aria-label="Paginación">
 		<p class="text-xs text-slate-500">
