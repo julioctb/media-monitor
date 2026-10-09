@@ -25,7 +25,7 @@ from zoneinfo import ZoneInfo
 from apscheduler.schedulers.blocking import BlockingScheduler
 from sqlalchemy.orm import Session
 
-from app.alerts.engine import run_alert_cycle, run_digest
+from app.alerts.engine import check_sentiment_shift, run_alert_cycle, run_digest
 from app.classifications import build_classifiers
 from app.config import settings
 from app.db import SessionLocal
@@ -143,6 +143,12 @@ def ingest_job() -> dict[str, int]:
             run_alert_cycle(session, cycle_started_at=cycle_started, client_id=client.id)
         except Exception:  # noqa: BLE001 - alerts are best-effort by design
             log.exception("alert cycle failed")
+        try:
+            # T4 sentiment-shift rule; the watermark inside keeps this quiet
+            # to one send per window.
+            check_sentiment_shift(session, client_id=client.id, now=cycle_started)
+        except Exception:  # noqa: BLE001 - best-effort by design
+            log.exception("sentiment shift check failed")
         return counts
     finally:
         session.close()

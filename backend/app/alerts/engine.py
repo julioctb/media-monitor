@@ -234,3 +234,106 @@ def run_digest(
     finally:
         if owns_session:
             session.close()
+
+
+# ------------------------------------------------------- sentiment shift (T4)
+
+#: Comparison window: current vs the immediately preceding window.
+SHIFT_WINDOW = timedelta(hours=24)
+
+
+def _net_share(
+    session: Session,
+    client_id: int,
+    filters: dict,
+    *,
+    since: datetime,
+    until: datetime,
+) -> float | None:
+    """positive% - negative% over classified mentions, or None if none."""
+    counts = {
+        sentiment: queries.count_mentions(
+            session, client_id, sentiment=sentiment, since=since, until=until, **filters
+        )
+        for sentiment in Sentiment
+    }
+    classified = sum(counts.values())
+    if not classified:
+        return None
+    return 100.0 * (counts[Sentiment.positive] - counts[Sentiment.negative]) / classified
+
+
+def _shift_email(entries: list[tuple]) -> tuple[str, str]:
+    """Plain-text + HTML for the shift digest; user-facing copy in Spanish."""
+    text_lines = [
+        "Cambios relevantes de sentimiento en tus búsquedas guardadas:",
+    ]
+    html_parts = ["<p>Cambios relevantes de sentimiento en tus búsquedas guardadas:</p><ul>"]
+    for saved_search, previous, current, delta in entries:
+        line = (
+            f"{saved_search.name}: red {previous:+.0f}% → {current:+.0f} "
+            f"(variación {delta:+.1f} puntos)"
+        )
+        text_lines.append(f"- {line}")
+        html_parts.append(f"<li>{html.escape(line)}</li>")
+    html_parts.append("</ul>")
+    return "\n".join(text_lines), "".join(html_parts)
+
+
+def check_sentiment_shift(
+    session: Session,
+    *,
+    client_id: int,
+    now: datetime,
+    transport: AlertTransport | None = None,
+    window: timedelta = SHIFT_WINDOW,
+) -> int:
+    """Saved-search sentiment-shift rule; returns 1 when an email went out.
+
+    For every active saved search, the net share (positive% − negative%)
+    of the window ending `now` is compared against the previous window; a
+    swing >= the configured threshold (percentage points) for any search
+    sends ONE batched email. The watermark on the alert settings row keeps
+    the rule silent for one window after each send. Disabled
+    configuration, missing searches or unclassified-only windows stay
+    silent.
+    """
+    cfg = queries.get_active_alert_settings(session, client_id)
+    if cfg is None or not cfg.sentiment_shift_enabled:
+        return 0
+    if cfg.sentiment_shift_last_sent is not None and now - cfg.sentiment_shift_last_sent < window:
+        return 0
+    threshold = (
+        cfg.sentiment_shift_threshold
+        if cfg.sentiment_shift_threshold is not None
+        else AlertSettings.__table__.c.sentiment_shift_threshold.default.arg
+    )
+
+    entries: list[tuple] = []
+    for saved_search in queries.list_saved_searches(session, client_id, active_only=True):
+        filters = queries.saved_search_filters(saved_search)
+        current = _net_share(
+            session, client_id, filters, since=now - window, until=now
+        )
+        previous = _net_share(
+            session, client_id, filters, since=now - 2 * window, until=now - window
+        )
+        if current is None or previous is None:
+            continue
+        delta = current - previous
+        if abs(delta) >= threshold:
+            entries.append((saved_search, previous, current, delta))
+    if not entries:
+        return 0
+
+    subject = (
+        f"{settings.app_name} — Cambio de sentimiento: "
+        + ", ".join(saved_search.name for saved_search, _, _, _ in entries)
+    )
+    text, html_body = _shift_email(entries)
+    _send(cfg, subject, text, html_body, transport or SmtpTransport.from_settings())
+
+    cfg.sentiment_shift_last_sent = now
+    session.add(cfg)
+    session.commit()
+    return 1

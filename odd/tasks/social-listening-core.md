@@ -39,7 +39,7 @@ Slack/Teams transports, Reddit/forums/Twitch sources, BYOC.
 - [x] **T1** `SavedSearch` model + alembic migration + CRUD API (`/clients/{id}/saved-searches`), validation mirrors `_validate_*` helpers. Tests: CRUD + client scoping.
 - [x] **T2** Spike detection: pure `detect_spike(buckets, baseline_window, threshold) -> SpikeEvent|None`; hourly buckets per saved search over trailing 14d baseline, z >= 2.5 default; `spike_events` migration; worker pass `spike_scan_job` on the APScheduler. Tests: math (spike/no-spike/empty/short-history) + job integration with sqlite.
 - [x] **T3** AI spike summary: on new spike_event, top-N mentions of the spike window → provider prompt → summary stored on the event; dedupe (one summary per event); provider failure → event stays summary-less. Tests with mocked provider.
-- [ ] **T4** Sentiment-shift rule in alert engine: per saved search, positive/negative share window vs previous window; threshold configurable in alert settings; reuses transport. Tests: shift fires / no-shift silent / disabled silent.
+- [x] **T4** Sentiment-shift rule in alert engine: per saved search, positive/negative share window vs previous window; threshold configurable in alert settings; reuses transport. Tests: shift fires / no-shift silent / disabled silent.
 - [ ] **T5** Frontend: `saved-searches` page (CRUD), spike markers + summary card on stats/dashboard; settings hook for shift threshold. Build passes; verify built CSS is served (rendered page → css asset → non-trivial bytes). No screenshots.
 - [ ] **T6** Full verification pass + close-out summary (commands + observed results).
 

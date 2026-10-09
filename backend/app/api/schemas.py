@@ -90,12 +90,17 @@ class AlertSettingsOut(BaseModel):
     digest: AlertDigest
     recipient_email: str | None
     is_active: bool
+    sentiment_shift_enabled: bool = True
+    sentiment_shift_threshold: float = 10.0
 
 
 class AlertSettingsUpdate(BaseModel):
     digest: AlertDigest
     recipient_email: EmailStr
     is_active: bool = True
+    # T4 sentiment-shift rule; absent fields keep the stored values.
+    sentiment_shift_enabled: bool | None = None
+    sentiment_shift_threshold: float | None = Field(default=None, gt=0, le=100)
 
 
 class DailyVolume(BaseModel):

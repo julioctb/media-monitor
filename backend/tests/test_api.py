@@ -385,7 +385,13 @@ def test_stats_overview_empty(api) -> None:
 
 def test_alert_settings_defaults_when_missing(api) -> None:
     body = api.get("/api/alerts/settings").json()
-    assert body == {"digest": "instant", "recipient_email": None, "is_active": False}
+    assert body == {
+        "digest": "instant",
+        "recipient_email": None,
+        "is_active": False,
+        "sentiment_shift_enabled": True,
+        "sentiment_shift_threshold": 10.0,
+    }
 
 
 def test_alert_settings_upsert_and_get(api) -> None:
@@ -399,6 +405,8 @@ def test_alert_settings_upsert_and_get(api) -> None:
         "digest": "daily",
         "recipient_email": "alerts@acme.com",
         "is_active": True,
+        "sentiment_shift_enabled": True,
+        "sentiment_shift_threshold": 10.0,
     }
 
     updated = api.put(

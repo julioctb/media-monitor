@@ -2,10 +2,13 @@
 
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, String
+from sqlalchemy import Boolean, DateTime, Enum, Float, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import AlertChannel, AlertDigest, Base, IntPk
+
+#: Default net-share swing (percentage points) that fires the alert.
+DEFAULT_SHIFT_THRESHOLD = 10.0
 
 
 class AlertSettings(IntPk, Base):
@@ -41,6 +44,19 @@ class AlertSettings(IntPk, Base):
         DateTime(timezone=True), nullable=True
     )
     digest_pending_since: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    # T4 sentiment-shift rule: net (positive minus negative) share swing
+    # between consecutive windows, in percentage points.
+    sentiment_shift_enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default="1"
+    )
+    sentiment_shift_threshold: Mapped[float] = mapped_column(
+        # Numeric on PG via Float? kept Float for sqlite parity; see 0006.
+        Float, nullable=False, default=DEFAULT_SHIFT_THRESHOLD, server_default="10"
+    )
+    sentiment_shift_last_sent: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
 
