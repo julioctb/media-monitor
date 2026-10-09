@@ -55,6 +55,7 @@ def _mention_filters(
     *,
     client_id: int,
     source=None,
+    sources: Sequence[MentionSource | str] | None = None,
     sentiment=None,
     sentiment_null: bool = False,
     keyword_id: int | None = None,
@@ -70,6 +71,9 @@ def _mention_filters(
     stmt = stmt.where(Mention.client_id == client_id)
     if source is not None:
         stmt = stmt.where(Mention.source == source)
+    if sources:
+        # Multi-source saved searches; the values are tags, not enum members.
+        stmt = stmt.where(Mention.source.in_(sources))
     if sentiment is not None:
         stmt = stmt.where(Mention.sentiment == sentiment)
     if sentiment_null:
@@ -231,6 +235,32 @@ def published_dates(
         )
         .order_by(Mention.published_at)
     )
+    return list(session.scalars(stmt))
+
+
+def mention_timestamps(
+    session: Session,
+    client_id: int,
+    *,
+    since: datetime | None = None,
+    until: datetime | None = None,
+    **filters: object,
+) -> list[datetime]:
+    """Publication timestamps under the shared filters (client-side bucketing).
+
+    Used by the spike scan: hourly buckets are built in Python so no
+    dialect-specific date truncation leaks into the WHERE layer. Extra
+    kwargs forward to _mention_filters (source(s), q, classifier, ...).
+    Rows without publication date cannot sit in a time bucket and are
+    excluded here, not by the caller.
+    """
+    stmt = _mention_filters(
+        select(Mention.published_at),
+        client_id=client_id,
+        since=since,
+        until=until,
+        **filters,
+    ).where(Mention.published_at.is_not(None))
     return list(session.scalars(stmt))
 
 

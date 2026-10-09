@@ -40,6 +40,9 @@ class SavedSearch(IntPk, Base):
     )
 
     client = relationship("Client", back_populates="saved_searches")
+    spike_events = relationship(
+        "SpikeEvent", back_populates="saved_search", viewonly=True
+    )
 
     def __repr__(self) -> str:
         return (

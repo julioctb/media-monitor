@@ -40,6 +40,7 @@ from app.settings_runtime import (
     get_effective_settings,
     load_cycle_settings,
 )
+from app import spike
 
 log = logging.getLogger("worker")
 
@@ -49,6 +50,10 @@ DIGEST_TIMEZONE = DEFAULT_TIMEZONE
 
 #: Hour (local time) of the daily retention purge.
 RETENTION_PURGE_HOUR = 4
+
+#: Minute past the hour for the saved-search spike scan (evaluates the
+#: hour that just closed; see app.spike.scan.SCAN_LAG).
+SPIKE_SCAN_MINUTE = 9
 
 
 def build_adapters(effective: EffectiveSettings) -> list:
@@ -169,6 +174,26 @@ def retention_purge_job() -> int | None:
         session.close()
 
 
+def spike_scan_job() -> int:
+    """Hourly saved-search spike scan; returns the new spike events count.
+
+    Persistence and dedupe live in app.spike.scan; failures there are
+    contained per saved search, so the job itself only guards the session.
+    """
+    session: Session = SessionLocal()
+    try:
+        events = spike.run_spike_scan(session)
+        if events:
+            log.info(
+                "spike scan: %d new event(s): %s",
+                len(events),
+                [(e.saved_search_id, e.window_start.isoformat()) for e in events],
+            )
+        return len(events)
+    finally:
+        session.close()
+
+
 def _daily_digest_job() -> None:
     run_digest(AlertDigest.daily)
 
@@ -223,6 +248,15 @@ def build_scheduler() -> BlockingScheduler:
         minute=0,
         timezone=tz_name,
         id="alerts_weekly",
+        max_instances=1,
+        coalesce=True,
+    )
+    scheduler.add_job(
+        spike_scan_job,
+        "cron",
+        minute=SPIKE_SCAN_MINUTE,
+        timezone="UTC",
+        id="spike_scan",
         max_instances=1,
         coalesce=True,
     )
