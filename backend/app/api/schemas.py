@@ -171,3 +171,43 @@ class AiProbeRequest(BaseModel):
     api_key: str | None = None
     base_url: str | None = None
     model: str | None = None
+
+
+# ----------------------------------------------------------- saved searches
+
+
+class SavedSearchOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    client_id: int
+    name: str
+    query: str
+    sources: list[str]
+    classifier: str | None
+    label: str | None
+    range_days: int
+    is_active: bool
+    created_at: datetime
+
+
+class SavedSearchCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    query: str = Field(min_length=1, max_length=500)
+    sources: list[str] = Field(default_factory=list)
+    classifier: str | None = Field(default=None, max_length=32)
+    label: str | None = Field(default=None, max_length=32)
+    range_days: int = Field(default=7, ge=1, le=365)
+    is_active: bool = True
+
+
+class SavedSearchPatch(BaseModel):
+    """Partial update; absent fields are kept, empty string clears tags."""
+
+    name: str | None = Field(default=None, max_length=200)
+    query: str | None = Field(default=None, max_length=500)
+    sources: list[str] | None = None
+    classifier: str | None = Field(default=None, max_length=32)
+    label: str | None = Field(default=None, max_length=32)
+    range_days: int | None = Field(default=None, ge=1, le=365)
+    is_active: bool | None = None

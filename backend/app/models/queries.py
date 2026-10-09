@@ -22,6 +22,7 @@ from app.models import (
     Mention,
     MentionClassification,
     MentionSource,
+    SavedSearch,
     Sentiment,
 )
 from app.models.mention import make_url_hash
@@ -549,3 +550,145 @@ def retention_cutoff(retention_days: int, *, now: datetime | None = None) -> dat
     """Cutoff for the retention purge (shared by the worker job)."""
     moment = now or datetime.now(tz=timezone.utc)
     return moment - timedelta(days=retention_days)
+
+
+# ------------------------------------------------------------ saved searches
+# Validation mirrors the settings _validate_* helpers: the queries layer owns
+# the rules so every writer (API now, workers later) gets identical ones.
+
+_SAVED_SOURCE_VALUES = frozenset(s.value for s in MentionSource)
+
+
+def _validate_saved_search_name(value: object) -> str:
+    if not isinstance(value, str):
+        raise ValueError("name must be a string")
+    cleaned = value.strip()
+    if not cleaned:
+        raise ValueError("name must not be empty")
+    if len(cleaned) > 200:
+        raise ValueError("name must be at most 200 characters")
+    return cleaned
+
+
+def _validate_saved_search_query(value: object) -> str:
+    if not isinstance(value, str):
+        raise ValueError("query must be a string")
+    cleaned = value.strip()
+    if not cleaned:
+        raise ValueError("query must not be empty")
+    if len(cleaned) > 500:
+        raise ValueError("query must be at most 500 characters")
+    return cleaned
+
+
+def _validate_saved_search_sources(value: object) -> list[str]:
+    if not isinstance(value, list):
+        raise ValueError("sources must be a list of source tags")
+    sources: list[str] = []
+    for entry in value:
+        tag = entry.value if isinstance(entry, MentionSource) else entry
+        if not isinstance(tag, str) or tag not in _SAVED_SOURCE_VALUES:
+            raise ValueError(
+                f"sources entries must be one of {', '.join(sorted(_SAVED_SOURCE_VALUES))}"
+            )
+        if tag not in sources:
+            sources.append(tag)
+    return sources
+
+
+def _validate_saved_search_tag(value: object, field: str) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ValueError(f"{field} must be a string or null")
+    cleaned = value.strip()
+    if len(cleaned) > 32:
+        raise ValueError(f"{field} must be at most 32 characters")
+    return cleaned or None
+
+
+def _validate_saved_search_range_days(value: object) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError("range_days must be an integer")
+    if not 1 <= value <= 365:
+        raise ValueError("range_days must be between 1 and 365")
+    return value
+
+
+_SAVED_SEARCH_VALIDATORS = {
+    "name": _validate_saved_search_name,
+    "query": _validate_saved_search_query,
+    "sources": _validate_saved_search_sources,
+    "classifier": lambda v: _validate_saved_search_tag(v, "classifier"),
+    "label": lambda v: _validate_saved_search_tag(v, "label"),
+    "range_days": _validate_saved_search_range_days,
+    "is_active": lambda v: _validate_bool(v, "is_active"),
+}
+
+
+def validated_saved_search_changes(
+    changes: Mapping[str, object], *, partial: bool
+) -> dict[str, object]:
+    """Validate saved-search fields; raises ValueError on bad values.
+
+    partial=False fills the documented defaults for absent optional fields
+    (create path); partial=True only validates the keys present (update).
+    Unknown keys are ignored, mirroring upsert_settings.
+    """
+    validated: dict[str, object] = {}
+    for field, validator in _SAVED_SEARCH_VALIDATORS.items():
+        if field in changes:
+            validated[field] = validator(changes[field])
+        elif not partial and field not in ("name", "query"):
+            default = {
+                "sources": [],
+                "classifier": None,
+                "label": None,
+                "range_days": 7,
+                "is_active": True,
+            }[field]
+            validated[field] = default
+    return validated
+
+
+def saved_search_filters(saved_search) -> dict[str, object]:
+    """Keyword arguments for _mention_filters implementing this search.
+
+    The single chokepoint between a stored SavedSearch and the shared WHERE
+    builder: single-source searches use the `source` equality filter, larger
+    sets the `sources` membership filter, and the query text maps to `q`.
+    """
+    filters: dict[str, object] = {}
+    if saved_search.query:
+        filters["q"] = saved_search.query
+    sources = list(saved_search.sources or [])
+    if len(sources) == 1:
+        filters["source"] = sources[0]
+    elif sources:
+        filters["sources"] = sources
+    if saved_search.classifier:
+        filters["classifier"] = saved_search.classifier
+    if saved_search.label:
+        filters["label"] = saved_search.label
+    return filters
+
+
+def list_saved_searches(
+    session: Session, client_id: int, *, active_only: bool = False
+) -> Sequence[SavedSearch]:
+    """Saved searches for one client, stable name order."""
+    stmt = select(SavedSearch).where(SavedSearch.client_id == client_id)
+    if active_only:
+        stmt = stmt.where(SavedSearch.is_active.is_(True))
+    return session.scalars(stmt.order_by(SavedSearch.name, SavedSearch.id)).all()
+
+
+def get_saved_search(
+    session: Session, saved_search_id: int, client_id: int
+) -> SavedSearch | None:
+    """One saved search owned by the client, else None."""
+    return session.scalar(
+        select(SavedSearch).where(
+            SavedSearch.id == saved_search_id, SavedSearch.client_id == client_id
+        )
+    )

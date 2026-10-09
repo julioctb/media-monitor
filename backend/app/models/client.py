@@ -25,6 +25,9 @@ class Client(IntPk, Base):
     alert_settings = relationship(
         "AlertSettings", back_populates="client", cascade="all, delete-orphan"
     )
+    saved_searches = relationship(
+        "SavedSearch", back_populates="client", cascade="all, delete-orphan"
+    )
 
     def __repr__(self) -> str:
         return f"<Client id={self.id} name={self.name!r}>"
