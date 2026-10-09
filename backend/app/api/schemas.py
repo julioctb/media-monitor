@@ -24,6 +24,16 @@ def _clean_text(value: str | None) -> str | None:
     return value
 
 
+class ClassificationOut(BaseModel):
+    """One classifier's stored label for a mention."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    classifier: str
+    label: str
+    score: float
+
+
 class MentionOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -41,6 +51,7 @@ class MentionOut(BaseModel):
     sentiment: Sentiment | None
     sentiment_score: float | None
     reach: int | None
+    classifications: list[ClassificationOut] = []
 
 
 class MentionPage(BaseModel):
@@ -92,6 +103,14 @@ class DailyVolume(BaseModel):
     count: int
 
 
+class ClassifierBreakdown(BaseModel):
+    """Aggregates for one classifier: total rows and count per label."""
+
+    classifier: str
+    total_classified: int
+    breakdown: dict[str, int]
+
+
 class StatsOverview(BaseModel):
     total: int
     by_sentiment: dict[str, int]
@@ -99,6 +118,7 @@ class StatsOverview(BaseModel):
     last_24h: int
     last_7d: int
     daily_volume: list[DailyVolume]
+    classifications: list[ClassifierBreakdown] = []
 
 
 # ---------------------------------------------------------------- settings

@@ -6,7 +6,8 @@ from datetime import date, datetime, time, timedelta, timezone
 from fastapi import APIRouter
 
 from app.api.deps import ClientIdDep, SessionDep
-from app.api.schemas import DailyVolume, StatsOverview
+from app.api.schemas import ClassifierBreakdown, DailyVolume, StatsOverview
+from app.classifications import classifier_names
 from app.models import queries
 
 router = APIRouter(tags=["stats"])
@@ -42,6 +43,22 @@ def stats_overview(session: SessionDep, client_id: ClientIdDep) -> StatsOverview
         for offset in range(VOLUME_DAYS)
     ]
 
+    def _classification_block() -> list[ClassifierBreakdown]:
+        """Per-registry-classifier totals; empty until the backfill runs."""
+        blocks = []
+        for name in classifier_names():
+            breakdown = queries.classification_breakdown(
+                session, client_id=client_id, classifier=name
+            )
+            blocks.append(
+                ClassifierBreakdown(
+                    classifier=name,
+                    total_classified=sum(breakdown.values()),
+                    breakdown=breakdown,
+                )
+            )
+        return blocks
+
     return StatsOverview(
         total=queries.count_mentions(session, client_id),
         by_sentiment=queries.sentiment_breakdown(session, client_id),
@@ -49,4 +66,5 @@ def stats_overview(session: SessionDep, client_id: ClientIdDep) -> StatsOverview
         last_24h=queries.count_mentions(session, client_id, since=now - timedelta(hours=24)),
         last_7d=queries.count_mentions(session, client_id, since=now - timedelta(days=7)),
         daily_volume=daily_volume,
+        classifications=_classification_block(),
     )
