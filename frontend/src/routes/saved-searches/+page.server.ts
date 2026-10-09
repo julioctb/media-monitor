@@ -25,7 +25,7 @@ function failure(action: SavedSearchActionResult['action'], status: number, mess
 
 function apiFailure(action: SavedSearchActionResult['action'], cause: unknown, name = '') {
 	const status = cause instanceof ApiError && cause.status >= 400 ? cause.status : 502;
-	const message = cause instanceof Error ? cause.message : 'unknown error';
+	const message = cause instanceof Error ? cause.message : 'error desconocido';
 	return failure(action, status, message, name);
 }
 
@@ -34,8 +34,8 @@ export const load: PageServerLoad = async () => {
 		return { savedSearches: await listSavedSearches(), sources: SOURCES };
 	} catch (cause) {
 		const status = cause instanceof ApiError && cause.status >= 400 ? cause.status : 503;
-		const detail = cause instanceof Error ? cause.message : 'unknown error';
-		throw error(status, `Could not load saved searches: ${detail}`);
+		const detail = cause instanceof Error ? cause.message : 'error desconocido';
+		throw error(status, `No se pudieron cargar las búsquedas guardadas: ${detail}`);
 	}
 };
 
@@ -50,14 +50,14 @@ export const actions: Actions = {
 		const rangeDaysRaw = String(form.get('range_days') ?? '7');
 		const range_days = /^\d+$/.test(rangeDaysRaw) ? Number(rangeDaysRaw) : 7;
 
-		if (!name) return failure('create', 400, 'A name is required.');
+		if (!name) return failure('create', 400, 'El nombre es obligatorio.');
 		if (name.length > MAX_NAME)
-			return failure('create', 400, `Name is limited to ${MAX_NAME} characters.`, name);
-		if (!query) return failure('create', 400, 'A query is required.', name);
+			return failure('create', 400, `El nombre admite hasta ${MAX_NAME} caracteres.`, name);
+		if (!query) return failure('create', 400, 'La consulta es obligatoria.', name);
 		if (query.length > MAX_QUERY)
-			return failure('create', 400, `Query is limited to ${MAX_QUERY} characters.`, name);
+			return failure('create', 400, `La consulta admite hasta ${MAX_QUERY} caracteres.`, name);
 		if (range_days < 1 || range_days > 365)
-			return failure('create', 400, 'Range must be between 1 and 365 days.', name);
+			return failure('create', 400, 'El rango debe estar entre 1 y 365 días.', name);
 
 		try {
 			const saved = await createSavedSearch({
@@ -71,7 +71,7 @@ export const actions: Actions = {
 			return {
 				action: 'create',
 				ok: true,
-				message: `Saved search “${saved.name}” created.`,
+				message: `Búsqueda guardada “${saved.name}” creada.`,
 				name: ''
 			} satisfies SavedSearchActionResult;
 		} catch (cause) {
@@ -85,7 +85,7 @@ export const actions: Actions = {
 		const isActive = String(form.get('is_active')) === '1';
 
 		if (!Number.isInteger(id) || id <= 0) {
-			return failure('toggle', 400, 'Invalid identifier.');
+			return failure('toggle', 400, 'Identificador inválido.');
 		}
 
 		try {
@@ -93,7 +93,7 @@ export const actions: Actions = {
 			return {
 				action: 'toggle',
 				ok: true,
-				message: isActive ? 'Saved search activated.' : 'Saved search paused.',
+				message: isActive ? 'Búsqueda guardada activada.' : 'Búsqueda guardada pausada.',
 				name: ''
 			} satisfies SavedSearchActionResult;
 		} catch (cause) {
@@ -106,12 +106,12 @@ export const actions: Actions = {
 		const id = Number(form.get('id'));
 
 		if (!Number.isInteger(id) || id <= 0) {
-			return failure('delete', 400, 'Invalid identifier.');
+			return failure('delete', 400, 'Identificador inválido.');
 		}
 
 		try {
 			await deleteSavedSearch(id);
-			return { action: 'delete', ok: true, message: 'Saved search deleted.', name: '' };
+			return { action: 'delete', ok: true, message: 'Búsqueda guardada eliminada.', name: '' };
 		} catch (cause) {
 			return apiFailure('delete', cause);
 		}
