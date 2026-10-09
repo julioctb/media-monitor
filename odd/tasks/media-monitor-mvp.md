@@ -106,6 +106,14 @@ Deploy: Docker Compose (api, worker, db, dashboard) on a VPS
       (commit c26b5f9; Graph v26.0; 132 tests; migration 0003 renders;
       gotcha: dot fields fail in Graph parser, braces from{name} parse)
 
+- [ ] T9: Settings panel — DB-backed settings (env fallback) exposed at
+      /settings: Facebook pages (token validation via Graph), AI sentiment
+      provider (local Laya or OpenAI-compatible API + fallback), custom RSS
+      feeds, client name, timezone, retention days w/ purge job, GDELT
+      on/off. Worker reads settings each cycle; secrets plaintext v1.
+      (scope agreed 2026-10-09; deferred: Slack/WhatsApp webhooks, quiet
+      hours, per-keyword alerts, encryption)
+
 ## Phase 2 (future, not in MVP scope)
 - **Flutter mobile app** (iOS + Android) consuming the same FastAPI API:
   push notifications for instant alerts, feed, and stats. Decided 2026-10-08:
