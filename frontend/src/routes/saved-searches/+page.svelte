@@ -8,6 +8,20 @@
 	const BTN_CLS = 'rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors';
 	const INPUT_CLS =
 		'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm placeholder:text-slate-400 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200';
+
+	const UNREADY_HINTS: Record<string, string> = {
+		x_twitter: 'falta el token del provider (env X_PROVIDER_API_KEY)',
+		facebook_page: 'no hay páginas FB en Ajustes',
+		rss_custom: 'no hay feeds RSS en Ajustes',
+		gdelt: 'GDELT desactivado en Ajustes',
+		news_rss: ''
+	};
+
+	const readiness = $derived(data.sourceReadiness ?? {});
+	const isReady = (source: string) => readiness[source] !== false;
+	const unreadySources = $derived(
+		data.sources.filter((source: string) => !isReady(source) && UNREADY_HINTS[source])
+	);
 </script>
 
 <svelte:head>
@@ -69,17 +83,28 @@
 		<legend class="mb-1 block text-xs font-medium text-slate-500">Fuentes (ninguna = todas)</legend>
 		<div class="flex flex-wrap gap-3">
 			{#each data.sources as source (source)}
-				<label class="flex items-center gap-1.5 text-sm text-slate-700">
+				<label
+					class={`flex items-center gap-1.5 text-sm ${isReady(source) ? 'text-slate-700' : 'text-slate-400'}`}
+				>
 					<input
 						type="checkbox"
 						name={`src_${source}`}
 						value="1"
-						class="size-4 rounded border-slate-300 text-slate-900 focus:ring-slate-300"
+						disabled={!isReady(source)}
+						title={isReady(source) ? '' : `Sin configurar: ${UNREADY_HINTS[source] ?? ''}`}
+						class="size-4 rounded border-slate-300 text-slate-900 focus:ring-slate-300 disabled:cursor-not-allowed"
 					/>
 					{sourceLabel(source)}
 				</label>
 			{/each}
 		</div>
+		{#if unreadySources.length > 0}
+			<p class="mt-2 text-xs text-amber-600">
+				Sin ingesta activa:
+				{unreadySources.map((source) => `${sourceLabel(source)} (${UNREADY_HINTS[source]})`).join(' ·')}.
+				Configura la fuente en Ajustes para poder seleccionarla.
+			</p>
+		{/if}
 	</fieldset>
 
 	<div class="mt-3 grid gap-3 sm:grid-cols-3">

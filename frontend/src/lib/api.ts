@@ -449,6 +449,17 @@ export function listSavedSearches(options: RequestOptions = {}): Promise<SavedSe
 	return request<SavedSearch[]>('/api/clients/1/saved-searches', { method: 'GET' }, options);
 }
 
+/** Which ingest sources have credentials/config: an ingest cycle would build their adapter. */
+export async function getSourceReadiness(
+	options: RequestOptions = {}
+): Promise<Record<string, boolean>> {
+	return request<Record<string, boolean>>(
+		'/api/clients/1/source-readiness',
+		{ method: 'GET' },
+		options
+	);
+}
+
 export function createSavedSearch(
 	input: SavedSearchInput,
 	options: RequestOptions = {}

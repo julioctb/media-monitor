@@ -3,6 +3,7 @@ import {
 	ApiError,
 	createSavedSearch,
 	deleteSavedSearch,
+	getSourceReadiness,
 	listSavedSearches,
 	updateSavedSearch
 } from '$lib/api';
@@ -31,7 +32,10 @@ function apiFailure(action: SavedSearchActionResult['action'], cause: unknown, n
 
 export const load: PageServerLoad = async () => {
 	try {
-		return { savedSearches: await listSavedSearches(), sources: SOURCES };
+		// Readiness may be unavailable (API hiccup) without killing the page:
+		// null simply skips the create-time guard below.
+		const sourceReadiness = await getSourceReadiness().catch(() => null);
+		return { savedSearches: await listSavedSearches(), sources: SOURCES, sourceReadiness };
 	} catch (cause) {
 		const status = cause instanceof ApiError && cause.status >= 400 ? cause.status : 503;
 		const detail = cause instanceof Error ? cause.message : 'error desconocido';
@@ -58,6 +62,19 @@ export const actions: Actions = {
 			return failure('create', 400, `La consulta admite hasta ${MAX_QUERY} caracteres.`, name);
 		if (range_days < 1 || range_days > 365)
 			return failure('create', 400, 'El rango debe estar entre 1 y 365 días.', name);
+
+		const readiness = await getSourceReadiness().catch(() => null);
+		if (readiness) {
+			const unready = sources.filter((source) => !readiness[source]);
+			if (unready.length > 0) {
+				return failure(
+					'create',
+					400,
+					`Sin credenciales para: ${unready.join(', ')}. Configura la fuente antes de filtrar por ella.`,
+					name
+				);
+			}
+		}
 
 		try {
 			const saved = await createSavedSearch({
