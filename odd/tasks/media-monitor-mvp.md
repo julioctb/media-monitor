@@ -114,12 +114,27 @@ Deploy: Docker Compose (api, worker, db, dashboard) on a VPS
       (scope agreed 2026-10-09; deferred: Slack/WhatsApp webhooks, quiet
       hours, per-keyword alerts, encryption)
 
-- [ ] T10: Classifications — multi-label per mention (extensible
+- [x] T10: Classifications — multi-label per mention (extensible
       classifier registry, v1: political via Laya choice yes/no + score,
       same lazy agent). Table mention_classifications (mention_id, classifier,
       label, score). Ingest hook + backfill --classifications. API: stats
       breakdown + feed filter classification=political. UI: stats donut +
       card badge + feed filter. Affects existing rows: full re-classify run.
+      (commits 9ec00af/57ffa9e/ed52b85 on feat/social-listening-core;
+      152 tests; live DB re-classified 107: political 24 / not 83;
+      migration 0003 applied. NOTE: user works on branch
+      feat/social-listening-core, wip commit ac3f7cb is theirs)
+
+- [x] T11: Daily summaries — page /summary: per-source + per-keyword daily
+      digest, stored one row per client/day (daily_summaries: content JSON
+      sections + narrative, mode heuristic|llm). Generators: heuristic
+      builder (counts, top mentions, silent keywords) always; LLM narrative
+      via settings ai_provider optional with fallback. Worker nightly job +
+      POST regenerate; GET by date + list of days. RAG-ready plaintext.
+      (commits 0cd8f2e/0164ea0/d3cc3b9; 204 tests; migration applied to
+      docker; real generation 2026-10-09: 7 mentions, BUAP covered,
+      Lilia Cedillo silent-correct, mode heuristic; endpoints under
+      /api/clients/id/summaries)
 
 ## Phase 2 (future, not in MVP scope)
 - **Flutter mobile app** (iOS + Android) consuming the same FastAPI API:
