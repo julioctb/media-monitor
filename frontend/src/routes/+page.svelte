@@ -103,10 +103,22 @@
 
 	<div>
 		<span class={LABEL_CLS}>Fecha publicación (UTC)</span>
-		<div class="flex items-center gap-2">
-			<input type="date" name="since" value={data.filters.since} aria-label="Desde" class={INPUT_CLS} />
+		<div class="flex flex-wrap items-center gap-2">
+			<input
+				type="date"
+				name="since"
+				value={data.filters.since}
+				aria-label="Desde"
+				class={`${INPUT_CLS} min-w-0 flex-1 basis-28`}
+			/>
 			<span class="text-xs text-slate-400">a</span>
-			<input type="date" name="until" value={data.filters.until} aria-label="Hasta" class={INPUT_CLS} />
+			<input
+				type="date"
+				name="until"
+				value={data.filters.until}
+				aria-label="Hasta"
+				class={`${INPUT_CLS} min-w-0 flex-1 basis-28`}
+			/>
 		</div>
 	</div>
 
