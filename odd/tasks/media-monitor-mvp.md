@@ -137,3 +137,6 @@ Deploy: Docker Compose (api, worker, db, dashboard) on a VPS
   ingest (47 mentions, sentiment scored). Pending ops: GDELT timespan
   recheck, real SMTP delivery test, X/FB provider keys live test, PPCA
   app review for third-party FB pages (client paperwork).
+- 2026-10-08: fix(migrations) 65b1087: squash to single cross-db revision
+  (native_enum=False, JSON, CURRENT_TIMESTAMP, PG setval guarded) after
+  user hit sqlite alembic failure in dev; 132 tests re-verified.

@@ -185,7 +185,7 @@ backend/
     db.py         engine (pool_pre_ping) + session factory
     main.py       FastAPI app factory (/health, /api/*)
     worker.py     APScheduler: ingest cycle + alert hook + digest crons
-  migrations/     Alembic (0001 initial, 0002 alert digest state, 0003 facebook source)
+  migrations/     Alembic (0001 initial schema, cross-db: sqlite + postgres)
   scripts/        eval_sentiment.py (+ 50-row eval set), backfill_sentiment.py
   tests/          pytest suite
 frontend/
