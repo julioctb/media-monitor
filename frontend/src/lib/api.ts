@@ -494,3 +494,61 @@ export function listSpikes(
 	const qs = buildQuery({ days: query.days, limit: query.limit });
 	return request<SpikeEvent[]>(`/api/clients/1/spikes${qs}`, { method: 'GET' }, options);
 }
+
+/* ------------------------------ daily summaries --------------------------- */
+
+/** Structured sections stored with every daily summary (open-shaped). */
+export interface DailySummaryContent {
+	date?: string;
+	timezone?: string;
+	per_source?: Record<string, { count: number; top_titles: string[] }>;
+	per_keyword?: Record<string, { count: number; top_titles: string[] }>;
+	silent_keywords?: string[];
+	totals?: Record<string, number>;
+	/** Plain-text render of the whole summary, kept for the future RAG chat. */
+	plain_text?: string;
+}
+
+export type SummaryMode = 'heuristic' | 'llm';
+
+export interface DailySummary {
+	id: number;
+	client_id: number;
+	/** ISO date (YYYY-MM-DD). */
+	summary_date: string;
+	content: DailySummaryContent;
+	narrative: string;
+	mode: SummaryMode;
+	created_at: string;
+	updated_at: string;
+}
+
+/** History entry: one stored day and the generator that produced it. */
+export interface SummaryDayRef {
+	summary_date: string;
+	mode: SummaryMode;
+}
+
+export function getDailySummary(day: string, options: RequestOptions = {}): Promise<DailySummary | null> {
+	return request<DailySummary | null>(
+		`/api/clients/1/summaries/${day}`,
+		{ method: 'GET' },
+		options
+	);
+}
+
+export function listSummaryDays(options: RequestOptions = {}): Promise<SummaryDayRef[]> {
+	return request<SummaryDayRef[]>('/api/clients/1/summaries', { method: 'GET' }, options);
+}
+
+/** Builds (or regenerates) the summary; no date = today in the client tz. */
+export function generateDailySummary(
+	day?: string | null,
+	options: RequestOptions = {}
+): Promise<DailySummary> {
+	return request<DailySummary>(
+		'/api/clients/1/summaries/generate',
+		jsonInit('POST', { date: day ?? null }),
+		options
+	);
+}

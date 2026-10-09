@@ -206,10 +206,31 @@ per-label counts) and `GET /api/mentions` accepts `classifier`/`label`
 filters plus a `classifications` array per row; the dashboard renders the
 political donut, a per-row badge and a "Solo políticas" filter.
 
+### Daily summaries
+
+One stored digest per client and day (`daily_summaries`, migration 0007):
+per-source and per-keyword counts with top titles, silent keywords (active
+keywords with no mention that day), a Spanish narrative and a plain-text
+render of the whole summary (`content.plain_text`) reserved for a future
+RAG chat. The heuristic template always builds the content; when the
+settings select the `openai` provider with a key, the same chat-completions
+path as the sentiment analyzer rewrites the narrative — any failure falls
+back to the template, and `mode` records which one won (`heuristic`|`llm`).
+
+- `GET /api/clients/{id}/summaries` — stored days with their generator mode.
+- `GET /api/clients/{id}/summaries/{date}` — that day's row, or `null`.
+- `POST /api/clients/{id}/summaries/generate` — body `{"date": "YYYY-MM-DD"}`
+  optional (default: today in the client's timezone); upserts, so
+  regeneration after late ingests is always safe.
+- The worker builds the current day at 21:00, settings timezone
+  (`daily_summary` job). The dashboard `/summary` page shows the narrative,
+  the per-source breakdown, keywords with silent ones dashed, the history of
+  stored days and the plain-text block.
+
 ## Testing
 
 ```bash
-.venv/bin/python -m pytest backend/tests/ -q        # backend (152 tests)
+.venv/bin/python -m pytest backend/tests/ -q        # backend (204 tests)
 cd frontend && npm run check                        # svelte-check, 0 errors
 cd frontend && npm run test                         # vitest
 cd frontend && npm run build                        # adapter-node production build
@@ -220,23 +241,25 @@ cd frontend && npm run build                        # adapter-node production bu
 ```
 backend/
   app/
-    api/          REST routers: mentions, stats, keywords, alerts, deps
+    api/          REST routers: mentions, stats, keywords, alerts, summaries, deps
     alerts/       alert engine + SMTP/log transport
     classifications/ classifier registry + political (Laya choice)
     ingest/       source adapters (google_news, gdelt, twitter_x, facebook_page),
                   keyword matching, pipeline, rate limit
     models/       SQLAlchemy models + queries (client-scoped, url_hash dedupe)
     sentiment/    SentimentAnalyzer interface, Laya engine, keyword baseline
+    summaries/    daily digest builder (heuristic template + optional LLM narrative)
     config.py     pydantic-settings (every env var above)
     db.py         engine (pool_pre_ping) + session factory
     main.py       FastAPI app factory (/health, /api/*)
-    worker.py     APScheduler: ingest cycle + alert hook + digest crons
-  migrations/     Alembic (0001 initial schema, 0003 classifications; cross-db)
+    worker.py     APScheduler: ingest cycle + alert hook + digest crons + daily summary 21:00
+  migrations/     Alembic (0001 initial schema, 0003 classifications, 0007 daily
+                  summaries; cross-db)
   scripts/        eval_sentiment.py (+ 50-row eval set), backfill_sentiment.py,
                   backfill_classifications.py
   tests/          pytest suite
 frontend/
-  src/routes/     feed (/), stats, keywords, alerts (+page.server.ts SSR)
+  src/routes/     feed (/), stats, summary, keywords, alerts (+page.server.ts SSR)
   src/lib/        typed API client, formatters
   Dockerfile      multi-stage build → adapter-node runtime
 docker-compose.yml  db + api + worker + dashboard
