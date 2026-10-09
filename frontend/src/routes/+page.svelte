@@ -223,6 +223,7 @@
 					<th class="px-3 py-2 font-medium">Palabra clave</th>
 					<th class="px-3 py-2 font-medium">Clasificación</th>
 					<th class="px-3 py-2 font-medium">Sentimiento</th>
+					<th class="px-3 py-2 font-medium">Score</th>
 					<th class="px-3 py-2 font-medium">Título</th>
 				</tr>
 			</thead>
@@ -258,8 +259,12 @@
 							>
 								{mention.sentiment ? mention.sentiment : 'Sin clasificar'}
 							</span>
+						</td>
+						<td class="whitespace-nowrap px-3 py-2 text-xs tabular-nums text-slate-600">
 							{#if mention.sentiment_score !== null}
-								<span class="ml-1 text-xs text-slate-400">{formatScore(mention.sentiment_score)}</span>
+								{formatScore(mention.sentiment_score)}
+							{:else}
+								<span class="text-slate-300">—</span>
 							{/if}
 						</td>
 						<td class="px-3 py-2">
