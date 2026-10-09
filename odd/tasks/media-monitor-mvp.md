@@ -114,6 +114,13 @@ Deploy: Docker Compose (api, worker, db, dashboard) on a VPS
       (scope agreed 2026-10-09; deferred: Slack/WhatsApp webhooks, quiet
       hours, per-keyword alerts, encryption)
 
+- [ ] T10: Classifications — multi-label per mention (extensible
+      classifier registry, v1: political via Laya choice yes/no + score,
+      same lazy agent). Table mention_classifications (mention_id, classifier,
+      label, score). Ingest hook + backfill --classifications. API: stats
+      breakdown + feed filter classification=political. UI: stats donut +
+      card badge + feed filter. Affects existing rows: full re-classify run.
+
 ## Phase 2 (future, not in MVP scope)
 - **Flutter mobile app** (iOS + Android) consuming the same FastAPI API:
   push notifications for instant alerts, feed, and stats. Decided 2026-10-08:
