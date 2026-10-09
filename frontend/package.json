@@ -1,0 +1,31 @@
+{
+	"name": "media-monitor-dashboard",
+	"private": true,
+	"version": "0.1.0",
+	"type": "module",
+	"scripts": {
+		"dev": "vite dev",
+		"build": "vite build",
+		"preview": "node build/index.js",
+		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+		"test": "vitest run",
+		"prepare": "svelte-kit sync || true"
+	},
+	"dependencies": {
+		"chart.js": "^4.4.0"
+	},
+	"devDependencies": {
+		"@sveltejs/adapter-node": "^5.5.7",
+		"@sveltejs/kit": "^2.70.3",
+		"@sveltejs/vite-plugin-svelte": "^6.2.4",
+		"@tailwindcss/vite": "^4.1.0",
+		"@types/node": "^24.0.0",
+		"svelte": "^5.57.2",
+		"svelte-check": "^4.7.6",
+		"tailwindcss": "^4.1.0",
+		"typescript": "^5.9.3",
+		"vite": "^7.3.7",
+		"vitest": "^3.2.7"
+	}
+}

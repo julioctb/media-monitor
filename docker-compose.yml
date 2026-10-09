@@ -59,5 +59,22 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  dashboard:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    environment:
+      API_BASE_URL: http://api:8000
+      # Public origin of the dashboard: adapter-node defaults to https for the
+      # CSRF origin check when no proxy header is present, which would 403 the
+      # form actions over plain http. Keep in sync with the exposed port.
+      ORIGIN: http://localhost:3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   pgdata:
