@@ -46,6 +46,23 @@ export function sentimentBadgeClass(value: string | null): string {
 	}
 }
 
+/** Classification labels (open set; unknown labels fall through). */
+const CLASSIFICATION_LABELS: Record<string, string> = {
+	political: 'Política',
+	not_political: 'No política'
+};
+
+export function classificationLabel(label: string): string {
+	return CLASSIFICATION_LABELS[label] ?? label;
+}
+
+/** The positive label highlighted, everything else quiet gray. */
+export function classificationBadgeClass(label: string): string {
+	return label === 'political'
+		? 'bg-sky-50 text-sky-700 ring-sky-600/20'
+		: 'bg-slate-100 text-slate-500 ring-slate-400/20';
+}
+
 const PAD = (value: number) => String(value).padStart(2, '0');
 
 /**

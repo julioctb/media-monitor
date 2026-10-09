@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Chart from 'chart.js/auto';
-	import { formatDayLabel, sentimentLabel, sourceLabel } from '$lib/format';
+	import { classificationLabel, formatDayLabel, sentimentLabel, sourceLabel } from '$lib/format';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -11,6 +11,25 @@
 			label: sentimentLabel(key === 'null' ? null : key),
 			count: data.stats.by_sentiment[key] ?? 0
 		}))
+	);
+
+	// Political classifier block (v1); absent until the backfill/worker ran.
+	const political = $derived(
+		data.stats.classifications?.find((c) => c.classifier === 'political')
+	);
+	const politicalTotal = $derived(political?.total_classified ?? 0);
+	const politicalRows = $derived(
+		Object.entries(political?.breakdown ?? {})
+			.sort((a, b) => b[1] - a[1])
+			.map(([label, count]) => ({
+				label,
+				text: classificationLabel(label),
+				count,
+				pct: politicalTotal > 0 ? Math.round((count / politicalTotal) * 100) : 0
+			}))
+	);
+	const politicalPct = $derived(
+		politicalRows.find((row) => row.label === 'political')?.pct ?? 0
 	);
 
 	const sourceRows = $derived(
@@ -34,8 +53,15 @@
 		null: '#e2e8f0'
 	};
 
+	// Political palette: the positive label carries the accent color.
+	const POLITICAL_COLORS: Record<string, string> = {
+		political: '#0284c7',
+		not_political: '#cbd5e1'
+	};
+
 	let volumeCanvas: HTMLCanvasElement | undefined = $state();
 	let sentimentCanvas: HTMLCanvasElement | undefined = $state();
+	let politicalCanvas: HTMLCanvasElement | undefined = $state();
 
 	$effect(() => {
 		if (!volumeCanvas) return;
@@ -77,6 +103,33 @@
 					{
 						data: sentimentRows.map((row) => row.count),
 						backgroundColor: sentimentRows.map((row) => SENTIMENT_COLORS[row.key]),
+						borderWidth: 1,
+						borderColor: '#ffffff'
+					}
+				]
+			},
+			options: {
+				responsive: true,
+				maintainAspectRatio: false,
+				cutout: '62%',
+				plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, padding: 16 } } }
+			}
+		});
+		return () => chart.destroy();
+	});
+
+	$effect(() => {
+		if (!politicalCanvas || politicalRows.length === 0) return;
+		const chart = new Chart(politicalCanvas, {
+			type: 'doughnut',
+			data: {
+				labels: politicalRows.map((row) => row.text),
+				datasets: [
+					{
+						data: politicalRows.map((row) => row.count),
+						backgroundColor: politicalRows.map(
+							(row) => POLITICAL_COLORS[row.label] ?? '#94a3b8'
+						),
 						borderWidth: 1,
 						borderColor: '#ffffff'
 					}
@@ -138,6 +191,48 @@
 		</div>
 	</section>
 </div>
+
+<section class="mt-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+	<div class="flex flex-wrap items-baseline justify-between gap-2">
+		<h2 class="text-sm font-semibold text-slate-700">Clasificaciones</h2>
+		{#if political}
+			<p class="text-xs text-slate-500">
+				{politicalTotal}
+				{politicalTotal === 1 ? 'mención clasificada' : 'menciones clasificadas'}
+				· {politicalPct}% políticas
+			</p>
+		{/if}
+	</div>
+	{#if politicalTotal === 0}
+		<p class="mt-3 text-sm text-slate-500">
+			Sin clasificaciones todavía: ejecuta el backfill o espera al próximo ciclo de ingesta.
+		</p>
+	{:else}
+		<div class="mt-4 grid gap-6 sm:grid-cols-2">
+			<div class="relative h-64" role="img" aria-label="Distribución de la clasificación política">
+				<canvas bind:this={politicalCanvas}></canvas>
+			</div>
+			<ul class="space-y-3 self-center">
+				{#each politicalRows as row (row.label)}
+					<li>
+						<div class="flex items-baseline justify-between gap-4 text-sm">
+							<span class="font-medium text-slate-700">{row.text}</span>
+							<span class="tabular-nums text-slate-500">
+								{row.count} · {row.pct}%
+							</span>
+						</div>
+						<div class="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-100">
+							<div
+								class="h-full rounded-full"
+								style={`width: ${row.pct}%; background: ${POLITICAL_COLORS[row.label] ?? '#94a3b8'}`}
+							></div>
+						</div>
+					</li>
+				{/each}
+			</ul>
+		</div>
+	{/if}
+</section>
 
 <section class="mt-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
 	<h2 class="text-sm font-semibold text-slate-700">Por fuente</h2>

@@ -6,7 +6,6 @@ const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 const SENTIMENT_FILTERS = new Set<SentimentFilter>(['positive', 'negative', 'neutral', 'none']);
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 200;
-
 function intParam(params: URLSearchParams, key: string, fallback: number, min: number, max: number): number {
 	const raw = params.get(key);
 	if (raw === null || !/^\d+$/.test(raw.trim())) return fallback;
@@ -36,11 +35,26 @@ export const load: PageServerLoad = async ({ url }) => {
 	const limit = intParam(params, 'limit', DEFAULT_LIMIT, 1, MAX_LIMIT);
 	const offset = intParam(params, 'offset', 0, 0, Number.MAX_SAFE_INTEGER);
 
+	// 'Solo políticas' checkbox: one param expands to the classifier probe
+	// classifier=political + label=political (v1's only facet).
+	const politicalOnly = params.get('political')?.trim() === '1';
+
 	try {
 		// Stats only provides the source facet: the source set is open, so the
 		// filter options come from data, never a hardcoded enum.
 		const [mentions, keywords, stats] = await Promise.all([
-			listMentions({ source: rawSource, sentiment, keyword_id: keywordId, since, until, q, limit, offset }),
+			listMentions({
+				source: rawSource,
+				sentiment,
+				keyword_id: keywordId,
+				classifier: politicalOnly ? 'political' : undefined,
+				label: politicalOnly ? 'political' : undefined,
+				since,
+				until,
+				q,
+				limit,
+				offset
+			}),
 			listKeywords(),
 			getStatsOverview()
 		]);
@@ -53,6 +67,7 @@ export const load: PageServerLoad = async ({ url }) => {
 				source: params.get('source') ?? '',
 				sentiment: params.get('sentiment') ?? '',
 				keyword_id: rawKeyword,
+				political: params.get('political') ?? '',
 				since: params.get('since') ?? '',
 				until: params.get('until') ?? '',
 				q: params.get('q') ?? '',

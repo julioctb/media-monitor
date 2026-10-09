@@ -181,10 +181,35 @@ Rows left with NULL sentiment (analyzer hiccups) can be re-scored anytime:
 .venv/bin/python backend/scripts/backfill_sentiment.py         # uses DATABASE_URL
 ```
 
+## Classifications
+
+Classifications are a second, independent axis: one row per
+`(mention, classifier)` in `mention_classifications` — a political note can
+still be sentiment-positive. The catalog lives in code
+(`app/classifications/registry.py`, name -> factory); the column is a plain
+string, so registering a classifier never needs a migration. v1 ships
+`political` (Laya `choice`: `political` vs `not_political`, score = chosen
+probability, shared lazy `LayaRuntime` with sentiment — one model load per
+process). The ingest pipeline runs the registry after sentiment with the
+same failure isolation: a broken classifier skips its rows, never the
+mention.
+
+Full re-classification wipes and recomputes one classifier's rows
+(sentiment untouched):
+
+```bash
+.venv/bin/python -m scripts.backfill_classifications --classifier political
+```
+
+`GET /api/stats/overview` carries a `classifications` block (total +
+per-label counts) and `GET /api/mentions` accepts `classifier`/`label`
+filters plus a `classifications` array per row; the dashboard renders the
+political donut, a per-row badge and a "Solo políticas" filter.
+
 ## Testing
 
 ```bash
-.venv/bin/python -m pytest backend/tests/ -q        # backend (132 tests)
+.venv/bin/python -m pytest backend/tests/ -q        # backend (152 tests)
 cd frontend && npm run check                        # svelte-check, 0 errors
 cd frontend && npm run test                         # vitest
 cd frontend && npm run build                        # adapter-node production build
@@ -197,6 +222,7 @@ backend/
   app/
     api/          REST routers: mentions, stats, keywords, alerts, deps
     alerts/       alert engine + SMTP/log transport
+    classifications/ classifier registry + political (Laya choice)
     ingest/       source adapters (google_news, gdelt, twitter_x, facebook_page),
                   keyword matching, pipeline, rate limit
     models/       SQLAlchemy models + queries (client-scoped, url_hash dedupe)
@@ -205,8 +231,9 @@ backend/
     db.py         engine (pool_pre_ping) + session factory
     main.py       FastAPI app factory (/health, /api/*)
     worker.py     APScheduler: ingest cycle + alert hook + digest crons
-  migrations/     Alembic (0001 initial schema, cross-db: sqlite + postgres)
-  scripts/        eval_sentiment.py (+ 50-row eval set), backfill_sentiment.py
+  migrations/     Alembic (0001 initial schema, 0003 classifications; cross-db)
+  scripts/        eval_sentiment.py (+ 50-row eval set), backfill_sentiment.py,
+                  backfill_classifications.py
   tests/          pytest suite
 frontend/
   src/routes/     feed (/), stats, keywords, alerts (+page.server.ts SSR)

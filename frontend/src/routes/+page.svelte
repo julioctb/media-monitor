@@ -1,6 +1,13 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { formatDisplayDateTime, formatScore, sentimentBadgeClass, sourceLabel } from '$lib/format';
+	import {
+		classificationBadgeClass,
+		classificationLabel,
+		formatDisplayDateTime,
+		formatScore,
+		sentimentBadgeClass,
+		sourceLabel
+	} from '$lib/format';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -102,6 +109,20 @@
 	</div>
 
 	<div>
+		<span class={LABEL_CLS}>Clasificación</span>
+		<label class="flex items-center gap-2 text-sm text-slate-700">
+			<input
+				type="checkbox"
+				name="political"
+				value="1"
+				checked={data.filters.political === '1'}
+				class="size-4 rounded border-slate-300 text-slate-900 focus:ring-slate-200"
+			/>
+			Solo políticas
+		</label>
+	</div>
+
+	<div>
 		<span class={LABEL_CLS}>Fecha publicación (UTC)</span>
 		<div class="flex flex-wrap items-center gap-2">
 			<input
@@ -195,6 +216,7 @@
 {:else}
 	<ul class="mt-6 space-y-3">
 		{#each data.mentions.items as mention (mention.id)}
+			{@const political = mention.classifications?.find((c) => c.classifier === 'political')}
 			<li class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
 				<div class="flex flex-wrap items-center gap-2">
 					<span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
@@ -205,6 +227,13 @@
 					>
 						{mention.sentiment ? mention.sentiment : 'Sin clasificar'}
 					</span>
+					{#if political}
+						<span
+							class={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${classificationBadgeClass(political.label)}`}
+						>
+							{classificationLabel(political.label)}
+						</span>
+					{/if}
 					{#if mention.sentiment_score !== null}
 						<span class="text-xs text-slate-400">score {formatScore(mention.sentiment_score)}</span>
 					{/if}

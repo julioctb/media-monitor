@@ -59,6 +59,15 @@ export interface Mention {
 	sentiment: Sentiment | null;
 	sentiment_score: number | null;
 	reach: number | null;
+	/** One row per classifier; independent axis from sentiment. */
+	classifications: Classification[];
+}
+
+/** One classifier's stored label for a mention. */
+export interface Classification {
+	classifier: string;
+	label: string;
+	score: number;
 }
 
 export interface MentionPage {
@@ -70,6 +79,9 @@ export interface MentionQuery {
 	source?: MentionSource;
 	sentiment?: SentimentFilter;
 	keyword_id?: number;
+	/** Classification probe: rows carrying this classifier (+ label). */
+	classifier?: string;
+	label?: string;
 	/** ISO datetime; the UI expands date-only values to UTC day bounds. */
 	since?: string;
 	until?: string;
@@ -129,6 +141,15 @@ export interface StatsOverview {
 	last_7d: number;
 	/** 30 ascending daily buckets, zero-filled. */
 	daily_volume: DailyVolumePoint[];
+	/** One block per registered classifier (political v1). */
+	classifications: ClassifierBreakdown[];
+}
+
+/** Aggregates for one classifier: total rows and count per label. */
+export interface ClassifierBreakdown {
+	classifier: string;
+	total_classified: number;
+	breakdown: Record<string, number>;
 }
 
 /* --------------------------------- settings -------------------------------- */
@@ -298,6 +319,8 @@ export async function listMentions(
 		source: query.source,
 		sentiment: query.sentiment,
 		keyword_id: query.keyword_id,
+		classifier: query.classifier,
+		label: query.label,
 		since: query.since,
 		until: query.until,
 		q: query.q,
