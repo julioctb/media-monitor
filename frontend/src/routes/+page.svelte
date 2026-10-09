@@ -20,6 +20,18 @@
 
 	const keywordNames = $derived(new Map(data.keywords.map((k) => [k.id, k.text])));
 
+	const activeKeywords = $derived(data.keywords.filter((k) => k.is_active));
+	const selectedKeywordId = $derived(data.filters.keyword_id ?? '');
+
+	function hrefWithKeyword(keywordId: string | null): string {
+		const params = new URLSearchParams(page.url.searchParams);
+		if (keywordId === null) params.delete('keyword_id');
+		else params.set('keyword_id', keywordId);
+		params.delete('offset'); // a new filter facet resets pagination
+		const qs = params.toString();
+		return `${page.url.pathname}${qs ? `?${qs}` : ''}`;
+	}
+
 	function hrefWithOffset(offset: number): string {
 		const params = new URLSearchParams(page.url.searchParams);
 		params.set('offset', String(offset));
@@ -133,6 +145,35 @@
 		</a>
 	</div>
 </form>
+
+<!-- Quick keyword pills: same keyword_id param as the form, one source of truth. -->
+{#if activeKeywords.length > 0}
+	<div class="mt-4 flex flex-wrap items-center gap-2" aria-label="Filtro rápido por palabra clave">
+		<span class="text-xs font-medium text-slate-500">Palabras clave:</span>
+		<a
+			href={hrefWithKeyword(null)}
+			class={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+				selectedKeywordId === ''
+					? 'bg-slate-900 text-white'
+					: 'border border-slate-300 bg-white text-slate-600 hover:border-slate-400 hover:text-slate-900'
+			}`}
+		>
+			Todas
+		</a>
+		{#each activeKeywords as keyword (keyword.id)}
+			<a
+				href={hrefWithKeyword(String(keyword.id))}
+				class={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+					selectedKeywordId === String(keyword.id)
+						? 'bg-slate-900 text-white'
+						: 'border border-slate-300 bg-white text-slate-600 hover:border-slate-400 hover:text-slate-900'
+				}`}
+			>
+				{keyword.text}
+			</a>
+		{/each}
+	</div>
+{/if}
 
 {#if data.mentions.items.length === 0}
 	<div class="mt-8 rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center">
