@@ -6,6 +6,8 @@ forgotten by later writers (API endpoints, ingest adapters, alert engine).
 """
 
 import re
+import unicodedata
+from collections import defaultdict
 from collections.abc import Mapping, Sequence
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
@@ -339,6 +341,47 @@ def classification_breakdown(
     return {label: count for label, count in session.execute(stmt).all()}
 
 
+def _normalized_title(title: str) -> str:
+    """Collapse a title to its comparable form: accent/case-folded, single-spaced.
+
+    Shared key for the cross-URL dedupe: the same story syndicated under
+    different news.google redirect tokens must collapse to one mention.
+    Kept dependency-free (no ingest import) to avoid import cycles.
+    """
+    decomposed = unicodedata.normalize("NFD", title)
+    without_accents = "".join(ch for ch in decomposed if not unicodedata.combining(ch))
+    return " ".join(without_accents.casefold().split())
+
+
+def dedupe_duplicate_titles(session: Session) -> int:
+    """One-shot cleanup: collapse same client+source+normalized-title rows.
+
+    Keeps the oldest row holding a sentiment score, else the oldest; cascade
+    removes dependent classification rows. Returns the removed count.
+    """
+    removed = 0
+    client_ids = session.scalars(select(Client.id)).all()
+    for client_id in client_ids:
+        rows = session.scalars(
+            select(Mention).where(Mention.client_id == client_id)
+        ).all()
+        groups: dict[tuple, list[Mention]] = defaultdict(list)
+        for mention in rows:
+            if mention.title:
+                key = (mention.source, _normalized_title(mention.title))
+                groups[key].append(mention)
+        for group in groups.values():
+            if len(group) < 2:
+                continue
+            keep = min(group, key=lambda m: (m.sentiment is None, m.id))
+            for mention in group:
+                if mention.id != keep.id:
+                    session.delete(mention)
+                    removed += 1
+    session.commit()
+    return removed
+
+
 def insert_mention(
     session: Session,
     *,
@@ -363,6 +406,21 @@ def insert_mention(
     existing = session.scalar(select(Mention).where(Mention.url_hash == url_hash))
     if existing is not None:
         return None
+    # Cross-URL dedupe: news.google hands the same article different redirect
+    # tokens, so hash equality is not enough. Same client + source + normalized
+    # title counts as already-ingested. O(n) scan per insert; revisit with a
+    # stored title_norm column if the corpus grows past ~10k rows.
+    if title:
+        normalized = _normalized_title(title)
+        for sibling in session.scalars(
+            select(Mention).where(
+                Mention.client_id == client_id,
+                Mention.source == source,
+                Mention.title.is_not(None),
+            )
+        ):
+            if sibling.title and _normalized_title(sibling.title) == normalized:
+                return None
     mention = Mention(
         client_id=client_id,
         keyword_id=keyword_id,
