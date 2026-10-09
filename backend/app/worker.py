@@ -39,8 +39,10 @@ from app.settings_runtime import (
     EffectiveSettings,
     get_effective_settings,
     load_cycle_settings,
+    resolve_effective_settings,
 )
 from app import spike
+from app.summaries import build_daily_summary, today_in
 
 log = logging.getLogger("worker")
 
@@ -54,6 +56,12 @@ RETENTION_PURGE_HOUR = 4
 #: Minute past the hour for the saved-search spike scan (evaluates the
 #: hour that just closed; see app.spike.scan.SCAN_LAG).
 SPIKE_SCAN_MINUTE = 9
+
+#: Hour (local time) of the daily summary build (T11). 21:00 keeps the run
+#: clearly inside the day it describes while leaving the late evening for
+#: ops; the evening tail is covered by regenerating — POST
+#: /summaries/generate upserts, so a later rerun folds late mentions in.
+DAILY_SUMMARY_HOUR = 21
 
 
 def build_adapters(effective: EffectiveSettings) -> list:
@@ -200,6 +208,28 @@ def spike_scan_job() -> int:
         session.close()
 
 
+def daily_summary_job() -> int | None:
+    """Build (or regenerate) today's summary for the default client (T11).
+
+    Both the day and the mention window follow the settings timezone via
+    app.summaries (today_in / day_window), matching what the API's
+    generate endpoint would build for the same instant. Returns the row id.
+    """
+    session: Session = SessionLocal()
+    try:
+        effective = resolve_effective_settings(
+            session, client_id=settings.default_client_id
+        )
+        day = today_in(effective.timezone)
+        row = build_daily_summary(
+            session, client_id=settings.default_client_id, day=day
+        )
+        log.info("daily summary %s built (mode=%s, id=%s)", day, row.mode, row.id)
+        return row.id
+    finally:
+        session.close()
+
+
 def _daily_digest_job() -> None:
     run_digest(AlertDigest.daily)
 
@@ -273,6 +303,16 @@ def build_scheduler() -> BlockingScheduler:
         minute=0,
         timezone=tz_name,
         id="retention_purge",
+        max_instances=1,
+        coalesce=True,
+    )
+    scheduler.add_job(
+        daily_summary_job,
+        "cron",
+        hour=DAILY_SUMMARY_HOUR,
+        minute=0,
+        timezone=tz_name,
+        id="daily_summary",
         max_instances=1,
         coalesce=True,
     )

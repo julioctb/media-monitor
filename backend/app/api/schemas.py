@@ -230,3 +230,39 @@ class SpikeOut(BaseModel):
     zscore: float
     summary: str | None
     summary_created_at: datetime | None
+
+
+# ------------------------------------------------------------- daily summaries
+
+# ``date`` as a field name shadows the datetime type inside the class body
+# (the default binds before the annotation is evaluated), so the optional
+# union is built once here instead of inline.
+SummaryDate = date | None
+
+
+class DailySummaryOut(BaseModel):
+    """One stored client-day digest (T11)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    client_id: int
+    summary_date: date
+    content: dict[str, object]
+    narrative: str
+    mode: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class SummaryDayOut(BaseModel):
+    """History entry: a stored day and the generator mode that produced it."""
+
+    summary_date: date
+    mode: str
+
+
+class SummaryGenerateRequest(BaseModel):
+    """Optional body of POST /summaries/generate; null/absent date = today."""
+
+    date: SummaryDate = None

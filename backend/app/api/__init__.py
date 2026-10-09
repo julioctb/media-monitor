@@ -10,6 +10,7 @@ from app.api import (
     settings,
     spikes,
     stats,
+    summaries,
 )
 
 api_router = APIRouter()
@@ -20,3 +21,4 @@ api_router.include_router(alerts.router)
 api_router.include_router(settings.router)
 api_router.include_router(saved_searches.router)
 api_router.include_router(spikes.router)
+api_router.include_router(summaries.router)
