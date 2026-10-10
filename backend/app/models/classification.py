@@ -1,10 +1,11 @@
 """MentionClassification: one label from one classifier for a mention.
 
-Multi-label by design: a mention carries at most one row per classifier
-(UNIQUE mention_id + classifier) and classifiers are independent axes —
-a political note can still be sentiment-positive. The classifier catalog
-lives in code (app.classifications registry), NOT in a CHECK constraint:
-adding a classifier is a deploy, never a migration.
+Multi-label by design: a classifier may emit several labels for one
+mention -- one row per (mention, classifier, label) under a triple
+unique -- and classifiers are independent axes, so a political note can
+still be sentiment-positive while carrying two topics. The classifier
+catalog lives in code (app.classifications registry), NOT in a CHECK
+constraint: adding a classifier is a deploy, never a migration.
 """
 
 from datetime import datetime
@@ -26,7 +27,14 @@ from app.models.base import Base, IntPk
 class MentionClassification(IntPk, Base):
     __tablename__ = "mention_classifications"
     __table_args__ = (
-        UniqueConstraint("mention_id", "classifier", name="uq_mention_classifications_pair"),
+        # One row per (mention, classifier, label): multi-label classifiers
+        # store several labels for the same mention/classifier pair.
+        UniqueConstraint(
+            "mention_id",
+            "classifier",
+            "label",
+            name="uq_mention_classifications_triple",
+        ),
         # Hot path: stats breakdown groups by label inside a classifier and
         # the feed filter probes (classifier, label) existence.
         Index("ix_mention_classifications_classifier_label", "classifier", "label"),

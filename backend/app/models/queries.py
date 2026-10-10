@@ -91,7 +91,7 @@ def _mention_filters(
         stmt = stmt.where(Mention.ingested_at >= ingested_since)
     if classifier is not None or label is not None:
         # Correlated EXISTS: mention carries a row for this classifier
-        # (and label when given). Unique(mention, classifier) keeps it cheap.
+        # (and label when given). The (classifier, label) index keeps it cheap.
         classification_probe = select(MentionClassification.id).where(
             MentionClassification.mention_id == Mention.id
         )
@@ -272,6 +272,38 @@ def mention_timestamps(
 # ------------------------------------------------------------ classifications
 
 
+def upsert_classifications(
+    session: Session,
+    *,
+    mention_id: int,
+    classifier: str,
+    results: Sequence[tuple[str, float]],
+) -> None:
+    """Store every label of one classifier pass, replacing its old rows.
+
+    Delete + insert scoped to (mention_id, classifier): other classifiers'
+    rows are untouched, and a multi-label classifier lands one row per
+    label (an empty result just clears the classifier's rows). Does not
+    commit; the caller owns the transaction boundary (pipeline commits
+    per mention, backfill per batch).
+    """
+    session.execute(
+        delete(MentionClassification).where(
+            MentionClassification.mention_id == mention_id,
+            MentionClassification.classifier == classifier,
+        )
+    )
+    for label, score in results:
+        session.add(
+            MentionClassification(
+                mention_id=mention_id,
+                classifier=classifier,
+                label=label,
+                score=score,
+            )
+        )
+
+
 def upsert_classification(
     session: Session,
     *,
@@ -282,23 +314,13 @@ def upsert_classification(
 ) -> None:
     """Store one classifier's label for a mention, replacing any old value.
 
-    Delete + insert scoped to (mention_id, classifier): other classifiers'
-    rows are untouched. Does not commit; the caller owns the transaction
-    boundary (pipeline commits per mention, backfill per batch).
+    Single-label convenience over :func:`upsert_classifications`.
     """
-    session.execute(
-        delete(MentionClassification).where(
-            MentionClassification.mention_id == mention_id,
-            MentionClassification.classifier == classifier,
-        )
-    )
-    session.add(
-        MentionClassification(
-            mention_id=mention_id,
-            classifier=classifier,
-            label=label,
-            score=score,
-        )
+    upsert_classifications(
+        session,
+        mention_id=mention_id,
+        classifier=classifier,
+        results=[(label, score)],
     )
 
 

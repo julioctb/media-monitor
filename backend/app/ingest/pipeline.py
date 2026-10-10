@@ -12,7 +12,7 @@ from collections.abc import Mapping, Sequence
 
 from sqlalchemy.orm import Session
 
-from app.classifications.base import Classifier
+from app.classifications.base import Classifier, classification_results
 from app.ingest.base import RawMention, SourceAdapter
 from app.ingest.matching import find_matching_keyword, fold_text
 from app.models import Keyword, MentionSource, queries
@@ -51,14 +51,17 @@ def _classify_mention(
                 "classifier %s failed for mention %s: %s", classifier.name, mention_id, exc
             )
             continue
-        queries.upsert_classification(
+        results = classification_results(result)
+        # Multi-label classifiers land one row per label; an empty result
+        # just clears the classifier's previous rows for this mention.
+        queries.upsert_classifications(
             session,
             mention_id=mention_id,
             classifier=classifier.name,
-            label=result.label,
-            score=result.score,
+            results=[(item.label, item.score) for item in results],
         )
-        stored += 1
+        if results:
+            stored += 1
     if stored:
         session.commit()
     return stored

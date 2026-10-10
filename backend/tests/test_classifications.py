@@ -22,6 +22,7 @@ from app.classifications.political import (
     default_confidence_threshold,
 )
 from app.classifications.registry import build_classifiers, classifier_names
+from app.classifications.topics import TopicClassifier
 from app.db import get_db
 from app.ingest.base import RawMention
 from app.ingest.pipeline import persist_raw_mentions
@@ -386,3 +387,208 @@ def test_stats_overview_includes_classifier_breakdown(api) -> None:
     political = next(c for c in payload["classifications"] if c["classifier"] == "political")
     assert political["total_classified"] == 1
     assert political["breakdown"] == {"political": 1}
+
+
+# ------------------------------------------------------- topics (T12)
+
+
+class FakeBinaryAgent:
+    """Stands in for the agent's binary questions: name -> P(yes)."""
+
+    def __init__(self, probs: dict[str, float]) -> None:
+        self.probs = probs
+        self.calls: list[tuple[str, dict]] = []
+
+    def predict(self, text: str, questions: dict) -> dict:
+        self.calls.append((text, questions))
+        answers = {}
+        for key in questions:
+            yes = self.probs.get(key, 0.0)
+            answers[key] = {
+                "choice": "yes" if yes >= 0.5 else "no",
+                "probabilities": {"yes": yes, "no": round(1 - yes, 2)},
+            }
+        return {"answers": answers}
+
+
+class MultiLabelClassifier:
+    name = "multi"
+
+    def classify(self, text: str, lang: str = "es") -> list[ClassificationResult]:
+        return [
+            ClassificationResult(label="sports", score=0.9),
+            ClassificationResult(label="culture", score=0.6),
+        ]
+
+
+TOPIC_KEYS = {"sports", "academic", "culture", "health", "economy"}
+
+
+def test_topic_classifier_one_predict_call_yes_labels_only() -> None:
+    agent = FakeBinaryAgent(
+        {
+            "sports": 0.92,
+            "academic": 0.40,
+            "culture": 0.81,
+            "health": 0.12,
+            "economy:": 0.55,  # typo key: ignored, question set still complete
+        }
+    )
+    results = TopicClassifier(agent=agent).classify(
+        "Pumas gana y sube el precio del boleto", lang="es"
+    )
+    # Only yes answers above 0.5, definition order, score = P(yes).
+    assert [(r.label, r.score) for r in results] == [
+        ("sports", 0.92),
+        ("culture", 0.81),
+    ]
+    # One predict call carrying every binary yes/no question.
+    assert len(agent.calls) == 1
+    text, question = agent.calls[0]
+    assert text == "Pumas gana y sube el precio del boleto"
+    assert set(question) == TOPIC_KEYS
+    assert all(q["type"] == "choice" for q in question.values())
+    assert all(set(q["criteria"]) == {"yes", "no"} for q in question.values())
+
+
+def test_topic_classifier_empty_when_nothing_clears_threshold() -> None:
+    agent = FakeBinaryAgent(dict.fromkeys(TOPIC_KEYS, 0.1))
+    assert TopicClassifier(agent=agent).classify("nada", lang="es") == []
+
+
+def test_registry_exposes_topic() -> None:
+    assert "topic" in classifier_names()
+    built = build_classifiers(["topic"])
+    assert isinstance(built[0], TopicClassifier)
+    assert built[0].name == "topic"
+
+
+def test_upsert_classifications_multi_label_replaces_only_own_rows(session) -> None:
+    client = Client(name="acme")
+    session.add(client)
+    session.commit()
+    mention = _mention(session, client.id)
+
+    queries.upsert_classification(
+        session, mention_id=mention.id, classifier="political", label="political", score=0.9
+    )
+    queries.upsert_classifications(
+        session,
+        mention_id=mention.id,
+        classifier="topic",
+        results=[("sports", 0.9), ("culture", 0.6)],
+    )
+    session.commit()
+
+    def stored_rows() -> set[tuple[str, str]]:
+        rows = session.scalars(
+            select(MentionClassification).where(
+                MentionClassification.mention_id == mention.id
+            )
+        ).all()
+        return {(r.classifier, r.label) for r in rows}
+
+    assert stored_rows() == {
+        ("political", "political"),
+        ("topic", "sports"),
+        ("topic", "culture"),
+    }
+
+    # Re-running the classifier replaces all of its rows; political stays.
+    queries.upsert_classifications(
+        session, mention_id=mention.id, classifier="topic", results=[("sports", 0.7)]
+    )
+    session.commit()
+    assert stored_rows() == {("political", "political"), ("topic", "sports")}
+
+
+def test_multi_label_mention_matches_each_label_filter(session) -> None:
+    client = Client(name="acme")
+    session.add(client)
+    session.commit()
+    mention = _mention(session, client.id)
+    queries.upsert_classifications(
+        session,
+        mention_id=mention.id,
+        classifier="topic",
+        results=[("sports", 0.9), ("culture", 0.6)],
+    )
+    session.commit()
+
+    for label in ("sports", "culture"):
+        found = queries.list_mentions(session, client.id, classifier="topic", label=label)
+        assert [m.id for m in found] == [mention.id]
+        assert (
+            queries.count_mentions(session, client.id, classifier="topic", label=label) == 1
+        )
+
+    assert queries.list_mentions(
+        session, client.id, classifier="topic", label="health"
+    ) == []
+    # Classifier alone matches any of the mention's labels.
+    assert {m.id for m in queries.list_mentions(session, client.id, classifier="topic")} == {
+        mention.id
+    }
+
+
+def test_classification_breakdown_counts_every_label(session) -> None:
+    client = Client(name="acme")
+    session.add(client)
+    session.commit()
+    one = _mention(session, client.id, url="https://x/1")
+    two = _mention(session, client.id, url="https://x/2")
+    queries.upsert_classifications(
+        session, mention_id=one.id, classifier="topic", results=[("sports", 0.9), ("culture", 0.6)]
+    )
+    queries.upsert_classifications(
+        session, mention_id=two.id, classifier="topic", results=[("economy", 0.8)]
+    )
+    session.commit()
+
+    assert queries.classification_breakdown(session, client_id=client.id, classifier="topic") == {
+        "sports": 1,
+        "culture": 1,
+        "economy": 1,
+    }
+
+
+def test_pipeline_stores_multi_label_and_single_classifiers(session) -> None:
+    client, keyword = _client_with_keyword(session)
+    inserted = persist_raw_mentions(
+        session,
+        client_id=client.id,
+        items=[_raw("https://x/1")],
+        keyword_by_text={"acme": keyword},
+        all_keyword_texts=["acme"],
+        classifiers=[MultiLabelClassifier(), OkClassifier()],
+    )
+    assert inserted == 1
+    rows = session.scalars(select(MentionClassification)).all()
+    assert {(r.classifier, r.label, r.score) for r in rows} == {
+        ("multi", "sports", 0.9),
+        ("multi", "culture", 0.6),
+        ("ok", "ok_label", 0.5),
+    }
+
+
+def test_pipeline_empty_result_clearing_is_query_level(session) -> None:
+    client, keyword = _client_with_keyword(session)
+    persist_raw_mentions(
+        session,
+        client_id=client.id,
+        items=[_raw("https://x/1")],
+        keyword_by_text={"acme": keyword},
+        all_keyword_texts=["acme"],
+        classifiers=[MultiLabelClassifier()],
+    )
+    # Reingest does not re-classify (created-only); the empty-result clear
+    # happens wherever a classifier re-runs, i.e. in the plural upsert.
+    mention_id = session.scalars(select(Mention.id)).one()
+    queries.upsert_classifications(
+        session, mention_id=mention_id, classifier="multi", results=[]
+    )
+    session.commit()
+    rows = session.scalars(
+        select(MentionClassification).where(MentionClassification.classifier == "multi")
+    ).all()
+    assert rows == []

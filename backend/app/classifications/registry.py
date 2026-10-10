@@ -12,9 +12,11 @@ from typing import Callable
 
 from app.classifications.base import Classifier
 from app.classifications.political import PoliticalClassifier
+from app.classifications.topics import TopicClassifier
 
 CLASSIFIER_FACTORIES: dict[str, Callable[[], Classifier]] = {
     PoliticalClassifier.name: PoliticalClassifier,
+    TopicClassifier.name: TopicClassifier,
 }
 
 

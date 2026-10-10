@@ -17,6 +17,7 @@ import logging
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
+from app.classifications.base import classification_results
 from app.db import SessionLocal
 from app.models import Client, Mention, MentionClassification, queries
 
@@ -86,12 +87,14 @@ def reclassify(
                     )
                     totals["failed"] += 1
                     continue
-                queries.upsert_classification(
+                results = classification_results(prediction)
+                # Multi-label classifiers land one row per label; an empty
+                # result just leaves the mention without this classifier.
+                queries.upsert_classifications(
                     session,
                     mention_id=mention.id,
                     classifier=classifier.name,
-                    label=prediction.label,
-                    score=prediction.score,
+                    results=[(item.label, item.score) for item in results],
                 )
                 totals["classified"] += 1
                 processed += 1

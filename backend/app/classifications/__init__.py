@@ -7,12 +7,14 @@ from app.classifications.registry import (
     build_classifiers,
     classifier_names,
 )
+from app.classifications.topics import TopicClassifier
 
 __all__ = [
     "CLASSIFIER_FACTORIES",
     "ClassificationResult",
     "Classifier",
     "PoliticalClassifier",
+    "TopicClassifier",
     "build_classifiers",
     "classifier_names",
 ]

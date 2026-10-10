@@ -185,22 +185,34 @@ Rows left with NULL sentiment (analyzer hiccups) can be re-scored anytime:
 ## Classifications
 
 Classifications are a second, independent axis: one row per
-`(mention, classifier)` in `mention_classifications` — a political note can
-still be sentiment-positive. The catalog lives in code
+`(mention, classifier, label)` in `mention_classifications` (triple unique,
+migration 0008) — a political note can still be sentiment-positive, and a
+multi-label classifier stores one row per label. The catalog lives in code
 (`app/classifications/registry.py`, name -> factory); the column is a plain
-string, so registering a classifier never needs a migration. v1 ships
-`political` (Laya `choice`: `political` vs `not_political`, score = chosen
-probability, shared lazy `LayaRuntime` with sentiment — one model load per
-process). Low-confidence decisions are not forced: when the chosen label is
-below `LAYA_POLITICAL_CONFIDENCE_THRESHOLD` (default `0.70`), the stored
-label is `uncertain` with the original score. The ingest pipeline runs the
-registry after sentiment with the same failure isolation: a broken classifier
-skips its rows, never the mention.
+string, so registering a classifier never needs a migration. Two ship:
 
-Evaluate threshold quality against labeled examples:
+- `political` (Laya `choice`: `political` vs `not_political`, score = chosen
+  probability, shared lazy `LayaRuntime` with sentiment — one model load per
+  process). Low-confidence decisions are not forced: when the chosen label is
+  below `LAYA_POLITICAL_CONFIDENCE_THRESHOLD` (default `0.50`), the stored
+  label is `uncertain` with the original score. Sports/academic/cultural
+  events are carved out explicitly: they are not political unless a
+  government decision, conflict or political actors lead.
+- `topic` (multi-label): ONE `predict` call carries five binary yes/no
+  questions — `sports`, `academic`, `culture`, `health`, `economy` — and
+  every yes (`>= 0.5`) becomes a row scored with its yes-probability. A note
+  can be academic and culture at once; an empty result is valid and simply
+  leaves the mention without topics.
+
+The ingest pipeline runs the registry after sentiment with the same failure
+isolation: a broken classifier skips its rows, never the mention.
+
+Evaluate threshold quality against labeled examples
+(`backend/eval_political_gold_es.jsonl`, 63 hand-labeled rows):
 
 ```bash
-.venv/bin/python backend/scripts/eval_classifications.py --threshold 0.70
+.venv/bin/python backend/scripts/eval_classifications.py \
+    --jsonl backend/eval_political_gold_es.jsonl --threshold 0.50
 ```
 
 Full re-classification wipes and recomputes one classifier's rows
@@ -208,12 +220,15 @@ Full re-classification wipes and recomputes one classifier's rows
 
 ```bash
 .venv/bin/python -m scripts.backfill_classifications --classifier political
+.venv/bin/python -m scripts.backfill_classifications --classifier topic
 ```
 
 `GET /api/stats/overview` carries a `classifications` block (total +
 per-label counts) and `GET /api/mentions` accepts `classifier`/`label`
-filters plus a `classifications` array per row; the dashboard renders the
-political donut, a per-row badge and a "Solo políticas" filter.
+filters plus a `classifications` array per row — a multi-label mention
+matches each of its labels. The dashboard renders the political donut, a
+per-row badge, topic badges next to it and a topics breakdown; the
+"Solo políticas" filter stays.
 
 ### Daily summaries
 
