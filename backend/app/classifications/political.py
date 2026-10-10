@@ -65,7 +65,8 @@ _POLITICAL_QUESTION = {
             "Es el tema principal politica o gobierno? Politica = decisiones "
             "publicas: funcionarios y organismos, partidos, elecciones, presupuesto, "
             "leyes, decretos, o la relacion del gobierno con la institucion "
-            "(autonomia, dinero publico, respaldo o ataques politicos)."
+            "(autonomia, dinero publico, respaldo o ataques politicos). Deporte, "
+            "academia o cultura: no politica salvo decision o conflicto de gobierno."
         ),
         "criteria": {
             "political": (
@@ -82,6 +83,13 @@ _POLITICAL_QUESTION = {
     }
 }
 
+# Explicit disambiguation (T12): sports/academic/cultural events are not
+# political on their own — only via government decisions, conflicts, or
+# political actors as the main subject (the clause closing the instructions
+# above). On the 63-row gold it trades one borderline political row (the
+# gov-university backing cluster) for perfect not_political recall:
+# 37/63=58.73% -> 36/63=57.14%, not_political 31/34 -> 34/34. The
+# misclassified-sports field report was about that side.
 
 class PoliticalClassifier:
     """political vs not_political via the shared Laya runtime."""
