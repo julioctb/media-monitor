@@ -124,6 +124,17 @@ Deploy: Docker Compose (api, worker, db, dashboard) on a VPS
       152 tests; live DB re-classified 107: political 24 / not 83;
       migration 0003 applied. NOTE: user works on branch
       feat/social-listening-core, wip commit ac3f7cb is theirs)
+      (calibration 0037620 on feat/laya-classification-calibration: 63-row
+      hand gold, prompt recalibrated 38->59 pct (political precision 0->46),
+      threshold 0.70->0.50 uncertain effectively off via measurement, DB
+      re-classified 146; 80 pct unreachable: binary softmax floors scores
+      at 0.5 so uncertain-gold rows cap ~79 even perfect; 208 tests)
+- [x] T12: Topic classifier multi-label (sports/academic/culture/health/
+      economy, una predict de 5 questions) + political carve-out explicito
+      (commits 2795a5b/998ffc7/5af253c; 216 tests; migration 0008; DB
+      147 classified: academic 71 economy 37 health 27 culture 25 sports 16;
+      political 58.73->57.14 pero not_political recall 100 y precision
+      46->67 = el fix deportivos-como-politicas; revert = 1 string)
 
 - [x] T11: Daily summaries — page /summary: per-source + per-keyword daily
       digest, stored one row per client/day (daily_summaries: content JSON
@@ -135,6 +146,13 @@ Deploy: Docker Compose (api, worker, db, dashboard) on a VPS
       docker; real generation 2026-10-09: 7 mentions, BUAP covered,
       Lilia Cedillo silent-correct, mode heuristic; endpoints under
       /api/clients/id/summaries)
+
+- [ ] T12: Topic classifier (multi-label) — categories sports/academic/
+      culture/health/economy via Laya multi-question (one predict, N binary
+      choices), registry + topics backfill. Political prompt: explicit
+      non-political domains rule (sports/academic events at institutions)
+      + regression vs 63-row gold. UI: topic badges, stats per-label
+      breakdown, feed filter via classifier=topic. DB re-classify.
 
 ## Phase 2 (future, not in MVP scope)
 - **Flutter mobile app** (iOS + Android) consuming the same FastAPI API:
