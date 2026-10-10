@@ -118,9 +118,8 @@ def test_political_classifier_high_confidence_not_political() -> None:
 
 def test_political_classifier_low_confidence_uncertain_preserves_chosen_score() -> None:
     agent = FakeLayaAgent(choice="political", prob=0.69)
-    result = PoliticalClassifier(agent=agent).classify(
-        "La universidad firmó convenio", lang="es"
-    )
+    classifier = PoliticalClassifier(agent=agent, confidence_threshold=0.80)
+    result = classifier.classify("La universidad firmó convenio", lang="es")
     assert result.label == "uncertain"
     assert result.score == 0.69
 

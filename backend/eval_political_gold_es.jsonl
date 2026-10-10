@@ -1,0 +1,76 @@
+# Gold set for the Laya `political` classifier (ES). 63 rows, hand-labeled
+# from REAL mentions of the media-monitor DB (docker, mediamonitor) on
+# 2026-10-09; `mention_id` traces each row. text = title (+content[:300] when
+# present; content was NULL for all rows at build time).
+# Codebook: political = public power is the main actor/action (gobernador,
+# gobierno estatal, SEP, Congreso del Estado) or the govt-university relation
+# (autonomia, presupuesto, decreto, respaldo/conflicto). not_political =
+# deportes, cultura, premios, congresos academicos, movilidad, salud,
+# infraestructura y gestion interna (informes, becas, plazas) sin actor
+# gubernamental; "Facultad de Ciencias Politicas" es nombre, no politica.
+# uncertain = mezcla real politico+academico o tension politica con actores
+# no claros (complot, sucesion, tumbar).
+
+{"text": "Analizan en la BUAP el uso y el impacto de las redes sociales - Publimetro México", "gold": "not_political", "mention_id": 1, "lang": "es"}
+{"text": "BUAP suspende clases presenciales en tres campus y esto debes saber - El Popular, periodismo con causa", "gold": "not_political", "mention_id": 2, "lang": "es"}
+{"text": "Gana investigador de la BUAP premio estatal en medio ambiente - Quadratín Puebla", "gold": "not_political", "mention_id": 3, "lang": "es"}
+{"text": "The Tenors llegará con concierto navideño al CCU BUAP - e-consulta.com", "gold": "not_political", "mention_id": 4, "lang": "es"}
+{"text": "Pruebas gratis de VIH en la BUAP: conoce la fecha y el horario - El Popular, periodismo con causa", "gold": "not_political", "mention_id": 8, "lang": "es"}
+{"text": "BUAP destaca con dispositivo para prevenir enfermedades cardiovasculares - El Popular, periodismo con causa", "gold": "not_political", "mention_id": 9, "lang": "es"}
+{"text": "Un informe de labores “platicado” en la BUAP | Guadalupe Grajales - e-consulta.com", "gold": "uncertain", "mention_id": 10, "lang": "es"}
+{"text": "Celulares en las aulas: SEP prepara restricciones desde la BUAP - Mediatik", "gold": "political", "mention_id": 12, "lang": "es"}
+{"text": "BUAP, sede del 50 Congreso Mexicano de la Ciencia del Suelo - Boletines BUAP |", "gold": "not_political", "mention_id": 14, "lang": "es"}
+{"text": "Ópera BUAP presentará tres obras del 13 de octubre al 20 de noviembre - Poblanerías", "gold": "not_political", "mention_id": 15, "lang": "es"}
+{"text": "BUAP concluye Semana de Movilidad Intercultural con actividades sobre migración - Reto Diario", "gold": "uncertain", "mention_id": 16, "lang": "es"}
+{"text": "En la BUAP se discuten los fenómenos socioculturales del sonido - Boletines BUAP |", "gold": "not_political", "mention_id": 19, "lang": "es"}
+{"text": "BUAP | Concluye Semana de Movilidad Intercultural de la Facultad de Ciencias Políticas y Sociales - Urbano Puebla", "gold": "not_political", "mention_id": 20, "lang": "es"}
+{"text": "Lluvias llevan a clases en línea a tres planteles BUAP - Mediatik", "gold": "not_political", "mention_id": 21, "lang": "es"}
+{"text": "Presentan en el Congreso del Estado la Expo Hortícola Puebla-BUAP 2026 - Primera Plana Puebla", "gold": "uncertain", "mention_id": 24, "lang": "es"}
+{"text": "Invita BUAP a Segundo Congreso Internacional de Microbiología Veterinaria - Boletines BUAP |", "gold": "not_political", "mention_id": 32, "lang": "es"}
+{"text": "Lilia Cedillo: 5 acciones que están marcando el rumbo de la BUAP - Revista Única", "gold": "not_political", "mention_id": 33, "lang": "es"}
+{"text": "BUAP reúne a autoridades y expertos para analizar efectos de la tecnología en menores; SEP anuncia decreto de regulación digital - https://leviatan.mx/", "gold": "uncertain", "mention_id": 34, "lang": "es"}
+{"text": "Celebra BUAP a jubiladas y jubilados universitarios - Boletines BUAP |", "gold": "not_political", "mention_id": 35, "lang": "es"}
+{"text": "BUAP promueve el diálogo y la sensibilización sobre la migración - Contraparte | Periodismo en Equilibrio", "gold": "uncertain", "mention_id": 36, "lang": "es"}
+{"text": "Alumna de la BUAP obtiene segundo lugar en Falling Walls Lab México 2026 - Periódico Central", "gold": "not_political", "mention_id": 38, "lang": "es"}
+{"text": "Gobierno estatal refrenda respeto a autonomía de la BUAP y continuidad en proyectos conjuntos - El Economista", "gold": "political", "mention_id": 39, "lang": "es"}
+{"text": "BUAP proyecta 'rechazo cero' para estudiantes poblanos en 2029; esto sabemos - Milenio", "gold": "not_political", "mention_id": 44, "lang": "es"}
+{"text": "Ahorros del Estado superan presupuestos de la BUAP y capital - Parabolica.mx", "gold": "political", "mention_id": 45, "lang": "es"}
+{"text": "EN TIEMPO REAL | Lilia Cedillo: Incansable - Urbano Puebla", "gold": "not_political", "mention_id": 48, "lang": "es"}
+{"text": "Lilia Cedillo prevé que CU2 opere al 100% al finalizar su gestión en 2029 - El Heraldo de Puebla", "gold": "not_political", "mention_id": 49, "lang": "es"}
+{"text": "“Hay rectora para mucho rato”: Lilia Cedillo se mantiene firme pese a complot para sacarla de la BUAP - Diario sin Secretos", "gold": "uncertain", "mention_id": 50, "lang": "es"}
+{"text": "Lilia Cedillo llama a profesores a guiar a los alumnos en el uso de los celulares - El Sol de México", "gold": "not_political", "mention_id": 52, "lang": "es"}
+{"text": "BUAP refrenda autonomía y visión de futuro: Rectora Lilia Cedillo presenta su Primer Informe de Labores 2025–2029 - https://leviatan.mx/", "gold": "uncertain", "mention_id": 53, "lang": "es"}
+{"text": "Rectora Lilia Cedillo rinde cuentas en BUAP; informó estas obras ante el Consejo Universitario - Ángulo 7", "gold": "uncertain", "mention_id": 63, "lang": "es"}
+{"text": "Se impone Lilia Cedillo y toma control de la sucesión en la BUAP - Reto Diario", "gold": "uncertain", "mention_id": 64, "lang": "es"}
+{"text": "“Hay rectora para rato”: Lilia Cedillo; “Han caído gobernadores que han querido intervenir en la universidad”: Armenta - El Popular, periodismo con causa", "gold": "political", "mention_id": 65, "lang": "es"}
+{"text": "Lilia Cedillo se queda en la BUAP hasta 2029; Armenta ofrece respaldo a sus proyectos - Acento 21", "gold": "political", "mention_id": 66, "lang": "es"}
+{"text": "Armenta manifiesta su respeto a la autonomía de la BUAP - La Jornada de Oriente - Puebla", "gold": "political", "mention_id": 68, "lang": "es"}
+{"text": "Lilia Cedillo habla en ATN sobre crecimiento de la BUAP - A tiempo noticias Puebla", "gold": "not_political", "mention_id": 70, "lang": "es"}
+{"text": "Defiende Armenta autonomía de la BUAP y a Lilia Cedillo - Hipócrita Lector", "gold": "political", "mention_id": 74, "lang": "es"}
+{"text": "Autonomía y diálogo con gobiernos, la ruta de Lilia Cedillo para su segundo periodo en la BUAP - Publimetro México", "gold": "political", "mention_id": 75, "lang": "es"}
+{"text": "Armenta respalda continuidad de Lilia Cedillo al frente de la BUAP hasta 2029 - Hipócrita Lector", "gold": "political", "mention_id": 77, "lang": "es"}
+{"text": "Más estudiantes, más becas y CU2 en expansión en la BUAP: Lilia Cedillo - Parabolica.MX", "gold": "not_political", "mention_id": 79, "lang": "es"}
+{"text": "Autonomía y diálogo con gobiernos, pilares de la BUAP: Lilia Cedillo - Primera Plana Puebla", "gold": "political", "mention_id": 81, "lang": "es"}
+{"text": "Alejandro Armenta respalda la gestión de Lilia Cedillo y proyecta equiparar el presupuesto de la BUAP para 2030 - Primera Plana Puebla", "gold": "political", "mention_id": 83, "lang": "es"}
+{"text": "Lilia Cedillo confirma continuidad en la BUAP y llama a trabajar sin afectar la autonomía - Curul Puebla", "gold": "uncertain", "mention_id": 89, "lang": "es"}
+{"text": "BUAP aumenta espacios de ingreso y fortalece apoyos para estudiantes: Lilia Cedillo - Acento 21", "gold": "not_political", "mention_id": 90, "lang": "es"}
+{"text": "Más de 75 mil estudiantes de la BUAP han recibido becas durante gestión de Cedillo - La Jornada de Oriente - Puebla", "gold": "not_political", "mention_id": 91, "lang": "es"}
+{"text": "Armenta acusa “intereses mezquinos” contra la BUAP; respalda continuidad de Lilia Cedillo - Imagen Poblana", "gold": "political", "mention_id": 92, "lang": "es"}
+{"text": "“Cada voz, cada talento y cada historia dejan huella”: Lilia Cedillo en su próximo informe como rectora BUAP - El Valle", "gold": "not_political", "mention_id": 93, "lang": "es"}
+{"text": "Armenta respalda a Lilia Cedillo: “¡Hasta el 29!” - Noticias de Hoy Puebla | Contraparte | Periodismo en Equilibrio | - Contraparte | Periodismo en Equilibrio", "gold": "political", "mention_id": 94, "lang": "es"}
+{"text": "BUAP llama a regular uso de dispositivos digitales en infancias y juventudes - Tribunanoticias", "gold": "political", "mention_id": 98, "lang": "es"}
+{"text": "Investigador de la BUAP gana premio por transformar residuos orgánicos en abono - Periódico Central", "gold": "not_political", "mention_id": 105, "lang": "es"}
+{"text": "Festival de la Ópera BUAP 2026 ofrece funciones gratis en Puebla - e-consulta.com", "gold": "not_political", "mention_id": 108, "lang": "es"}
+{"text": "Siete universitarios de la BUAP se capacitan en Japón con Oisca - La Jornada de Oriente - Puebla", "gold": "not_political", "mention_id": 110, "lang": "es"}
+{"text": "Proyecto BUAP evita que 2 mil 500 toneladas lleguen al relleno sanitario - Poblanerías", "gold": "not_political", "mention_id": 111, "lang": "es"}
+{"text": "BUAP abre convocatoria de intercambio académico; Alemania y Japón entre los destinos - El Sol de México", "gold": "not_political", "mention_id": 117, "lang": "es"}
+{"text": "Rendir informe de actividades es un proceso de autocrítica: Lilia Cedillo - El Heraldo de Puebla", "gold": "uncertain", "mention_id": 118, "lang": "es"}
+{"text": "Participa la comunidad BUAP en la Carrera vertical 2026 - e-consulta.com", "gold": "not_political", "mention_id": 121, "lang": "es"}
+{"text": "Lilia Cedillo seguirá al frente de la BUAP hasta 2029: “Hay rectora para mucho rato” - Periódico Enfoque", "gold": "not_political", "mention_id": 125, "lang": "es"}
+{"text": "No me voy antes de que termine mi periodo: Lilia Cedillo respalda su propia continuidad hasta 2029 - Diario Cambio", "gold": "uncertain", "mention_id": 127, "lang": "es"}
+{"text": "Reafirma Lilia Cedillo autonomía de BUAP en su Primer Informe y llama a mantener coordinación con gobiernos - Diario Cambio", "gold": "political", "mention_id": 129, "lang": "es"}
+{"text": "¿Quién quiere tumbar a Lilia Cedillo de la BUAP antes de 2029? - MTP Noticias", "gold": "uncertain", "mention_id": 131, "lang": "es"}
+{"text": "Lilia Cedillo destaca avances académicos, sociales y de infraestructura en su Primer Informe - Diario Cambio", "gold": "not_political", "mention_id": 132, "lang": "es"}
+{"text": "BUAP prepara reforma de pensiones para garantizar estabilidad durante 80 años: Lilia Cedillo - Diario Cambio", "gold": "uncertain", "mention_id": 133, "lang": "es"}
+{"text": "Tuzos UAZ cae por la mínima ante Lobos BUAP - NTR Zacatecas", "gold": "not_political", "mention_id": 135, "lang": "es"}
+{"text": "Reclama director del ICSyH más plazas para fortalecer investigación en la BUAP - e-consulta.com", "gold": "not_political", "mention_id": 139, "lang": "es"}

@@ -6,6 +6,13 @@ political vs not_political; the score is the chosen option's calibrated
 probability. Low-confidence choices are returned as uncertain while preserving
 the chosen score. The explicit not_political option keeps the decision
 two-sided instead of thresholding a single positive score.
+
+Calibrated on backend/eval_political_gold_es.jsonl (63 real mentions,
+hand-labeled; see scripts/eval_classifications.py): the default threshold is
+0.50 because every higher value traded political recall for a nearly empty
+uncertain band (0.55 already costs ~8 accuracy points). Raise it via
+LAYA_POLITICAL_CONFIDENCE_THRESHOLD when uncertain mass is preferred over
+forced labels.
 """
 
 import logging
@@ -18,7 +25,7 @@ log = logging.getLogger("classifications.political")
 
 CLASSIFIER_NAME = "political"
 UNCERTAIN_LABEL = "uncertain"
-DEFAULT_CONFIDENCE_THRESHOLD = 0.70
+DEFAULT_CONFIDENCE_THRESHOLD = 0.50
 THRESHOLD_ENV = "LAYA_POLITICAL_CONFIDENCE_THRESHOLD"
 
 
@@ -50,27 +57,26 @@ _POLITICAL_QUESTION = {
     "political": {
         "type": "choice",
         "instructions": (
-            "Does this text mainly deal with politics? Political means government, "
-            "political parties, elections, public policy, legislation, public officials "
-            "or political conflict, or prominent political actors/institutions. "
-            "A university or company in a non-political context is NOT political, "
-            "even when it cites authorities. "
-            "Trata principalmente de política? Política = gobierno, partidos, elecciones, "
-            "políticas públicas, legislación, funcionarios o conflicto político, o "
-            "protagonismo de actores o instituciones políticas. Una universidad o empresa "
-            "en contexto apolítico NO es política, aunque cite autoridades."
+            "Is the main topic politics or government? Political means public "
+            "decision-making: officials and government bodies, parties, elections, "
+            "public budgets, laws, decrees, state policy, or the government "
+            "relationship with an institution (autonomy, public funding, political "
+            "backing or attacks). "
+            "Es el tema principal politica o gobierno? Politica = decisiones "
+            "publicas: funcionarios y organismos, partidos, elecciones, presupuesto, "
+            "leyes, decretos, o la relacion del gobierno con la institucion "
+            "(autonomia, dinero publico, respaldo o ataques politicos)."
         ),
         "criteria": {
             "political": (
-                "Core topic is government, parties, elections, public policy, "
-                "legislation, officials or political conflict / el núcleo es gobierno, "
-                "partidos, elecciones, políticas públicas, legislación, funcionarios "
-                "o conflicto político"
+                "Government or official action at the center, or a government vs "
+                "institution conflict / accion de gobierno al centro o conflicto "
+                "gobierno-institucion"
             ),
             "not_political": (
-                "Business, culture, sports, science or any topic without a political "
-                "core / negocios, cultura, deporte, ciencia u otro tema sin núcleo "
-                "político"
+                "Sports, culture, science, academic life or internal institution "
+                "management / deporte, cultura, ciencia, vida academica o gestion "
+                "interna de la institucion"
             ),
         },
     }

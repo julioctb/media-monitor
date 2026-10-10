@@ -5,8 +5,9 @@ Usage:
     python backend/scripts/eval_classifications.py [--jsonl PATH] [--threshold 0.70]
 
 Runs the real Laya model (downloads on first use via the shared Laya runtime)
-over each row in eval_classifications_political_es.jsonl and prints accuracy
-plus a confusion table vs gold labels. Rows must contain `text` and `gold`.
+over each row in the JSONL and prints accuracy plus a confusion table vs gold
+labels. Rows must contain `text` and `gold`; lines starting with `#` are
+treated as comments (the gold file documents its labeling codebook there).
 """
 
 import argparse
@@ -28,7 +29,7 @@ def load_rows(path: Path) -> list[dict]:
     with path.open(encoding="utf-8") as fh:
         for line_number, line in enumerate(fh, start=1):
             line = line.strip()
-            if not line:
+            if not line or line.startswith("#"):
                 continue
             row = json.loads(line)
             missing = {"text", "gold"} - set(row)
