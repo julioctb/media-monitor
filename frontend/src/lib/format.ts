@@ -63,6 +63,32 @@ export function classificationBadgeClass(label: string): string {
 		: 'bg-slate-100 text-slate-500 ring-slate-400/20';
 }
 
+/** Topic labels (multi-label classifier; unknown keys fall through). */
+const TOPIC_LABELS: Record<string, string> = {
+	sports: 'Deportes',
+	academic: 'Academia',
+	culture: 'Cultura',
+	health: 'Salud',
+	economy: 'Economía'
+};
+
+export function topicLabel(label: string): string {
+	return TOPIC_LABELS[label] ?? label;
+}
+
+/** One hue per topic so a multi-label badge row scans instantly. */
+const TOPIC_BADGE_CLASSES: Record<string, string> = {
+	sports: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
+	academic: 'bg-indigo-50 text-indigo-700 ring-indigo-600/20',
+	culture: 'bg-fuchsia-50 text-fuchsia-700 ring-fuchsia-600/20',
+	health: 'bg-teal-50 text-teal-700 ring-teal-600/20',
+	economy: 'bg-amber-50 text-amber-700 ring-amber-600/20'
+};
+
+export function topicBadgeClass(label: string): string {
+	return TOPIC_BADGE_CLASSES[label] ?? 'bg-slate-100 text-slate-500 ring-slate-400/20';
+}
+
 const PAD = (value: number) => String(value).padStart(2, '0');
 
 /**

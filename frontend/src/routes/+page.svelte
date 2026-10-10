@@ -6,7 +6,9 @@
 		formatDisplayDateTime,
 		formatScore,
 		sentimentBadgeClass,
-		sourceLabel
+		sourceLabel,
+		topicBadgeClass,
+		topicLabel
 	} from '$lib/format';
 	import type { PageProps } from './$types';
 
@@ -230,6 +232,7 @@
 			<tbody class="divide-y divide-slate-100">
 				{#each data.mentions.items as mention (mention.id)}
 					{@const political = mention.classifications?.find((c) => c.classifier === 'political')}
+					{@const topics = mention.classifications?.filter((c) => c.classifier === 'topic') ?? []}
 					<tr class="hover:bg-slate-50">
 						<td class="whitespace-nowrap px-3 py-2 text-xs text-slate-500">
 							{formatDisplayDateTime(mention.published_at ?? mention.ingested_at)}{mention.published_at ? '' : '*'}
@@ -242,16 +245,26 @@
 								{keywordNames.get(mention.keyword_id)}
 							{/if}
 						</td>
-						<td class="whitespace-nowrap px-3 py-2">
-							{#if political}
-								<span
-									class={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${classificationBadgeClass(political.label)}`}
-								>
-									{classificationLabel(political.label)}
-								</span>
-							{:else}
-								<span class="text-xs text-slate-300">—</span>
-							{/if}
+						<td class="px-3 py-2">
+							<div class="flex flex-wrap items-center gap-1">
+								{#if political}
+									<span
+										class={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${classificationBadgeClass(political.label)}`}
+									>
+										{classificationLabel(political.label)}
+									</span>
+								{/if}
+								{#each topics as topic (topic.label)}
+									<span
+										class={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${topicBadgeClass(topic.label)}`}
+									>
+										{topicLabel(topic.label)}
+									</span>
+								{/each}
+								{#if !political && topics.length === 0}
+									<span class="text-xs text-slate-300">—</span>
+								{/if}
+							</div>
 						</td>
 						<td class="whitespace-nowrap px-3 py-2">
 							<span

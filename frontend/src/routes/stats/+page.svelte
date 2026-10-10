@@ -5,7 +5,8 @@
 		formatDayLabel,
 		formatDisplayDateTime,
 		sentimentLabel,
-		sourceLabel
+		sourceLabel,
+		topicLabel
 	} from '$lib/format';
 	import type { PageProps } from './$types';
 
@@ -38,6 +39,22 @@
 		politicalRows.find((row) => row.label === 'political')?.pct ?? 0
 	);
 
+	// Topic classifier (multi-label): one row per label, a mention counts in
+	// several topics at once, so the label counts sum above the mention total.
+	const topic = $derived(data.stats.classifications?.find((c) => c.classifier === 'topic'));
+	const topicTotal = $derived(topic?.total_classified ?? 0);
+	const topicRows = $derived(
+		Object.entries(topic?.breakdown ?? {})
+			.sort((a, b) => b[1] - a[1])
+			.map(([label, count]) => ({
+				label,
+				text: topicLabel(label),
+				count,
+				pct: topicTotal > 0 ? Math.round((count / topicTotal) * 100) : 0
+			}))
+	);
+	const maxTopicCount = $derived(Math.max(1, ...topicRows.map((row) => row.count)));
+
 	const sourceRows = $derived(
 		Object.entries(data.stats.by_source)
 			.sort((a, b) => b[1] - a[1])
@@ -68,6 +85,15 @@
 	const POLITICAL_COLORS: Record<string, string> = {
 		political: '#0284c7',
 		not_political: '#cbd5e1'
+	};
+
+	// Topic palette; mirrors the feed badge hues (one color per topic).
+	const TOPIC_COLORS: Record<string, string> = {
+		sports: '#059669',
+		academic: '#4f46e5',
+		culture: '#a21caf',
+		health: '#0d9488',
+		economy: '#d97706'
 	};
 
 	let volumeCanvas: HTMLCanvasElement | undefined = $state();
@@ -277,6 +303,38 @@
 				{/each}
 			</ul>
 		</div>
+	{/if}
+</section>
+
+<section class="mt-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+	<div class="flex flex-wrap items-baseline justify-between gap-2">
+		<h2 class="text-sm font-semibold text-slate-700">Temas</h2>
+		{#if topicRows.length > 0}
+			<p class="text-xs text-slate-500">multi-etiqueta: una nota puede tener varios temas</p>
+		{/if}
+	</div>
+	{#if topicRows.length === 0}
+		<p class="mt-3 text-sm text-slate-500">
+			Sin temas todavía: ejecuta el backfill del clasificador topic o espera al próximo ciclo de
+			ingesta.
+		</p>
+	{:else}
+		<ul class="mt-4 space-y-3">
+			{#each topicRows as row (row.label)}
+				<li>
+					<div class="flex items-baseline justify-between gap-4 text-sm">
+						<span class="font-medium text-slate-700">{row.text}</span>
+						<span class="tabular-nums text-slate-500">{row.count} · {row.pct}%</span>
+					</div>
+					<div class="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-100">
+						<div
+							class="h-full rounded-full"
+							style={`width: ${Math.round((row.count / maxTopicCount) * 100)}%; background: ${TOPIC_COLORS[row.label] ?? '#94a3b8'}`}
+						></div>
+					</div>
+				</li>
+			{/each}
+		</ul>
 	{/if}
 </section>
 
