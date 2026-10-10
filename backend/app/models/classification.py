@@ -3,7 +3,8 @@
 Multi-label by design: a classifier may emit several labels for one
 mention -- one row per (mention, classifier, label) under a triple
 unique -- and classifiers are independent axes, so a political note can
-still be sentiment-positive while carrying two topics. The classifier
+still be sentiment-positive. Topic is single-label: one dominant theme,
+and no row at all when the answer is ``other`` (no theme). The classifier
 catalog lives in code (app.classifications registry), NOT in a CHECK
 constraint: adding a classifier is a deploy, never a migration.
 """

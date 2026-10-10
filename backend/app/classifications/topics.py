@@ -1,117 +1,101 @@
-"""Topic classifier: which subject areas does the text touch?
+"""Topic classifier: the ONE subject the text is mostly about.
 
-Multi-label by design: ONE ``predict`` call evaluates five binary
-yes/no (`choice`) questions in a single parallel forward pass -- sports,
-academic, culture, health, economy -- and every yes above the threshold
-becomes a label carrying its yes-probability. A derby cronica is sports;
-a festival with ticket prices is culture and economy at once. Runs on
-the shared LayaRuntime (the same lazy agent as sentiment and political
--- one model load per process, never twice).
+Single-label by design: ONE ``predict`` call resolves a six-way ``choice``
+-- sports, academic, culture, health, economy, other -- and the winning
+option becomes the label, carrying its probability; the same shape as the
+political classifier. The dominant theme wins: a derby cronica is sports
+even when it also mentions ticket prices, and a mention never carries two
+topics. Runs on the shared LayaRuntime (the same lazy agent as sentiment
+and political -- one model load per process, never twice).
 
-Why `choice` and not `noul`: on this checkpoint the yes/no choice head
+Why `choice` and not `noul`: on this checkpoint the choice head
 separates far cleaner (10-probe harness: 9/10 intended hits at 0.5 with
 few false positives, vs a mushy 0.06-0.46 band from `noul`) -- the same
 head the sentiment and political classifiers already trust.
 
-Labels are not mutually exclusive: a mention can be academic and
-culture, or health and economy. An empty result is valid: text about
-none of the five areas simply carries no topic rows.
+``other`` is a real outcome, not a stored label: when the model picks it
+(no area dominates, or purely institutional/corporate copy) the
+classifier returns no result, so the pipeline stores no row -- an absent
+topic means the mention has no theme. A re-run clears the stale row
+through the plural upsert's delete-plus-insert.
 """
 
 from app.classifications.base import ClassificationResult
 from app.sentiment.laya_analyzer import LayaRuntime
 
 CLASSIFIER_NAME = "topic"
-DEFAULT_YES_THRESHOLD = 0.5
+TOPIC_KEY = "topic"
+OTHER_LABEL = "other"
 
-_NO_OPTION = "another topic or none of those / otro tema"
-
-# One binary yes/no question per category, all evaluated together. The
-# domain detail lives in the yes criterion; the question stays preset-short.
-_TOPIC_QUESTIONS = {
-    "sports": {
+# One six-way choice: the dominant-theme rule lives in the instructions,
+# each option carries a short bilingual criterion. Mirrors the political
+# question's shape (one entry, `choice` type).
+_TOPIC_QUESTION = {
+    TOPIC_KEY: {
         "type": "choice",
-        "instructions": "Does the text center on sports?",
+        "instructions": (
+            "Which ONE topic dominates the piece? Pick the single subject it "
+            "is mostly about -- one only, not every topic it touches. If no "
+            "area clearly dominates, or the piece is purely institutional or "
+            "corporate copy with no subject area, answer other. "
+            "Cual es el UNICO tema dominante de la nota? Elegir un solo tema, "
+            "el del que principalmente habla, no todos los que menciona. Si "
+            "ninguno domina, o la nota es puramente institucional corporativa "
+            "sin tema: other."
+        ),
         "criteria": {
-            "yes": (
-                "sports: results, teams, tournaments, leagues, athletes, "
-                "matches / resultados, equipos, torneos, ligas, atletas, partidos"
+            "sports": (
+                "Sports at the center: games, results, teams, players, "
+                "tournaments / deporte: partidos, resultados, equipos, jugadores"
             ),
-            "no": _NO_OPTION,
-        },
-    },
-    "academic": {
-        "type": "choice",
-        "instructions": "Does the text center on academic life?",
-        "criteria": {
-            "yes": (
-                "academic life: research, congresses, papers, students, exams, "
-                "scholarships / investigacion, congresos, publicaciones, "
-                "alumnos, examenes, becas academicas"
+            "academic": (
+                "Academic life at the center: studies, research, students, "
+                "exams, campus / vida academica: estudios, investigacion, alumnos"
             ),
-            "no": _NO_OPTION,
-        },
-    },
-    "culture": {
-        "type": "choice",
-        "instructions": "Does the text center on culture?",
-        "criteria": {
-            "yes": (
-                "culture: art, music, theater, literature, cultural events / "
-                "arte, musica, teatro, literatura, eventos culturales"
+            "culture": (
+                "Culture or entertainment at the center: art, music, film, "
+                "shows, books / cultura: arte, musica, cine, espectaculos, libros"
             ),
-            "no": _NO_OPTION,
-        },
-    },
-    "health": {
-        "type": "choice",
-        "instructions": "Does the text center on health?",
-        "criteria": {
-            "yes": (
-                "health: medicine, hospitals, diseases, vaccination, health "
-                "campaigns / medicina, hospitales, enfermedades, vacunacion, "
-                "campanas sanitarias"
+            "health": (
+                "Health at the center: medicine, hospitals, diseases, "
+                "vaccines / salud: medicina, hospitales, enfermedades, vacunas"
             ),
-            "no": _NO_OPTION,
-        },
-    },
-    "economy": {
-        "type": "choice",
-        "instructions": "Does the text center on the economy?",
-        "criteria": {
-            "yes": (
-                "economy: finance, companies, investment, jobs, prices, trade / "
-                "finanzas, empresas, inversion, empleo, precios, comercio"
+            "economy": (
+                "Economy at the center: markets, companies, prices, jobs, "
+                "trade / economia: mercados, empresas, precios, empleo, comercio"
             ),
-            "no": _NO_OPTION,
+            OTHER_LABEL: (
+                "No area dominates, or purely institutional/corporate notice / "
+                "sin area dominante o nota institucional corporativa"
+            ),
         },
-    },
+    }
 }
 
 
 class TopicClassifier:
-    """Multi-label topics via one five-question binary pass.
+    """Dominant topic via one six-way choice, political-classifier style.
 
-    A single agent.predict() carries all five questions (one forward
-    pass against the already-loaded shared model). A category becomes a
-    label when its yes-probability clears the threshold, and the stored
-    score is that probability, so downstream sorting stays meaningful.
-    Definition order is preserved for stable UI badges.
+    The chosen option's probability rides along as the score. ``other``
+    maps to an empty result: nothing is persisted, so a mention without a
+    dominant theme carries no topic row at all.
     """
 
     name = CLASSIFIER_NAME
 
-    def __init__(self, agent=None, yes_threshold: float = DEFAULT_YES_THRESHOLD) -> None:
+    def __init__(self, agent=None) -> None:
         # Injectable for tests/scripts; production shares LayaRuntime's lazy agent.
         self._agent = agent
-        self.yes_threshold = yes_threshold
 
-    def classify(self, text: str, lang: str = "es") -> list[ClassificationResult]:
+    def classify(
+        self, text: str, lang: str = "es"
+    ) -> ClassificationResult | list[ClassificationResult]:
         agent = self._agent if self._agent is not None else LayaRuntime.agent()
-        result = agent.predict(text, _TOPIC_QUESTIONS)
-        answers = result["answers"]
-        return [
-            ClassificationResult(label=key, score=float(answers[key]["probabilities"]["yes"]))
-            for key in _TOPIC_QUESTIONS
-            if float(answers[key]["probabilities"]["yes"]) >= self.yes_threshold
-        ]
+        result = agent.predict(text, _TOPIC_QUESTION)
+        answer = result["answers"][TOPIC_KEY]
+        choice = answer["choice"]
+        score = float(answer["probabilities"][choice])
+        if choice == OTHER_LABEL:
+            # No dominant theme: store nothing (topic ausente = sin tema).
+            return []
+        return ClassificationResult(label=choice, score=score)

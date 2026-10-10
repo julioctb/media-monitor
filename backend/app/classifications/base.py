@@ -24,8 +24,10 @@ class ClassificationResult:
 class Classifier(Protocol):
     """Anything with a stable registry name and a classify().
 
-    classify() returns one result, or a list of them for multi-label
-    classifiers (every yes label, see app.classifications.topics).
+    classify() returns one result, or a list of them -- multi-label
+    classifiers emit every winning label; app.classifications.topics
+    returns an empty list when no dominant theme wins (``other``), which
+    persists as no rows.
     """
 
     name: str

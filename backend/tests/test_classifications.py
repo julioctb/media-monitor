@@ -392,21 +392,25 @@ def test_stats_overview_includes_classifier_breakdown(api) -> None:
 # ------------------------------------------------------- topics (T12)
 
 
-class FakeBinaryAgent:
-    """Stands in for the agent's binary questions: name -> P(yes)."""
+class FakeChoiceAgent:
+    """Stands in for the agent's choice question: scripted (choice, prob)."""
 
-    def __init__(self, probs: dict[str, float]) -> None:
-        self.probs = probs
+    def __init__(self, *calls: tuple[str, float]) -> None:
+        self.script = list(calls)
         self.calls: list[tuple[str, dict]] = []
 
     def predict(self, text: str, questions: dict) -> dict:
         self.calls.append((text, questions))
+        choice, prob = self.script.pop(0) if self.script else ("other", 0.0)
         answers = {}
-        for key in questions:
-            yes = self.probs.get(key, 0.0)
+        for key, spec in questions.items():
+            options = list(spec["criteria"])
+            loser = round((1 - prob) / max(len(options) - 1, 1), 2)
             answers[key] = {
-                "choice": "yes" if yes >= 0.5 else "no",
-                "probabilities": {"yes": yes, "no": round(1 - yes, 2)},
+                "choice": choice,
+                "probabilities": {
+                    option: (prob if option == choice else loser) for option in options
+                },
             }
         return {"answers": answers}
 
@@ -421,39 +425,30 @@ class MultiLabelClassifier:
         ]
 
 
-TOPIC_KEYS = {"sports", "academic", "culture", "health", "economy"}
+TOPIC_OPTIONS = {"sports", "academic", "culture", "health", "economy", "other"}
 
 
-def test_topic_classifier_one_predict_call_yes_labels_only() -> None:
-    agent = FakeBinaryAgent(
-        {
-            "sports": 0.92,
-            "academic": 0.40,
-            "culture": 0.81,
-            "health": 0.12,
-            "economy:": 0.55,  # typo key: ignored, question set still complete
-        }
-    )
-    results = TopicClassifier(agent=agent).classify(
-        "Pumas gana y sube el precio del boleto", lang="es"
-    )
-    # Only yes answers above 0.5, definition order, score = P(yes).
-    assert [(r.label, r.score) for r in results] == [
-        ("sports", 0.92),
-        ("culture", 0.81),
-    ]
-    # One predict call carrying every binary yes/no question.
+def test_topic_classifier_returns_single_dominant_label() -> None:
+    agent = FakeChoiceAgent(("sports", 0.87))
+    result = TopicClassifier(agent=agent).classify("Pumas gana el clasico", lang="es")
+    # One label only: the dominant theme, scored with its own probability.
+    assert result == ClassificationResult(label="sports", score=0.87)
+    # One predict call carrying the single six-way choice question.
     assert len(agent.calls) == 1
     text, question = agent.calls[0]
-    assert text == "Pumas gana y sube el precio del boleto"
-    assert set(question) == TOPIC_KEYS
-    assert all(q["type"] == "choice" for q in question.values())
-    assert all(set(q["criteria"]) == {"yes", "no"} for q in question.values())
+    assert text == "Pumas gana el clasico"
+    assert set(question) == {"topic"}
+    assert question["topic"]["type"] == "choice"
+    assert set(question["topic"]["criteria"]) == TOPIC_OPTIONS
+    instructions = question["topic"]["instructions"].lower()
+    assert "domin" in instructions  # dominant-theme rule, EN and ES
+    assert "institucional" in instructions  # institutional/corporate -> other
 
 
-def test_topic_classifier_empty_when_nothing_clears_threshold() -> None:
-    agent = FakeBinaryAgent(dict.fromkeys(TOPIC_KEYS, 0.1))
-    assert TopicClassifier(agent=agent).classify("nada", lang="es") == []
+def test_topic_classifier_other_means_no_result() -> None:
+    agent = FakeChoiceAgent(("other", 0.6))
+    # other = sin tema: empty result, so the pipeline stores no row.
+    assert TopicClassifier(agent=agent).classify("nota corporativa", lang="es") == []
 
 
 def test_registry_exposes_topic() -> None:
@@ -475,7 +470,7 @@ def test_upsert_classifications_multi_label_replaces_only_own_rows(session) -> N
     queries.upsert_classifications(
         session,
         mention_id=mention.id,
-        classifier="topic",
+        classifier="multi",
         results=[("sports", 0.9), ("culture", 0.6)],
     )
     session.commit()
@@ -490,16 +485,16 @@ def test_upsert_classifications_multi_label_replaces_only_own_rows(session) -> N
 
     assert stored_rows() == {
         ("political", "political"),
-        ("topic", "sports"),
-        ("topic", "culture"),
+        ("multi", "sports"),
+        ("multi", "culture"),
     }
 
     # Re-running the classifier replaces all of its rows; political stays.
     queries.upsert_classifications(
-        session, mention_id=mention.id, classifier="topic", results=[("sports", 0.7)]
+        session, mention_id=mention.id, classifier="multi", results=[("sports", 0.7)]
     )
     session.commit()
-    assert stored_rows() == {("political", "political"), ("topic", "sports")}
+    assert stored_rows() == {("political", "political"), ("multi", "sports")}
 
 
 def test_multi_label_mention_matches_each_label_filter(session) -> None:
@@ -510,23 +505,23 @@ def test_multi_label_mention_matches_each_label_filter(session) -> None:
     queries.upsert_classifications(
         session,
         mention_id=mention.id,
-        classifier="topic",
+        classifier="multi",
         results=[("sports", 0.9), ("culture", 0.6)],
     )
     session.commit()
 
     for label in ("sports", "culture"):
-        found = queries.list_mentions(session, client.id, classifier="topic", label=label)
+        found = queries.list_mentions(session, client.id, classifier="multi", label=label)
         assert [m.id for m in found] == [mention.id]
         assert (
-            queries.count_mentions(session, client.id, classifier="topic", label=label) == 1
+            queries.count_mentions(session, client.id, classifier="multi", label=label) == 1
         )
 
     assert queries.list_mentions(
-        session, client.id, classifier="topic", label="health"
+        session, client.id, classifier="multi", label="health"
     ) == []
     # Classifier alone matches any of the mention's labels.
-    assert {m.id for m in queries.list_mentions(session, client.id, classifier="topic")} == {
+    assert {m.id for m in queries.list_mentions(session, client.id, classifier="multi")} == {
         mention.id
     }
 
@@ -538,14 +533,14 @@ def test_classification_breakdown_counts_every_label(session) -> None:
     one = _mention(session, client.id, url="https://x/1")
     two = _mention(session, client.id, url="https://x/2")
     queries.upsert_classifications(
-        session, mention_id=one.id, classifier="topic", results=[("sports", 0.9), ("culture", 0.6)]
+        session, mention_id=one.id, classifier="multi", results=[("sports", 0.9), ("culture", 0.6)]
     )
     queries.upsert_classifications(
-        session, mention_id=two.id, classifier="topic", results=[("economy", 0.8)]
+        session, mention_id=two.id, classifier="multi", results=[("economy", 0.8)]
     )
     session.commit()
 
-    assert queries.classification_breakdown(session, client_id=client.id, classifier="topic") == {
+    assert queries.classification_breakdown(session, client_id=client.id, classifier="multi") == {
         "sports": 1,
         "culture": 1,
         "economy": 1,
@@ -592,3 +587,25 @@ def test_pipeline_empty_result_clearing_is_query_level(session) -> None:
         select(MentionClassification).where(MentionClassification.classifier == "multi")
     ).all()
     assert rows == []
+
+
+def test_pipeline_topic_stores_one_row_and_other_stores_none(session) -> None:
+    client, keyword = _client_with_keyword(session)
+    agent = FakeChoiceAgent(("sports", 0.9), ("other", 0.6))
+    inserted = persist_raw_mentions(
+        session,
+        client_id=client.id,
+        items=[_raw("https://x/1", "acme deportivo"), _raw("https://x/2", "acme corporativo")],
+        keyword_by_text={"acme": keyword},
+        all_keyword_texts=["acme"],
+        classifiers=[TopicClassifier(agent=agent)],
+    )
+    assert inserted == 2
+    url_by_id = {m.id: m.url for m in session.scalars(select(Mention)).all()}
+    rows = session.scalars(
+        select(MentionClassification).where(MentionClassification.classifier == "topic")
+    ).all()
+    # Single-label outcome: sports persists once, other leaves no row.
+    assert sorted((url_by_id[r.mention_id], r.label, r.score) for r in rows) == [
+        ("https://x/1", "sports", 0.9)
+    ]
