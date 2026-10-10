@@ -1,0 +1,6 @@
+{"text":"El congreso aprobó una reforma electoral tras el debate entre partidos.","gold":"political"}
+{"text":"La presidenta municipal anunció nuevas reglas de seguridad pública.","gold":"political"}
+{"text":"La empresa presentó su nuevo teléfono con batería de larga duración.","gold":"not_political"}
+{"text":"El equipo ganó la final con dos goles en tiempo extra.","gold":"not_political"}
+{"text":"La universidad firmó un convenio con autoridades para prácticas profesionales.","gold":"uncertain"}
+{"text":"Vecinos reportan fallas en el servicio durante una visita oficial.","gold":"uncertain"}

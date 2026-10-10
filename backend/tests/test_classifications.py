@@ -15,7 +15,12 @@ import pytest
 from app.api.deps import get_client_id
 from app.api.schemas import MentionPage
 from app.classifications.base import ClassificationResult
-from app.classifications.political import PoliticalClassifier
+from app.classifications.political import (
+    DEFAULT_CONFIDENCE_THRESHOLD,
+    THRESHOLD_ENV,
+    PoliticalClassifier,
+    default_confidence_threshold,
+)
 from app.classifications.registry import build_classifiers, classifier_names
 from app.db import get_db
 from app.ingest.base import RawMention
@@ -89,15 +94,50 @@ def test_build_classifiers_unknown_name() -> None:
         build_classifiers(["nope"])
 
 
-def test_political_classifier_reads_laya_choice() -> None:
-    agent = FakeLayaAgent(choice="not_political", prob=0.6)
-    result = PoliticalClassifier(agent=agent).classify("Un concierto", lang="es")
-    assert result.label == "not_political"
-    assert result.score == 0.6
+def test_political_classifier_high_confidence_political() -> None:
+    agent = FakeLayaAgent(choice="political", prob=0.87)
+    result = PoliticalClassifier(agent=agent).classify(
+        "El congreso vota la reforma", lang="es"
+    )
+    assert result.label == "political"
+    assert result.score == 0.87
     text, question = agent.calls[0]
-    assert text == "Un concierto"
+    assert text == "El congreso vota la reforma"
     assert question["political"]["type"] == "choice"
     assert set(question["political"]["criteria"]) == {"political", "not_political"}
+
+
+def test_political_classifier_high_confidence_not_political() -> None:
+    agent = FakeLayaAgent(choice="not_political", prob=0.82)
+    result = PoliticalClassifier(agent=agent).classify(
+        "Un concierto anuncia fechas", lang="es"
+    )
+    assert result.label == "not_political"
+    assert result.score == 0.82
+
+
+def test_political_classifier_low_confidence_uncertain_preserves_chosen_score() -> None:
+    agent = FakeLayaAgent(choice="political", prob=0.69)
+    result = PoliticalClassifier(agent=agent).classify(
+        "La universidad firmó convenio", lang="es"
+    )
+    assert result.label == "uncertain"
+    assert result.score == 0.69
+
+
+def test_political_classifier_threshold_can_be_configured(monkeypatch) -> None:
+    monkeypatch.setenv(THRESHOLD_ENV, "0.80")
+    assert default_confidence_threshold() == 0.80
+    agent = FakeLayaAgent(choice="not_political", prob=0.75)
+    result = PoliticalClassifier(agent=agent).classify(
+        "La empresa abre una planta", lang="es"
+    )
+    assert result.label == "uncertain"
+
+
+def test_political_classifier_invalid_threshold_falls_back(monkeypatch) -> None:
+    monkeypatch.setenv(THRESHOLD_ENV, "nope")
+    assert default_confidence_threshold() == DEFAULT_CONFIDENCE_THRESHOLD
 
 
 # ------------------------------------------------------------------- model

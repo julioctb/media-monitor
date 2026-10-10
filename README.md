@@ -97,6 +97,7 @@ frontend.
 | `DATABASE_URL` | Postgres connection string (psycopg; bare `postgres://` is normalized) | `postgresql+psycopg://media:media@localhost:5432/mediamonitor` |
 | `DEFAULT_CLIENT_ID` | Client scope for API and workers (id 1 `default` is seeded by migration 0001) | `1` |
 | `INGEST_INTERVAL_MIN` | Minutes between worker ingest cycles | `15` |
+| `LAYA_POLITICAL_CONFIDENCE_THRESHOLD` | Minimum Laya confidence before storing `political`/`not_political`; lower scores become `uncertain` | `0.70` |
 | `X_PROVIDER_API_KEY` | Bearer token for the twitterapi.io-compatible search API; unset disables the adapter | _(empty)_ |
 | `X_PROVIDER_BASE_URL` | Base URL of the X provider (any compatible API) | `https://api.twitterapi.io` |
 | `X_PROVIDER_RATE_PER_MIN` | Client-side token bucket: max search requests/minute | `10` |
@@ -190,12 +191,20 @@ still be sentiment-positive. The catalog lives in code
 string, so registering a classifier never needs a migration. v1 ships
 `political` (Laya `choice`: `political` vs `not_political`, score = chosen
 probability, shared lazy `LayaRuntime` with sentiment — one model load per
-process). The ingest pipeline runs the registry after sentiment with the
-same failure isolation: a broken classifier skips its rows, never the
-mention.
+process). Low-confidence decisions are not forced: when the chosen label is
+below `LAYA_POLITICAL_CONFIDENCE_THRESHOLD` (default `0.70`), the stored
+label is `uncertain` with the original score. The ingest pipeline runs the
+registry after sentiment with the same failure isolation: a broken classifier
+skips its rows, never the mention.
+
+Evaluate threshold quality against labeled examples:
+
+```bash
+.venv/bin/python backend/scripts/eval_classifications.py --threshold 0.70
+```
 
 Full re-classification wipes and recomputes one classifier's rows
-(sentiment untouched):
+(sentiment untouched), including the new threshold:
 
 ```bash
 .venv/bin/python -m scripts.backfill_classifications --classifier political
