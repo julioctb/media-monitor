@@ -15,7 +15,7 @@ class FakeAdapter(SourceAdapter):
     def __init__(self, items: list[RawMention]) -> None:
         self.items = items
 
-    def fetch(self, keywords) -> list[RawMention]:
+    def fetch(self, keywords, since=None) -> list[RawMention]:
         return self.items
 
 
@@ -177,7 +177,7 @@ class NamedFakeAdapter(SourceAdapter):
         self.name = name
         self.items = items
 
-    def fetch(self, keywords) -> list[RawMention]:
+    def fetch(self, keywords, since=None) -> list[RawMention]:
         return self.items
 
 
@@ -205,7 +205,7 @@ class TestRunIngestCycle:
         class Exploding(SourceAdapter):
             name = "exploding"
 
-            def fetch(self, keywords):
+            def fetch(self, keywords, since=None):
                 raise ConnectionError("boom")
 
         good = NamedFakeAdapter("fake", [_raw("https://example.com/c")])

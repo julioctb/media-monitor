@@ -28,7 +28,7 @@ este feature lo aterriza al código en `backend/app/`.
   ok|error, items_seen, inserted, error, duración) — una fila por adapter por
   ciclo; failure → status=error + texto de excepción. Endpoint GET
   `/ingest/runs` (últimas corridas por adapter) para visibilidad de gaps.
-- T4 [ ] Tests: cursor no avanza en falla; gap quedará registrado; idempotencia
+- T4 [x] Tests: cursor no avanza en falla; gap quedará registrado; idempotencia
   de re-ingesta; endpoint. Suite completa verde.
 
 ### Fase 2 — Evento canónico (sesión futura, requiere decisión de diseño)
@@ -51,3 +51,7 @@ este feature lo aterriza al código en `backend/app/`.
 ## Registro
 - 2026-10-13: creado tras exploración (pipeline.py/worker.py/queries leídos).
   Fase 1 delegada a writer; verificación media (suite tests + migración).
+- 2026-10-13: Fase 1 (T1–T4) implementada en `feat/ingest-durability`;
+  suite 227 passed; migraciones 0009/0010 aplicadas y verificadas
+  (up+down roundtrip) contra dev PG. Endpoint:
+  `GET /api/clients/{id}/ingest/runs`.
