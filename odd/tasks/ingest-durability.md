@@ -20,7 +20,7 @@ este feature lo aterriza al código en `backend/app/`.
 ### Fase 1 — Higiene de ingesta (esta sesión)
 - T1 [x] Modelo `IngestCursor` (client_id, adapter_name, last_success_at,
   overlap_min) + migración Alembic siguiendo el patrón de `backend/migrations/`.
-- T2 [ ] Cursor en el ciclo: `run_ingest_cycle` lee cursor por adapter, pasa
+- T2 [x] Cursor en el ciclo: `run_ingest_cycle` lee cursor por adapter, pasa
   `since` a `SourceAdapter.fetch` (param opcional con default None; adapters
   que no puedan filtrar lo ignoran). Avance SOLO en éxito:
   `last_success_at = cycle_started`. Estado en Post, sobrevive reinicios.

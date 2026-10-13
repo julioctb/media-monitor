@@ -46,8 +46,15 @@ class SourceAdapter(ABC):
     name: str = "adapter"
 
     @abstractmethod
-    def fetch(self, keywords: Sequence[str]) -> list[RawMention]:
+    def fetch(
+        self, keywords: Sequence[str], since: datetime | None = None
+    ) -> list[RawMention]:
         """Fetch raw mentions matching any of `keywords`.
+
+        `since` is the client's ingest watermark for this adapter (already
+        overlap-adjusted) or None on the first run. Adapters that cannot
+        filter by date may ignore it; those that can narrow the window
+        SHOULD, so repeated cycles stop re-scanning the same items.
 
         Implementations must never raise for a single failing keyword:
         log and continue, so one bad source/keyword cannot stall the cycle.

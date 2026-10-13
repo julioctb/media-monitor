@@ -146,6 +146,7 @@ def ingest_job() -> dict[str, int]:
             adapters=adapters,
             sentiment_analyzer=analyzer,
             classifiers=classifiers,
+            cycle_started=cycle_started,
         )
         try:
             run_alert_cycle(session, cycle_started_at=cycle_started, client_id=client.id)

@@ -140,7 +140,9 @@ class FacebookPageAdapter(SourceAdapter):
         resp.raise_for_status()
         return resp.json()
 
-    def fetch(self, keywords: Sequence[str]) -> list[RawMention]:
+    def fetch(
+        self, keywords: Sequence[str], since: datetime | None = None
+    ) -> list[RawMention]:
         results: list[RawMention] = []
         try:
             for page in self._pages:

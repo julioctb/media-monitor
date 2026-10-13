@@ -169,7 +169,9 @@ class TwitterApiIoProvider(XProvider, SourceAdapter):
         )
         return payload
 
-    def fetch(self, keywords: Sequence[str]) -> list[RawMention]:
+    def fetch(
+        self, keywords: Sequence[str], since: datetime | None = None
+    ) -> list[RawMention]:
         results: list[RawMention] = []
         try:
             for keyword in keywords:

@@ -9,6 +9,7 @@ in exactly one place.
 
 import logging
 from collections.abc import Mapping, Sequence
+from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
 
@@ -152,11 +153,17 @@ def run_ingest_cycle(
     adapters: list[SourceAdapter],
     sentiment_analyzer=None,
     classifiers: Sequence[Classifier] | None = None,
+    cycle_started: datetime | None = None,
 ) -> dict[str, int]:
     """Run every adapter for the client's keywords and persist results.
 
+    Each adapter fetches with its durable ingest watermark (`since`, T2):
+    the cursor advances ONLY on a clean pass, so a failing source keeps
+    its old watermark and re-covers the missed window next cycle.
+
     Returns per-adapter inserted counts, e.g. {"google_news": 3, "gdelt": 0}.
     """
+    cycle_started = cycle_started or datetime.now(tz=timezone.utc)
     active = [k for k in keywords if k.is_active]
     texts = [k.text for k in active]
     if not texts:
@@ -166,8 +173,11 @@ def run_ingest_cycle(
 
     stats: dict[str, int] = {}
     for adapter in adapters:
+        since = queries.ingest_since(
+            session, client_id=client_id, adapter_name=adapter.name
+        )
         try:
-            items = adapter.fetch(texts)
+            items = adapter.fetch(texts, since=since)
         except Exception as exc:  # noqa: BLE001 - one adapter must not kill the cycle
             log.exception("adapter %s failed: %s", adapter.name, exc)
             stats[adapter.name] = 0
@@ -180,6 +190,14 @@ def run_ingest_cycle(
             all_keyword_texts=texts,
             sentiment_analyzer=sentiment_analyzer,
             classifiers=classifiers,
+        )
+        # Success only: a partial/failed persist must not advance the
+        # watermark past items that never landed.
+        queries.mark_ingest_success(
+            session,
+            client_id=client_id,
+            adapter_name=adapter.name,
+            at=cycle_started,
         )
         stats[adapter.name] = inserted
         log.info(

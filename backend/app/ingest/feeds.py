@@ -95,7 +95,9 @@ class FeedsAdapter(SourceAdapter):
         self._owns_client = client is None
         self._max_per_feed = max_per_feed
 
-    def fetch(self, keywords: Sequence[str]) -> list[RawMention]:
+    def fetch(
+        self, keywords: Sequence[str], since: datetime | None = None
+    ) -> list[RawMention]:
         results: list[RawMention] = []
         try:
             for url in self._urls:

@@ -23,6 +23,10 @@ GDELT_DOC_URL = "https://api.gdeltproject.org/api/v2/doc/doc"
 _TIMEOUT_S = 20.0
 
 
+def _now_utc() -> datetime:
+    return datetime.now(tz=timezone.utc)
+
+
 def build_gdelt_query(keyword: str) -> str:
     """GDELT query for a keyword restricted to ES+EN sources, last 15 min."""
     return f'"{keyword}" (sourcelang:spanish OR sourcelang:english)'
@@ -79,9 +83,19 @@ class GdeltAdapter(SourceAdapter):
         self._timespan = timespan
         self._max_items = max_items
 
-    def fetch(self, keywords: Sequence[str]) -> list[RawMention]:
+    def fetch(
+        self, keywords: Sequence[str], since: datetime | None = None
+    ) -> list[RawMention]:
         client = self._client or httpx.Client(timeout=_TIMEOUT_S)
         owns_client = self._client is None
+        timespan = self._timespan
+        if since is not None:
+            # Narrow the artlist window to the ingest watermark (hours
+            # granularity, clamped to GDELT's supported range); url_hash
+            # dedupe covers the boundary.
+            elapsed_s = max(0, (_now_utc() - since).total_seconds())
+            minutes = min(1440, max(15, int(elapsed_s // 60) + 15))
+            timespan = f"{minutes}min"
         results: list[RawMention] = []
         try:
             for keyword in keywords:
@@ -92,7 +106,7 @@ class GdeltAdapter(SourceAdapter):
                     "query": build_gdelt_query(keyword),
                     "mode": "artlist",
                     "format": "json",
-                    "timespan": self._timespan,
+                    "timespan": timespan,
                     "maxrecords": str(self._max_items),
                 }
                 try:

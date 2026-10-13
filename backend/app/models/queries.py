@@ -21,6 +21,7 @@ from app.models import (
     Client,
     ClientSettings,
     DailySummary,
+    IngestCursor,
     Keyword,
     Mention,
     MentionClassification,
@@ -30,6 +31,46 @@ from app.models import (
 )
 from app.models.mention import make_url_hash
 from app.models.settings import AI_PROVIDERS
+
+
+def ingest_since(
+    session: Session, *, client_id: int, adapter_name: str
+) -> datetime | None:
+    """Resume watermark for one adapter: last success minus overlap.
+
+    None when the adapter never succeeded (full window). The caller passes
+    this to `SourceAdapter.fetch(keywords, since=...)`.
+    """
+    row = session.scalar(
+        select(IngestCursor).where(
+            IngestCursor.client_id == client_id,
+            IngestCursor.adapter_name == adapter_name,
+        )
+    )
+    if row is None or row.last_success_at is None:
+        return None
+    return row.last_success_at - timedelta(minutes=row.overlap_min)
+
+
+def mark_ingest_success(
+    session: Session, *, client_id: int, adapter_name: str, at: datetime
+) -> None:
+    """Advance the adapter's watermark to `at` (upsert); commit.
+
+    Called ONLY after a clean adapter pass, so a failing source keeps its
+    old watermark and its debt stays visible in the ingest ledger.
+    """
+    row = session.scalar(
+        select(IngestCursor).where(
+            IngestCursor.client_id == client_id,
+            IngestCursor.adapter_name == adapter_name,
+        )
+    )
+    if row is None:
+        row = IngestCursor(client_id=client_id, adapter_name=adapter_name)
+        session.add(row)
+    row.last_success_at = at
+    session.commit()
 
 
 def get_or_create_client(session: Session, name: str) -> Client:

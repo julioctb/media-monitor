@@ -24,6 +24,10 @@ _USER_AGENT = "media-monitor/0.1"
 _TIMEOUT_S = 20.0
 
 
+def _now_utc() -> datetime:
+    return datetime.now(tz=timezone.utc)
+
+
 def parse_google_rss(xml_text: str, keyword: str) -> list[RawMention]:
     """Parse Google News RSS XML into raw mentions for one keyword."""
     feed = feedparser.parse(xml_text)
@@ -74,7 +78,9 @@ class GoogleNewsAdapter(SourceAdapter):
         self._hl, self._gl, self._ceid = hl, gl, ceid
         self._max_items = max_items
 
-    def fetch(self, keywords: Sequence[str]) -> list[RawMention]:
+    def fetch(
+        self, keywords: Sequence[str], since: datetime | None = None
+    ) -> list[RawMention]:
         client = self._client or httpx.Client(
             headers={"User-Agent": _USER_AGENT}, timeout=_TIMEOUT_S
         )
@@ -86,11 +92,18 @@ class GoogleNewsAdapter(SourceAdapter):
                 if not keyword:
                     continue
                 params = {
-                    "q": f'"{keyword}"',
                     "hl": self._hl,
                     "gl": self._gl,
                     "ceid": self._ceid,
                 }
+                query = f'"{keyword}"'
+                if since is not None:
+                    # Narrow the window to the ingest watermark; Google News
+                    # has no exact since-filter, so the pipeline dedupe is
+                    # the boundary guarantee (`when:` is hour-granular).
+                    elapsed_h = max(1, (_now_utc() - since).days * 24 + 1)
+                    query = f"{query} when:{elapsed_h}h"
+                params["q"] = query
                 try:
                     # Google News 302s hl=es to hl=es-419; follow it.
                     resp = client.get(
