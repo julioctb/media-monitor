@@ -266,3 +266,20 @@ class SummaryGenerateRequest(BaseModel):
     """Optional body of POST /summaries/generate; null/absent date = today."""
 
     date: SummaryDate = None
+
+
+class IngestRunOut(BaseModel):
+    """One ledger row: a single adapter's pass inside an ingest cycle (T3)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    client_id: int
+    adapter_name: str
+    cycle_started: datetime
+    status: Literal["ok", "error"]
+    items_seen: int
+    inserted: int
+    error: str | None
+    duration_ms: int
+    created_at: datetime

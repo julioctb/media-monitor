@@ -8,6 +8,7 @@ in exactly one place.
 """
 
 import logging
+import time
 from collections.abc import Mapping, Sequence
 from datetime import datetime, timezone
 
@@ -16,7 +17,7 @@ from sqlalchemy.orm import Session
 from app.classifications.base import Classifier, classification_results
 from app.ingest.base import RawMention, SourceAdapter
 from app.ingest.matching import find_matching_keyword, fold_text
-from app.models import Keyword, MentionSource, queries
+from app.models import IngestRun, Keyword, MentionSource, queries
 from app.models.base import Sentiment
 
 log = logging.getLogger("ingest.pipeline")
@@ -173,32 +174,57 @@ def run_ingest_cycle(
 
     stats: dict[str, int] = {}
     for adapter in adapters:
+        run_started = time.perf_counter()
         since = queries.ingest_since(
             session, client_id=client_id, adapter_name=adapter.name
         )
+        items: list[RawMention] = []
+        error_text: str | None = None
         try:
             items = adapter.fetch(texts, since=since)
         except Exception as exc:  # noqa: BLE001 - one adapter must not kill the cycle
             log.exception("adapter %s failed: %s", adapter.name, exc)
-            stats[adapter.name] = 0
-            continue
-        inserted = persist_raw_mentions(
-            session,
-            client_id=client_id,
-            items=items,
-            keyword_by_text=keyword_by_text,
-            all_keyword_texts=texts,
-            sentiment_analyzer=sentiment_analyzer,
-            classifiers=classifiers,
+            error_text = f"{type(exc).__name__}: {exc}"
+        inserted = 0
+        if error_text is None:
+            try:
+                inserted = persist_raw_mentions(
+                    session,
+                    client_id=client_id,
+                    items=items,
+                    keyword_by_text=keyword_by_text,
+                    all_keyword_texts=texts,
+                    sentiment_analyzer=sentiment_analyzer,
+                    classifiers=classifiers,
+                )
+            except Exception as exc:  # noqa: BLE001 - ledger must record the failure
+                log.exception("adapter %s persist failed: %s", adapter.name, exc)
+                error_text = f"{type(exc).__name__}: {exc}"
+        if error_text is None:
+            # Success only: a partial/failed persist must not advance the
+            # watermark past items that never landed.
+            queries.mark_ingest_success(
+                session,
+                client_id=client_id,
+                adapter_name=adapter.name,
+                at=cycle_started,
+            )
+        duration_ms = int((time.perf_counter() - run_started) * 1000)
+        # Ledger row per adapter per cycle (T3): makes "sin noticias"
+        # distinguishable from "fuente caída" without touching logs.
+        session.add(
+            IngestRun(
+                client_id=client_id,
+                adapter_name=adapter.name,
+                cycle_started=cycle_started,
+                status="ok" if error_text is None else "error",
+                items_seen=len(items),
+                inserted=inserted,
+                error=error_text,
+                duration_ms=duration_ms,
+            )
         )
-        # Success only: a partial/failed persist must not advance the
-        # watermark past items that never landed.
-        queries.mark_ingest_success(
-            session,
-            client_id=client_id,
-            adapter_name=adapter.name,
-            at=cycle_started,
-        )
+        session.commit()
         stats[adapter.name] = inserted
         log.info(
             "adapter %s: fetched %d items, inserted %d new mentions",

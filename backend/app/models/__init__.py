@@ -13,6 +13,7 @@ from app.models.classification import MentionClassification
 from app.models.client import Client
 from app.models.daily_summary import DailySummary
 from app.models.ingest_cursor import IngestCursor
+from app.models.ingest_run import IngestRun
 from app.models.keyword import Keyword
 from app.models.mention import Mention, make_url_hash, normalize_url
 from app.models.saved_search import SavedSearch
@@ -29,6 +30,7 @@ __all__ = [
     "ClientSettings",
     "DailySummary",
     "IngestCursor",
+    "IngestRun",
     "Keyword",
     "Mention",
     "MentionClassification",

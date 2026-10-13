@@ -24,7 +24,7 @@ este feature lo aterriza al código en `backend/app/`.
   `since` a `SourceAdapter.fetch` (param opcional con default None; adapters
   que no puedan filtrar lo ignoran). Avance SOLO en éxito:
   `last_success_at = cycle_started`. Estado en Post, sobrevive reinicios.
-- T3 [ ] Ledger `IngestRun` (cycle_started, client_id, adapter_name, status
+- T3 [x] Ledger `IngestRun` (cycle_started, client_id, adapter_name, status
   ok|error, items_seen, inserted, error, duración) — una fila por adapter por
   ciclo; failure → status=error + texto de excepción. Endpoint GET
   `/ingest/runs` (últimas corridas por adapter) para visibilidad de gaps.

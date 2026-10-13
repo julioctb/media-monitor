@@ -22,6 +22,7 @@ from app.models import (
     ClientSettings,
     DailySummary,
     IngestCursor,
+    IngestRun,
     Keyword,
     Mention,
     MentionClassification,
@@ -31,6 +32,29 @@ from app.models import (
 )
 from app.models.mention import make_url_hash
 from app.models.settings import AI_PROVIDERS
+
+
+def list_ingest_runs(
+    session: Session,
+    *,
+    client_id: int,
+    adapter: str | None = None,
+    status: str | None = None,
+    limit: int = 100,
+) -> list["IngestRun"]:
+    """Most recent ledger rows, newest cycle first (gap visibility)."""
+    stmt = select(IngestRun).where(IngestRun.client_id == client_id)
+    if adapter:
+        stmt = stmt.where(IngestRun.adapter_name == adapter)
+    if status:
+        stmt = stmt.where(IngestRun.status == status)
+    return list(
+        session.scalars(
+            stmt.order_by(
+                IngestRun.cycle_started.desc(), IngestRun.id.desc()
+            ).limit(limit)
+        )
+    )
 
 
 def ingest_since(
