@@ -427,6 +427,57 @@ class TestPersonTimeline:
         )) == 2
 
 
+# ----------------------------------------------------------------- backfill
+
+
+class TestBackfillPersons:
+    def test_dry_run_counts_without_writes(self, session) -> None:
+        from scripts.backfill_persons import backfill_persons
+
+        client_id = _client(session)
+        _mention(session, client_id, 1, raw_enrichment=_enrichment([{"name": "Ana"}]))
+        _mention(session, client_id, 2)  # no enrichment: not a candidate
+        session.commit()
+
+        stats = backfill_persons(session, client_id=client_id, apply=False)
+        assert stats["candidates"] == 1
+        assert stats["distinct_names"] == 1
+        assert session.query(Person).count() == 0
+        assert session.query(MentionPerson).count() == 0
+
+    def test_apply_populates_and_is_idempotent(self, session) -> None:
+        from scripts.backfill_persons import backfill_persons
+
+        client_id = _client(session)
+        _mention(session, client_id, 1, raw_enrichment=_enrichment(
+            [{"name": "Ana Torres"}, {"name": "Beto"}]
+        ))
+        _mention(session, client_id, 2, raw_enrichment=_enrichment([{"name": "ana torres"}]))
+        _mention(session, client_id, 3, raw_enrichment=_enrichment([]))
+        session.commit()
+
+        first = backfill_persons(session, client_id=client_id, apply=True)
+        assert first["links_created"] == 3
+        assert first["persons_created"] == 2
+        # Re-run: everything already linked, nothing new.
+        second = backfill_persons(session, client_id=client_id, apply=True)
+        assert second["links_created"] == 0
+        assert second["persons_created"] == 0
+        assert session.query(Person).count() == 2
+
+    def test_scoped_to_client(self, session) -> None:
+        from scripts.backfill_persons import backfill_persons
+
+        client_id = _client(session)
+        other = Client(name="beta")
+        session.add(other)
+        session.commit()
+        _mention(session, other.id, 1, raw_enrichment=_enrichment([{"name": "Ana"}]))
+        session.commit()
+        stats = backfill_persons(session, client_id=client_id, apply=True)
+        assert stats["candidates"] == 0
+
+
 class TestPipelinePersonsHook:
     def test_persist_raw_mentions_persists_persons(self, session) -> None:
         from app.enrich.llm import EnrichmentResult

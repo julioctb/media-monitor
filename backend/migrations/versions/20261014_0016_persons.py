@@ -79,13 +79,16 @@ def upgrade() -> None:
         sa.Column("stance_polarity", sa.SmallInteger(), nullable=True),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("mention_id", "person_id", name="uq_mention_person"),
-        sa.ForeignKeyConstraint(
-            ["stance_target_id"],
-            ["persons.id"],
-            ondelete="SET NULL",
-            use_alter=True,
-            name="fk_mention_person_stance_target",
-        ),
+    )
+    # Self-referencing stance target: created post-hoc with a stable name so
+    # the downgrade can drop it by name (use_alter semantics).
+    op.create_foreign_key(
+        "fk_mention_person_stance_target",
+        "mention_persons",
+        "persons",
+        ["stance_target_id"],
+        ["id"],
+        ondelete="SET NULL",
     )
     op.create_index("ix_mention_person_person", "mention_persons", ["person_id"])
     op.create_index("ix_mention_person_mention", "mention_persons", ["mention_id"])
