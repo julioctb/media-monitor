@@ -905,15 +905,20 @@ def list_events(
     limit: int = 50,
     offset: int = 0,
     since: datetime | None = None,
+    min_mentions: int = 1,
 ) -> Sequence[Event]:
     """Client-scoped events, most recently seen first.
 
     `since` filters on last_seen_at (the event's window, not creation):
     an old event that received mentions after `since` is still listed.
+    `min_mentions` keeps only events with at least N mentions — the UI's
+    'con eco' view (single-mention events are bare feed duplicates).
     """
     stmt = select(Event).where(Event.client_id == client_id)
     if since is not None:
         stmt = stmt.where(Event.last_seen_at >= since)
+    if min_mentions > 1:
+        stmt = stmt.where(Event.mention_count >= min_mentions)
     return list(
         session.scalars(
             stmt.order_by(Event.last_seen_at.desc(), Event.id.desc())

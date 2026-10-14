@@ -606,10 +606,14 @@ export interface EventCoverage {
 }
 
 export function listEvents(
-	query: { limit?: number; offset?: number } = {},
+	query: { limit?: number; offset?: number; min_mentions?: number } = {},
 	options: RequestOptions = {}
 ): Promise<EventSummary[]> {
-	const qs = buildQuery({ limit: query.limit, offset: query.offset });
+	const qs = buildQuery({
+		limit: query.limit,
+		offset: query.offset,
+		min_mentions: query.min_mentions
+	});
 	return request<EventSummary[]>(`/api/clients/1/events${qs}`, { method: 'GET' }, options);
 }
 

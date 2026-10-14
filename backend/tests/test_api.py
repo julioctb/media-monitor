@@ -157,6 +157,22 @@ def test_events_scoped_to_client(api, db) -> None:
     assert len(mine) == 1 and mine[0]["title"] == "mia"
 
 
+def test_events_min_mentions_filter(api, db) -> None:
+    """The eco view: only events with real multi-source coverage."""
+    client_id = first_client_id(db)
+    now = now_utc()
+    big = seed_event(
+        db, client_id, "Cobertura amplia", now, now, mention_count=4, source_count=3
+    )
+    seed_event(db, client_id, "Singleton", now, now, mention_count=1, source_count=1)
+
+    body = api.get(f"/api/clients/{client_id}/events", params={"min_mentions": 2}).json()
+    assert [e["id"] for e in body] == [big.id]
+
+    all_rows = api.get(f"/api/clients/{client_id}/events").json()
+    assert len(all_rows) == 2
+
+
 def test_event_detail_orders_mentions_by_reach(api, db) -> None:
     client_id = first_client_id(db)
     now = now_utc()

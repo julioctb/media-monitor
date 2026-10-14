@@ -8,7 +8,7 @@ GET /clients/{id}/coverage/summary → per-day repetition index (T6b).
 
 from datetime import datetime
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 
 from app.api.deps import SessionDep
 from app.api.schemas import (
@@ -37,12 +37,18 @@ def list_events(
     limit: int = 50,
     offset: int = 0,
     since: datetime | None = None,
+    min_mentions: int = Query(default=1, ge=1),
 ) -> list[EventOut]:
     """Events of the client, most recently seen first."""
     _client_or_404(session, client_id)
     limit = max(1, min(200, limit))
     rows = queries.list_events(
-        session, client_id, limit=limit, offset=max(0, offset), since=since
+        session,
+        client_id,
+        limit=limit,
+        offset=max(0, offset),
+        since=since,
+        min_mentions=min_mentions,
     )
     return [EventOut.model_validate(row) for row in rows]
 

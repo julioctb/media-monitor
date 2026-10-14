@@ -2,10 +2,20 @@ import { error } from '@sveltejs/kit';
 import { ApiError, listEvents } from '$lib/api';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async () => {
+const SCOPES = new Set(['eco', 'todas']);
+
+export const load: PageServerLoad = async ({ url }) => {
+	const scopeParam = url.searchParams.get('scope') ?? 'eco';
+	const scope = SCOPES.has(scopeParam) ? (scopeParam as 'eco' | 'todas') : 'eco';
+
 	try {
-		// The feed is newest-seen first server side; one page is plenty for v1.
-		return { events: await listEvents({ limit: 100 }) };
+		// 'eco' = historias con cobertura real (2+ menciones); las de una sola
+		// nota son duplicados del feed y viven tras el toggle.
+		const events = await listEvents({
+			limit: 200,
+			min_mentions: scope === 'eco' ? 2 : 1
+		});
+		return { events, scope };
 	} catch (cause) {
 		const status = cause instanceof ApiError && cause.status >= 400 ? cause.status : 503;
 		const detail = cause instanceof Error ? cause.message : 'error desconocido';
