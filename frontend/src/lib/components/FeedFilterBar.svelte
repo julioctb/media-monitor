@@ -61,7 +61,21 @@
 <!-- Filters: plain GET form, works without JavaScript. The pills auto-submit
 	when JS is available; the hidden-in-details Aplicar button covers no-JS. -->
 <form bind:this={formEl} method="get" class="mt-6 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
-	<div>
+	<!-- Búsqueda: primary filter, always visible; Enter submits via the
+		Aplicar button (first submit in tree order, works with details closed). -->
+	<div class="min-w-0 flex-1 basis-40">
+		<label class="sr-only" for="f-q">Búsqueda</label>
+		<input
+			type="search"
+			id="f-q"
+			name="q"
+			value={filters.q}
+			placeholder="Buscar en título o contenido"
+			class={`${FIELD_CLS} min-w-0`}
+		/>
+	</div>
+
+<div>
 		<label class="sr-only" for="f-source">Fuente</label>
 		<select id="f-source" name="source" class={PILL_CLS} onchange={autoSubmit}>
 			<option value="">Todas las fuentes</option>
@@ -82,21 +96,7 @@
 		</select>
 	</div>
 
-	<!-- Búsqueda: primary filter, always visible; Enter submits via the
-		Aplicar button (first submit in tree order, works with details closed). -->
-	<div class="min-w-0 flex-1 basis-40">
-		<label class="sr-only" for="f-q">Búsqueda</label>
-		<input
-			type="search"
-			id="f-q"
-			name="q"
-			value={filters.q}
-			placeholder="Buscar en título o contenido"
-			class={`${FIELD_CLS} min-w-0`}
-		/>
-	</div>
-
-	<details class="min-w-0">
+		<details class="min-w-0">
 		<summary
 			class="flex cursor-pointer list-none items-center gap-1.5 rounded-full px-2 py-1.5 text-xs font-medium text-slate-500 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
 		>
