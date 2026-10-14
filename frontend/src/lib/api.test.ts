@@ -1,5 +1,17 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ApiError, createKeyword, deleteKeyword, getClientSettings, listMentions, testAi, testFacebookPage, updateClientSettings } from './api';
+import {
+	ApiError,
+	createKeyword,
+	deleteKeyword,
+	getClientSettings,
+	getEvent,
+	getEventCoverage,
+	listEvents,
+	listMentions,
+	testAi,
+	testFacebookPage,
+	updateClientSettings
+} from './api';
 
 function jsonResponse(status: number, body: unknown): Response {
 	return new Response(JSON.stringify(body), {
@@ -248,5 +260,31 @@ describe('api client', () => {
 			api_key: null,
 			model: 'gpt-4o-mini'
 		});
+	});
+
+	it('lists canonical events under the tenant scope', async () => {
+		const fetchMock = stubFetch(async () => jsonResponse(200, []));
+
+		const events = await listEvents({ limit: 100 });
+
+		expect(events).toEqual([]);
+		const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+		expect(url).toBe('http://localhost:8000/api/clients/1/events?limit=100');
+		expect(init?.method).toBe('GET');
+	});
+
+	it('fetches one event and its coverage by id', async () => {
+		const fetchMock = stubFetch(async () =>
+			jsonResponse(200, { id: 9, title: 'x', mentions: [], by_source: [] })
+		);
+
+		const detail = await getEvent(9);
+		const coverage = await getEventCoverage(9, { baseUrl: 'http://api:8000' });
+
+		expect((detail as { id: number }).id).toBe(9);
+		expect((coverage as { by_source: unknown[] }).by_source).toEqual([]);
+		const urls = fetchMock.mock.calls.map((call) => call[0]);
+		expect(urls).toContain('http://localhost:8000/api/clients/1/events/9');
+		expect(urls).toContain('http://api:8000/api/clients/1/events/9/coverage');
 	});
 });
