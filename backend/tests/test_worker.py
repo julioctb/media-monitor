@@ -78,6 +78,49 @@ def test_cycle_sentiment_analyzer_from_pinned_settings() -> None:
         _cycle_cache.pop(7, None)
 
 
+def _pin(client_id: int, **overrides) -> None:
+    from app.settings_runtime import _cycle_cache
+
+    _cycle_cache[client_id] = EffectiveSettings(client_id=client_id, **overrides)
+
+
+def _unpin(client_id: int) -> None:
+    from app.settings_runtime import _cycle_cache
+
+    _cycle_cache.pop(client_id, None)
+
+
+def test_cycle_enricher_built_for_openai_provider() -> None:
+    _pin(7, ai_provider="openai", ai_api_key="k", enrich_max_per_cycle=12)
+    try:
+        enricher, cap = worker.cycle_enricher(7)
+        assert enricher is not None
+        assert enricher.model_name
+        assert cap == 12
+        enricher.close()
+    finally:
+        _unpin(7)
+
+
+def test_cycle_enricher_none_for_local_provider() -> None:
+    _pin(7)  # defaults: ai_provider local, no key
+    try:
+        enricher, cap = worker.cycle_enricher(7)
+        assert enricher is None
+        assert cap == 50  # documented default cap
+    finally:
+        _unpin(7)
+
+
+def test_cycle_enricher_none_without_key(monkeypatch) -> None:
+    _pin(7, ai_provider="openai", ai_api_key="")
+    try:
+        enricher, _cap = worker.cycle_enricher(7)
+        assert enricher is None
+    finally:
+        _unpin(7)
+
+
 def _seed_mention(
     session,
     client_id: int,

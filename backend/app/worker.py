@@ -29,6 +29,7 @@ from app.alerts.engine import check_sentiment_shift, run_alert_cycle, run_digest
 from app.classifications import build_classifiers
 from app.config import settings
 from app.db import SessionLocal
+from app.enrich.llm import LLMEnricher
 from app.ingest.gdelt import GdeltAdapter
 from app.ingest.google_news import GoogleNewsAdapter
 from app.ingest.pipeline import run_ingest_cycle
@@ -123,6 +124,36 @@ def cycle_sentiment_analyzer(client_id: int):
     )
 
 
+def cycle_enricher(client_id: int) -> tuple[LLMEnricher | None, int]:
+    """F2c enrichment pass for this cycle plus the per-cycle call cap.
+
+    Returns ``(None, cap)`` unless an OpenAI-compatible provider with an
+    API key is configured — without it the pipeline degrades to the plain
+    sentiment path and rows stay backfillable. The agreement analyzer
+    (TE5) is the local laya analyzer, logging enrichment-vs-laya for the
+    switch-off decision; it loads lazily so a cycle without enrichments
+    never pays for the model.
+    """
+    effective = get_effective_settings(client_id)
+    cap = max(1, int(effective.enrich_max_per_cycle))
+    if effective.ai_provider != "openai" or not effective.ai_api_key:
+        return None, cap
+    log.info(
+        "enricher: model=%s cap=%d agreement=laya",
+        effective.ai_model or "(default)",
+        cap,
+    )
+    from app.sentiment.laya_analyzer import LayaAnalyzer
+
+    enricher = LLMEnricher(
+        api_key=effective.ai_api_key,
+        base_url=effective.ai_base_url,
+        model=effective.ai_model,
+        agreement_analyzer=LayaAnalyzer(),
+    )
+    return enricher, cap
+
+
 def ingest_job() -> dict[str, int]:
     """One ingest cycle for the default client, then the alert hook.
 
@@ -137,6 +168,7 @@ def ingest_job() -> dict[str, int]:
         load_cycle_settings(session, client_id=client.id)
         adapters = build_adapters(get_effective_settings(client.id))
         analyzer = cycle_sentiment_analyzer(client.id)
+        enricher, enrich_limit = cycle_enricher(client.id)
         classifiers = build_classifiers()
         keywords = list(queries.list_keywords(session, client.id))
         counts = run_ingest_cycle(
@@ -146,6 +178,8 @@ def ingest_job() -> dict[str, int]:
             adapters=adapters,
             sentiment_analyzer=analyzer,
             classifiers=classifiers,
+            enricher=enricher,
+            enrich_limit=enrich_limit,
             cycle_started=cycle_started,
         )
         try:
