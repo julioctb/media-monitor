@@ -130,26 +130,26 @@ def cycle_enricher(client_id: int) -> tuple[LLMEnricher | None, int]:
     Returns ``(None, cap)`` unless an OpenAI-compatible provider with an
     API key is configured — without it the pipeline degrades to the plain
     sentiment path and rows stay backfillable. The agreement analyzer
-    (TE5) is the local laya analyzer, logging enrichment-vs-laya for the
-    switch-off decision; it loads lazily so a cycle without enrichments
-    never pays for the model.
+    (TE5) is the shared lazy laya proxy: the enrich-agreement line only
+    fires when laya has actually run in this process (a fallback
+    materialized it), and no cycle ever constructs it up front.
     """
     effective = get_effective_settings(client_id)
     cap = max(1, int(effective.enrich_max_per_cycle))
     if effective.ai_provider != "openai" or not effective.ai_api_key:
         return None, cap
     log.info(
-        "enricher: model=%s cap=%d agreement=laya",
+        "enricher: model=%s cap=%d agreement=laya(lazy)",
         effective.ai_model or "(default)",
         cap,
     )
-    from app.sentiment.laya_analyzer import LayaAnalyzer
+    from app.sentiment.factory import shared_laya
 
     enricher = LLMEnricher(
         api_key=effective.ai_api_key,
         base_url=effective.ai_base_url,
         model=effective.ai_model,
-        agreement_analyzer=LayaAnalyzer(),
+        agreement_analyzer=shared_laya(),
     )
     return enricher, cap
 

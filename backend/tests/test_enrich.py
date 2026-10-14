@@ -16,6 +16,7 @@ from app.enrich.llm import LLMEnricher, parse_enrichment
 from app.enrich.summary import maybe_summarize_event
 from app.models import Client, Event, Mention, MentionSource, make_url_hash
 from app.models.base import Sentiment
+from app.sentiment.base import SentimentResult
 
 GOOD_PAYLOAD = {
     "summary": "La BUAP inauguró su nuevo edificio.",
@@ -172,6 +173,31 @@ class TestLLMEnricher:
         enricher = _enricher(_ok_handler([]), agreement_analyzer=laya)
         with caplog.at_level(logging.INFO, logger="enrich.llm"):
             assert enricher.enrich("texto") is not None
+        assert len(laya.calls) == 1
+        assert any("enrich-agreement" in r.message for r in caplog.records)
+
+    def test_agreement_skipped_until_analyzer_loaded(self, caplog) -> None:
+        """TE-lazy: no enrich-agreement line (and no analyze call) while the
+        shared lazy analyzer has never run; the check never loads it."""
+
+        class LazyStub:
+            loaded = False
+            calls: list = []
+
+            def analyze(self, text, lang):
+                self.calls.append(text)
+                return SentimentResult(label=Sentiment.neutral, score=0.5)
+
+        laya = LazyStub()
+        enricher = _enricher(_ok_handler([]), agreement_analyzer=laya)
+        with caplog.at_level(logging.INFO, logger="enrich.llm"):
+            assert enricher.enrich("texto") is not None
+        assert laya.calls == []
+        assert not any("enrich-agreement" in r.message for r in caplog.records)
+
+        laya.loaded = True  # a fallback materialized it elsewhere
+        with caplog.at_level(logging.INFO, logger="enrich.llm"):
+            assert enricher.enrich("otro") is not None
         assert len(laya.calls) == 1
         assert any("enrich-agreement" in r.message for r in caplog.records)
 

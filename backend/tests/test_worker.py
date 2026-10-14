@@ -121,6 +121,55 @@ def test_cycle_enricher_none_without_key(monkeypatch) -> None:
         _unpin(7)
 
 
+# --- Lazy-optional laya wiring (TE-lazy) -------------------------------
+
+
+def test_cycle_sentiment_analyzer_openai_keeps_laya_lazy(fresh_laya) -> None:
+    """Provider configured: the cycle builds the API analyzer and its
+    fallback stays an unloaded lazy proxy — no laya import, no model."""
+    from app.sentiment.factory import LazyLayaAnalyzer, shared_laya
+
+    _pin(7, ai_provider="openai", ai_api_key="k", ai_fallback_local=True)
+    try:
+        analyzer = worker.cycle_sentiment_analyzer(7)
+        from app.sentiment.api_analyzer import ApiSentimentAnalyzer
+
+        assert isinstance(analyzer, ApiSentimentAnalyzer)
+        assert analyzer.model_name  # ApiSentimentAnalyzer built from settings
+        assert isinstance(analyzer._fallback, LazyLayaAnalyzer)
+        assert analyzer._fallback is shared_laya()
+        assert analyzer._fallback.loaded is False  # never constructed up front
+    finally:
+        _unpin(7)
+
+
+def test_cycle_sentiment_analyzer_local_shares_lazy_proxy(fresh_laya) -> None:
+    from app.sentiment.factory import LazyLayaAnalyzer, shared_laya
+
+    _pin(7)  # defaults: ai_provider local
+    try:
+        analyzer = worker.cycle_sentiment_analyzer(7)
+        assert isinstance(analyzer, LazyLayaAnalyzer)
+        assert analyzer is shared_laya()
+        assert analyzer.loaded is False  # model loads on first analyze only
+    finally:
+        _unpin(7)
+
+
+def test_cycle_enricher_agreement_is_shared_lazy_proxy(fresh_laya) -> None:
+    from app.sentiment.factory import shared_laya
+
+    _pin(7, ai_provider="openai", ai_api_key="k")
+    try:
+        enricher, _cap = worker.cycle_enricher(7)
+        assert enricher is not None
+        assert enricher._agreement is shared_laya()
+        assert shared_laya().loaded is False
+        enricher.close()
+    finally:
+        _unpin(7)
+
+
 def _seed_mention(
     session,
     client_id: int,

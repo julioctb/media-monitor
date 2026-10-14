@@ -17,9 +17,9 @@ MAX_CONTENT_CHARS. Every failure mode (transport, shape, broken JSON,
 schema violation) returns None after the retries — the caller falls back
 to plain sentiment (laya) and the row stays backfillable.
 
-``agreement_analyzer`` (TE5): when set, a local analyzer runs alongside
-each successful enrichment and the agreement is logged for one week, the
-dataset that decides whether laya gets switched off.
+``agreement_analyzer`` (TE5): when set, the agreement is logged alongside
+each successful enrichment — but only when that analyzer has actually run
+(``loaded``); the check never triggers a lazy load by itself.
 """
 
 import json
@@ -252,8 +252,15 @@ class LLMEnricher:
         return result
 
     def _log_agreement(self, text: str, result: EnrichmentResult) -> None:
-        """TE5: local-vs-LLM sentiment agreement, one week of data."""
+        """TE5: local-vs-LLM sentiment agreement, one week of data.
+
+        Fires only when the agreement analyzer has actually run (its
+        ``loaded`` flag is true); the check never triggers a load — a
+        cycle whose sentiment stayed on the API path logs nothing.
+        """
         if self._agreement is None:
+            return
+        if getattr(self._agreement, "loaded", True) is False:
             return
         try:
             local = self._agreement.analyze(text, "es")
