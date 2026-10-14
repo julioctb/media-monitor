@@ -45,7 +45,9 @@ class MentionClassification(IntPk, Base):
         ForeignKey("mentions.id", ondelete="CASCADE"), nullable=False
     )
     classifier: Mapped[str] = mapped_column(String(32), nullable=False)
-    label: Mapped[str] = mapped_column(String(32), nullable=False)
+    # 120: LLM topic labels run long ('dispositivos digitales en la
+    # infancia' is 37 chars); VARCHAR(32) truncated real enrichments.
+    label: Mapped[str] = mapped_column(String(120), nullable=False)
     score: Mapped[float] = mapped_column(Float, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
