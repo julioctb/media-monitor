@@ -147,6 +147,28 @@ describe('MentionCard', () => {
 		expect(card.textContent).toContain('Academia');
 	});
 
+	it('renders the person chips as links to the person page', () => {
+		const { card } = renderCard({
+			mention: mentionFixture({
+				persons: [
+					{ id: 12, name: 'Lilia Cedillo' },
+					{ id: 13, name: 'Margarito Rojas' }
+				]
+			} as never)
+		});
+
+		const chips = [...card.querySelectorAll('a[href="/persons/12"]')];
+		expect(chips).toHaveLength(1);
+		expect(chips[0]?.textContent).toContain('Lilia Cedillo');
+		expect(card.querySelector('a[href="/persons/13"]')?.textContent).toContain('Margarito Rojas');
+	});
+
+	it('renders no person chips without linked persons', () => {
+		const { card } = renderCard({ mention: mentionFixture() });
+
+		expect(card.querySelector('a[href^="/persons/"]')).toBeNull();
+	});
+
 	it('marks the ingest-date fallback with an asterisk', () => {
 		const { card } = renderCard({ mention: mentionFixture({ published_at: null }) });
 

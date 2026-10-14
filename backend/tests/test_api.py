@@ -273,6 +273,23 @@ def test_mentions_null_sentiment_serializes_null(api, mentions_seeded) -> None:
     assert items[m1.id]["sentiment"] == "positive"
 
 
+def test_mentions_carry_linked_persons(api, db, mentions_seeded) -> None:
+    """F3 chips: the feed payload names the persons linked to each mention."""
+    from app.models import MentionPerson, Person
+
+    m1, _m2, _m3 = mentions_seeded
+    client_id = first_client_id(db)
+    person = Person(client_id=client_id, name="Lilia Cedillo", name_key="lilia cedillo")
+    db.add(person)
+    db.flush()
+    db.add(MentionPerson(mention_id=m1.id, person_id=person.id))
+    db.commit()
+
+    items = {m["id"]: m for m in api.get("/api/mentions").json()["items"]}
+    assert items[m1.id]["persons"] == [{"id": person.id, "name": "Lilia Cedillo"}]
+    assert items[_m2.id]["persons"] == []
+
+
 def test_mentions_filter_source_and_sentiment(api, mentions_seeded) -> None:
     m1, m2, m3 = mentions_seeded
     url = "/api/mentions"

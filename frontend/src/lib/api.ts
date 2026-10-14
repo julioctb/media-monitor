@@ -63,6 +63,14 @@ export interface Mention {
 	reach: number | null;
 	/** One row per classifier; independent axis from sentiment. */
 	classifications: Classification[];
+	/** F3 persons linked via mention_persons; absent on stub payloads. */
+	persons?: PersonRef[];
+}
+
+/** Person chip on a mention card: id for the detail link, name for display. */
+export interface PersonRef {
+	id: number;
+	name: string;
 }
 
 /** One classifier's stored label for a mention. */
@@ -495,6 +503,61 @@ export function listSpikes(
 ): Promise<SpikeEvent[]> {
 	const qs = buildQuery({ days: query.days, limit: query.limit });
 	return request<SpikeEvent[]>(`/api/clients/1/spikes${qs}`, { method: 'GET' }, options);
+}
+
+/* ---------------------------------- persons -------------------------------- */
+
+/** Person row with its denormalized mention count (list view). */
+export interface PersonSummary {
+	id: number;
+	name: string;
+	name_key: string;
+	role: string | null;
+	org: string | null;
+	aliases: string[];
+	first_seen_at: string;
+	last_seen_at: string;
+	mention_count: number;
+}
+
+/** One mention of the person: quote, source and context (F3 exit gate). */
+export interface PersonTimelineItem {
+	mention_id: number;
+	title: string | null;
+	url: string;
+	source: MentionSource;
+	published_at: string | null;
+	ingested_at: string;
+	sentiment: Sentiment | null;
+	/** Role the person held in THIS mention, per the enrichment. */
+	role: string | null;
+	org: string | null;
+	/** Surrounding snippet of the mention, when the linker captured one. */
+	context: string | null;
+	event_id: number | null;
+	event_title: string | null;
+	political_label: string | null;
+}
+
+export interface PersonDetail extends PersonSummary {
+	timeline: PersonTimelineItem[];
+}
+
+export function listPersons(
+	query: { sort?: 'mentions' | 'recent'; q?: string; limit?: number; offset?: number } = {},
+	options: RequestOptions = {}
+): Promise<PersonSummary[]> {
+	const qs = buildQuery({
+		sort: query.sort,
+		q: query.q,
+		limit: query.limit,
+		offset: query.offset
+	});
+	return request<PersonSummary[]>(`/api/clients/1/persons${qs}`, { method: 'GET' }, options);
+}
+
+export function getPerson(id: number, options: RequestOptions = {}): Promise<PersonDetail> {
+	return request<PersonDetail>(`/api/clients/1/persons/${id}`, { method: 'GET' }, options);
 }
 
 /* ----------------------------------- events -------------------------------- */

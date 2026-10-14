@@ -1,13 +1,14 @@
 """GET /api/mentions: client-scoped mention feed with filters."""
 
 from datetime import datetime
-from typing import Literal
+from typing import Literal, Sequence
 
 from fastapi import APIRouter, Query
+from sqlalchemy import select
 
 from app.api.deps import ClientIdDep, SessionDep
-from app.api.schemas import MentionPage
-from app.models import MentionSource, Sentiment, queries
+from app.api.schemas import MentionPage, PersonRefOut
+from app.models import Mention, MentionPerson, Person, MentionSource, Sentiment, queries
 
 router = APIRouter(tags=["mentions"])
 
@@ -57,4 +58,27 @@ def list_mentions(
     }
     items = queries.list_mentions(session, client_id, limit=limit, offset=offset, **common)
     total = queries.count_mentions(session, client_id, **common)
+    _attach_persons(session, items)
     return MentionPage(items=items, total=total)
+
+
+def _attach_persons(session: SessionDep, items: Sequence[Mention]) -> None:
+    """One query for the page's person links; transient attr for pydantic.
+
+    from_attributes picks ``persons`` up off the instance even though the
+    ORM model has no such column — it is a plain instance attribute.
+    """
+    ids = [mention.id for mention in items]
+    if not ids:
+        return
+    rows = session.execute(
+        select(MentionPerson.mention_id, Person.id, Person.name)
+        .join(Person, Person.id == MentionPerson.person_id)
+        .where(MentionPerson.mention_id.in_(ids))
+        .order_by(MentionPerson.id)
+    ).all()
+    by_mention: dict[int, list[PersonRefOut]] = {}
+    for mention_id, person_id, name in rows:
+        by_mention.setdefault(mention_id, []).append(PersonRefOut(id=person_id, name=name))
+    for mention in items:
+        mention.persons = by_mention.get(mention.id, [])

@@ -34,6 +34,13 @@ class ClassificationOut(BaseModel):
     score: float
 
 
+class PersonRefOut(BaseModel):
+    """Mention-card chip: linked person id + canonical name."""
+
+    id: int
+    name: str
+
+
 class MentionOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -54,6 +61,9 @@ class MentionOut(BaseModel):
     summary: str | None
     reach: int | None
     classifications: list[ClassificationOut] = []
+    # F3: persons linked via mention_persons; attached batched by the list
+    # endpoint (transient attr), never a lazy relationship per row.
+    persons: list[PersonRefOut] = []
 
 
 class MentionPage(BaseModel):
