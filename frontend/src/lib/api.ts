@@ -628,7 +628,34 @@ export function getEventCoverage(
 	);
 }
 
-/* ------------------------------ daily summaries --------------------------- */
+/* ------------------------------- ask (F4) --------------------------------- */
+
+export interface AskCitation {
+	mention_id: number;
+	title: string | null;
+	url: string;
+	source: MentionSource;
+	published_at: string;
+	sentiment: Sentiment | null;
+}
+
+export interface AskResult {
+	answer: string;
+	citations: AskCitation[];
+	person: { id: number; name: string } | null;
+	matched_mentions: number;
+}
+
+/** One-shot natural-language question over the corpus; cited answer. */
+export function askCorpus(question: string, options: RequestOptions = {}): Promise<AskResult> {
+	return request<AskResult>(
+		'/api/clients/1/ask',
+		jsonInit('POST', { question }),
+		options
+	);
+}
+
+/* ------------------------------- daily summaries --------------------------- */
 
 /** Structured sections stored with every daily summary (open-shaped). */
 export interface DailySummaryContent {
