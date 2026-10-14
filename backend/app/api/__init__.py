@@ -4,6 +4,7 @@ from fastapi import APIRouter
 
 from app.api import (
     alerts,
+    events,
     ingest,
     keywords,
     mentions,
@@ -24,3 +25,4 @@ api_router.include_router(saved_searches.router)
 api_router.include_router(spikes.router)
 api_router.include_router(summaries.router)
 api_router.include_router(ingest.router)
+api_router.include_router(events.router)

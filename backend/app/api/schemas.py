@@ -283,3 +283,35 @@ class IngestRunOut(BaseModel):
     error: str | None
     duration_ms: int
     created_at: datetime
+
+
+class EventOut(BaseModel):
+    """Canonical event row (Phase 2): aggregated, no mention drill-down."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    title: str
+    mention_count: int
+    source_count: int
+    first_seen_at: datetime
+    last_seen_at: datetime
+
+
+class EventMentionOut(BaseModel):
+    """Mention stub inside an event detail: enough to rank and link out."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    source: MentionSource
+    url: str
+    title: str | None
+    sentiment: Sentiment | None
+    published_at: datetime | None
+
+
+class EventDetailOut(EventOut):
+    """Event plus its corroborating mentions, reach-ranked."""
+
+    mentions: list[EventMentionOut]

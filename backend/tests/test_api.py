@@ -19,6 +19,7 @@ from app.models import (
     AlertDigest,
     Base,
     Client,
+    Event,
     Keyword,
     Mention,
     MentionSource,
@@ -77,6 +78,7 @@ def seed_mention(
     ingested: datetime | None = None,
     keyword_id: int | None = None,
     reach: int | None = None,
+    event_id: int | None = None,
 ) -> Mention:
     mention = Mention(
         client_id=client_id,
@@ -90,6 +92,7 @@ def seed_mention(
         ingested_at=ingested or now_utc(),
         keyword_id=keyword_id,
         reach=reach,
+        event_id=event_id,
     )
     db.add(mention)
     db.commit()
@@ -99,6 +102,81 @@ def seed_mention(
 def first_client_id(db) -> int:
     """The single client row created by the `api` fixture."""
     return db.scalar(select(Client.id).limit(1))
+
+
+# ---------------------------------------------------------------- events
+
+
+def seed_event(db, client_id: int, title: str, first, last, **counts) -> Event:
+    event = Event(
+        client_id=client_id,
+        title=title,
+        title_tokens=title,
+        first_seen_at=first,
+        last_seen_at=last,
+        **counts,
+    )
+    db.add(event)
+    db.commit()
+    return event
+
+
+def test_events_empty_and_404(api, db) -> None:
+    client_id = first_client_id(db)
+    assert api.get(f"/api/clients/{client_id}/events").json() == []
+    assert api.get("/api/clients/999999/events").status_code == 404
+    assert api.get("/api/clients/999999/events/1").status_code == 404
+
+
+def test_events_ordered_by_last_seen_with_since_filter(api, db) -> None:
+    client_id = first_client_id(db)
+    now = now_utc()
+    old = seed_event(db, client_id, " vieja", now - timedelta(days=3), now - timedelta(days=3))
+    new = seed_event(db, client_id, "nueva", now - timedelta(hours=1), now)
+    body = api.get(f"/api/clients/{client_id}/events").json()
+    assert [e["id"] for e in body] == [new.id, old.id]
+
+    since = now - timedelta(minutes=30)
+    filtered = api.get(
+        f"/api/clients/{client_id}/events", params={"since": since.isoformat()}
+    ).json()
+    assert [e["id"] for e in filtered] == [new.id]
+
+
+def test_events_scoped_to_client(api, db) -> None:
+    client_id = first_client_id(db)
+    now = now_utc()
+    seed_event(db, client_id, "mia", now, now)
+    other = Client(name="otro")
+    db.add(other)
+    db.commit()
+    seed_event(db, other.id, "suya", now, now)
+    mine = api.get(f"/api/clients/{client_id}/events").json()
+    assert len(mine) == 1 and mine[0]["title"] == "mia"
+
+
+def test_event_detail_orders_mentions_by_reach(api, db) -> None:
+    client_id = first_client_id(db)
+    now = now_utc()
+    event = seed_event(
+        db, client_id, "BUAP noticia", now, now, mention_count=2, source_count=2
+    )
+    low = seed_mention(db, client_id, "https://example.com/low", reach=10, event_id=event.id)
+    high = seed_mention(db, client_id, "https://example.com/high", reach=99, event_id=event.id)
+    body = api.get(f"/api/clients/{client_id}/events/{event.id}").json()
+    assert body["id"] == event.id
+    assert [m["id"] for m in body["mentions"]] == [high.id, low.id]
+    assert body["mention_count"] == 2
+
+
+def test_event_detail_404_for_other_client(api, db) -> None:
+    client_id = first_client_id(db)
+    now = now_utc()
+    event = seed_event(db, client_id, "mia", now, now)
+    other = Client(name="otro")
+    db.add(other)
+    db.commit()
+    assert api.get(f"/api/clients/{other.id}/events/{event.id}").status_code == 404
 
 
 # ---------------------------------------------------------------- health

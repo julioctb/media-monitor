@@ -21,6 +21,7 @@ from app.models import (
     Client,
     ClientSettings,
     DailySummary,
+    Event,
     IngestCursor,
     IngestRun,
     Keyword,
@@ -872,7 +873,57 @@ def get_saved_search(
     )
 
 
-# ------------------------------------------------------------- daily summaries
+# ------------------------------------------------------------------- events
+
+
+def list_events(
+    session: Session,
+    client_id: int,
+    *,
+    limit: int = 50,
+    offset: int = 0,
+    since: datetime | None = None,
+) -> Sequence[Event]:
+    """Client-scoped events, most recently seen first.
+
+    `since` filters on last_seen_at (the event's window, not creation):
+    an old event that received mentions after `since` is still listed.
+    """
+    stmt = select(Event).where(Event.client_id == client_id)
+    if since is not None:
+        stmt = stmt.where(Event.last_seen_at >= since)
+    return list(
+        session.scalars(
+            stmt.order_by(Event.last_seen_at.desc(), Event.id.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+    )
+
+
+def get_client_event(
+    session: Session, *, event_id: int, client_id: int
+) -> Event | None:
+    """One event owned by the client, else None (tenant-scoped detail)."""
+    return session.scalar(
+        select(Event).where(Event.id == event_id, Event.client_id == client_id)
+    )
+
+
+def event_mentions(
+    session: Session, event_id: int, *, limit: int = 100
+) -> Sequence[Mention]:
+    """Mentions of one event, biggest reach first (corroborations ranking)."""
+    stmt = (
+        select(Mention)
+        .where(Mention.event_id == event_id)
+        .order_by(Mention.reach.desc().nullslast(), Mention.id)
+        .limit(limit)
+    )
+    return list(session.scalars(stmt))
+
+
+# ------------------------------------------------------------ daily summaries
 
 
 def get_daily_summary(
