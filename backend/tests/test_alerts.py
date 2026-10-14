@@ -69,10 +69,53 @@ def add_mention(session, client_id: int, url: str, **kwargs) -> Mention:
         published_at=kwargs.get("published", NOW),
         ingested_at=kwargs.get("ingested", NOW),
         reach=kwargs.get("reach"),
+        event_id=kwargs.get("event_id"),
     )
     session.add(mention)
     session.commit()
     return mention
+
+
+# ------------------------------------------------------- digest event rows
+
+
+def test_mention_rows_collapse_by_event(session, client) -> None:
+    from app.models import Event
+
+    now = NOW
+    event_a = Event(
+        client_id=client.id,
+        title="BUAP inaugura edificio en Zacapoaxtla",
+        title_tokens="buap inaugura edificio",
+        mention_count=2,
+        source_count=2,
+        first_seen_at=now,
+        last_seen_at=now,
+    )
+    session.add(event_a)
+    session.flush()
+    in_event_1 = add_mention(session, client.id, "https://a/e1", event_id=event_a.id)
+    in_event_2 = add_mention(session, client.id, "https://a/e2", event_id=event_a.id)
+    loose = add_mention(session, client.id, "https://a/solo", title="Suelta")
+
+    rows = engine._mention_rows(
+        [in_event_1, in_event_2, loose], group_by_event=True
+    )
+
+    assert len(rows) == 2  # 3 mentions -> 2 rows: one event + one loose
+    event_row = rows[0]
+    assert event_row[1] == "BUAP inaugura edificio en Zacapoaxtla"
+    assert "2 fuentes" in event_row[3]
+    assert rows[1][1] == "Suelta"  # fallback row, cero regresión
+
+
+def test_mention_rows_without_flag_keep_per_mention(client) -> None:
+    m1 = SimpleNamespace(
+        source=MentionSource.gdelt, title="A", url="https://a/1",
+        sentiment=Sentiment.positive, event_id=None,
+    )
+    rows = engine._mention_rows([m1])
+    assert len(rows) == 1
 
 
 # ------------------------------------------------------------- instant path

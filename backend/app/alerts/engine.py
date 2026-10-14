@@ -13,6 +13,7 @@ User-facing copy is Spanish; identifiers and logs are English.
 
 import html
 import logging
+from collections.abc import Sequence
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
@@ -65,17 +66,57 @@ def _plural(count: int, singular: str, plural: str) -> str:
     return f"{count} {singular if count == 1 else plural}"
 
 
-def _mention_rows(mentions: list[Mention]) -> list[tuple[str, str, str, str]]:
-    """(source, title, url, sentiment) tuples for the renderers."""
-    return [
-        (
+def _mention_rows(
+    mentions: Sequence[Mention], group_by_event: bool = False
+) -> list[tuple[str, str, str, str]]:
+    """(source, title, url, sentiment) tuples for the renderers.
+
+    group_by_event: mentions sharing an event_id collapse into ONE row with
+    the canonical title and the event's source count; mentions without an
+    event keep their own row (hybrid fallback, cero regresión). Event rows
+    go first, loose mentions after, both stable-ordered.
+    """
+    if not group_by_event:
+        return [
+            (
+                SOURCE_LABELS.get(mention.source, str(mention.source)),
+                mention.title or "(sin título)",
+                mention.url,
+                _sentiment_label(mention.sentiment),
+            )
+            for mention in mentions
+        ]
+
+    def _plain(mention: Mention) -> tuple[str, str, str, str]:
+        return (
             SOURCE_LABELS.get(mention.source, str(mention.source)),
             mention.title or "(sin título)",
             mention.url,
             _sentiment_label(mention.sentiment),
         )
-        for mention in mentions
-    ]
+
+    grouped: dict[int, list[Mention]] = {}
+    loose: list[tuple[str, str, str, str]] = []
+    for mention in mentions:
+        if mention.event_id is None:
+            loose.append(_plain(mention))
+        else:
+            grouped.setdefault(mention.event_id, []).append(mention)
+    rows: list[tuple[str, str, str, str]] = []
+    for members in grouped.values():
+        event = members[0].event
+        top_link = max(members, key=lambda m: m.reach or 0, default=members[0])
+        sources = event.source_count if event is not None else len(members)
+        rows.append(
+            (
+                "Evento",
+                event.title if event is not None else members[0].title or "(sin título)",
+                top_link.url,
+                f"{sources} {'fuente' if sources == 1 else 'fuentes'}",
+            )
+        )
+    rows.extend(loose)
+    return rows
 
 
 def _compose(
@@ -222,7 +263,11 @@ def run_digest(
             f"{_plural(total, 'mención nueva', 'menciones nuevas')}"
         )
         text, html_body = _compose(
-            intro=intro, rows=_mention_rows(mentions), footer=footer
+            intro=intro,
+            # Hybrid rows: canonical events collapse their corroborations;
+            # mentions without an event keep their own row.
+            rows=_mention_rows(mentions, group_by_event=True),
+            footer=footer,
         )
         _send(cfg, subject, text, html_body, transport or SmtpTransport.from_settings())
 
