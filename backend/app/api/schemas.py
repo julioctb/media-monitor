@@ -403,3 +403,25 @@ class PersonTimelineItem(BaseModel):
 
 class PersonDetailOut(PersonOut):
     timeline: list[PersonTimelineItem] = []
+
+
+class AskCitationOut(BaseModel):
+    """One context mention backing the answer, linkable in the UI."""
+
+    mention_id: int
+    title: str | None
+    url: str
+    source: MentionSource
+    published_at: str
+    sentiment: Sentiment | None
+
+
+class AskResponse(BaseModel):
+    answer: str
+    citations: list[AskCitationOut] = []
+    person: dict | None = None
+    matched_mentions: int = 0
+
+
+class AskRequest(BaseModel):
+    question: str = Field(min_length=3, max_length=500)

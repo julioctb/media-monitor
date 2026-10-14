@@ -9,6 +9,7 @@
 		{ href: '/', label: 'Feed' },
 		{ href: '/events', label: 'Eventos' },
 		{ href: '/persons', label: 'Personas' },
+		{ href: '/consultas', label: 'Consultas' },
 		{ href: '/stats', label: 'Estadísticas' },
 		{ href: '/summary', label: 'Resumen' },
 		{ href: '/saved-searches', label: 'Saved searches' },

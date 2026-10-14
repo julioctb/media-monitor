@@ -306,6 +306,10 @@ class LLMEnricher:
             local.label is result.sentiment,
         )
 
+    def complete(self, system: str, user: str, *, json_mode: bool = False) -> str | None:
+        """One-shot completion with the shared retry policy (F4 ask)."""
+        return self._with_retries(lambda: self._chat(system, user, json_mode=json_mode))
+
     def summarize(self, inputs: list[str]) -> str | None:
         """Event summary from >=2 mention summaries; None on failure."""
         bullets = "\n".join(f"- {item.strip()[:300]}" for item in inputs if item.strip())

@@ -3,6 +3,7 @@
 from fastapi import APIRouter
 
 from app.api import (
+    ask,
     alerts,
     events,
     ingest,
@@ -29,3 +30,4 @@ api_router.include_router(ingest.router)
 api_router.include_router(events.router)
 api_router.include_router(events.coverage_router)
 api_router.include_router(persons.router)
+api_router.include_router(ask.router)
