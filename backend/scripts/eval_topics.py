@@ -28,6 +28,7 @@ LABELS = (
     "institutional",
     "students",
     "culture",
+    "sports",
     "finance",
     "government",
     "health",

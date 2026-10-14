@@ -431,6 +431,7 @@ TOPIC_OPTIONS = {
     "institutional",
     "students",
     "culture",
+    "sports",
     "finance",
     "government",
     "health",

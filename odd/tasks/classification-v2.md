@@ -33,9 +33,11 @@ consejo/nombramientos/toma de protesta), y vida estudiantil
 | `gobierno` | relación con gobierno estatal/municipal/federal (no interna) | respaldo de Armenta, demanda ante Infonavit |
 | `salud` | medicina, clínicas, investigación en salud, pandemia | VIH BUAP, dispositivo cardiovascular |
 
-Cambios vs v1: `sports` se fusiona a `cultura` (7 datos no justifican label),
-`economy` se divide en `finanzas` (institucional) vs `gobierno`, y entran
-`infraestructura`/`institucional`/`estudiantes` que hoy flotan sin etiqueta.
+Cambios vs v1: `economy` se divide en `finanzas` (institucional) vs
+`gobierno`, entran `infraestructura`/`institucional`/`estudiantes` que hoy
+flotan sin etiqueta, y `sports` se mantiene como label propio (decisión del
+usuario 2026-10-14: separado de culture; el enunciado original proponía
+fusionarlo).
 
 ## Implementación (v2 final: enrichment-driven)
 

@@ -36,6 +36,7 @@ TOPIC_LABELS = (
     "institutional",
     "students",
     "culture",
+    "sports",
     "finance",
     "government",
     "health",
@@ -54,9 +55,11 @@ _TOPIC_QUESTION = {
             "campus, mural, obra, inauguracion o entrega de un espacio -- are "
             "ALWAYS infrastructure, even if students benefit or art is "
             "involved. "
-            "(B) culture ONLY for events, festivals, concerts, conferences-"
-            "performances, sports matches, traditions -- NOT buildings, NOT "
-            "artworks installed on campus. "
+            "(B) culture ONLY for artistic/cultural events: festivals, "
+            "concerts, performances, traditions, books, film -- NOT buildings, "
+            "NOT artworks installed on campus. "
+            "(B2) sports when the sport itself is the subject: matches, "
+            "results, teams, tournaments, athletes, races. "
             "(C) students ONLY when students are the subject: they win, "
             "protest, receive scholarships, exchange, admission. A rector's "
             "message or an institutional ceremony is NOT students even if "
@@ -78,7 +81,7 @@ _TOPIC_QUESTION = {
             "estudiantes de movilidad'=students; "
             "'congreso de microbiologia'=academic; 'debate los retos de la "
             "investigacion'=academic; "
-            "'Lobos BUAP victoria en segunda division'=culture; 'festival de "
+            "'Lobos BUAP victoria en segunda division'=sports; 'festival de "
             "calaveras'=culture; "
             "'anuncia inversion de 160 millones'=finance; 'aportacion estatal "
             "al presupuesto'=finance; "
@@ -107,9 +110,13 @@ _TOPIC_QUESTION = {
                 "admision, logros o protestas estudiantiles"
             ),
             "culture": (
-                "Cultural or sports events at the institution: art, music, "
-                "film, festivals, traditions, sports / cultura y deporte: "
-                "arte, musica, festivales, tradiciones, partidos"
+                "Cultural events at the institution: art, music, film, "
+                "festivals, traditions / cultura: arte, musica, festivales, "
+                "tradiciones"
+            ),
+            "sports": (
+                "Sports at the center: games, results, teams, tournaments, "
+                "races / deporte: partidos, resultados, equipos, torneos"
             ),
             "finance": (
                 "Institutional money: budget, investment, donations, "
