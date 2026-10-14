@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.classifications.base import Classifier, classification_results
 from app.ingest.base import RawMention, SourceAdapter
+from app.ingest.events import assign_mention_to_event
 from app.ingest.matching import find_matching_keyword, fold_text
 from app.models import IngestRun, Keyword, MentionSource, queries
 from app.models.base import Sentiment
@@ -130,6 +131,15 @@ def persist_raw_mentions(
             raw=item.raw,
         )
         if created is not None:
+            if created.title:
+                # Canonical-event assignment (Phase 2): best 48h-window match
+                # or a new event; a clustering failure must not drop the
+                # already-inserted mention.
+                try:
+                    assign_mention_to_event(session, created)
+                except Exception as exc:  # noqa: BLE001 - events must not break ingest
+                    log.warning("event assignment failed for mention %s: %s", created.id, exc)
+                    session.rollback()
             if sentiment is not None:
                 created.sentiment = sentiment
                 created.sentiment_score = sentiment_score

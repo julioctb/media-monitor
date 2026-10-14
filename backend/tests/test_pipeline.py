@@ -37,7 +37,7 @@ class MockAnalyzer:
         return R(self.label, self.score)
 
 
-def _raw(url: str, keyword: str = "BUAP", title: str = "BUAP noticia") -> RawMention:
+def _raw(url: str, keyword: str = "BUAP", title: str | None = "BUAP noticia") -> RawMention:
     return RawMention(
         source=MentionSource.news_rss,
         keyword=keyword,
@@ -73,6 +73,43 @@ class TestPersistRawMentions:
         m = session.query(Mention).one()
         assert m.keyword_id == kws[0].id
         assert m.source is MentionSource.news_rss
+
+    def test_assigns_canonical_event_on_insert(self, session) -> None:
+        client, kws = _client_with_keywords(session)
+        inserted = persist_raw_mentions(
+            session,
+            client_id=client.id,
+            items=[
+                _raw("https://example.com/e1", title="BUAP inaugura edificio en Zacapoaxtla"),
+                _raw(
+                    "https://example.com/e2",
+                    title="Edificio inaugurado en Zacapoaztla por la BUAP",
+                ),
+            ],
+            keyword_by_text={"buap": kws[0], "tecnologico": kws[1]},
+            all_keyword_texts=["BUAP", "Tecnológico"],
+        )
+        assert inserted == 2
+        mentions = session.query(Mention).all()
+        event_ids = {m.event_id for m in mentions}
+        assert len(event_ids) == 1 and None not in event_ids
+        event = mentions[0].event
+        assert event.mention_count == 2
+
+    def test_mention_without_title_has_no_event(self, session) -> None:
+        client, kws = _client_with_keywords(session)
+        item = _raw("https://example.com/noTitle", title=None)
+        item.content = "BUAP en el texto"
+        inserted = persist_raw_mentions(
+            session,
+            client_id=client.id,
+            items=[item],
+            keyword_by_text={"buap": kws[0], "tecnologico": kws[1]},
+            all_keyword_texts=["BUAP", "Tecnológico"],
+        )
+        assert inserted == 1
+        (mention,) = session.query(Mention).all()
+        assert mention.event_id is None
 
     def test_drops_non_matching_item(self, session) -> None:
         client, _ = _client_with_keywords(session)
