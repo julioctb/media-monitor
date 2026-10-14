@@ -315,3 +315,30 @@ class EventDetailOut(EventOut):
     """Event plus its corroborating mentions, reach-ranked."""
 
     mentions: list[EventMentionOut]
+
+
+class EventCoverageRow(BaseModel):
+    """Per-source coverage slice of one event."""
+
+    source: MentionSource
+    n_mentions: int
+    outlets: int
+
+
+class EventCoverageOut(BaseModel):
+    """Which outlets covered an event and how many times each did."""
+
+    event_id: int
+    mention_count: int
+    outlet_count: int
+    by_source: list[EventCoverageRow] = []
+
+
+class CoverageSummaryDay(BaseModel):
+    """One day of client coverage: volume and repetition index."""
+
+    date: date
+    events: int
+    mentions: int
+    multi_source_events: int
+    repetition_pct: float

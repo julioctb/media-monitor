@@ -9,6 +9,7 @@ import re
 import unicodedata
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
+from urllib.parse import urlsplit
 from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
@@ -988,3 +989,92 @@ def upsert_daily_summary(
         row.updated_at = datetime.now(tz=timezone.utc)
         session.commit()
     return row
+
+
+# ------------------------------------------------------------------ coverage
+
+
+def _outlet_of(url: str | None, author: str | None) -> str:
+    """Outlet identity of a mention: hostname of the URL, author fallback."""
+    host = urlsplit(url or "").netloc.lower().removeprefix("www.")
+    return host or (author or "").strip() or "unknown"
+
+
+def event_coverage(session: Session, *, event_id: int) -> dict:
+    """Coverage of one event: mentions and distinct outlets per source.
+
+    The outlet is the domain of the mention URL (author handle when the
+    URL carries no hostname). Events with no mentions return zeros, never
+    an error. Rows are ordered by mention count, then source name.
+    """
+    rows = session.execute(
+        select(Mention.source, Mention.url, Mention.author).where(
+            Mention.event_id == event_id
+        )
+    ).all()
+    outlets_per_source: dict[MentionSource, set[str]] = defaultdict(set)
+    counts: dict[MentionSource, int] = defaultdict(int)
+    all_outlets: set[str] = set()
+    for source, url, author in rows:
+        outlet = _outlet_of(url, author)
+        outlets_per_source[source].add(outlet)
+        counts[source] += 1
+        all_outlets.add(outlet)
+    return {
+        "mention_count": len(rows),
+        "outlet_count": len(all_outlets),
+        "by_source": [
+            {
+                "source": source,
+                "n_mentions": counts[source],
+                "outlets": len(outlets_per_source[source]),
+            }
+            for source in sorted(outlets_per_source, key=lambda s: (-counts[s], s.value))
+        ],
+    }
+
+
+def client_coverage_summary(
+    session: Session, *, client_id: int, days: int = 30
+) -> list[dict]:
+    """Per-day repetition index: events, mentions, share with >=2 outlets.
+
+    Days are taken from the mention timestamp (published_at, falling back
+    to ingested_at) across the last `days` days; an event counts as
+    multi-source on a day when its mentions that day span >=2 outlets.
+    Days without activity are absent from the result; ascending by date.
+    """
+    cutoff = datetime.now(tz=timezone.utc) - timedelta(days=days)
+    rows = session.execute(
+        select(Mention.published_at, Mention.ingested_at, Mention.event_id, Mention.url, Mention.author)
+        .join(Event, Event.id == Mention.event_id)
+        .where(Mention.client_id == client_id, Event.client_id == client_id)
+    ).all()
+    per_day: dict[date, dict[int, set[str]]] = defaultdict(lambda: defaultdict(set))
+    mention_days: dict[date, int] = defaultdict(int)
+    for published_at, ingested_at, event_id, url, author in rows:
+        when = published_at or ingested_at
+        if when is None or event_id is None:
+            continue
+        if when.tzinfo is None:  # SQLite returns naive datetimes
+            when = when.replace(tzinfo=timezone.utc)
+        if when < cutoff:
+            continue
+        day = when.date()
+        per_day[day][event_id].add(_outlet_of(url, author))
+        mention_days[day] += 1
+    summary: list[dict] = []
+    for day in sorted(per_day):
+        events = per_day[day]
+        multi = sum(1 for outlets in events.values() if len(outlets) >= 2)
+        total = len(events)
+        summary.append(
+            {
+                "date": day,
+                "events": total,
+                "mentions": mention_days[day],
+                "multi_source_events": multi,
+                "repetition_pct": round(100.0 * multi / total, 1) if total else 0.0,
+            }
+        )
+    return summary

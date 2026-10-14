@@ -73,6 +73,7 @@ def seed_mention(
     source=MentionSource.news_rss,
     title: str | None = "t",
     content: str | None = None,
+    author: str | None = None,
     sentiment=None,
     published: datetime | None = None,
     ingested: datetime | None = None,
@@ -87,6 +88,7 @@ def seed_mention(
         url_hash=make_url_hash(url),
         title=title,
         content=content,
+        author=author,
         sentiment=sentiment,
         published_at=published,
         ingested_at=ingested or now_utc(),
@@ -503,3 +505,118 @@ def test_alert_settings_validation(api) -> None:
     assert api.put("/api/alerts/settings", json=bad_digest).status_code == 422
     bad_mail = {"digest": "daily", "recipient_email": "nope", "is_active": True}
     assert api.put("/api/alerts/settings", json=bad_mail).status_code == 422
+
+
+# --------------------------------------------------------------- coverage
+
+
+class TestEventCoverage:
+    def test_counts_distinct_outlets_per_source(self, api, db) -> None:
+        client_id = first_client_id(db)
+        now = now_utc()
+        event = seed_event(db, client_id, "e", now, now, mention_count=3, source_count=2)
+        seed_mention(db, client_id, "https://a.com/1", event_id=event.id)
+        seed_mention(
+            db, client_id, "https://a.com/2", source=MentionSource.gdelt, event_id=event.id
+        )
+        seed_mention(db, client_id, "https://b.com/1", event_id=event.id)
+        body = api.get(f"/api/clients/{client_id}/events/{event.id}/coverage").json()
+        assert body["event_id"] == event.id
+        assert body["mention_count"] == 3
+        assert body["outlet_count"] == 2
+        by_source = {row["source"]: row for row in body["by_source"]}
+        assert by_source["news_rss"]["n_mentions"] == 2
+        assert by_source["news_rss"]["outlets"] == 2
+        assert by_source["gdelt"]["n_mentions"] == 1
+        assert by_source["gdelt"]["outlets"] == 1
+
+    def test_zeroed_when_event_has_no_mentions(self, api, db) -> None:
+        client_id = first_client_id(db)
+        now = now_utc()
+        event = seed_event(db, client_id, "empty", now, now)
+        body = api.get(f"/api/clients/{client_id}/events/{event.id}/coverage").json()
+        assert body["mention_count"] == 0
+        assert body["outlet_count"] == 0
+        assert body["by_source"] == []
+
+    def test_404_for_other_client(self, api, db) -> None:
+        client_id = first_client_id(db)
+        now = now_utc()
+        event = seed_event(db, client_id, "mia", now, now)
+        other = Client(name="otro")
+        db.add(other)
+        db.commit()
+        assert api.get(f"/api/clients/{other.id}/events/{event.id}/coverage").status_code == 404
+
+    def test_author_fallback_when_url_has_no_host(self, api, db) -> None:
+        client_id = first_client_id(db)
+        now = now_utc()
+        event = seed_event(db, client_id, "e", now, now, mention_count=2, source_count=2)
+        seed_mention(db, client_id, "not-a-url", author="@fuente", event_id=event.id)
+        seed_mention(db, client_id, "https://b.com/1", event_id=event.id)
+        body = api.get(f"/api/clients/{client_id}/events/{event.id}/coverage").json()
+        assert body["outlet_count"] == 2
+
+
+class TestClientCoverageSummary:
+    def test_repetition_index_per_day(self, api, db) -> None:
+        client_id = first_client_id(db)
+        now = now_utc()
+        today = now.replace(hour=12, minute=0, second=0, microsecond=0)
+        ev_a = seed_event(db, client_id, "a", today, today, mention_count=2, source_count=2)
+        ev_b = seed_event(db, client_id, "b", today, today, mention_count=1, source_count=1)
+        seed_mention(db, client_id, "https://a.com/1", event_id=ev_a.id, published=today)
+        seed_mention(db, client_id, "https://b.com/1", event_id=ev_a.id, published=today)
+        seed_mention(db, client_id, "https://a.com/2", event_id=ev_b.id, published=today)
+        # Older window plus a foreign-client row that must not leak in.
+        old_ev = seed_event(db, client_id, "old", now, now, mention_count=1, source_count=1)
+        seed_mention(
+            db,
+            client_id,
+            "https://old.com/1",
+            event_id=old_ev.id,
+            published=now - timedelta(days=3),
+        )
+        other = Client(name="otro")
+        db.add(other)
+        db.commit()
+        other_ev = seed_event(db, other.id, "suyo", now, now)
+        seed_mention(db, other.id, "https://x.com/1", event_id=other_ev.id, published=now)
+
+        body = api.get(f"/api/clients/{client_id}/coverage/summary").json()
+        today_row = next(row for row in body if row["date"] == today.date().isoformat())
+        assert today_row["events"] == 2  # ev_a, ev_b (the old event is another day)
+        assert today_row["mentions"] == 3
+        assert today_row["multi_source_events"] == 1  # only ev_a spans two outlets
+        assert today_row["repetition_pct"] == 50.0
+        older = [row for row in body if row["date"] != today.date().isoformat()]
+        assert len(older) == 1 and older[0]["events"] == 1
+        # Client scope: the other client's event never shows up.
+        assert all(row["events"] <= 2 for row in body)
+
+    def test_days_window_clamped_1_90(self, api, db) -> None:
+        client_id = first_client_id(db)
+        now = now_utc()
+        event = seed_event(db, client_id, "old", now, now)
+        seed_mention(
+            db,
+            client_id,
+            "https://old.com/1",
+            event_id=event.id,
+            published=now - timedelta(days=3),
+        )
+        # days=0 -> clamped to 1: the 3-day-old mention drops out.
+        tight = api.get(
+            f"/api/clients/{client_id}/coverage/summary", params={"days": 0}
+        ).json()
+        assert tight == []
+        wide = api.get(
+            f"/api/clients/{client_id}/coverage/summary", params={"days": 999}
+        ).json()
+        assert len(wide) == 1 and wide[0]["events"] == 1
+
+    def test_empty_client_returns_empty_list(self, api, db) -> None:
+        client_id = first_client_id(db)
+        body = api.get(f"/api/clients/{client_id}/coverage/summary").json()
+        assert body == []
+        assert api.get("/api/clients/999999/coverage/summary").status_code == 404
