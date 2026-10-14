@@ -86,6 +86,10 @@ class ClientSettings(IntPk, Base):
     ai_fallback_local: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default="1"
     )
+    # F2c: max LLM enrichments per ingest cycle; the overflow is backfill work.
+    enrich_max_per_cycle: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=50, server_default="50"
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

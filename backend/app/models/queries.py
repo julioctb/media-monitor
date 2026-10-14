@@ -659,6 +659,14 @@ def _validate_ai_provider(value: object) -> str:
     return value
 
 
+def _validate_enrich_max(value: object) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError("enrich_max_per_cycle must be an integer")
+    if not 1 <= value <= 1000:
+        raise ValueError("enrich_max_per_cycle must be between 1 and 1000")
+    return value
+
+
 def _validate_optional_str(value: object, field: str, *, is_url: bool = False) -> str | None:
     if value is None:
         return None
@@ -684,6 +692,7 @@ _VALIDATORS = {
     "ai_base_url": lambda v: _validate_optional_str(v, "ai_base_url", is_url=True),
     "ai_model": lambda v: _validate_optional_str(v, "ai_model"),
     "ai_fallback_local": lambda v: _validate_bool(v, "ai_fallback_local"),
+    "enrich_max_per_cycle": _validate_enrich_max,
 }
 
 

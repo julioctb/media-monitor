@@ -15,10 +15,11 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 
 from app.classifications.base import Classifier, classification_results
+from app.enrich.summary import maybe_summarize_event
 from app.ingest.base import RawMention, SourceAdapter
 from app.ingest.events import assign_mention_to_event
 from app.ingest.matching import find_matching_keyword, fold_text
-from app.models import IngestRun, Keyword, MentionSource, queries
+from app.models import Event, IngestRun, Keyword, MentionSource, queries
 from app.models.base import Sentiment
 
 log = logging.getLogger("ingest.pipeline")
@@ -79,6 +80,8 @@ def persist_raw_mentions(
     all_keyword_texts: list[str],
     sentiment_analyzer=None,
     classifiers: Sequence[Classifier] | None = None,
+    enricher=None,
+    enrich_limit: int | None = None,
 ) -> int:
     """Validate, score and insert raw mentions; returns inserted count.
 
@@ -86,6 +89,12 @@ def persist_raw_mentions(
       the source is advisory; the regex engine is the source of truth).
     - Falls back to any other tracked keyword if the fetch keyword does not
       literally appear in the text (sources rewrite titles).
+    - F2c enrichment is the primary pass when an `enricher` is given: one
+      LLM call yields sentiment, summary and topics. Its failure (None or
+      exception) degrades to the plain `sentiment_analyzer` — laya keeps
+      sentiment alive and summary stays NULL/backfillable. `enrich_limit`
+      caps LLM calls per cycle (settings.enrich_max_per_cycle); mentions
+      past the cap go through the plain analyzer.
     - Sentiment is scored once per inserted mention when an analyzer is
       provided; failures never block the insert (sentiment stays NULL and
       can be backfilled).
@@ -93,6 +102,7 @@ def persist_raw_mentions(
       a broken classifier leaves no rows instead of dropping the mention.
     """
     inserted = 0
+    enrich_calls = 0
     active_texts = set(all_keyword_texts)
     for item in items:
         text = _text_of(item)
@@ -106,9 +116,26 @@ def persist_raw_mentions(
             continue
 
         keyword = keyword_by_text.get(fold_text(matched_text))
+        # F2c enrichment first: it owns sentiment when it succeeds.
+        enrichment = None
+        if (
+            enricher is not None
+            and text.strip()
+            and (enrich_limit is None or enrich_calls < enrich_limit)
+        ):
+            enrich_calls += 1
+            try:
+                enrichment = enricher.enrich(text, lang=item.lang or "es")
+            except Exception as exc:  # noqa: BLE001 - enrichment must not break ingest
+                log.warning("enrichment failed: %s", exc)
+                enrichment = None
+
         sentiment: Sentiment | None = None
         sentiment_score: float | None = None
-        if sentiment_analyzer is not None and text.strip():
+        if enrichment is not None:
+            sentiment = enrichment.sentiment
+            sentiment_score = enrichment.sentiment_score
+        elif sentiment_analyzer is not None and text.strip():
             try:
                 result = sentiment_analyzer.analyze(text, lang=item.lang or "es")
                 sentiment, sentiment_score = result.label, result.score
@@ -140,6 +167,22 @@ def persist_raw_mentions(
                 except Exception as exc:  # noqa: BLE001 - events must not break ingest
                     log.warning("event assignment failed for mention %s: %s", created.id, exc)
                     session.rollback()
+            if enrichment is not None:
+                created.summary = enrichment.summary
+                if enrichment.topics:
+                    try:
+                        queries.upsert_classifications(
+                            session,
+                            mention_id=created.id,
+                            classifier="topics",
+                            results=[(topic, 1.0) for topic in enrichment.topics],
+                        )
+                    except Exception as exc:  # noqa: BLE001 - topics must not block
+                        log.warning(
+                            "topics classification failed for mention %s: %s",
+                            created.id,
+                            exc,
+                        )
             if sentiment is not None:
                 created.sentiment = sentiment
                 created.sentiment_score = sentiment_score
@@ -152,6 +195,18 @@ def persist_raw_mentions(
                     lang=item.lang or "es",
                     classifiers=classifiers,
                 )
+            # F2c event summary: title while a lone mention, LLM synthesis
+            # once the event spans >=2 (maybe_summarize_event commits).
+            if created.event_id is not None and enricher is not None:
+                try:
+                    event = session.get(Event, created.event_id)
+                    if event is not None:
+                        maybe_summarize_event(session, event, enricher=enricher)
+                except Exception as exc:  # noqa: BLE001 - summary must not break ingest
+                    log.warning(
+                        "event summary failed for event %s: %s", created.event_id, exc
+                    )
+                    session.rollback()
             inserted += 1
     return inserted
 
@@ -165,6 +220,8 @@ def run_ingest_cycle(
     sentiment_analyzer=None,
     classifiers: Sequence[Classifier] | None = None,
     cycle_started: datetime | None = None,
+    enricher=None,
+    enrich_limit: int | None = None,
 ) -> dict[str, int]:
     """Run every adapter for the client's keywords and persist results.
 
@@ -206,6 +263,8 @@ def run_ingest_cycle(
                     all_keyword_texts=texts,
                     sentiment_analyzer=sentiment_analyzer,
                     classifiers=classifiers,
+                    enricher=enricher,
+                    enrich_limit=enrich_limit,
                 )
             except Exception as exc:  # noqa: BLE001 - ledger must record the failure
                 log.exception("adapter %s persist failed: %s", adapter.name, exc)

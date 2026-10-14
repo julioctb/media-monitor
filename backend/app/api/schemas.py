@@ -50,6 +50,8 @@ class MentionOut(BaseModel):
     ingested_at: datetime
     sentiment: Sentiment | None
     sentiment_score: float | None
+    # F2c enrichment; NULL until the mention is enriched (backfillable).
+    summary: str | None
     reach: int | None
     classifications: list[ClassificationOut] = []
 
@@ -147,6 +149,7 @@ class ClientSettingsOut(BaseModel):
     ai_base_url: str | None
     ai_model: str | None
     ai_fallback_local: bool
+    enrich_max_per_cycle: int
     updated_at: datetime
 
 
@@ -164,6 +167,7 @@ class ClientSettingsUpdate(BaseModel):
     ai_base_url: str | None = None
     ai_model: str | None = None
     ai_fallback_local: bool | None = None
+    enrich_max_per_cycle: int | None = Field(default=None, ge=1, le=1000)
 
 
 class FacebookProbeRequest(BaseModel):
@@ -294,6 +298,8 @@ class EventOut(BaseModel):
     title: str
     mention_count: int
     source_count: int
+    # F2c: LLM synthesis over mention summaries; title while a lone mention.
+    summary: str | None
     first_seen_at: datetime
     last_seen_at: datetime
 

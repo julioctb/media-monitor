@@ -111,6 +111,9 @@ class Mention(IntPk, Base):
         nullable=True,
     )
     sentiment_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # F2c enrichment: one-paragraph LLM summary. NULL = not yet enriched
+    # (the documented backfillable state); re-enrich via backfill --force.
+    summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     reach: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     raw: Mapped[dict[str, Any] | None] = mapped_column(JsonType, nullable=True)
     event_id: Mapped[int | None] = mapped_column(

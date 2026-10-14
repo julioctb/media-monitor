@@ -8,7 +8,7 @@ on every assignment (app.ingest.events.touch_event).
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Index, Integer, String
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, IntPk
@@ -29,6 +29,9 @@ class Event(IntPk, Base):
     title_tokens: Mapped[str] = mapped_column(String(500), nullable=False)
     mention_count: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     source_count: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    # F2c: LLM synthesis over the mention summaries (the RAG primary chunk
+    # and digest line). Equals the title while the event has one mention.
+    summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
