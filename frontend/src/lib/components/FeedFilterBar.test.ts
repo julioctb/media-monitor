@@ -117,7 +117,7 @@ describe('FeedFilterBar', () => {
 		expect(submit.mock.instances[0]).toBe(form);
 	});
 
-	it('folds keyword, political, dates, search and limit into a closed disclosure', () => {
+	it('folds keyword, political, dates and limit into a closed disclosure', () => {
 		const { host } = renderBar({ filters: baseFilters() });
 
 		const details = host.querySelector('details');
@@ -125,12 +125,22 @@ describe('FeedFilterBar', () => {
 		expect(details?.hasAttribute('open')).toBe(false);
 		expect(details?.querySelector('summary')?.textContent).toContain('Más filtros');
 
-		for (const id of ['f-keyword', 'f-q', 'f-limit']) {
+		for (const id of ['f-keyword', 'f-limit']) {
 			expect(details?.querySelector(`#${id}`), `advanced ${id}`).not.toBeNull();
 		}
 		expect(details?.querySelector('input[name="political"]')).not.toBeNull();
 		expect(details?.querySelector('input[name="since"]')).not.toBeNull();
 		expect(details?.querySelector('input[name="until"]')).not.toBeNull();
+	});
+
+	it('keeps the search box in the main row, outside the disclosure', () => {
+		const { host } = renderBar({ filters: baseFilters({ q: 'gpu' }) });
+
+		const search = host.querySelector('#f-q') as HTMLInputElement;
+		expect(search).toBeInstanceOf(HTMLInputElement);
+		expect(search.getAttribute('type')).toBe('search');
+		expect(search.value).toBe('gpu');
+		expect(search.closest('details')).toBeNull();
 	});
 
 	it('shows no count badge without active advanced filters', () => {
@@ -141,12 +151,18 @@ describe('FeedFilterBar', () => {
 
 	it('counts active advanced filters in the summary badge', () => {
 		const { host } = renderBar({
-			filters: baseFilters({ keyword_id: '3', political: '1', q: 'gpu' })
+			filters: baseFilters({ keyword_id: '3', political: '1', since: '2026-10-01' })
 		});
 
 		const badge = host.querySelector('details summary span') as HTMLElement;
 		expect(badge.textContent?.trim()).toBe('3');
 		expect(badge.getAttribute('aria-label')).toContain('filtros avanzados');
+	});
+
+	it('does not count the promoted search box in the badge', () => {
+		const { host } = renderBar({ filters: baseFilters({ q: 'gpu' }) });
+
+		expect(host.querySelector('details summary span')).toBeNull();
 	});
 
 	it('ignores the pagination limit for the advanced count', () => {

@@ -47,14 +47,13 @@
 	}
 
 	// Advanced = everything folded into the disclosure except the pagination
-	// limit (a size knob, not a filter).
+	// limit (a size knob) and the search box (promoted to the main row).
 	const advancedCount = $derived.by(() => {
 		let count = 0;
 		if (filters.keyword_id !== '') count += 1;
 		if (filters.political === '1') count += 1;
 		if (filters.since !== '') count += 1;
 		if (filters.until !== '') count += 1;
-		if (filters.q.trim() !== '') count += 1;
 		return count;
 	});
 </script>
@@ -81,6 +80,20 @@
 				</option>
 			{/each}
 		</select>
+	</div>
+
+	<!-- Búsqueda: primary filter, always visible; Enter submits via the
+		Aplicar button (first submit in tree order, works with details closed). -->
+	<div class="min-w-0 flex-1 basis-40">
+		<label class="sr-only" for="f-q">Búsqueda</label>
+		<input
+			type="search"
+			id="f-q"
+			name="q"
+			value={filters.q}
+			placeholder="Buscar en título o contenido"
+			class={`${FIELD_CLS} min-w-0`}
+		/>
 	</div>
 
 	<details class="min-w-0">
@@ -144,18 +157,6 @@
 						class={`${FIELD_CLS} min-w-0 flex-1 basis-28`}
 					/>
 				</div>
-			</div>
-
-			<div>
-				<label class={LABEL_CLS} for="f-q">Búsqueda</label>
-				<input
-					type="search"
-					id="f-q"
-					name="q"
-					value={filters.q}
-					placeholder="Buscar en título o contenido"
-					class={FIELD_CLS}
-				/>
 			</div>
 
 			<div>
