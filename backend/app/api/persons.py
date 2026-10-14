@@ -7,7 +7,7 @@ Both tenant-scoped through queries; the timeline is the raw-material feed
 for the F4 chat answers (quote + source + url + sentiment + political label).
 """
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException
 from typing import Literal
 
 from app.api.deps import SessionDep

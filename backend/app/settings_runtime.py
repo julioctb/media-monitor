@@ -108,8 +108,3 @@ def get_effective_settings(client_id: int) -> EffectiveSettings:
         raise RuntimeError(
             "cycle settings not loaded; call load_cycle_settings at cycle start"
         ) from exc
-
-
-def clear_cycle_cache() -> None:
-    """Test helper: drop every pinned snapshot."""
-    _cycle_cache.clear()

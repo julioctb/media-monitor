@@ -20,7 +20,7 @@ from app.ingest.article_fetch import fetcher_for
 from app.ingest.base import RawMention, SourceAdapter
 from app.ingest.events import assign_mention_to_event
 from app.ingest.matching import find_matching_keyword, fold_text
-from app.models import Event, IngestRun, Keyword, MentionSource, queries
+from app.models import Event, IngestRun, Keyword, queries
 from app.models.base import Sentiment
 from app import persons
 
