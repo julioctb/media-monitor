@@ -43,6 +43,7 @@ class EffectiveSettings:
     ai_model: str | None = None
     ai_fallback_local: bool = True
     enrich_max_per_cycle: int = 50
+    fetch_max_per_cycle: int = 20
 
 
 # Cycle-scoped cache: client_id -> snapshot. Overwritten by every
@@ -88,6 +89,7 @@ def resolve_effective_settings(session: Session, client_id: int) -> EffectiveSet
         ai_model=row.ai_model,
         ai_fallback_local=row.ai_fallback_local,
         enrich_max_per_cycle=row.enrich_max_per_cycle,
+        fetch_max_per_cycle=row.fetch_max_per_cycle,
     )
 
 

@@ -165,8 +165,8 @@ def ingest_job() -> dict[str, int]:
     try:
         client = queries.get_or_create_client(session, "default")
         # Pin this cycle's settings snapshot before building anything.
-        load_cycle_settings(session, client_id=client.id)
-        adapters = build_adapters(get_effective_settings(client.id))
+        effective = load_cycle_settings(session, client_id=client.id)
+        adapters = build_adapters(effective)
         analyzer = cycle_sentiment_analyzer(client.id)
         enricher, enrich_limit = cycle_enricher(client.id)
         classifiers = build_classifiers()
@@ -180,6 +180,7 @@ def ingest_job() -> dict[str, int]:
             classifiers=classifiers,
             enricher=enricher,
             enrich_limit=enrich_limit,
+            fetch_limit=max(1, int(effective.fetch_max_per_cycle)),
             cycle_started=cycle_started,
         )
         try:

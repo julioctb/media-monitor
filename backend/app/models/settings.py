@@ -90,6 +90,10 @@ class ClientSettings(IntPk, Base):
     enrich_max_per_cycle: Mapped[int] = mapped_column(
         Integer, nullable=False, default=50, server_default="50"
     )
+    # F2c-article-fetch: max article content fetches per ingest cycle.
+    fetch_max_per_cycle: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=20, server_default="20"
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

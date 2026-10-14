@@ -3,7 +3,9 @@
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
+from app.ingest import article_fetch
 from app.ingest.base import RawMention, SourceAdapter
+from app.ingest import pipeline
 from app.ingest.pipeline import persist_raw_mentions, run_ingest_cycle
 from app.models import Client, Keyword, Mention, MentionSource, queries
 from app.models.base import Sentiment
@@ -272,3 +274,113 @@ class TestRunIngestCycle:
         # Item's keyword is inactive AND text does not contain BUAP -> dropped
         assert stats == {"fake": 0}
         assert session.query(Mention).count() == 0
+
+
+class TestArticleFetchWiring:
+    """F2c-article-fetch: pipeline fetches bodies before enrichment."""
+
+    def _run(self, session, items, **kwargs):
+        client, kws = _client_with_keywords(session)
+        return client, persist_raw_mentions(
+            session,
+            client_id=client.id,
+            items=items,
+            keyword_by_text={"buap": kws[0]},
+            all_keyword_texts=["BUAP"],
+            **kwargs,
+        )
+
+    def test_fetch_fills_content_and_feeds_enrichment(self, session, monkeypatch) -> None:
+        body = "Cuerpo completo de la nota periodistica con datos oficiales. " * 5
+        calls: list[str] = []
+
+        def fake_fetcher(url: str) -> str:
+            calls.append(url)
+            return body
+
+        monkeypatch.setattr(pipeline, "fetcher_for", lambda source: fake_fetcher)
+        analyzer = MockAnalyzer()
+        self._run(
+            session,
+            [_raw("https://example.com/f1")],
+            sentiment_analyzer=analyzer,
+        )
+        (mention,) = session.query(Mention).all()
+        assert mention.content == body.strip()
+        assert calls == ["https://example.com/f1"]
+        # The LLM/analyzer sees title + fetched body, not the bare title.
+        assert "BUAP noticia" in analyzer.calls[0][0]
+        assert "Cuerpo completo" in analyzer.calls[0][0]
+
+    def test_fetch_limit_caps_calls_per_cycle(self, session, monkeypatch) -> None:
+        calls: list[str] = []
+
+        def fake_fetcher(url: str) -> str:
+            calls.append(url)
+            return "Cuerpo suficiente para contar como articulo completo. " * 5
+
+        monkeypatch.setattr(pipeline, "fetcher_for", lambda source: fake_fetcher)
+        _, inserted = self._run(
+            session,
+            [
+                _raw("https://example.com/g1", title="BUAP nota uno"),
+                _raw("https://example.com/g2", title="BUAP nota dos"),
+            ],
+            fetch_limit=1,
+        )
+        assert inserted == 2
+        assert len(calls) == 1
+        contents = [m.content for m in session.query(Mention).order_by(Mention.id)]
+        assert contents[0] and contents[1] is None
+
+    def test_fetch_failure_leaves_content_empty_and_inserts(self, session, monkeypatch) -> None:
+        def broken_fetcher(url: str) -> str:
+            raise RuntimeError("site down")
+
+        monkeypatch.setattr(pipeline, "fetcher_for", lambda source: broken_fetcher)
+        _, inserted = self._run(session, [_raw("https://example.com/h1")])
+        assert inserted == 1
+        (mention,) = session.query(Mention).all()
+        assert mention.content is None
+
+    def test_existing_content_is_not_refetched(self, session, monkeypatch) -> None:
+        calls: list[str] = []
+
+        def fake_fetcher(url: str) -> str:
+            calls.append(url)
+            return "nuevo"
+
+        monkeypatch.setattr(pipeline, "fetcher_for", lambda source: fake_fetcher)
+        item = _raw("https://example.com/i1")
+        item.content = "El texto ya viene inline"
+        self._run(session, [item])
+        (mention,) = session.query(Mention).all()
+        assert calls == []
+        assert mention.content == "El texto ya viene inline"
+
+    def test_social_source_skips_fetch_registry(self, session, monkeypatch) -> None:
+        # Real registry: x_twitter has no fetcher -> no call, no stub needed.
+        called: list[str] = []
+
+        def spy(source):
+            fetcher = article_fetch.fetcher_for(source)
+            if fetcher is None:
+                return None
+
+            def wrapped(url: str) -> str | None:
+                called.append(url)
+                return fetcher(url)
+
+            return wrapped
+
+        monkeypatch.setattr(pipeline, "fetcher_for", spy)
+        item = RawMention(
+            source=MentionSource.x_twitter,
+            keyword="BUAP",
+            url="https://x.com/u/status/1",
+            title="BUAP post",
+            lang="es",
+        )
+        _, inserted = self._run(session, [item])
+        assert inserted == 1
+        assert called == []

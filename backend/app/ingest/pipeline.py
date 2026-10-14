@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.classifications.base import Classifier, classification_results
 from app.enrich.summary import maybe_summarize_event
+from app.ingest.article_fetch import fetcher_for
 from app.ingest.base import RawMention, SourceAdapter
 from app.ingest.events import assign_mention_to_event
 from app.ingest.matching import find_matching_keyword, fold_text
@@ -82,6 +83,7 @@ def persist_raw_mentions(
     classifiers: Sequence[Classifier] | None = None,
     enricher=None,
     enrich_limit: int | None = None,
+    fetch_limit: int | None = None,
 ) -> int:
     """Validate, score and insert raw mentions; returns inserted count.
 
@@ -89,6 +91,11 @@ def persist_raw_mentions(
       the source is advisory; the regex engine is the source of truth).
     - Falls back to any other tracked keyword if the fetch keyword does not
       literally appear in the text (sources rewrite titles).
+    - Article fetch (F2c-article-fetch): news mentions ingest title-only,
+      so before enrichment the mention's URL is fetched for the article
+      body (registry in app.ingest.article_fetch). `fetch_limit` caps
+      fetches per cycle (settings.fetch_max_per_cycle); a failed fetch
+      leaves content empty and the mention still inserts.
     - F2c enrichment is the primary pass when an `enricher` is given: one
       LLM call yields sentiment, summary and topics. Its failure (None or
       exception) degrades to the plain `sentiment_analyzer` — laya keeps
@@ -103,6 +110,7 @@ def persist_raw_mentions(
     """
     inserted = 0
     enrich_calls = 0
+    fetch_calls = 0
     active_texts = set(all_keyword_texts)
     for item in items:
         text = _text_of(item)
@@ -116,6 +124,27 @@ def persist_raw_mentions(
             continue
 
         keyword = keyword_by_text.get(fold_text(matched_text))
+        # Article fetch before enrichment (F2c-article-fetch): the LLM and
+        # the stored row both want the real body, not just the title. Only
+        # sources with a registry fetcher, only rows without content, under
+        # the per-cycle cap; any failure leaves content as-is.
+        content = item.content
+        fetcher = fetcher_for(item.source)
+        if (
+            fetcher is not None
+            and item.url
+            and not (content and content.strip())
+            and (fetch_limit is None or fetch_calls < fetch_limit)
+        ):
+            fetch_calls += 1
+            try:
+                fetched = fetcher(item.url)
+            except Exception as exc:  # noqa: BLE001 - fetch must not break ingest
+                log.warning("content fetch failed for %s: %s", item.url, exc)
+                fetched = None
+            if fetched and fetched.strip():
+                content = fetched.strip()
+                text = "\n".join(p for p in [item.title or "", content] if p)
         # F2c enrichment first: it owns sentiment when it succeeds.
         enrichment = None
         if (
@@ -150,7 +179,7 @@ def persist_raw_mentions(
             keyword_id=keyword.id if keyword else None,
             external_id=item.external_id,
             title=item.title,
-            content=item.content,
+            content=content,
             author=item.author,
             lang=item.lang,
             published_at=item.published_at,
@@ -222,6 +251,7 @@ def run_ingest_cycle(
     cycle_started: datetime | None = None,
     enricher=None,
     enrich_limit: int | None = None,
+    fetch_limit: int | None = None,
 ) -> dict[str, int]:
     """Run every adapter for the client's keywords and persist results.
 
@@ -265,6 +295,7 @@ def run_ingest_cycle(
                     classifiers=classifiers,
                     enricher=enricher,
                     enrich_limit=enrich_limit,
+                    fetch_limit=fetch_limit,
                 )
             except Exception as exc:  # noqa: BLE001 - ledger must record the failure
                 log.exception("adapter %s persist failed: %s", adapter.name, exc)

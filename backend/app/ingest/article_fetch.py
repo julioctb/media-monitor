@@ -28,7 +28,7 @@ import logging
 import re
 from collections.abc import Callable
 from html import unescape as html_unescape
-from urllib.parse import urlsplit
+from urllib.parse import quote, urlsplit
 
 import httpx
 from bs4 import BeautifulSoup
@@ -37,11 +37,22 @@ from app.models.base import MentionSource
 
 log = logging.getLogger("ingest.article_fetch")
 
-#: Browser-ish User-Agent: some Puebla news sites 403 plain clients.
+#: Browser-ish headers: some Puebla news sites (CloudFront) 403 a bare
+#: User-Agent; the full browser-ish set passes.
 USER_AGENT = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
 )
+
+BROWSER_HEADERS = {
+    "User-Agent": USER_AGENT,
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "es-MX,es;q=0.9,en;q=0.5",
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "none",
+    "Upgrade-Insecure-Requests": "1",
+}
 
 #: Per-request timeout; the ingest cycle must stay snappy.
 FETCH_TIMEOUT_S = 8.0
@@ -119,19 +130,46 @@ def _is_google_news(url: str) -> bool:
 def _resolve_google_news_redirect(url: str, client: httpx.Client) -> str | None:
     """Final publisher URL behind a Google News redirect, or None.
 
-    The /rss/articles/ pages are c-wiz shells; the target URL comes from
-    the batchexecute endpoint keyed by the article id (the ``garturlres``
-    entry inside the nested JSON blob). Any shape drift returns None —
-    the caller falls back to fetching the redirect URL itself.
+    The /rss/articles/ pages are c-wiz shells; the target comes from the
+    batchexecute endpoint keyed by the article id. The request needs the
+    ``data-n-a-sg``/``data-n-a-ts`` tokens embedded in the article page
+    (a bare payload answers HTTP 400) and an URL-encoded ``f.req`` body.
+    Any shape drift returns None — the caller falls back to fetching the
+    redirect URL itself.
     """
     article_id = url.split("/articles/", 1)[-1].split("?")[0]
     if not article_id:
         return None
-    payload = json.dumps([[None, [[None, article_id]]]], separators=(",", ":"))
+    page_url = f"https://news.google.com/rss/articles/{article_id}?hl=es&gl=MX&ceid=MX:es"
+    html = _fetch_page(page_url, client)
+    if not html:
+        return None
+    sg = re.search(r'data-n-a-sg="([^"]+)"', html)
+    ts = re.search(r'data-n-a-ts="([^"]+)"', html)
+    if not (sg and ts):
+        return None
+    inner = [
+        "garturlreq",
+        [
+            ["X", "X", ["X", "X"], None, None, 1, 1, "US:en", None, 1, None, None,
+             None, None, None, 0, 1],
+            "X", "X", 1, [1, 1, 1], 1, 1, None, 0, 0, None, 0,
+        ],
+        article_id,
+        int(ts.group(1)),
+        sg.group(1),
+    ]
+    freq = quote(
+        json.dumps(
+            [[["Fbv4je", json.dumps(inner, separators=(",", ":")), None, "0"]]],
+            separators=(",", ":"),
+        )
+    )
     try:
         resp = client.post(
             "https://news.google.com/_/DotsSplashUi/data/batchexecute",
-            data={"f.req": json.dumps([["Fbv4je", payload, None, "generic"]])},
+            content=f"f.req={freq}",
+            headers={"Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"},
         )
         body = resp.text
     except httpx.HTTPError as exc:
@@ -141,9 +179,9 @@ def _resolve_google_news_redirect(url: str, client: httpx.Client) -> str | None:
 
 
 def _fetch_page(url: str, client: httpx.Client) -> str | None:
-    """GET with the browser UA; body text or None on any failure."""
+    """GET with the browser-ish header set; body text or None on failure."""
     try:
-        resp = client.get(url, headers={"User-Agent": USER_AGENT}, follow_redirects=True)
+        resp = client.get(url, headers=BROWSER_HEADERS, follow_redirects=True)
         if resp.status_code != 200:
             log.debug("fetch %s -> HTTP %d", url, resp.status_code)
             return None
