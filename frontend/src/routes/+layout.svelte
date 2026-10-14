@@ -7,6 +7,7 @@
 
 	const navItems = [
 		{ href: '/', label: 'Feed' },
+		{ href: '/events', label: 'Eventos' },
 		{ href: '/stats', label: 'Estadísticas' },
 		{ href: '/summary', label: 'Resumen' },
 		{ href: '/saved-searches', label: 'Saved searches' },
