@@ -163,6 +163,18 @@ def backfill(
         mention.summary = result.summary
         # F3 read-back: same payload the ingest path stores.
         mention.raw_enrichment = result.model_dump(mode="json")
+        # Classification v2: the enrichment topic is canonical — same upsert
+        # the ingest path runs after the registry classifiers.
+        if result.topic:
+            try:
+                queries.upsert_classifications(
+                    session,
+                    mention_id=mention.id,
+                    classifier="topic",
+                    results=[(result.topic, 1.0)],
+                )
+            except Exception as exc:  # noqa: BLE001 - topics must not block
+                log.warning("canonical topic backfill failed for %s: %s", mention.id, exc)
         # Canonical policy: the enrichment verdict overwrites any earlier
         # (laya) value; the previous label/score lands in the log.
         if apply_canonical_sentiment(

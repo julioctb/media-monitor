@@ -37,18 +37,33 @@ Cambios vs v1: `sports` se fusiona a `cultura` (7 datos no justifican label),
 `economy` se divide en `finanzas` (institucional) vs `gobierno`, y entran
 `infraestructura`/`institucional`/`estudiantes` que hoy flotan sin etiqueta.
 
-## Implementación (mecanismo intacto)
+## Implementación (v2 final: enrichment-driven)
 
-1. `TOPICS` v2 en el prompt del clasificador (registry `app/classifications/`),
-   mismas N preguntas binarias de un solo predict; defs + 2 ejemplos
-   positivos/negativos por label, regla carve-out político viva.
-2. Clasificador interno: nombre de classifier sigue siendo `topic` (upsert
-   sustituye rows; sin migración). Frontend: ampliar mapas de
-   `topicLabel`/`topicBadgeClass` en `format.ts` (labels ES + color por label).
-3. Gold: 40 títulos del corpus etiquetados a mano (los ya listados arriba
-   sirven de semilla) → precisión por label ≥ 0.8 antes de backfill.
-4. Backfill: re-clasificar los 372 con `--classifications` tras calibrar;
-   political se mantiene intacto (binary v1 con calibración propia).
+Decisión de diseño tras medir: el choice head local (laya) se queda en
+~0.46 de accuracy con 9 clases (2 iteraciones de prompt no lo mueven);
+el enrichment LLM (GLM, misma llamada, costo 0) llega a **0.85**. La
+clasificación canónica emite pues el ENRIQUECIMIENTO:
+
+1. `EnrichmentResult.topic` (enum cerrado de 8, inválido => None) con reglas
+   de naturaleza-del-hecho en `SYSTEM_PROMPT`; el choice head v2 queda como
+   fallback para rows sin enrichment y se conserva en `topics.py`.
+2. Pipeline: el upsert canonical corre DESPUÉS de los classifiers del
+   registry (mismo scoping delete+insert) — el veredicto enrichment siempre
+   gana. Backfill ídem.
+3. Frontend: mapas `topicLabel`/`topicBadgeClass` con los 8 keys + legado
+   v1 para rows viejas.
+4. Gold: 48 notas con context (título + 220 chars) en
+   `backend/eval_topics_gold_es.jsonl`; eval `backend/scripts/eval_topics.py`
+   (head) y reproducción del path enrichment. Gate por label: todos >= 0.75,
+   global 0.85; `government` n=2 ( borderline Armenta => institutional,
+   defendible).
+
+## Re-clasificación
+
+`backend/scripts/backfill_enrichment.py --force` re-enriquece y ahora
+escribe el topic canónico (además de sentimiento canónico). Los rows v1
+`topic` se reemplazan por upsert; `topics` free-form del enrichment se
+mantiente tal cual.
 
 ## Riesgos
 

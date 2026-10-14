@@ -30,6 +30,7 @@ import time
 import httpx
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from app.classifications.topics import TOPIC_LABELS
 from app.models.base import Sentiment
 
 log = logging.getLogger("enrich.llm")
@@ -51,12 +52,27 @@ SYSTEM_PROMPT = (
     "Eres el extractor estructural de un monitor de medios. Analiza la nota "
     "y responde EXCLUSIVAMENTE con un objeto JSON valido con exactamente "
     'estas claves: {"summary": str, "sentiment": "positive"|"neutral"|'
-    '"negative", "sentiment_score": float, "persons": lista, "topics": lista}. '
+    '"negative", "sentiment_score": float, "topic": str|null, "persons": '
+    'lista, "topics": lista}. '
     "Reglas: "
     "summary: maximo 2 lineas en espanol, fiel al texto, sin inventar datos. "
     "sentiment/sentiment_score: valora la postura hacia la persona o marca "
     "PROTAGONISTA del texto (el sujeto del titular), no la gravedad del hecho "
     "ni el animo general; score entre 0 y 1. "
+    "topic: la NATURALEZA del hecho dominante, nunca quien lo protagonice; "
+    "EXACTAMENTE una de estas claves o null si ninguna domina: "
+    "academic (investigacion, congresos, publicaciones), "
+    "infrastructure (obras, edificios, aulas, campus, murals, inauguraciones), "
+    "institutional (informes, nombramientos, consejo, tramites, "
+    "jubilaciones, aniversarios, actos ceremoniales, conflictos internos), "
+    "students (becas, movilidad, admision, logros o protestas de "
+    "estudiantes), "
+    "culture (eventos culturales o deportivos, festivales, tradiciones, "
+    "conciertos, partidos), "
+    "finance (presupuesto, inversion, aportaciones, montos), "
+    "government (funcionarios externos estatales/municipales/federales "
+    "actuando alrededor de la institucion), "
+    "health (medicina, enfermedades, hospitales, dispositivos medicos). "
     "persons: personas nombradas en el texto, cada una "
     '{"name": str, "role": str|null, "org": str|null, "statement": str|null, '
     '"stance": str|null}; statement es cita textual solo si la nota la trae; '
@@ -85,8 +101,20 @@ class EnrichmentResult(BaseModel):
     summary: str
     sentiment: Sentiment
     sentiment_score: float = Field(ge=0.0, le=1.0)
+    # Classification v2: the enrichment verdict is the canonical topic. Any
+    # value outside the enum degrades to None (no row stored) instead of
+    # failing the whole pass.
+    topic: str | None = None
     persons: list[EnrichedPerson] = []
     topics: list[str] = []
+
+    @field_validator("topic", mode="before")
+    @classmethod
+    def _normalize_topic(cls, value: object) -> object:
+        if not isinstance(value, str):
+            return None
+        cleaned = value.strip().lower()
+        return cleaned if cleaned in TOPIC_LABELS else None
 
     @field_validator("summary", mode="before")
     @classmethod
