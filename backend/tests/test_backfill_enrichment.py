@@ -65,7 +65,8 @@ class TestBackfillEnrichment:
         assert stats["output_tokens_est"] == 300
         assert stats["cost_usd_est"] == round(stats["input_tokens"] / 1e6, 4) + 300 / 1e6
 
-    def test_backfill_applies_summary_and_keeps_laya_sentiment(self, session) -> None:
+    def test_backfill_applies_summary_and_overrides_stale_laya(self, session) -> None:
+        """Canonical policy: enrichment sentiment replaces the laya value."""
         from scripts.backfill_enrichment import backfill
 
         client = Client(name="c")
@@ -85,8 +86,11 @@ class TestBackfillEnrichment:
         session.add(mention)
         session.commit()
 
+        calls = {"n": 0}
+
         class FakeEnricher:
             def enrich(self, text, lang="es"):
+                calls["n"] += 1
                 return EnrichmentResult(
                     summary="Resumen.",
                     sentiment=Sentiment.positive,
@@ -99,11 +103,13 @@ class TestBackfillEnrichment:
             "enriched": 1,
             "failed": 0,
             "skipped_empty": 0,
+            "canonical_overrides": 1,
             "candidates": 1,
         }
         assert mention.summary == "Resumen."
-        # Existing laya sentiment survives: the TE5 comparison signal.
-        assert mention.sentiment is Sentiment.negative
+        # Canonical: the enrichment verdict, not the stale laya value.
+        assert mention.sentiment is Sentiment.positive
+        assert mention.sentiment_score == 0.9
         rows = session.execute(
             text(
                 "select classifier, label from mention_classifications"
@@ -111,6 +117,14 @@ class TestBackfillEnrichment:
             )
         ).all()
         assert ("topics", "tema") in rows
+
+        # Idempotent: a forced re-run over agreeing values overrides nothing.
+        stats = backfill(session, FakeEnricher(), force=True)
+        assert stats["enriched"] == 1
+        assert stats["canonical_overrides"] == 0
+        assert calls["n"] == 2
+        assert mention.sentiment is Sentiment.positive
+        assert mention.sentiment_score == 0.9
 
     def test_backfill_counts_failures_and_skips_empty(self, session) -> None:
         from scripts.backfill_enrichment import backfill

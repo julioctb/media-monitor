@@ -8,7 +8,7 @@ GET /clients/{id}/coverage/summary → per-day repetition index (T6b).
 
 from datetime import datetime
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException
 
 from app.api.deps import SessionDep
 from app.api.schemas import (

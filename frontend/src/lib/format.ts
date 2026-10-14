@@ -121,6 +121,3 @@ export function formatDayLabel(isoDate: string): string {
 	return Number.isNaN(date.getTime()) ? isoDate : dayFormatter.format(date);
 }
 
-export function formatScore(value: number | null): string {
-	return value === null ? '' : value.toFixed(2);
-}

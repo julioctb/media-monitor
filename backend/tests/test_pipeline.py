@@ -180,6 +180,59 @@ class TestPersistRawMentions:
         assert m.sentiment_score == 0.71
         assert analyzer.calls and analyzer.calls[0][1] == "es"
 
+    def test_enrichment_sentiment_wins_over_analyzer(self, session) -> None:
+        """Canonical policy: the enrichment verdict is the stored one."""
+        from app.enrich.llm import EnrichmentResult
+
+        class FakeEnricher:
+            def enrich(self, text: str, lang: str = "es") -> EnrichmentResult:
+                return EnrichmentResult(
+                    summary="Resumen.",
+                    sentiment=Sentiment.negative,
+                    sentiment_score=0.55,
+                )
+
+        client, kws = _client_with_keywords(session)
+        analyzer = MockAnalyzer(label=Sentiment.positive, score=0.9)
+        persist_raw_mentions(
+            session,
+            client_id=client.id,
+            items=[_raw("https://example.com/5b")],
+            keyword_by_text={"buap": kws[0]},
+            all_keyword_texts=["BUAP"],
+            sentiment_analyzer=analyzer,
+            enricher=FakeEnricher(),
+        )
+        m = session.query(Mention).one()
+        # Enrichment canonical: analyzer value loses on disagreement.
+        assert m.sentiment is Sentiment.negative
+        assert m.sentiment_score == 0.55
+        assert m.raw_enrichment["sentiment"] == "negative"
+
+    def test_enrichment_failure_falls_back_to_analyzer(self, session) -> None:
+        from app.enrich.llm import EnrichmentResult
+
+        class BoomEnricher:
+            def enrich(self, text: str, lang: str = "es") -> EnrichmentResult:
+                raise RuntimeError("llm down")
+
+        client, kws = _client_with_keywords(session)
+        analyzer = MockAnalyzer(label=Sentiment.negative, score=0.4)
+        persist_raw_mentions(
+            session,
+            client_id=client.id,
+            items=[_raw("https://example.com/5c")],
+            keyword_by_text={"buap": kws[0]},
+            all_keyword_texts=["BUAP"],
+            sentiment_analyzer=analyzer,
+            enricher=BoomEnricher(),
+        )
+        m = session.query(Mention).one()
+        # Fallback path: laya value stands, no enrichment stored.
+        assert m.sentiment is Sentiment.negative
+        assert m.sentiment_score == 0.4
+        assert m.raw_enrichment is None
+
     def test_sentiment_failure_does_not_block_insert(self, session) -> None:
         client, kws = _client_with_keywords(session)
 

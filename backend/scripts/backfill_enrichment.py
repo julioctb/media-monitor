@@ -5,8 +5,9 @@ mentions ingested before the feature). ``--dry-run`` (the default) only
 reports the candidate count and the projected token/cost spend — no LLM
 call happens; ``--apply`` runs the enrichment through the client's
 configured ``ai_provider`` exactly like the ingest cycle does, filling
-summary, sentiment (when still NULL) and topics. ``--force`` re-enriches
-rows that already carry a summary.
+summary, sentiment (canonical: overwrites any earlier value, the
+previous one is logged) and topics. ``--force`` re-enriches rows that
+already carry a summary.
 
 Cost model: the input side is estimated per row from the truncated
 article length (~4 chars/token) plus prompt overhead; output is the plan
@@ -25,6 +26,7 @@ from sqlalchemy.orm import Session
 from app.db import SessionLocal
 from app.enrich.llm import ESTIMATED_OUTPUT_TOKENS, MAX_CONTENT_CHARS
 from app.models import Client, Mention, queries
+from app.sentiment.canonical import apply_canonical_sentiment
 
 log = logging.getLogger("backfill.enrichment")
 
@@ -126,13 +128,20 @@ def backfill(
     """Enrich candidate mentions; counters per outcome.
 
     Enrichment failure leaves the row untouched (still backfillable);
-    sentiment is only written when the row has none yet — the laya value
-    already stored stays as the TE5 comparison signal.
+    sentiment is canonical (app.sentiment.canonical): the enrichment
+    verdict overwrites any stored value, and the previous label/score is
+    logged when it differs (``canonical_overrides`` counts those rows).
     """
     ids = candidate_ids(session, client_id=client_id, force=force, ids=ids)
     if limit is not None:
         ids = ids[:limit]
-    totals = {"enriched": 0, "failed": 0, "skipped_empty": 0, "candidates": len(ids)}
+    totals = {
+        "enriched": 0,
+        "failed": 0,
+        "skipped_empty": 0,
+        "canonical_overrides": 0,
+        "candidates": len(ids),
+    }
     processed = 0
     for mention_id in ids:
         mention = session.get(Mention, mention_id)
@@ -154,9 +163,15 @@ def backfill(
         mention.summary = result.summary
         # F3 read-back: same payload the ingest path stores.
         mention.raw_enrichment = result.model_dump(mode="json")
-        if mention.sentiment is None:
-            mention.sentiment = result.sentiment
-            mention.sentiment_score = result.sentiment_score
+        # Canonical policy: the enrichment verdict overwrites any earlier
+        # (laya) value; the previous label/score lands in the log.
+        if apply_canonical_sentiment(
+            mention,
+            result.sentiment,
+            result.sentiment_score,
+            mention_id=mention.id,
+        ):
+            totals["canonical_overrides"] += 1
         if result.topics:
             try:
                 queries.upsert_classifications(

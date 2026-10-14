@@ -20,8 +20,9 @@ from app.ingest.article_fetch import fetcher_for
 from app.ingest.base import RawMention, SourceAdapter
 from app.ingest.events import assign_mention_to_event
 from app.ingest.matching import find_matching_keyword, fold_text
-from app.models import Event, IngestRun, Keyword, MentionSource, queries
+from app.models import Event, IngestRun, Keyword, queries
 from app.models.base import Sentiment
+from app.sentiment.canonical import apply_canonical_sentiment
 from app import persons
 
 log = logging.getLogger("ingest.pipeline")
@@ -105,7 +106,9 @@ def persist_raw_mentions(
       past the cap go through the plain analyzer.
     - Sentiment is scored once per inserted mention when an analyzer is
       provided; failures never block the insert (sentiment stays NULL and
-      can be backfilled).
+      can be backfilled). The enrichment verdict is canonical
+      (app.sentiment.canonical): the plain analyzer only ever covers rows
+      without a usable enrichment.
     - Registry classifiers run after sentiment, same failure isolation:
       a broken classifier leaves no rows instead of dropping the mention.
     """
@@ -224,8 +227,15 @@ def persist_raw_mentions(
                             exc,
                         )
             if sentiment is not None:
-                created.sentiment = sentiment
-                created.sentiment_score = sentiment_score
+                # Canonical policy (app.sentiment.canonical): the enrichment
+                # verdict owns sentiment; on a fresh insert this is a plain
+                # first write, the helper just keeps one write path.
+                apply_canonical_sentiment(
+                    created,
+                    sentiment,
+                    sentiment_score,
+                    mention_id=created.id,
+                )
                 session.commit()
             if classifiers:
                 _classify_mention(
