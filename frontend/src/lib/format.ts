@@ -56,12 +56,18 @@ export function classificationLabel(label: string): string {
 	return CLASSIFICATION_LABELS[label] ?? label;
 }
 
-/** Topic labels (multi-label classifier; unknown keys fall through). */
+/** Topic labels v2 (classification-v2): keys mirror app.classifications.topics. */
 const TOPIC_LABELS: Record<string, string> = {
-	sports: 'Deportes',
 	academic: 'Academia',
+	infrastructure: 'Infraestructura',
+	institutional: 'Institucional',
+	students: 'Estudiantes',
 	culture: 'Cultura',
+	finance: 'Finanzas',
+	government: 'Gobierno',
 	health: 'Salud',
+	// v1 labels kept for rows not yet re-classified.
+	sports: 'Deportes',
 	economy: 'Economía'
 };
 
@@ -71,10 +77,16 @@ export function topicLabel(label: string): string {
 
 /** One hue per topic so a multi-label badge row scans instantly. */
 const TOPIC_BADGE_CLASSES: Record<string, string> = {
-	sports: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
 	academic: 'bg-indigo-50 text-indigo-700 ring-indigo-600/20',
+	infrastructure: 'bg-amber-50 text-amber-700 ring-amber-600/20',
+	institutional: 'bg-slate-100 text-slate-600 ring-slate-500/20',
+	students: 'bg-sky-50 text-sky-700 ring-sky-600/20',
 	culture: 'bg-fuchsia-50 text-fuchsia-700 ring-fuchsia-600/20',
+	finance: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
+	government: 'bg-orange-50 text-orange-700 ring-orange-600/20',
 	health: 'bg-teal-50 text-teal-700 ring-teal-600/20',
+	// v1 legacy
+	sports: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
 	economy: 'bg-amber-50 text-amber-700 ring-amber-600/20'
 };
 

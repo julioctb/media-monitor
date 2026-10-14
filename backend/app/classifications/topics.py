@@ -27,46 +27,108 @@ CLASSIFIER_NAME = "topic"
 TOPIC_KEY = "topic"
 OTHER_LABEL = "other"
 
-# One six-way choice: the dominant-theme rule lives in the instructions,
-# each option carries a short bilingual criterion. Mirrors the political
-# question's shape (one entry, `choice` type).
+#: Classification v2 label set (odd/tasks/classification-v2.md). Single source
+#: of truth: the enrichment prompt, the laya fallback criteria and the
+#: frontend label maps all mirror these keys.
+TOPIC_LABELS = (
+    "academic",
+    "infrastructure",
+    "institutional",
+    "students",
+    "culture",
+    "finance",
+    "government",
+    "health",
+)
+
+# One nine-way choice (v2, corpus-grounded: see odd/tasks/classification-v2.md).
+# Tie-breakers live in the criteria: the NATURE of the fact wins over the
+# protagonist (an opening led by the rectora is infrastructure, not
+# institutional; an institutional budget bump is finance, not government).
 _TOPIC_QUESTION = {
     TOPIC_KEY: {
         "type": "choice",
         "instructions": (
-            "Which ONE topic dominates the piece? Pick the single subject it "
-            "is mostly about -- one only, not every topic it touches. If no "
-            "area clearly dominates, or the piece is purely institutional or "
-            "corporate copy with no subject area, answer other. "
-            "Cual es el UNICO tema dominante de la nota? Elegir un solo tema, "
-            "el del que principalmente habla, no todos los que menciona. Si "
-            "ninguno domina, o la nota es puramente institucional corporativa "
-            "sin tema: other."
+            "Which ONE topic dominates the piece? One only. Hard rules: "
+            "(A) Physical works and spaces -- edificio, aulas, laboratorios, "
+            "campus, mural, obra, inauguracion o entrega de un espacio -- are "
+            "ALWAYS infrastructure, even if students benefit or art is "
+            "involved. "
+            "(B) culture ONLY for events, festivals, concerts, conferences-"
+            "performances, sports matches, traditions -- NOT buildings, NOT "
+            "artworks installed on campus. "
+            "(C) students ONLY when students are the subject: they win, "
+            "protest, receive scholarships, exchange, admission. A rector's "
+            "message or an institutional ceremony is NOT students even if "
+            "addressed to them. "
+            "(D) institutional for governance: informes, nombramientos, "
+            "consejo, tramites y documentos, jubilaciones, pensiones, "
+            "aniversarios, internal disputes, continuity announcements. "
+            "(E) academic for research content: congresos cientificos, "
+            "investigacion, publicaciones, ponencias, ciencia. "
+            "(F) finance for money figures: presupuesto, inversion, aportaciones, recursos. "
+            "(G) government for external officials (state/municipal/federal) "
+            "acting around the university. "
+            "(H) health for medicine, diseases, healthcare, medical devices. "
+            "Examples: 'inaugura edificio en Zacapoaxtla'=infrastructure; "
+            "'develan mural en el Complejo Regional'=infrastructure; "
+            "'rinde su primer informe'=institutional; 'toma protesta a "
+            "funcionarios'=institutional; "
+            "'estudiantes ganan concurso de IA'=students; 'recibe 268 "
+            "estudiantes de movilidad'=students; "
+            "'congreso de microbiologia'=academic; 'debate los retos de la "
+            "investigacion'=academic; "
+            "'Lobos BUAP victoria en segunda division'=culture; 'festival de "
+            "calaveras'=culture; "
+            "'anuncia inversion de 160 millones'=finance; 'aportacion estatal "
+            "al presupuesto'=finance; "
+            "'Armenta respalda a la BUAP'=government; 'dispositivo para "
+            "prevenir enfermedades'=health."
         ),
         "criteria": {
-            "sports": (
-                "Sports at the center: games, results, teams, players, "
-                "tournaments / deporte: partidos, resultados, equipos, jugadores"
-            ),
             "academic": (
-                "Academic life at the center: studies, research, students, "
-                "exams, campus / vida academica: estudios, investigacion, alumnos"
+                "Research, congresses, publications, patents, academic bodies, "
+                "labs / investigacion, congresos, publicaciones, cuerpo academico"
+            ),
+            "infrastructure": (
+                "Construction works: buildings, campuses, remodelations, "
+                "murals, regional complexes, installations / obras, edificios, "
+                "campus, instalaciones"
+            ),
+            "institutional": (
+                "University governance and management: reports, appointments, "
+                "council, anniversaries, procedures, documents, retirees, "
+                "purely ceremonial acts / gobierno interno: informes, "
+                "nombramientos, consejo, tramites, aniversarios"
+            ),
+            "students": (
+                "Student life: scholarships, mobility, exchange, admissions, "
+                "student achievements, student protests / becas, movilidad, "
+                "admision, logros o protestas estudiantiles"
             ),
             "culture": (
-                "Culture or entertainment at the center: art, music, film, "
-                "shows, books / cultura: arte, musica, cine, espectaculos, libros"
+                "Cultural or sports events at the institution: art, music, "
+                "film, festivals, traditions, sports / cultura y deporte: "
+                "arte, musica, festivales, tradiciones, partidos"
+            ),
+            "finance": (
+                "Institutional money: budget, investment, donations, "
+                "scholarship funding, resources / presupuesto, inversion, "
+                "recursos, convenios economicos"
+            ),
+            "government": (
+                "Relation with external government (state, municipal, "
+                "federal): officials, agreements, public policy, lawsuits "
+                "vs authorities / relacion con gobiernos externos"
             ),
             "health": (
                 "Health at the center: medicine, hospitals, diseases, "
-                "vaccines / salud: medicina, hospitales, enfermedades, vacunas"
-            ),
-            "economy": (
-                "Economy at the center: markets, companies, prices, jobs, "
-                "trade / economia: mercados, empresas, precios, empleo, comercio"
+                "vaccines, healthcare research / salud: medicina, hospitales, "
+                "enfermedades"
             ),
             OTHER_LABEL: (
-                "No area dominates, or purely institutional/corporate notice / "
-                "sin area dominante o nota institucional corporativa"
+                "No area dominates, or pure announcement without a subject / "
+                "sin area dominante o aviso puro"
             ),
         },
     }

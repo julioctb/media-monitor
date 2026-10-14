@@ -425,14 +425,24 @@ class MultiLabelClassifier:
         ]
 
 
-TOPIC_OPTIONS = {"sports", "academic", "culture", "health", "economy", "other"}
+TOPIC_OPTIONS = {
+    "academic",
+    "infrastructure",
+    "institutional",
+    "students",
+    "culture",
+    "finance",
+    "government",
+    "health",
+    "other",
+}
 
 
 def test_topic_classifier_returns_single_dominant_label() -> None:
-    agent = FakeChoiceAgent(("sports", 0.87))
+    agent = FakeChoiceAgent(("culture", 0.87))
     result = TopicClassifier(agent=agent).classify("Pumas gana el clasico", lang="es")
     # One label only: the dominant theme, scored with its own probability.
-    assert result == ClassificationResult(label="sports", score=0.87)
+    assert result == ClassificationResult(label="culture", score=0.87)
     # One predict call carrying the single six-way choice question.
     assert len(agent.calls) == 1
     text, question = agent.calls[0]
@@ -442,7 +452,7 @@ def test_topic_classifier_returns_single_dominant_label() -> None:
     assert set(question["topic"]["criteria"]) == TOPIC_OPTIONS
     instructions = question["topic"]["instructions"].lower()
     assert "domin" in instructions  # dominant-theme rule, EN and ES
-    assert "institucional" in instructions  # institutional/corporate -> other
+    assert "infrastructure" in instructions  # v2: nature-of-the-fact rules
 
 
 def test_topic_classifier_other_means_no_result() -> None:
@@ -591,7 +601,7 @@ def test_pipeline_empty_result_clearing_is_query_level(session) -> None:
 
 def test_pipeline_topic_stores_one_row_and_other_stores_none(session) -> None:
     client, keyword = _client_with_keyword(session)
-    agent = FakeChoiceAgent(("sports", 0.9), ("other", 0.6))
+    agent = FakeChoiceAgent(("culture", 0.9), ("other", 0.6))
     inserted = persist_raw_mentions(
         session,
         client_id=client.id,
@@ -605,7 +615,7 @@ def test_pipeline_topic_stores_one_row_and_other_stores_none(session) -> None:
     rows = session.scalars(
         select(MentionClassification).where(MentionClassification.classifier == "topic")
     ).all()
-    # Single-label outcome: sports persists once, other leaves no row.
+    # Single-label outcome: culture persists once, other leaves no row.
     assert sorted((url_by_id[r.mention_id], r.label, r.score) for r in rows) == [
-        ("https://x/1", "sports", 0.9)
+        ("https://x/1", "culture", 0.9)
     ]

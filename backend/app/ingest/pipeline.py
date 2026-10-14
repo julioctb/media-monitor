@@ -245,6 +245,23 @@ def persist_raw_mentions(
                     lang=item.lang or "es",
                     classifiers=classifiers,
                 )
+                # Classification v2: the enrichment verdict is canonical over
+                # the laya topic head, so it lands AFTER the registry pass and
+                # replaces its row (same delete+insert scoping).
+                if enrichment is not None and enrichment.topic:
+                    try:
+                        queries.upsert_classifications(
+                            session,
+                            mention_id=created.id,
+                            classifier="topic",
+                            results=[(enrichment.topic, 1.0)],
+                        )
+                    except Exception as exc:  # noqa: BLE001 - topics must not block
+                        log.warning(
+                            "canonical topic failed for mention %s: %s",
+                            created.id,
+                            exc,
+                        )
             # F2c event summary: title while a lone mention, LLM synthesis
             # once the event spans >=2 (maybe_summarize_event commits).
             if created.event_id is not None and enricher is not None:

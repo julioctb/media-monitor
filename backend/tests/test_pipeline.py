@@ -7,7 +7,7 @@ from app.ingest import article_fetch
 from app.ingest.base import RawMention, SourceAdapter
 from app.ingest import pipeline
 from app.ingest.pipeline import persist_raw_mentions, run_ingest_cycle
-from app.models import Client, Keyword, Mention, MentionSource, queries
+from app.models import Client, Keyword, Mention, MentionClassification, MentionSource, queries
 from app.models.base import Sentiment
 
 
@@ -233,6 +233,39 @@ class TestPersistRawMentions:
         assert m.sentiment_score == 0.4
         assert m.raw_enrichment is None
 
+    def test_enrichment_topic_overrides_classifier_topic(self, session) -> None:
+        """Classification v2: the enrichment verdict replaces the laya row."""
+        from app.enrich.llm import EnrichmentResult
+
+        class FakeEnricher:
+            def enrich(self, text: str, lang: str = "es") -> EnrichmentResult:
+                return EnrichmentResult(
+                    summary="Inauguración.",
+                    sentiment=Sentiment.positive,
+                    sentiment_score=0.9,
+                    topic="infrastructure",
+                )
+
+        class LayaTopic:
+            name = "topic"
+
+            def classify(self, text: str, lang: str = "es"):
+                from app.classifications.base import ClassificationResult
+
+                return ClassificationResult(label="institutional", score=0.4)
+
+        client, kws = _client_with_keywords(session)
+        persist_raw_mentions(
+            session,
+            client_id=client.id,
+            items=[_raw("https://example.com/5d")],
+            keyword_by_text={"buap": kws[0]},
+            all_keyword_texts=["BUAP"],
+            enricher=FakeEnricher(),
+            classifiers=[LayaTopic()],
+        )
+        rows = session.query(MentionClassification).all()
+        assert [(r.classifier, r.label) for r in rows] == [("topic", "infrastructure")]
     def test_sentiment_failure_does_not_block_insert(self, session) -> None:
         client, kws = _client_with_keywords(session)
 
