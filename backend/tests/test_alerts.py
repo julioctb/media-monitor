@@ -488,7 +488,64 @@ def test_worker_schedules_digest_crons() -> None:
     assert weekly_local.hour == 8 and weekly_local.weekday() == 0
 
 
-# ------------------------------------------------------------- backfill
+# ------------------------------------------------------- events backfill
+
+
+def test_backfill_events_groups_existing_mentions(session, client) -> None:
+    from app.models import Event
+    from scripts import backfill_events
+
+    pre = Event(
+        client_id=client.id,
+        title="Preexistente",
+        title_tokens="preexistente",
+        first_seen_at=NOW,
+        last_seen_at=NOW,
+    )
+    session.add(pre)
+    session.flush()
+    m_already = add_mention(
+        session, client.id, "https://a/4", title="Ya tiene evento", event_id=pre.id
+    )
+    m1 = add_mention(
+        session, client.id, "https://a/1",
+        title="BUAP inaugura edificio en Zacapoaxtla",
+        published=NOW - timedelta(hours=3),
+    )
+    m2 = add_mention(
+        session, client.id, "https://a/2",
+        title="Edificio inaugurado en Zacapoaztla por la BUAP",
+        published=NOW - timedelta(hours=2),
+    )
+    m_no_title = add_mention(session, client.id, "https://a/3", title=None)
+
+    stats = backfill_events.backfill_missing(session, dry_run=False)
+
+    assert stats == {"assigned": 2, "skipped_no_title": 1, "already_assigned": 1}
+    session.expire_all()
+    assert m1.event_id is not None
+    assert m2.event_id == m1.event_id
+    assert m1.event.mention_count == 2
+    assert m_no_title.event_id is None
+    assert m_already.event_id == pre.id  # untouched
+
+    # Idempotent: a second pass changes nothing.
+    again = backfill_events.backfill_missing(session, dry_run=False)
+    assert again == {"assigned": 0, "skipped_no_title": 1, "already_assigned": 3}
+
+
+def test_backfill_events_dry_run_touches_nothing(session, client) -> None:
+    from scripts import backfill_events
+
+    add_mention(session, client.id, "https://a/1", title="BUAP inaugura edificio")
+    stats = backfill_events.backfill_missing(session, dry_run=True)
+    assert stats["assigned"] == 1  # would-be count reported
+    from app.models import Event
+
+    assert session.query(Event).count() == 0  # nothing persisted
+
+
+# ------------------------------------------------------- backfill (sentiment)
 
 
 class FakeAnalyzer:
