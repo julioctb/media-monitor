@@ -198,6 +198,9 @@ def persist_raw_mentions(
                     session.rollback()
             if enrichment is not None:
                 created.summary = enrichment.summary
+                # F3 read-back: keep the whole payload (persons/stance) so
+                # later features consume it without re-running the LLM.
+                created.raw_enrichment = enrichment.model_dump(mode="json")
                 if enrichment.topics:
                     try:
                         queries.upsert_classifications(

@@ -114,6 +114,11 @@ class Mention(IntPk, Base):
     # F2c enrichment: one-paragraph LLM summary. NULL = not yet enriched
     # (the documented backfillable state); re-enrich via backfill --force.
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # F3 read-back: the full EnrichmentResult dump (persons/stance included)
+    # stored at enrichment time so consumers read it without re-running the
+    # LLM. NULL = enriched before the column existed; backfill via
+    # scripts/backfill_enrichment --force.
+    raw_enrichment: Mapped[dict[str, Any] | None] = mapped_column(JsonType, nullable=True)
     reach: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     raw: Mapped[dict[str, Any] | None] = mapped_column(JsonType, nullable=True)
     event_id: Mapped[int | None] = mapped_column(

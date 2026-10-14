@@ -384,3 +384,49 @@ class TestArticleFetchWiring:
         _, inserted = self._run(session, [item])
         assert inserted == 1
         assert called == []
+
+
+class TestEnrichmentPersistence:
+    """F3 read-back: the full EnrichmentResult lands on mentions.raw_enrichment."""
+
+    def test_raw_enrichment_persons_stance_survive_roundtrip(self, session) -> None:
+        from app.enrich.llm import EnrichmentResult
+
+        class FakeEnricher:
+            def enrich(self, text: str, lang: str = "es") -> EnrichmentResult:
+                return EnrichmentResult(
+                    summary="Resumen de la nota.",
+                    sentiment=Sentiment.positive,
+                    sentiment_score=0.9,
+                    persons=[
+                        {  # the before-validator keeps dicts only
+                            "name": "Juan Perez",
+                            "role": "rector",
+                            "org": "BUAP",
+                            "statement": "Dijo algo.",
+                            "stance": "favorable",
+                        }
+                    ],
+                    topics=["tema"],
+                )
+
+        client, kws = _client_with_keywords(session)
+        persist_raw_mentions(
+            session,
+            client_id=client.id,
+            items=[_raw("https://example.com/raw1")],
+            keyword_by_text={"buap": kws[0]},
+            all_keyword_texts=["BUAP"],
+            enricher=FakeEnricher(),
+        )
+        session.expire_all()  # force a real roundtrip through the DB types
+        (mention,) = session.query(Mention).all()
+        raw = mention.raw_enrichment
+        assert raw is not None
+        assert raw["summary"] == "Resumen de la nota."
+        assert raw["sentiment"] == "positive"
+        (person,) = raw["persons"]
+        assert person["name"] == "Juan Perez"
+        # F3 reads stance straight from the column, no re-enrichment.
+        assert person["stance"] == "favorable"
+        assert person["org"] == "BUAP"
