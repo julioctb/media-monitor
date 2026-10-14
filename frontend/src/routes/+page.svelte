@@ -1,23 +1,10 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import MentionCard from '$lib/components/MentionCard.svelte';
-	import { sourceLabel } from '$lib/format';
+	import FeedFilterBar from '$lib/components/FeedFilterBar.svelte';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
-
-	const INPUT_CLS =
-		'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200';
-	const LABEL_CLS = 'mb-1 block text-xs font-medium text-slate-500';
-
-	const sentimentOptions: Array<{ value: string; label: string }> = [
-		{ value: '', label: 'Todos' },
-		{ value: 'positive', label: 'Positivo' },
-		{ value: 'negative', label: 'Negativo' },
-		{ value: 'neutral', label: 'Neutro' },
-		{ value: 'none', label: 'Sin clasificar' }
-	];
-	const limitOptions = [25, 50, 100, 200];
 
 	const keywordNames = $derived(new Map(data.keywords.map((k) => [k.id, k.text])));
 
@@ -67,111 +54,12 @@
 	</div>
 </div>
 
-<!-- Filters: plain GET form, works without JavaScript. -->
-<form method="get" class="mt-6 grid gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-4">
-	<div>
-		<label class={LABEL_CLS} for="f-source">Fuente</label>
-		<select id="f-source" name="source" class={INPUT_CLS}>
-			<option value="">Todas las fuentes</option>
-			{#each data.sources as source (source)}
-				<option value={source} selected={data.filters.source === source}>{sourceLabel(source)}</option>
-			{/each}
-		</select>
-	</div>
-
-	<div>
-		<label class={LABEL_CLS} for="f-sentiment">Sentimiento</label>
-		<select id="f-sentiment" name="sentiment" class={INPUT_CLS}>
-			{#each sentimentOptions as option (option.value)}
-				<option value={option.value} selected={data.filters.sentiment === option.value}>
-					{option.label}
-				</option>
-			{/each}
-		</select>
-	</div>
-
-	<div>
-		<label class={LABEL_CLS} for="f-keyword">Palabra clave</label>
-		<select id="f-keyword" name="keyword_id" class={INPUT_CLS}>
-			<option value="">Todas</option>
-			{#each data.keywords as keyword (keyword.id)}
-				<option value={String(keyword.id)} selected={data.filters.keyword_id === String(keyword.id)}>
-					{keyword.text}{keyword.is_active ? '' : ' · inactiva'}
-				</option>
-			{/each}
-		</select>
-	</div>
-
-	<div>
-		<span class={LABEL_CLS}>Clasificación</span>
-		<label class="flex items-center gap-2 text-sm text-slate-700">
-			<input
-				type="checkbox"
-				name="political"
-				value="1"
-				checked={data.filters.political === '1'}
-				class="size-4 rounded border-slate-300 text-slate-900 focus:ring-slate-200"
-			/>
-			Solo políticas
-		</label>
-	</div>
-
-	<div>
-		<span class={LABEL_CLS}>Fecha publicación (UTC)</span>
-		<div class="flex flex-wrap items-center gap-2">
-			<input
-				type="date"
-				name="since"
-				value={data.filters.since}
-				aria-label="Desde"
-				class={`${INPUT_CLS} min-w-0 flex-1 basis-28`}
-			/>
-			<span class="text-xs text-slate-400">a</span>
-			<input
-				type="date"
-				name="until"
-				value={data.filters.until}
-				aria-label="Hasta"
-				class={`${INPUT_CLS} min-w-0 flex-1 basis-28`}
-			/>
-		</div>
-	</div>
-
-	<div class="sm:col-span-2">
-		<label class={LABEL_CLS} for="f-q">Búsqueda</label>
-		<input
-			type="search"
-			name="q"
-			value={data.filters.q}
-			placeholder="Buscar en título o contenido"
-			class={INPUT_CLS}
-		/>
-	</div>
-
-	<div>
-		<label class={LABEL_CLS} for="f-limit">Por página</label>
-		<select id="f-limit" name="limit" class={INPUT_CLS}>
-			{#each limitOptions as option (option)}
-				<option value={String(option)} selected={data.filters.limit === option}>{option}</option>
-			{/each}
-		</select>
-	</div>
-
-	<div class="flex items-end gap-2">
-		<button
-			type="submit"
-			class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
-		>
-			Filtrar
-		</button>
-		<a
-			href={page.url.pathname}
-			class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
-		>
-			Limpiar
-		</a>
-	</div>
-</form>
+<FeedFilterBar
+	sources={data.sources}
+	keywords={data.keywords}
+	filters={data.filters}
+	resetHref={page.url.pathname}
+/>
 
 <!-- Quick keyword pills: same keyword_id param as the form, one source of truth. -->
 {#if activeKeywords.length > 0}
