@@ -88,7 +88,7 @@
 		</a>
 	{/if}
 
-	{#if isPolitical || topics.length > 0}
+	{#if isPolitical || (mention.persons?.length ?? 0) > 0 || topics.length > 0}
 		<div class="mt-2 flex flex-wrap items-center gap-1">
 			{#if isPolitical}
 				<span
@@ -97,6 +97,15 @@
 					Política
 				</span>
 			{/if}
+			{#each (mention.persons ?? []) as person (person.id)}
+				<a
+					href={`/persons/${person.id}`}
+					class="inline-flex items-center rounded-full bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700 ring-1 ring-inset ring-violet-600/20 hover:bg-violet-100"
+					title="Ver persona"
+				>
+					{person.name}
+				</a>
+			{/each}
 			{#each topics as topic (topic.label)}
 				<span
 					class={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${topicBadgeClass(topic.label)}`}
