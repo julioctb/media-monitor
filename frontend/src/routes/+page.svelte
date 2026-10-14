@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import MentionCard from '$lib/components/MentionCard.svelte';
+	import { sourceLabel } from '$lib/format';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();

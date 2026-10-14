@@ -1170,6 +1170,29 @@ def get_client_person(session: Session, *, person_id: int, client_id: int) -> Pe
     )
 
 
+def digest_persons(
+    session: Session, *, client_id: int, since: datetime, limit: int = 5
+) -> list[dict]:
+    """Most-mentioned persons inside the digest window, for the email section.
+
+    Counts links whose mention was ingested at/after `since` (the digest
+    watermark semantics), client-scoped; empty list when the window has
+    none so the caller renders no section at all.
+    """
+    rows = session.execute(
+        select(Person.name, func.count().label("mentions"))
+        .select_from(MentionPerson)
+        .join(Person, Person.id == MentionPerson.person_id)
+        .join(Mention, Mention.id == MentionPerson.mention_id)
+        .where(MentionPerson.person_id == Person.id)
+        .where(Mention.client_id == client_id, Mention.ingested_at >= since)
+        .group_by(Person.id, Person.name)
+        .order_by(func.count().desc(), Person.name)
+        .limit(limit)
+    ).all()
+    return [{"name": name, "mentions": count} for name, count in rows]
+
+
 def person_mention_count(session: Session, *, person_id: int, client_id: int) -> int:
     """Total links for the person within the client (detail header count)."""
     return (

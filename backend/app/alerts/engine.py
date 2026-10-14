@@ -35,6 +35,9 @@ log = logging.getLogger("alerts.engine")
 MAX_INSTANT_MENTIONS = 20
 DIGEST_TOP_MENTIONS = 5
 
+#: Person rows shown in the digest's "Personas:" line (F3).
+DIGEST_TOP_PERSONS = 5
+
 DIGEST_WINDOW: dict[AlertDigest, timedelta] = {
     AlertDigest.daily: timedelta(days=1),
     AlertDigest.weekly: timedelta(days=7),
@@ -251,8 +254,19 @@ def run_digest(
             f"{_plural(total, 'mención nueva', 'menciones nuevas')} "
             "desde el último envío.",
             counts_line,
-            "Últimas menciones:",
         ]
+        # F3: persons section — top mentions in the same window; the line
+        # stays out entirely when nobody was linked (silent when empty).
+        top_persons = queries.digest_persons(
+            session, client_id=resolved_client, since=window_start,
+            limit=DIGEST_TOP_PERSONS,
+        )
+        if top_persons:
+            listed = ", ".join(
+                f"{row['name']} ({row['mentions']})" for row in top_persons
+            )
+            intro.append(f"Personas: {listed}")
+        intro.append("Últimas menciones:")
         footer = (
             f"…y {total - len(mentions)} más en el dashboard."
             if total > len(mentions)

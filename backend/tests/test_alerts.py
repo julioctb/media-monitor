@@ -598,3 +598,83 @@ def test_backfill_analyzer_failure_never_blocks(session, client) -> None:
     session.expire_all()
     row = queries.list_mentions(session, client.id)[0]
     assert row.sentiment is None  # stays NULL for a later retry
+
+
+# ------------------------------------------------------- digest persons (F3)
+
+
+def _mention_with_person(session, client_id: int, url: str, name: str, **kw) -> None:
+    from app import persons as persons_mod
+
+    mention = add_mention(session, client_id, url, **kw)
+    mention.raw_enrichment = {
+        "summary": "s",
+        "sentiment": "positive",
+        "sentiment_score": 0.5,
+        "persons": [{"name": name}],
+        "topics": [],
+    }
+    persons_mod.persist_persons_from_enrichment(session, mention)
+    session.commit()
+
+
+def test_digest_persons_section_top5_window_scoped(session, client) -> None:
+    make_settings(session, client.id, digest=AlertDigest.daily)
+    for i in range(3):
+        _mention_with_person(
+            session, client.id, f"https://a/{i}", "Xóchitl Gálvez",
+            ingested=NOW - timedelta(minutes=30),
+        )
+    _mention_with_person(
+        session, client.id, "https://a/beto", "Beto",
+        ingested=NOW - timedelta(minutes=20),
+    )
+    # Outside the window and other-client: must not count.
+    _mention_with_person(
+        session, client.id, "https://a/old", "Xóchitl Gálvez",
+        ingested=NOW - timedelta(days=3),
+    )
+    other = Client(name="otro")
+    session.add(other)
+    session.commit()
+    _mention_with_person(session, other.id, "https://o/1", "Xóchitl Gálvez")
+
+    transport = FakeTransport()
+    sent = engine.run_digest(
+        AlertDigest.daily, session=session, client_id=client.id,
+        transport=transport, now=NOW,
+    )
+    assert sent == 1
+    email = transport.sent[0]
+    assert "Personas:" in email["text"]
+    assert "Xóchitl Gálvez (3)" in email["text"]
+    assert "Beto (1)" in email["text"]
+
+
+def test_digest_persons_capped_at_five(session, client) -> None:
+    make_settings(session, client.id, digest=AlertDigest.daily)
+    for i in range(6):
+        _mention_with_person(
+            session, client.id, f"https://a/{i}", f"Persona {i}",
+            ingested=NOW - timedelta(minutes=10),
+        )
+    transport = FakeTransport()
+    engine.run_digest(
+        AlertDigest.daily, session=session, client_id=client.id,
+        transport=transport, now=NOW,
+    )
+    email = transport.sent[0]
+    section = email["text"].split("Personas:", 1)[1].splitlines()[0]
+    listed = section.count(",") + 1
+    assert listed == engine.DIGEST_TOP_PERSONS == 5
+
+
+def test_digest_without_persons_has_no_section(session, client) -> None:
+    make_settings(session, client.id, digest=AlertDigest.daily)
+    add_mention(session, client.id, "https://a/1", ingested=NOW - timedelta(minutes=5))
+    transport = FakeTransport()
+    engine.run_digest(
+        AlertDigest.daily, session=session, client_id=client.id,
+        transport=transport, now=NOW,
+    )
+    assert "Personas:" not in transport.sent[0]["text"]
