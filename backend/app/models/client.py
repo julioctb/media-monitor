@@ -28,6 +28,7 @@ class Client(IntPk, Base):
     saved_searches = relationship(
         "SavedSearch", back_populates="client", cascade="all, delete-orphan"
     )
+    events = relationship("Event", back_populates="client", cascade="all, delete-orphan")
 
     def __repr__(self) -> str:
         return f"<Client id={self.id} name={self.name!r}>"

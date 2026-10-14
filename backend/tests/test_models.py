@@ -9,6 +9,7 @@ from app.models import (
     AlertSettings,
     AlertDigest,
     Client,
+    Event,
     Keyword,
     Mention,
     MentionSource,
@@ -220,3 +221,53 @@ def test_get_or_create_client(session) -> None:
     second = queries.get_or_create_client(session, "default")
     assert first.id == second.id
     assert session.query(Client).count() == 1
+
+
+class TestEventModel:
+    def _event(self, client_id: int, title: str = "BUAP inaugura edificio") -> Event:
+        moment = datetime(2026, 10, 13, 12, 0, tzinfo=timezone.utc)
+        return Event(
+            client_id=client_id,
+            title=title,
+            title_tokens="buap inaugura edificio",
+            first_seen_at=moment,
+            last_seen_at=moment,
+        )
+
+    def test_event_defaults_and_mention_link(self, session, client) -> None:
+        event = self._event(client.id)
+        session.add(event)
+        session.flush()
+        m1 = _mention(client.id, "https://example.com/e1")
+        m2 = _mention(client.id, "https://example.com/e2")
+        m1.event_id = event.id
+        m2.event_id = event.id
+        session.add_all([m1, m2])
+        session.commit()
+
+        stored = session.get(Event, event.id)
+        assert stored.mention_count == 1  # column default
+        assert stored.source_count == 1
+        assert sorted(m.id for m in stored.mentions) == sorted([m1.id, m2.id])
+        assert m1.event is event
+
+    def test_deleting_client_cascades_events(self, session, client) -> None:
+        event = self._event(client.id)
+        session.add(event)
+        session.commit()
+        session.delete(client)
+        session.commit()
+        assert session.query(Event).count() == 0
+
+    def test_deleting_event_nullifies_mention_event_id(self, session, client) -> None:
+        event = self._event(client.id)
+        session.add(event)
+        session.flush()
+        mention = _mention(client.id, "https://example.com/e1")
+        mention.event_id = event.id
+        session.add(mention)
+        session.commit()
+
+        session.delete(event)
+        session.commit()
+        assert session.get(Mention, mention.id).event_id is None

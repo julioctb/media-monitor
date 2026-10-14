@@ -113,8 +113,12 @@ class Mention(IntPk, Base):
     sentiment_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     reach: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     raw: Mapped[dict[str, Any] | None] = mapped_column(JsonType, nullable=True)
+    event_id: Mapped[int | None] = mapped_column(
+        ForeignKey("events.id", ondelete="SET NULL"), nullable=True, index=True
+    )
 
     client = relationship("Client", back_populates="mentions")
+    event = relationship("Event", back_populates="mentions")
     keyword = relationship("Keyword", back_populates="mentions")
     classifications: Mapped[list["MentionClassification"]] = relationship(
         "MentionClassification",
