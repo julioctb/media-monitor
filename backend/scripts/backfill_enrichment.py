@@ -17,6 +17,7 @@ gpt-4o-mini. The estimate exists to size the spend BEFORE any call.
 
 import argparse
 import logging
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -50,7 +51,11 @@ def estimate_input_tokens(text: str) -> int:
 
 
 def candidate_ids(
-    session: Session, *, client_id: int | None = None, force: bool = False
+    session: Session,
+    *,
+    client_id: int | None = None,
+    force: bool = False,
+    since: datetime | None = None,
 ) -> list[int]:
     """Mentions needing enrichment: summary NULL, or every row with force."""
     stmt = select(Mention.id).order_by(Mention.id)
@@ -58,6 +63,8 @@ def candidate_ids(
         stmt = stmt.where(Mention.summary.is_(None))
     if client_id is not None:
         stmt = stmt.where(Mention.client_id == client_id)
+    if since is not None:
+        stmt = stmt.where(Mention.ingested_at >= since)
     return list(session.scalars(stmt))
 
 
@@ -168,6 +175,10 @@ def main() -> None:  # pragma: no cover - CLI wiring
     parser.add_argument("--force", action="store_true", help="re-enrich enriched rows")
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument(
+        "--hours", type=float, default=None,
+        help="restrict to mentions ingested in the last N hours",
+    )
+    parser.add_argument(
         "--price-in", type=float, default=DEFAULT_PRICE_PER_M_IN,
         help="USD per million input tokens",
     )
@@ -187,12 +198,22 @@ def main() -> None:  # pragma: no cover - CLI wiring
         else:
             client_ids = [args.client_id]
         for client_id in client_ids:
-            ids = candidate_ids(session, client_id=client_id, force=args.force)
+            since = (
+                datetime.now(tz=timezone.utc) - timedelta(hours=args.hours)
+                if args.hours is not None
+                else None
+            )
+            ids = candidate_ids(
+                session, client_id=client_id, force=args.force, since=since
+            )
             if args.limit is not None:
                 ids = ids[: args.limit]
             projection = project_cost(session, ids, price_in=args.price_in, price_out=args.price_out)
             log.info("client %s projection: %s", client_id, projection)
             if not args.apply:
+                continue
+            if not ids:
+                log.info("client %s: no candidates; skipping", client_id)
                 continue
             enricher = build_enricher_from_settings(session, client_id)
             if enricher is None:
