@@ -134,12 +134,10 @@ class Mention(IntPk, Base):
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
-    # F3: persons extracted from this mention's enrichment.
+    # F3: persons extracted from this mention's enrichment (read-only view).
     person_links: Mapped[list["Person"]] = relationship(  # noqa: F821
         "MentionPerson",
         back_populates="mention",
-        cascade="all, delete-orphan",
-        passive_deletes=True,
         viewonly=True,
     )
 

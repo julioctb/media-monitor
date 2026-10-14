@@ -58,6 +58,8 @@ export interface Mention {
 	ingested_at: string;
 	sentiment: Sentiment | null;
 	sentiment_score: number | null;
+	/** F2c one-paragraph enrichment; null until the mention is enriched. */
+	summary: string | null;
 	reach: number | null;
 	/** One row per classifier; independent axis from sentiment. */
 	classifications: Classification[];
@@ -493,6 +495,74 @@ export function listSpikes(
 ): Promise<SpikeEvent[]> {
 	const qs = buildQuery({ days: query.days, limit: query.limit });
 	return request<SpikeEvent[]>(`/api/clients/1/spikes${qs}`, { method: 'GET' }, options);
+}
+
+/* ----------------------------------- events -------------------------------- */
+
+/** Canonical event row: aggregated cluster, no mention drill-down. */
+export interface EventSummary {
+	id: number;
+	title: string;
+	mention_count: number;
+	source_count: number;
+	/** LLM synthesis over member summaries; the title while a lone mention. */
+	summary: string | null;
+	/** ISO datetimes in UTC. */
+	first_seen_at: string;
+	last_seen_at: string;
+}
+
+/** Mention stub inside an event detail: enough to rank and link out. */
+export interface EventMention {
+	id: number;
+	source: MentionSource;
+	url: string;
+	title: string | null;
+	sentiment: Sentiment | null;
+	published_at: string | null;
+}
+
+/** Event detail: the aggregate plus its corroborating mentions, reach-ranked. */
+export interface EventDetail extends EventSummary {
+	mentions: EventMention[];
+}
+
+/** Per-source coverage slice of one event. */
+export interface EventCoverageRow {
+	source: MentionSource;
+	n_mentions: number;
+	outlets: number;
+}
+
+/** Which outlets covered an event and how many times each did. */
+export interface EventCoverage {
+	event_id: number;
+	mention_count: number;
+	outlet_count: number;
+	by_source: EventCoverageRow[];
+}
+
+export function listEvents(
+	query: { limit?: number; offset?: number } = {},
+	options: RequestOptions = {}
+): Promise<EventSummary[]> {
+	const qs = buildQuery({ limit: query.limit, offset: query.offset });
+	return request<EventSummary[]>(`/api/clients/1/events${qs}`, { method: 'GET' }, options);
+}
+
+export function getEvent(eventId: number, options: RequestOptions = {}): Promise<EventDetail> {
+	return request<EventDetail>(`/api/clients/1/events/${eventId}`, { method: 'GET' }, options);
+}
+
+export function getEventCoverage(
+	eventId: number,
+	options: RequestOptions = {}
+): Promise<EventCoverage> {
+	return request<EventCoverage>(
+		`/api/clients/1/events/${eventId}/coverage`,
+		{ method: 'GET' },
+		options
+	);
 }
 
 /* ------------------------------ daily summaries --------------------------- */

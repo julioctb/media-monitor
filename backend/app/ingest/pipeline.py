@@ -22,6 +22,7 @@ from app.ingest.events import assign_mention_to_event
 from app.ingest.matching import find_matching_keyword, fold_text
 from app.models import Event, IngestRun, Keyword, MentionSource, queries
 from app.models.base import Sentiment
+from app import persons
 
 log = logging.getLogger("ingest.pipeline")
 
@@ -201,6 +202,13 @@ def persist_raw_mentions(
                 # F3 read-back: keep the whole payload (persons/stance) so
                 # later features consume it without re-running the LLM.
                 created.raw_enrichment = enrichment.model_dump(mode="json")
+                # F3 persons: resolved/linked from the payload just stored —
+                # no extra LLM call; failure only skips the links.
+                try:
+                    persons.persist_persons_from_enrichment(session, created)
+                except Exception as exc:  # noqa: BLE001 - persons must not block ingest
+                    log.warning("person persistence failed for mention %s: %s", created.id, exc)
+                    session.rollback()
                 if enrichment.topics:
                     try:
                         queries.upsert_classifications(

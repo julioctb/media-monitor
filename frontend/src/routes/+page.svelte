@@ -1,15 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import {
-		classificationBadgeClass,
-		classificationLabel,
-		formatDisplayDateTime,
-		formatScore,
-		sentimentBadgeClass,
-		sourceLabel,
-		topicBadgeClass,
-		topicLabel
-	} from '$lib/format';
+	import MentionCard from '$lib/components/MentionCard.svelte';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -216,85 +207,18 @@
 		<p class="mt-1 text-sm text-slate-500">Ajusta los filtros o espera la próxima ingesta.</p>
 	</div>
 {:else}
-	<div class="mt-6 overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-		<table class="min-w-full text-sm">
-			<thead>
-				<tr class="border-b border-slate-200 bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
-					<th class="px-3 py-2 font-medium">Fecha</th>
-					<th class="px-3 py-2 font-medium">Fuente</th>
-					<th class="px-3 py-2 font-medium">Palabra clave</th>
-					<th class="px-3 py-2 font-medium">Clasificación</th>
-					<th class="px-3 py-2 font-medium">Sentimiento</th>
-					<th class="px-3 py-2 font-medium">Score</th>
-					<th class="px-3 py-2 font-medium">Título</th>
-				</tr>
-			</thead>
-			<tbody class="divide-y divide-slate-100">
-				{#each data.mentions.items as mention (mention.id)}
-					{@const political = mention.classifications?.find((c) => c.classifier === 'political')}
-					{@const topics = mention.classifications?.filter((c) => c.classifier === 'topic') ?? []}
-					<tr class="hover:bg-slate-50">
-						<td class="whitespace-nowrap px-3 py-2 text-xs text-slate-500">
-							{formatDisplayDateTime(mention.published_at ?? mention.ingested_at)}{mention.published_at ? '' : '*'}
-						</td>
-						<td class="whitespace-nowrap px-3 py-2 text-xs text-slate-600">
-							{sourceLabel(mention.source)}
-						</td>
-						<td class="whitespace-nowrap px-3 py-2 text-xs text-slate-600">
-							{#if mention.keyword_id !== null && keywordNames.has(mention.keyword_id)}
-								{keywordNames.get(mention.keyword_id)}
-							{/if}
-						</td>
-						<td class="px-3 py-2">
-							<div class="flex flex-wrap items-center gap-1">
-								{#if political}
-									<span
-										class={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${classificationBadgeClass(political.label)}`}
-									>
-										{classificationLabel(political.label)}
-									</span>
-								{/if}
-								{#each topics as topic (topic.label)}
-									<span
-										class={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${topicBadgeClass(topic.label)}`}
-									>
-										{topicLabel(topic.label)}
-									</span>
-								{/each}
-								{#if !political && topics.length === 0}
-									<span class="text-xs text-slate-300">—</span>
-								{/if}
-							</div>
-						</td>
-						<td class="whitespace-nowrap px-3 py-2">
-							<span
-								class={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${sentimentBadgeClass(mention.sentiment)}`}
-							>
-								{mention.sentiment ? mention.sentiment : 'Sin clasificar'}
-							</span>
-						</td>
-						<td class="whitespace-nowrap px-3 py-2 text-xs tabular-nums text-slate-600">
-							{#if mention.sentiment_score !== null}
-								{formatScore(mention.sentiment_score)}
-							{:else}
-								<span class="text-slate-300">—</span>
-							{/if}
-						</td>
-						<td class="px-3 py-2">
-							<a
-								href={mention.url}
-								target="_blank"
-								rel="noopener noreferrer"
-								class="font-medium text-slate-900 hover:underline"
-							>
-								{mention.title ?? mention.url}
-							</a>
-						</td>
-					</tr>
-				{/each}
-			</tbody>
-		</table>
-	</div>
+	<ul class="mt-6 grid gap-3" aria-label="Menciones">
+		{#each data.mentions.items as mention (mention.id)}
+			<li>
+				<MentionCard
+					{mention}
+					keywordLabel={
+						mention.keyword_id !== null ? (keywordNames.get(mention.keyword_id) ?? null) : null
+					}
+				/>
+			</li>
+		{/each}
+	</ul>
 
 	<nav class="mt-6 flex items-center justify-between" aria-label="Paginación">
 		<p class="text-xs text-slate-500">
