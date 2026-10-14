@@ -86,6 +86,20 @@ class TestEnrichmentResult:
         with pytest.raises(Exception):  # noqa: B017
             parse_enrichment(json.dumps(dict(GOOD_PAYLOAD, sentiment_score=7)))
 
+    def test_drops_nameless_person_entries(self) -> None:
+        payload = dict(
+            GOOD_PAYLOAD,
+            persons=[
+                {"name": None, "role": "rectora"},
+                {"name": "  ", "org": "BUAP"},
+                {"name": " Lilia Cedillo ", "role": None},
+                "not-a-person",
+            ],
+        )
+        result = parse_enrichment(json.dumps(payload))
+        assert [p.name for p in result.persons] == ["Lilia Cedillo"]
+        assert result.persons[0].role is None
+
 
 class TestLLMEnricher:
     def test_request_shape_temperature0_json_mode_truncation(self) -> None:

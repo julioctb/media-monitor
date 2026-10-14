@@ -112,6 +112,24 @@ class EnrichmentResult(BaseModel):
             return float(value)
         return value
 
+    @field_validator("persons", mode="before")
+    @classmethod
+    def _clean_persons(cls, value: object) -> object:
+        """Drop nameless persons; models emit name:null fillers often."""
+        if not isinstance(value, list):
+            return value
+        cleaned = []
+        for item in value:
+            if not isinstance(item, dict):
+                continue
+            name = item.get("name")
+            if not isinstance(name, str) or not name.strip():
+                continue
+            person = dict(item)
+            person["name"] = name.strip()
+            cleaned.append(person)
+        return cleaned
+
     @field_validator("topics", mode="before")
     @classmethod
     def _clean_topics(cls, value: object) -> object:
