@@ -140,3 +140,54 @@ class TestBackfillEnrichment:
         stats = backfill(session, Boom())
         assert stats["failed"] == 1 and stats["enriched"] == 0
         assert stats["skipped_empty"] == 1
+
+    def test_ids_file_pins_candidates_and_persists_raw_enrichment(
+        self, session, tmp_path
+    ) -> None:
+        from scripts.backfill_enrichment import backfill, candidate_ids, load_ids_file
+
+        client = Client(name="c")
+        session.add(client)
+        session.commit()
+
+        def mk(n):
+            url = f"https://x.com/{n}"
+            return Mention(
+                client_id=client.id,
+                source=MentionSource.news_rss,
+                url=url,
+                url_hash=make_url_hash(url),
+                title=f"t{n}",
+                content="texto con entidad",
+            )
+
+        session.add_all([mk(1), mk(2), mk(3)])
+        session.commit()
+
+        ids_file = tmp_path / "ids.txt"
+        ids_file.write_text("1\n\n# pinned by the content backfill\n3\n", encoding="utf-8")
+        pinned = load_ids_file(str(ids_file))
+        assert pinned == [1, 3]
+        assert candidate_ids(session, force=True, ids=pinned) == [1, 3]
+        # Without --force the pinned set still respects summary NULL.
+        session.get(Mention, 1).summary = "ya"
+        session.commit()
+        assert candidate_ids(session, ids=pinned) == [3]
+
+        class FakeEnricher:
+            def enrich(self, text, lang="es"):
+                return EnrichmentResult(
+                    summary="Resumen.",
+                    sentiment=Sentiment.positive,
+                    sentiment_score=0.9,
+                    persons=[{"name": "Ana Lopez", "stance": "neutral"}],
+                )
+
+        stats = backfill(session, FakeEnricher(), force=True, ids=pinned)
+        assert stats["candidates"] == 2 and stats["enriched"] == 2
+        rows = {m.id: m for m in session.query(Mention).all()}
+        assert rows[2].summary is None  # not pinned -> untouched
+        for mention_id in (1, 3):
+            raw = rows[mention_id].raw_enrichment
+            assert raw["summary"] == "Resumen."
+            assert raw["persons"][0]["stance"] == "neutral"

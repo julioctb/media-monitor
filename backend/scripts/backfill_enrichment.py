@@ -50,17 +50,35 @@ def estimate_input_tokens(text: str) -> int:
     return (clipped // CHARS_PER_TOKEN) + PROMPT_OVERHEAD_TOKENS
 
 
+def load_ids_file(path: str) -> list[int]:
+    """One mention id per line; blank lines and #comments ignored."""
+    ids: list[int] = []
+    with open(path, encoding="utf-8") as fh:
+        for line in fh:
+            stripped = line.split("#", 1)[0].strip()
+            if stripped:
+                ids.append(int(stripped))
+    return ids
+
+
 def candidate_ids(
     session: Session,
     *,
     client_id: int | None = None,
     force: bool = False,
     since: datetime | None = None,
+    ids: list[int] | None = None,
 ) -> list[int]:
-    """Mentions needing enrichment: summary NULL, or every row with force."""
+    """Mentions needing enrichment: summary NULL, or every row with force.
+
+    ``ids`` (from --ids-file) pins the candidate set to exactly those rows
+    (still intersected with client/since filters).
+    """
     stmt = select(Mention.id).order_by(Mention.id)
     if not force:
         stmt = stmt.where(Mention.summary.is_(None))
+    if ids is not None:
+        stmt = stmt.where(Mention.id.in_(ids))
     if client_id is not None:
         stmt = stmt.where(Mention.client_id == client_id)
     if since is not None:
@@ -103,6 +121,7 @@ def backfill(
     force: bool = False,
     limit: int | None = None,
     batch_size: int = 50,
+    ids: list[int] | None = None,
 ) -> dict[str, int]:
     """Enrich candidate mentions; counters per outcome.
 
@@ -110,7 +129,7 @@ def backfill(
     sentiment is only written when the row has none yet — the laya value
     already stored stays as the TE5 comparison signal.
     """
-    ids = candidate_ids(session, client_id=client_id, force=force)
+    ids = candidate_ids(session, client_id=client_id, force=force, ids=ids)
     if limit is not None:
         ids = ids[:limit]
     totals = {"enriched": 0, "failed": 0, "skipped_empty": 0, "candidates": len(ids)}
@@ -133,6 +152,8 @@ def backfill(
             totals["failed"] += 1
             continue
         mention.summary = result.summary
+        # F3 read-back: same payload the ingest path stores.
+        mention.raw_enrichment = result.model_dump(mode="json")
         if mention.sentiment is None:
             mention.sentiment = result.sentiment
             mention.sentiment_score = result.sentiment_score
@@ -179,6 +200,10 @@ def main() -> None:  # pragma: no cover - CLI wiring
         help="restrict to mentions ingested in the last N hours",
     )
     parser.add_argument(
+        "--ids-file", default=None,
+        help="file with one mention id per line; only those rows are candidates",
+    )
+    parser.add_argument(
         "--price-in", type=float, default=DEFAULT_PRICE_PER_M_IN,
         help="USD per million input tokens",
     )
@@ -203,8 +228,10 @@ def main() -> None:  # pragma: no cover - CLI wiring
                 if args.hours is not None
                 else None
             )
+            pinned_ids = load_ids_file(args.ids_file) if args.ids_file else None
             ids = candidate_ids(
-                session, client_id=client_id, force=args.force, since=since
+                session, client_id=client_id, force=args.force, since=since,
+                ids=pinned_ids,
             )
             if args.limit is not None:
                 ids = ids[: args.limit]
@@ -226,6 +253,7 @@ def main() -> None:  # pragma: no cover - CLI wiring
                     client_id=client_id,
                     force=args.force,
                     limit=args.limit,
+                    ids=pinned_ids,
                 )
                 log.info("client %s backfill: %s", client_id, stats)
     finally:
