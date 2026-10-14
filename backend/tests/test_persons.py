@@ -13,6 +13,7 @@ from app.models import (
     MentionPerson,
     queries,
 )
+from app.ingest.matching import fold_text
 from app.ingest.pipeline import persist_raw_mentions
 from app.models import Keyword
 from app.models.base import Sentiment
@@ -283,6 +284,147 @@ class TestPersistPersonsFromEnrichment:
         session.commit()
         (person,) = session.query(Person).all()
         assert len(person.mention_links) == 2
+
+
+# ----------------------------------------------------------------- queries
+
+
+class TestListPersons:
+    def _seed(self, session) -> tuple[int, dict[str, Person]]:
+        client_id = _client(session)
+        data = [
+            ("Ana Torres", "Governadora", 3),
+            ("Beto Ibarra", "Alcalde", 1),
+        ]
+        people: dict[str, Person] = {}
+        n = 0
+        for name, role, n_mentions in data:
+            for _ in range(n_mentions):
+                n += 1
+                m = _mention(
+                    session, client_id, n,
+                    raw_enrichment=_enrichment([{"name": name, "role": role}]),
+                )
+                persons.persist_persons_from_enrichment(session, m)
+            people[name] = session.scalar(
+                select(Person).where(
+                    Person.client_id == client_id,
+                    Person.name_key == fold_text(name),
+                )
+            )
+        session.commit()
+        return client_id, people
+
+    def test_sort_by_mentions_desc(self, session) -> None:
+        client_id, people = self._seed(session)
+        rows = queries.list_persons(session, client_id, sort="mentions")
+        counts = {row["name"]: row["mention_count"] for row in rows}
+        assert counts == {"Ana Torres": 3, "Beto Ibarra": 1}
+        assert rows[0]["name"] == "Ana Torres"
+
+    def test_sort_by_recent(self, session) -> None:
+        client_id, _ = self._seed(session)
+        beto = session.scalar(select(Person).where(Person.name_key == "beto ibarra"))
+        beto.last_seen_at = datetime.now(tz=timezone.utc) + timedelta(hours=2)
+        session.commit()
+        rows = queries.list_persons(session, client_id, sort="recent")
+        assert rows[0]["name"] == "Beto Ibarra"
+
+    def test_q_filter_folded_and_aliases(self, session) -> None:
+        client_id, _ = self._seed(session)
+        # folded substring of the canonical name
+        rows = queries.list_persons(session, client_id, q="ana tor")
+        assert [r["name"] for r in rows] == ["Ana Torres"]
+        # alias key: "beto" resolves via alias_keys after a variant link
+        m = _mention(session, client_id, 99, raw_enrichment=_enrichment([{"name": "Beto"}]))
+        persons.persist_persons_from_enrichment(session, m)
+        session.commit()
+        rows = queries.list_persons(session, client_id, q="beto")
+        assert [r["name"] for r in rows] == ["Beto Ibarra"]
+
+    def test_scoped_to_client(self, session) -> None:
+        client_id, _ = self._seed(session)
+        other = Client(name="beta")
+        session.add(other)
+        session.commit()
+        assert queries.list_persons(session, other.id) == []
+
+    def test_invalid_sort_raises(self, session) -> None:
+        client_id = _client(session)
+        with pytest.raises(ValueError):
+            queries.list_persons(session, client_id, sort="nope")
+
+
+class TestPersonTimeline:
+    def test_rows_carry_quote_event_and_political_label(self, session) -> None:
+        from app.models import Event
+
+        client_id = _client(session)
+        event = Event(
+            client_id=client_id,
+            title="Evento canónico",
+            title_tokens="evento canonico",
+            mention_count=1,
+            source_count=1,
+            first_seen_at=T0,
+            last_seen_at=T0,
+        )
+        session.add(event)
+        session.flush()
+        m1 = _mention(
+            session, client_id, 1, event_id=event.id,
+            raw_enrichment=_enrichment(
+                [{"name": "Ana Torres", "role": "Governadora",
+                  "statement": "Voy por todo."}]
+            ),
+        )
+        m2 = _mention(
+            session, client_id, 2,
+            raw_enrichment=_enrichment([{"name": "ana torres"}]),
+        )
+        persons.persist_persons_from_enrichment(session, m1)
+        persons.persist_persons_from_enrichment(session, m2)
+        queries.upsert_classification(
+            session, mention_id=m1.id, classifier="political", label="MORENA", score=0.9
+        )
+        session.commit()
+        person = session.query(Person).one()
+
+        rows = queries.person_timeline(session, person_id=person.id, client_id=client_id)
+        assert len(rows) == 2
+        newest, oldest = rows
+        # m2 published later → first
+        assert newest["mention_id"] == m2.id
+        assert newest["political_label"] is None
+        assert oldest["mention_id"] == m1.id
+        assert oldest["context"] == "Voy por todo."
+        assert oldest["event_title"] == "Evento canónico"
+        assert oldest["political_label"] == "MORENA"
+        assert oldest["url"] == m1.url
+
+    def test_scoped_and_404ish_empty(self, session) -> None:
+        client_id = _client(session)
+        m = _mention(session, client_id, 1, raw_enrichment=_enrichment([{"name": "Ana"}]))
+        persons.persist_persons_from_enrichment(session, m)
+        session.commit()
+        (person,) = session.query(Person).all()
+        other = Client(name="beta")
+        session.add(other)
+        session.commit()
+        assert queries.person_timeline(
+            session, person_id=person.id, client_id=other.id
+        ) == []
+
+    def test_respects_limit(self, session) -> None:
+        client_id = _client(session)
+        for i in range(4):
+            m = _mention(session, client_id, i + 1, raw_enrichment=_enrichment([{"name": "Ana"}]))
+            persons.persist_persons_from_enrichment(session, m)
+        session.commit()
+        (person,) = session.query(Person).all()
+        assert len(queries.person_timeline(
+            session, person_id=person.id, client_id=client_id, limit=2
+        )) == 2
 
 
 class TestPipelinePersonsHook:

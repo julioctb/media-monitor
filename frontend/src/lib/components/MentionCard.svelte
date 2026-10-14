@@ -5,6 +5,7 @@
 		formatDisplayDateTime,
 		sentimentBadgeClass,
 		sentimentLabel,
+		sourceLabel,
 		topicBadgeClass,
 		topicLabel
 	} from '$lib/format';
@@ -35,8 +36,7 @@
 	const headline = $derived(mention.title?.trim() || mention.url);
 </script>
 
-<svelte:element
-	this="article"
+<article
 	aria-labelledby={`mention-${mention.id}-title`}
 	class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-colors hover:border-slate-300"
 >
@@ -114,4 +114,4 @@
 			<p class="mt-1 border-l-2 border-slate-200 pl-3 text-sm text-slate-700">{mention.summary}</p>
 		</details>
 	{/if}
-</svelte:element>
+</article>

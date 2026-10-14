@@ -28,11 +28,14 @@ from app.models import (
     Keyword,
     Mention,
     MentionClassification,
+    MentionPerson,
     MentionSource,
+    Person,
     SavedSearch,
     Sentiment,
 )
 from app.models.mention import make_url_hash
+from app.ingest.matching import fold_text
 from app.models.settings import AI_PROVIDERS
 
 
@@ -1096,3 +1099,150 @@ def client_coverage_summary(
             }
         )
     return summary
+
+
+# ----------------------------------------------------------------- persons (F3)
+
+PERSON_SORTS = ("mentions", "recent")
+
+
+def list_persons(
+    session: Session,
+    client_id: int,
+    *,
+    sort: str = "mentions",
+    q: str | None = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> list[dict]:
+    """Client's persons with mention_count; `mentions` or `recent` order.
+
+    `q` filters by folded substring against the canonical name_key and the
+    accumulated alias_keys, so accent-less partial names and alias variants
+    both hit. Rows are plain dicts (Person columns + mention_count).
+    """
+    if sort not in PERSON_SORTS:
+        raise ValueError(f"sort must be one of {PERSON_SORTS}")
+    count_sq = (
+        select(MentionPerson.person_id, func.count().label("mention_count"))
+        .join(Mention, Mention.id == MentionPerson.mention_id)
+        .where(Mention.client_id == client_id)
+        .group_by(MentionPerson.person_id)
+        .subquery()
+    )
+    stmt = select(Person, func.coalesce(count_sq.c.mention_count, 0).label("mention_count")).outerjoin(
+        count_sq, count_sq.c.person_id == Person.id
+    ).where(Person.client_id == client_id)
+    if q:
+        folded = fold_text(q.strip())
+        if folded:
+            pattern = f"%{folded}%"
+            stmt = stmt.where(
+                or_(Person.name_key.like(pattern), Person.alias_keys.like(pattern))
+            )
+    if sort == "mentions":
+        stmt = stmt.order_by(
+            func.coalesce(count_sq.c.mention_count, 0).desc(), Person.name
+        )
+    else:
+        stmt = stmt.order_by(Person.last_seen_at.desc(), Person.id.desc())
+    rows = session.execute(stmt.limit(limit).offset(max(0, offset))).all()
+    return [
+        {
+            "id": person.id,
+            "name": person.name,
+            "name_key": person.name_key,
+            "role": person.role,
+            "org": person.org,
+            "aliases": person.aliases,
+            "first_seen_at": person.first_seen_at,
+            "last_seen_at": person.last_seen_at,
+            "mention_count": count,
+        }
+        for person, count in rows
+    ]
+
+
+def get_client_person(session: Session, *, person_id: int, client_id: int) -> Person | None:
+    """Person row when it belongs to the client, else None (tenant guard)."""
+    return session.scalar(
+        select(Person).where(Person.id == person_id, Person.client_id == client_id)
+    )
+
+
+def person_mention_count(session: Session, *, person_id: int, client_id: int) -> int:
+    """Total links for the person within the client (detail header count)."""
+    return (
+        session.query(func.count())
+        .select_from(MentionPerson)
+        .join(Mention, Mention.id == MentionPerson.mention_id)
+        .filter(MentionPerson.person_id == person_id, Mention.client_id == client_id)
+        .scalar()
+    )
+
+
+def person_timeline(
+    session: Session,
+    *,
+    person_id: int,
+    client_id: int,
+    limit: int = 100,
+) -> list[dict]:
+    """Chronological footprint of one person (newest first).
+
+    Each row: the mention (id/title/url/source/timestamps/sentiment), the
+    per-mention role/org and verbatim quote (`context`), the canonical
+    event title when the mention belongs to one, and the political label
+    classifier's verdict for that mention (None when unclassified). The
+    F3 exit gate: everything the chat answer needs, no inference.
+    """
+    stmt = (
+        select(MentionPerson, Mention)
+        .join(Mention, Mention.id == MentionPerson.mention_id)
+        .where(
+            MentionPerson.person_id == person_id,
+            Mention.client_id == client_id,
+        )
+        .order_by(
+            func.coalesce(Mention.published_at, Mention.ingested_at).desc(),
+            Mention.id.desc(),
+        )
+        .limit(limit)
+    )
+    links = session.execute(stmt).all()
+    mention_ids = [mention.id for _, mention in links]
+    labels: dict[int, str | None] = {}
+    if mention_ids:
+        label_rows = session.execute(
+            select(MentionClassification.mention_id, MentionClassification.label).where(
+                MentionClassification.mention_id.in_(mention_ids),
+                MentionClassification.classifier == "political",
+            )
+        ).all()
+        labels = dict(label_rows)
+    event_ids = {mention.event_id for _, mention in links if mention.event_id}
+    titles: dict[int, str] = {}
+    if event_ids:
+        titles = dict(
+            session.execute(
+                select(Event.id, Event.title).where(Event.id.in_(event_ids))
+            ).all()
+        )
+    return [
+        {
+            "mention_id": mention.id,
+            "title": mention.title,
+            "url": mention.url,
+            "source": mention.source,
+            "published_at": mention.published_at,
+            "ingested_at": mention.ingested_at,
+            "sentiment": mention.sentiment,
+            "role": link.role,
+            "org": link.org,
+            "context": link.context,
+            "event_id": mention.event_id,
+            "event_title": titles.get(mention.event_id) if mention.event_id else None,
+            "political_label": labels.get(mention.id),
+        }
+        for link, mention in links
+    ]

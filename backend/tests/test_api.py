@@ -620,3 +620,91 @@ class TestClientCoverageSummary:
         body = api.get(f"/api/clients/{client_id}/coverage/summary").json()
         assert body == []
         assert api.get("/api/clients/999999/coverage/summary").status_code == 404
+
+
+# ---------------------------------------------------------------- persons (F3)
+
+
+def seed_person_mention(db, client_id: int, url: str, persons_data: list[dict], **kw) -> Mention:
+    """Mention with a raw_enrichment payload, linked through the F3 hook."""
+    from app import persons as persons_mod
+
+    mention = seed_mention(db, client_id, url, sentiment=Sentiment.positive, **kw)
+    mention.raw_enrichment = {
+        "summary": "s",
+        "sentiment": "positive",
+        "sentiment_score": 0.9,
+        "persons": persons_data,
+        "topics": [],
+    }
+    persons_mod.persist_persons_from_enrichment(db, mention)
+    db.commit()
+    return mention
+
+
+class TestPersonsAPI:
+    def _seed_two(self, db, client_id: int) -> None:
+        for i in range(3):
+            seed_person_mention(
+                db, client_id, f"https://a.com/{i}",
+                [{"name": "Xóchitl Gálvez", "role": "Senadora", "org": "PAN",
+                  "statement": "Dijo algo."}],
+            )
+        seed_person_mention(
+            db, client_id, "https://b.com/1", [{"name": "Beto", "role": "Alcalde"}]
+        )
+
+    def test_list_empty_and_scoped(self, api, db) -> None:
+        client_id = first_client_id(db)
+        assert api.get(f"/api/clients/{client_id}/persons").json() == []
+        assert api.get("/api/clients/999999/persons").status_code == 404
+
+    def test_list_sorted_by_mentions_with_counts(self, api, db) -> None:
+        client_id = first_client_id(db)
+        self._seed_two(db, client_id)
+        body = api.get(f"/api/clients/{client_id}/persons").json()
+        assert [p["name"] for p in body] == ["Xóchitl Gálvez", "Beto"]
+        assert body[0]["mention_count"] == 3
+        assert body[0]["role"] == "Senadora"
+
+    def test_list_sort_recent_and_validation(self, api, db) -> None:
+        client_id = first_client_id(db)
+        self._seed_two(db, client_id)
+        body = api.get(f"/api/clients/{client_id}/persons", params={"sort": "recent"}).json()
+        assert {p["name"] for p in body} == {"Xóchitl Gálvez", "Beto"}
+        assert api.get(
+            f"/api/clients/{client_id}/persons", params={"sort": "nope"}
+        ).status_code == 422
+
+    def test_list_q_filter(self, api, db) -> None:
+        client_id = first_client_id(db)
+        self._seed_two(db, client_id)
+        body = api.get(f"/api/clients/{client_id}/persons", params={"q": "xochitl gal"}).json()
+        assert [p["name"] for p in body] == ["Xóchitl Gálvez"]
+
+    def test_detail_timeline(self, api, db) -> None:
+        from app.models import Person
+
+        client_id = first_client_id(db)
+        self._seed_two(db, client_id)
+        person = db.query(Person).filter_by(name_key="xochitl galvez").one()
+        body = api.get(f"/api/clients/{client_id}/persons/{person.id}").json()
+        assert body["name"] == "Xóchitl Gálvez"
+        assert body["mention_count"] == 3
+        assert len(body["timeline"]) == 3
+        assert all(i["context"] == "Dijo algo." for i in body["timeline"])
+        assert body["timeline"][0]["url"].startswith("https://a.com/")
+        assert body["timeline"][0]["event_title"] is None
+        assert body["timeline"][0]["political_label"] is None
+
+    def test_detail_404_other_client_and_missing(self, api, db) -> None:
+        from app.models import Person
+
+        client_id = first_client_id(db)
+        self._seed_two(db, client_id)
+        person = db.query(Person).first()
+        other = Client(name="otro")
+        db.add(other)
+        db.commit()
+        assert api.get(f"/api/clients/{other.id}/persons/{person.id}").status_code == 404
+        assert api.get(f"/api/clients/{client_id}/persons/999999").status_code == 404

@@ -350,3 +350,46 @@ class CoverageSummaryDay(BaseModel):
     mentions: int
     multi_source_events: int
     repetition_pct: float
+
+
+# ---------------------------------------------------------------- persons (F3)
+
+
+class PersonOut(BaseModel):
+    """Person row with its denormalized mention count."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    name_key: str
+    role: str | None
+    org: str | None
+    aliases: list[str] = []
+    first_seen_at: datetime
+    last_seen_at: datetime
+    mention_count: int
+
+
+class PersonTimelineItem(BaseModel):
+    """One mention of the person: quote, source and context (F3 exit gate)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    mention_id: int
+    title: str | None
+    url: str
+    source: MentionSource
+    published_at: datetime | None
+    ingested_at: datetime
+    sentiment: Sentiment | None
+    role: str | None
+    org: str | None
+    context: str | None
+    event_id: int | None
+    event_title: str | None
+    political_label: str | None
+
+
+class PersonDetailOut(PersonOut):
+    timeline: list[PersonTimelineItem] = []
