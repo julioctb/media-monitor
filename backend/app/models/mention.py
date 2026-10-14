@@ -134,6 +134,14 @@ class Mention(IntPk, Base):
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
+    # F3: persons extracted from this mention's enrichment.
+    person_links: Mapped[list["Person"]] = relationship(  # noqa: F821
+        "MentionPerson",
+        back_populates="mention",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        viewonly=True,
+    )
 
     def __repr__(self) -> str:
         return f"<Mention id={self.id} client_id={self.client_id} source={self.source}>"

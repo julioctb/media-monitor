@@ -17,6 +17,7 @@ from app.models.ingest_cursor import IngestCursor
 from app.models.ingest_run import IngestRun
 from app.models.keyword import Keyword
 from app.models.mention import Mention, make_url_hash, normalize_url
+from app.models.person import MentionPerson, Person
 from app.models.saved_search import SavedSearch
 from app.models.settings import ClientSettings
 from app.models.spike_event import SpikeEvent
@@ -36,7 +37,9 @@ __all__ = [
     "Keyword",
     "Mention",
     "MentionClassification",
+    "MentionPerson",
     "MentionSource",
+    "Person",
     "SavedSearch",
     "Sentiment",
     "SpikeEvent",
