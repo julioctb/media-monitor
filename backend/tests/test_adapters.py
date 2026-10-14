@@ -99,3 +99,49 @@ class TestGdeltAdapter:
 
     def test_build_gdelt_query(self) -> None:
         assert build_gdelt_query("BUAP") == '"BUAP" (sourcelang:spanish OR sourcelang:english)'
+
+    def test_fetch_pauses_between_keywords(self) -> None:
+        sleeps: list[float] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, text=_fixture("gdelt_buap.json"))
+
+        adapter = GdeltAdapter(
+            client=httpx.Client(transport=httpx.MockTransport(handler)),
+            sleep=sleeps.append,
+        )
+        adapter.fetch(["BUAP", "Lilia Cedillo"])
+
+        assert sleeps == [5.5]  # courtesy pause only BETWEEN keywords
+
+    def test_fetch_retries_rate_limit_then_succeeds(self) -> None:
+        sleeps: list[float] = []
+        calls = {"n": 0}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            calls["n"] += 1
+            if calls["n"] == 1:
+                body = "Please limit requests to one every 5 seconds."
+                return httpx.Response(429, text=body)
+            return httpx.Response(200, text=_fixture("gdelt_buap.json"))
+
+        adapter = GdeltAdapter(
+            client=httpx.Client(transport=httpx.MockTransport(handler)),
+            sleep=sleeps.append,
+        )
+        items = adapter.fetch(["BUAP"])
+
+        assert len(items) == 2
+        assert calls["n"] == 2
+        assert sleeps == [5.5]  # backoff after the 429, no inter-keyword pause
+
+    def test_fetch_exhausted_retries_yields_no_crash(self) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(429, text="slow down")
+
+        adapter = GdeltAdapter(
+            client=httpx.Client(transport=httpx.MockTransport(handler)),
+            sleep=lambda _s: None,
+            attempts=2,
+        )
+        assert adapter.fetch(["BUAP"]) == []

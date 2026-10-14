@@ -9,7 +9,8 @@ already ingested are dropped by the pipeline's url_hash dedupe.
 """
 
 import logging
-from collections.abc import Sequence
+import time
+from collections.abc import Callable, Sequence
 from datetime import datetime, timezone
 
 import httpx
@@ -68,7 +69,13 @@ def parse_gdelt_payload(payload: dict, keyword: str) -> list[RawMention]:
 
 
 class GdeltAdapter(SourceAdapter):
-    """Polls the GDELT 2.0 DOC API artlist for each keyword."""
+    """Polls the GDELT 2.0 DOC API artlist for each keyword.
+
+    GDELT enforces one request every 5 seconds per client: the keyword loop
+    sleeps between requests and retries 429s with backoff (a rate-limited
+    keyword used to come back as a plain-text notice, not JSON, and the
+    whole run silently degraded to 0 items — seen in prod 2026-10-14).
+    """
 
     name = "gdelt"
 
@@ -78,10 +85,16 @@ class GdeltAdapter(SourceAdapter):
         *,
         timespan: str = "15min",
         max_items: int = 75,
+        pause_s: float = 5.5,
+        sleep: Callable[[float], None] = time.sleep,
+        attempts: int = 3,
     ) -> None:
         self._client = client
         self._timespan = timespan
         self._max_items = max_items
+        self._pause_s = pause_s
+        self._sleep = sleep
+        self._attempts = max(1, attempts)
 
     def fetch(
         self, keywords: Sequence[str], since: datetime | None = None
@@ -98,10 +111,13 @@ class GdeltAdapter(SourceAdapter):
             timespan = f"{minutes}min"
         results: list[RawMention] = []
         try:
-            for keyword in keywords:
+            for index, keyword in enumerate(keywords):
                 keyword = str(keyword).strip()
                 if not keyword:
                     continue
+                if index:
+                    # Courtesy pause: one request / 5 s, not per-cycle.
+                    self._sleep(self._pause_s)
                 params = {
                     "query": build_gdelt_query(keyword),
                     "mode": "artlist",
@@ -109,13 +125,19 @@ class GdeltAdapter(SourceAdapter):
                     "timespan": timespan,
                     "maxrecords": str(self._max_items),
                 }
-                try:
-                    resp = client.get(GDELT_DOC_URL, params=params)
-                    resp.raise_for_status()
-                    payload = resp.json()
-                except (httpx.HTTPError, ValueError) as exc:
-                    log.warning("gdelt fetch failed for %r: %s", keyword, exc)
-                    continue
+                payload = None
+                for attempt in range(self._attempts):
+                    if attempt:
+                        # 429 backoff: GDELT answers plain text, not JSON.
+                        self._sleep(self._pause_s * attempt)
+                    try:
+                        resp = client.get(GDELT_DOC_URL, params=params)
+                        resp.raise_for_status()
+                        payload = resp.json()
+                    except (httpx.HTTPError, ValueError) as exc:
+                        log.warning("gdelt fetch failed for %r: %s", keyword, exc)
+                        continue
+                    break
                 if not isinstance(payload, dict):
                     continue
                 results.extend(parse_gdelt_payload(payload, keyword)[: self._max_items])
