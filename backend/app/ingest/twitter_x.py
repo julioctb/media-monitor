@@ -16,7 +16,7 @@ import logging
 import time
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
-from datetime import datetime, timezone
+from datetime import datetime
 
 import httpx
 
