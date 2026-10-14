@@ -56,13 +56,6 @@ export function classificationLabel(label: string): string {
 	return CLASSIFICATION_LABELS[label] ?? label;
 }
 
-/** The positive label highlighted, everything else quiet gray. */
-export function classificationBadgeClass(label: string): string {
-	return label === 'political'
-		? 'bg-sky-50 text-sky-700 ring-sky-600/20'
-		: 'bg-slate-100 text-slate-500 ring-slate-400/20';
-}
-
 /** Topic labels (multi-label classifier; unknown keys fall through). */
 const TOPIC_LABELS: Record<string, string> = {
 	sports: 'Deportes',

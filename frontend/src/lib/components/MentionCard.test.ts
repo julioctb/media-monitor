@@ -131,6 +131,22 @@ describe('MentionCard', () => {
 		expect(card.textContent).toContain('Economía');
 	});
 
+	it('hides the No política badge: only the positive match renders', () => {
+		const { card } = renderCard({
+			mention: mentionFixture({
+				classifications: [
+					{ classifier: 'political', label: 'not_political', score: 0.7 },
+					{ classifier: 'topic', label: 'academic', score: 0.9 }
+				]
+			})
+		});
+
+		expect(card.textContent).not.toContain('No política');
+		expect(card.textContent).not.toContain('Política');
+		// The clearer classification still shows.
+		expect(card.textContent).toContain('Academia');
+	});
+
 	it('marks the ingest-date fallback with an asterisk', () => {
 		const { card } = renderCard({ mention: mentionFixture({ published_at: null }) });
 

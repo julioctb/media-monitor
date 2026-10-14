@@ -1,7 +1,5 @@
 <script lang="ts">
 	import {
-		classificationBadgeClass,
-		classificationLabel,
 		formatDisplayDateTime,
 		sentimentBadgeClass,
 		sentimentLabel,
@@ -31,7 +29,10 @@
 	/** The `*` marks ingest-date fallbacks (no published_at on the row). */
 	const inferred = $derived(mention.published_at === null);
 	const hasSummary = $derived(typeof mention.summary === 'string' && mention.summary.trim() !== '');
-	const political = $derived(mention.classifications?.find((c) => c.classifier === 'political'));
+	const isPolitical = $derived(
+		mention.classifications?.some((c) => c.classifier === 'political' && c.label === 'political') ??
+			false
+	);
 	const topics = $derived(mention.classifications?.filter((c) => c.classifier === 'topic') ?? []);
 	const headline = $derived(mention.title?.trim() || mention.url);
 </script>
@@ -87,13 +88,13 @@
 		</a>
 	{/if}
 
-	{#if political || topics.length > 0}
+	{#if isPolitical || topics.length > 0}
 		<div class="mt-2 flex flex-wrap items-center gap-1">
-			{#if political}
+			{#if isPolitical}
 				<span
-					class={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${classificationBadgeClass(political.label)}`}
+					class="inline-flex items-center rounded-full bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-700 ring-1 ring-inset ring-sky-600/20"
 				>
-					{classificationLabel(political.label)}
+					Política
 				</span>
 			{/if}
 			{#each topics as topic (topic.label)}
