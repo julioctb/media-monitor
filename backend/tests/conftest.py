@@ -19,3 +19,16 @@ def session() -> Session:
     finally:
         db.close()
         engine.dispose()
+
+
+@pytest.fixture()
+def fresh_laya():
+    """Reset the process-wide lazy laya singleton around the test."""
+    from app.sentiment import factory
+
+    saved = factory._laya_singleton
+    factory._laya_singleton = None
+    try:
+        yield factory.shared_laya()
+    finally:
+        factory._laya_singleton = saved
