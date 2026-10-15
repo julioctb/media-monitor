@@ -39,6 +39,6 @@ solo sitemap.html). Sus notas sobre BUAP no aparecen.
 - Forecast: ~700 líneas.
 
 ## Estado
-- T1–T5 OK (writer deleg_73be23d7, 4 commits en feat/scraper-ingest; spot-check 12 passed; suite 385+388? full 388 passed; svelte-check limpio). Desviaciones: source=VARCHAR+CHECK (sin enum PG, 0017 solo widens CHECK); ripples sancionados article_fetch.CONTENT_FETCHERS y test_api by_source.
-- T6 en curso: build compose (proc_6ec249b7c8a6) → up -d → habilitar scrapers via API → verificar ciclo.
+- T1–T5 OK (writer deleg_73be23d7, 4 commits; suite 388 passed; svelte-check limpio).
+- T6 OK: deploy 2026-10-15 ~07:11 UTC (mig 0017 aplicada), ciclo 07:31 UTC: laredaccion 32 links, e_consulta 86 links, 4 menciones scraper en DB (todas BUAP-related). Fix adicional c8546c1 label alerts. Rebuild final en curso (proc_bbad8458c2f2). Pendente user: merge/push.
 
