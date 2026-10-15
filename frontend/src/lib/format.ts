@@ -8,7 +8,8 @@
 const KNOWN_SOURCE_LABELS: Record<string, string> = {
 	news_rss: 'News RSS',
 	gdelt: 'GDELT',
-	x_twitter: 'X (Twitter)'
+	x_twitter: 'X (Twitter)',
+	rss_custom: 'RSS propios'
 };
 
 export function sourceLabel(source: string): string {
