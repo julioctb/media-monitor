@@ -27,16 +27,25 @@ _TIMEOUT_S = 20.0
 _MAX_PER_FEED = 100
 
 
+def _strip_html(value: str) -> str:
+    """Plain text from an HTML fragment; passthrough when no tags present."""
+    if "<" not in value:
+        return value
+    from bs4 import BeautifulSoup  # local: keeps module import light
+
+    return " ".join(BeautifulSoup(value, "html.parser").get_text(" ", strip=True).split())
+
+
 def _entry_text(entry) -> str:
     """Best-effort body: summary, else content:encoded / content parts."""
     summary = getattr(entry, "summary", None) or ""
     if summary:
-        return summary
+        return _strip_html(summary)
     content = getattr(entry, "content", None) or []
     for part in content:
         value = getattr(part, "value", None) or (part.get("value") if isinstance(part, dict) else None)
         if value:
-            return value
+            return _strip_html(value)
     return ""
 
 

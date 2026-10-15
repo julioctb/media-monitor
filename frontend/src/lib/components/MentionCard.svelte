@@ -69,14 +69,14 @@
 			target="_blank"
 			rel="noopener noreferrer"
 			aria-label={`${headline} (abre en una pestaña nueva)`}
-			class="hover:underline"
+			class="break-words hover:underline"
 		>
 			{headline}
 		</a>
 	</h3>
 
 	{#if mention.content?.trim()}
-		<p class="mt-1 line-clamp-2 text-sm text-slate-600">{mention.content}</p>
+		<p class="mt-1 line-clamp-2 break-words text-sm text-slate-600">{mention.content}</p>
 	{/if}
 
 	{#if event}
