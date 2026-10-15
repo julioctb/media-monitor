@@ -2,6 +2,7 @@ import { error, fail } from '@sveltejs/kit';
 import {
 	ApiError,
 	getClientSettings,
+	listAvailableScrapers,
 	testAi,
 	testFacebookPage,
 	updateClientSettings
@@ -94,7 +95,10 @@ function readFacebookPages(form: FormData): { page_id: string; token: string; la
 
 export const load: PageServerLoad = async () => {
 	try {
-		return { settings: await getClientSettings() };
+		// Best-effort: an unavailable registry must not block the page; the
+		// card renders an empty state instead.
+		const scrapersAvailable = await listAvailableScrapers().catch(() => []);
+		return { settings: await getClientSettings(), scrapersAvailable };
 	} catch (cause) {
 		const status = cause instanceof ApiError && cause.status >= 400 ? cause.status : 503;
 		const detail = cause instanceof Error ? cause.message : 'error desconocido';
@@ -125,6 +129,7 @@ export const actions: Actions = {
 					.split('\n')
 					.map((line) => line.trim())
 					.filter((line) => line !== ''),
+				scrapers: form.getAll('scrapers').map((value) => String(value)),
 				ai_provider: form.get('ai_provider') === 'openai' ? 'openai' : 'local',
 				ai_api_key: optionalText(form, 'ai_api_key'),
 				ai_base_url: optionalText(form, 'ai_base_url'),

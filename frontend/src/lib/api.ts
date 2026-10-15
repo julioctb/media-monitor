@@ -188,6 +188,8 @@ export interface ClientSettings {
 	gdelt_enabled: boolean;
 	facebook_pages: FacebookPage[];
 	rss_feeds: string[];
+	/** Enabled scrapers (keys of the backend SCRAPER_REGISTRY). */
+	scrapers: string[];
 	ai_provider: AiProvider;
 	ai_api_key: string | null;
 	ai_base_url: string | null;
@@ -205,6 +207,7 @@ export interface ClientSettingsInput {
 	gdelt_enabled?: boolean;
 	facebook_pages?: FacebookPage[];
 	rss_feeds?: string[];
+	scrapers?: string[];
 	ai_provider?: AiProvider;
 	ai_api_key?: string | null;
 	ai_base_url?: string | null;
@@ -392,6 +395,22 @@ export function updateClientSettings(
 	options: RequestOptions = {}
 ): Promise<ClientSettings> {
 	return request<ClientSettings>('/api/settings', jsonInit('PUT', input), options);
+}
+
+/** A scrapable site without RSS, as exposed by the ingest registry. */
+export interface AvailableScraper {
+	name: string;
+	base_url: string;
+}
+
+export function listAvailableScrapers(options: RequestOptions = {}): Promise<
+	AvailableScraper[]
+> {
+	return request<AvailableScraper[]>(
+		'/api/clients/1/scrapers/available',
+		{ method: 'GET' },
+		options
+	);
 }
 
 export function testFacebookPage(

@@ -2,7 +2,7 @@
 	import { enhance } from '$app/forms';
 
 	import { INPUT_CLS } from '$lib/ui';
-	import type { ClientSettings } from '$lib/api';
+	import type { AvailableScraper, ClientSettings } from '$lib/api';
 	import type { PageProps, SubmitFunction } from './$types';
 
 	let { data, form }: PageProps = $props();
@@ -29,6 +29,8 @@
 		pages: PageDraft[];
 		/** One RSS URL per line, exactly as edited in the textarea. */
 		rss: string;
+		/** Enabled scraper names (subset of data.scrapersAvailable). */
+		scrapers: string[];
 		ai_provider: 'local' | 'openai';
 		ai_base_url: string;
 		ai_model: string;
@@ -44,6 +46,7 @@
 			gdelt_enabled: settings.gdelt_enabled,
 			pages: settings.facebook_pages.map((page) => ({ ...page })),
 			rss: settings.rss_feeds.join('\n'),
+			scrapers: [...settings.scrapers],
 			ai_provider: settings.ai_provider,
 			ai_base_url: settings.ai_base_url ?? '',
 			ai_model: settings.ai_model ?? '',
@@ -58,6 +61,17 @@
 	let draft = $state<SettingsDraft>(toDraft(data.settings));
 	let dirty = $state(false);
 	let submitting = $state(false);
+
+	// Registry snapshot from the load: toggles write to `draft`, never to
+	// page data. Intentional snapshot, like `draft` above.
+	// svelte-ignore state_referenced_locally
+	const availableScrapers: AvailableScraper[] = data.scrapersAvailable ?? [];
+
+	function toggleScraper(name: string, checked: boolean): void {
+		draft.scrapers = checked
+			? [...draft.scrapers, name]
+			: draft.scrapers.filter((entry) => entry !== name);
+	}
 
 	function markDirty(): void {
 		dirty = true;
@@ -296,6 +310,42 @@
 				{/if}
 			</div>
 
+			<div>
+				<h3 class="text-sm font-medium text-slate-700">Scrapers (medios sin RSS)</h3>
+				{#if availableScrapers.length === 0}
+					<p class="mt-2 text-sm text-slate-500">
+						No hay scrapers disponibles en el registro del servidor.
+					</p>
+				{:else}
+					<div class="mt-3 space-y-2">
+						{#each availableScrapers as scraper (scraper.name)}
+							<label class="flex items-center gap-2 text-sm text-slate-700">
+								<input
+									type="checkbox"
+									name="scrapers"
+									value={scraper.name}
+									checked={draft.scrapers.includes(scraper.name)}
+									onchange={(e) => toggleScraper(scraper.name, e.currentTarget.checked)}
+									class={CHECK_CLS}
+								/>
+								<span>{scraper.name}</span>
+								<a
+									href={scraper.base_url}
+									target="_blank"
+									rel="noreferrer"
+									class="text-xs text-slate-400 underline hover:text-slate-600"
+								>
+									{scraper.base_url}
+								</a>
+							</label>
+						{/each}
+					</div>
+					<p class="mt-2 text-xs text-slate-500">
+						Medios sin feed RSS: el worker revisa su portada en cada ciclo.
+					</p>
+				{/if}
+			</div>
+
 			<label class="flex items-center gap-2 text-sm text-slate-700">
 				<input type="checkbox" name="gdelt_enabled" value="1" bind:checked={draft.gdelt_enabled} class={CHECK_CLS} />
 				Incluir GDELT
@@ -404,11 +454,11 @@
 						{/if}
 					</p>
 				{:else}
-					<p class="mt-2 text-xs text-red-700">Error: {form.message}</p>
-				{/if}
-			{/if}
-		</div>
-	</section>
+						<p class="mt-2 text-xs text-red-700">Error: {form.message}</p>
+						{/if}
+						{/if}
+						</div>
+						</section>
 
 	<div class="flex items-center gap-3">
 		<button
