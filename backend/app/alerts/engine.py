@@ -53,6 +53,7 @@ SOURCE_LABELS = {
     MentionSource.x_twitter: "X (Twitter)",
     MentionSource.facebook_page: "Facebook",
     MentionSource.rss_custom: "RSS",
+    MentionSource.scraper: "Scrapers",
 }
 SENTIMENT_LABELS = {
     Sentiment.positive: "Positiva",
