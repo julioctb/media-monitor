@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { page } from '$app/state';
+
+	import { INPUT_CLS } from '$lib/ui';
 	import { formatDisplayDateTime } from '$lib/format';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
 
-	const INPUT_CLS =
-		'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200';
 
 	let filterForm: HTMLFormElement | undefined = $state();
 	function submitFilters() {

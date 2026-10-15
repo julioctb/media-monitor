@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+
+	import { INPUT_CLS } from '$lib/ui';
 	import type { ClientSettings } from '$lib/api';
 	import type { PageProps, SubmitFunction } from './$types';
 
 	let { data, form }: PageProps = $props();
 
-	const INPUT_CLS =
-		'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm placeholder:text-slate-400 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200';
 	const LABEL_CLS = 'mb-1 block text-xs font-medium text-slate-500';
 	const CHECK_CLS = 'size-4 rounded border-slate-300 text-slate-900 focus:ring-slate-300';
 	const PROBE_BTN_CLS =

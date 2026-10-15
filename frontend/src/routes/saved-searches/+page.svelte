@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { formatDisplayDateTime } from '$lib/format';
+
+	import { INPUT_CLS } from '$lib/ui';
 	import { sourceLabel } from '$lib/format';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
 
 	const BTN_CLS = 'rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors';
-	const INPUT_CLS =
-		'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm placeholder:text-slate-400 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200';
 
 	const UNREADY_HINTS: Record<string, string> = {
 		x_twitter: 'falta el token del provider (env X_PROVIDER_API_KEY)',

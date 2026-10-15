@@ -1,5 +1,11 @@
 @import 'tailwindcss';
 
+/* Single source of truth for control geometry: every input/select/textarea
+   radius comes from this token (see src/lib/ui.ts). Change it here once. */
+@theme {
+	--radius-control: 0.625rem;
+}
+
 /* Native select chrome (arrow) collides with rounded/pill containers and
    long values clip under it: strip it and paint a consistent chevron. */
 @layer base {
@@ -12,3 +18,4 @@
 		padding-right: 1.9rem;
 	}
 }
+

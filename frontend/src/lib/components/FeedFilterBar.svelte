@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { Keyword } from '$lib/api';
 	import { sourceLabel } from '$lib/format';
+	import { COMPACT_CLS, INPUT_CLS } from '$lib/ui';
 
 	interface FeedFilters {
 		source: string;
@@ -24,10 +25,6 @@
 	let { sources, keywords, filters, resetHref }: Props = $props();
 
 	// Compact pills: same box height as a chip, native picker inside.
-	const PILL_CLS =
-		'rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm hover:border-slate-400 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200';
-	const FIELD_CLS =
-		'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200';
 	const LABEL_CLS = 'mb-1 block text-xs font-medium text-slate-500';
 
 	const sentimentOptions: Array<{ value: string; label: string }> = [
@@ -71,13 +68,13 @@
 			name="q"
 			value={filters.q}
 			placeholder="Buscar en título o contenido"
-			class={`${FIELD_CLS} min-w-0`}
+			class={`${INPUT_CLS} min-w-0`}
 		/>
 	</div>
 
 <div>
 		<label class="sr-only" for="f-source">Fuente</label>
-		<select id="f-source" name="source" class={PILL_CLS} onchange={autoSubmit}>
+		<select id="f-source" name="source" class={COMPACT_CLS} onchange={autoSubmit}>
 			<option value="">Todas las fuentes</option>
 			{#each sources as source (source)}
 				<option value={source} selected={filters.source === source}>{sourceLabel(source)}</option>
@@ -87,7 +84,7 @@
 
 	<div>
 		<label class="sr-only" for="f-sentiment">Sentimiento</label>
-		<select id="f-sentiment" name="sentiment" class={PILL_CLS} onchange={autoSubmit}>
+		<select id="f-sentiment" name="sentiment" class={COMPACT_CLS} onchange={autoSubmit}>
 			{#each sentimentOptions as option (option.value)}
 				<option value={option.value} selected={filters.sentiment === option.value}>
 					{option.label}
@@ -114,7 +111,7 @@
 		<div class="mt-3 grid gap-4 rounded-lg bg-slate-50 p-3 sm:grid-cols-2 lg:grid-cols-4">
 			<div>
 				<label class={LABEL_CLS} for="f-keyword">Palabra clave</label>
-				<select id="f-keyword" name="keyword_id" class={FIELD_CLS}>
+				<select id="f-keyword" name="keyword_id" class={INPUT_CLS}>
 					<option value="">Todas</option>
 					{#each keywords as keyword (keyword.id)}
 						<option value={String(keyword.id)} selected={filters.keyword_id === String(keyword.id)}>
@@ -146,7 +143,7 @@
 						name="since"
 						value={filters.since}
 						aria-label="Desde"
-						class={`${FIELD_CLS} min-w-0 flex-1 basis-28`}
+						class={`${INPUT_CLS} min-w-0 flex-1 basis-28`}
 					/>
 					<span class="text-xs text-slate-400">a</span>
 					<input
@@ -154,14 +151,14 @@
 						name="until"
 						value={filters.until}
 						aria-label="Hasta"
-						class={`${FIELD_CLS} min-w-0 flex-1 basis-28`}
+						class={`${INPUT_CLS} min-w-0 flex-1 basis-28`}
 					/>
 				</div>
 			</div>
 
 			<div>
 				<label class={LABEL_CLS} for="f-limit">Por página</label>
-				<select id="f-limit" name="limit" class={FIELD_CLS}>
+				<select id="f-limit" name="limit" class={INPUT_CLS}>
 					{#each limitOptions as option (option)}
 						<option value={String(option)} selected={filters.limit === option}>{option}</option>
 					{/each}

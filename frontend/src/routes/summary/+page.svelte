@@ -1,11 +1,11 @@
 <script lang="ts">
 	import type { PageProps } from './$types';
+
+	import { INPUT_CLS } from '$lib/ui';
 	import type { DailySummaryContent } from '$lib/api';
 
 	let { data, form }: PageProps = $props();
 
-	const INPUT_CLS =
-		'rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200';
 
 	type Bucket = NonNullable<DailySummaryContent['per_source']>[string];
 	const NO_BUCKETS: Record<string, Bucket> = {};

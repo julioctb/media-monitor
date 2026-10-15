@@ -1,10 +1,10 @@
 <script lang="ts">
 	import type { PageProps } from './$types';
 
+	import { INPUT_CLS } from '$lib/ui';
+
 	let { data, form }: PageProps = $props();
 
-	const INPUT_CLS =
-		'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200';
 
 	const digestOptions = [
 		{ value: 'instant', label: 'Instante (un email por mención)' },
@@ -100,7 +100,7 @@
 				max="100"
 				step="0.5"
 				value={current.sentiment_shift_threshold}
-				class="mt-1 w-32 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
+				class={`mt-1 w-32 ${INPUT_CLS}`}
 			/>
 		</div>
 	</div>
