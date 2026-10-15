@@ -42,6 +42,17 @@ def get_client_settings(
     return queries.get_settings(session, client_id)
 
 
+@router.get("/clients/{client_id}/scrapers/available")
+def available_scrapers(client_id: int) -> list[dict[str, str]]:
+    """Scrapers that can be enabled, straight from the ingest registry."""
+    from app.ingest.scrapers import SCRAPER_REGISTRY
+
+    return [
+        {"name": name, "base_url": spec.base_url}
+        for name, spec in SCRAPER_REGISTRY.items()
+    ]
+
+
 @router.put("/settings", response_model=ClientSettingsOut)
 def update_client_settings(
     payload: ClientSettingsUpdate, session: SessionDep, client_id: ClientIdDep

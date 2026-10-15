@@ -154,6 +154,7 @@ class ClientSettingsOut(BaseModel):
     gdelt_enabled: bool
     facebook_pages: list[FacebookPageCredentials]
     rss_feeds: list[str]
+    scrapers: list[str]
     ai_provider: str
     ai_api_key: str | None
     ai_base_url: str | None
@@ -173,6 +174,7 @@ class ClientSettingsUpdate(BaseModel):
     gdelt_enabled: bool | None = None
     facebook_pages: list[FacebookPageCredentials] | None = None
     rss_feeds: list[str] | None = None
+    scrapers: list[str] | None = None
     ai_provider: Literal["local", "openai"] | None = None
     ai_api_key: str | None = None
     ai_base_url: str | None = None

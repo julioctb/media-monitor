@@ -89,6 +89,17 @@ def build_adapters(effective: EffectiveSettings) -> list:
         from app.ingest.feeds import FeedsAdapter
 
         adapters.append(FeedsAdapter(urls=list(effective.rss_feeds)))
+    if effective.scrapers:
+        # Imported lazily so the module (and its httpx client wiring) only
+        # loads when a scraper is actually configured.
+        from app.ingest.scrapers import SCRAPER_REGISTRY, ScrapersAdapter
+
+        known = [name for name in effective.scrapers if name in SCRAPER_REGISTRY]
+        unknown = sorted(set(effective.scrapers) - set(SCRAPER_REGISTRY))
+        if unknown:
+            log.warning("unknown scrapers ignored: %s", ", ".join(unknown))
+        if known:
+            adapters.append(ScrapersAdapter(names=known))
     if not settings.x_provider_api_key:
         log.info("X provider disabled: X_PROVIDER_API_KEY not set")
         return adapters

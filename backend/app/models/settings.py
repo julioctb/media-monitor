@@ -74,6 +74,8 @@ class ClientSettings(IntPk, Base):
         JsonType, nullable=False, default=list
     )
     rss_feeds: Mapped[list[str]] = mapped_column(JsonType, nullable=False, default=list)
+    # Scrapers for sites without RSS; keys of app.ingest.scrapers.SCRAPER_REGISTRY.
+    scrapers: Mapped[list[str]] = mapped_column(JsonType, nullable=False, default=list)
     ai_provider: Mapped[str] = (
         # Validated against AI_PROVIDERS; CHECK constraint backs it in DB.
         mapped_column(String(16), nullable=False, default="local", server_default="local")

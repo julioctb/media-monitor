@@ -37,6 +37,7 @@ class EffectiveSettings:
     gdelt_enabled: bool = True
     facebook_pages: tuple[FacebookPageCredentials, ...] = ()
     rss_feeds: tuple[str, ...] = ()
+    scrapers: tuple[str, ...] = ()
     ai_provider: str = "local"
     ai_api_key: str | None = None
     ai_base_url: str | None = None
@@ -83,6 +84,7 @@ def resolve_effective_settings(session: Session, client_id: int) -> EffectiveSet
         gdelt_enabled=row.gdelt_enabled,
         facebook_pages=pages,
         rss_feeds=tuple(row.rss_feeds or []),
+        scrapers=tuple(row.scrapers or []),
         ai_provider=row.ai_provider,
         ai_api_key=row.ai_api_key,
         ai_base_url=row.ai_base_url,

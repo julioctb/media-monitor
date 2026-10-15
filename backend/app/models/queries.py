@@ -656,6 +656,22 @@ def _validate_rss_feeds(value: object) -> list[str]:
     return feeds
 
 
+def _validate_scrapers(value: object) -> list[str]:
+    if not isinstance(value, list):
+        raise ValueError("scrapers must be a list of scraper names")
+    names: list[str] = []
+    for entry in value:
+        if not isinstance(entry, str):
+            raise ValueError("each scraper must be a string name")
+        cleaned = entry.strip()
+        if not cleaned:
+            continue  # normalize: blank entries drop out silently
+        names.append(cleaned)
+    # Dedupe preserving order; unknown names are filtered by the worker
+    # against SCRAPER_REGISTRY (forward-compatible stored values).
+    return list(dict.fromkeys(names))
+
+
 def _validate_ai_provider(value: object) -> str:
     if not isinstance(value, str) or value not in AI_PROVIDERS:
         raise ValueError(f"ai_provider must be one of {', '.join(AI_PROVIDERS)}")
@@ -698,6 +714,7 @@ _VALIDATORS = {
     "gdelt_enabled": lambda v: _validate_bool(v, "gdelt_enabled"),
     "facebook_pages": _validate_facebook_pages,
     "rss_feeds": _validate_rss_feeds,
+    "scrapers": _validate_scrapers,
     "ai_provider": _validate_ai_provider,
     "ai_api_key": lambda v: _validate_optional_str(v, "ai_api_key"),
     "ai_base_url": lambda v: _validate_optional_str(v, "ai_base_url", is_url=True),
