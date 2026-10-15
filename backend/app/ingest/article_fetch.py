@@ -239,6 +239,8 @@ CONTENT_FETCHERS: dict[MentionSource, Callable[[str], str | None] | None] = {
     MentionSource.news_rss: _fetch_mention_content,
     MentionSource.gdelt: _fetch_mention_content,
     MentionSource.rss_custom: _fetch_mention_content,
+    # Scraper hits are article URLs: fetch their body like any news source.
+    MentionSource.scraper: _fetch_mention_content,
     MentionSource.x_twitter: None,
     MentionSource.facebook_page: None,
 }
