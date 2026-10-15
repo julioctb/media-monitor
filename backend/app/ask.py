@@ -17,7 +17,6 @@ from dataclasses import dataclass, field
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
-from app.enrich.llm import LLMEnricher
 from app.models import Mention, Person, MentionPerson
 
 log = logging.getLogger("ask")

@@ -5,7 +5,6 @@ httpx.post; the heuristic path never touches the network.
 """
 
 from datetime import datetime, timezone
-from zoneinfo import ZoneInfo
 
 import pytest
 from fastapi.testclient import TestClient

@@ -29,7 +29,6 @@ class MockAnalyzer:
 
     def analyze(self, text: str, lang: str):
         self.calls.append((text, lang))
-        from dataclasses import dataclass as _dc
 
         @dataclass
         class R:

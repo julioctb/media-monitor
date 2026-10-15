@@ -3,7 +3,6 @@
 import json
 
 import httpx
-import pytest
 
 from app.ingest import article_fetch
 from app.models.base import MentionSource

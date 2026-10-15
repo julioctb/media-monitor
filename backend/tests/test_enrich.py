@@ -14,7 +14,7 @@ import pytest
 
 from app.enrich.llm import LLMEnricher, parse_enrichment
 from app.enrich.summary import maybe_summarize_event
-from app.models import Client, Event, Mention, MentionSource, make_url_hash
+from app.models import Client, Event, Mention
 from app.models.base import Sentiment
 from app.sentiment.base import SentimentResult
 

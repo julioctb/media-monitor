@@ -8,7 +8,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import httpx
-import pytest
 
 from app.ingest.gdelt import GdeltAdapter, build_gdelt_query, parse_gdelt_payload
 from app.ingest.google_news import GoogleNewsAdapter, parse_google_rss

@@ -20,7 +20,6 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from app.models.base import Sentiment  # noqa: E402
 from app.sentiment.laya_analyzer import (  # noqa: E402
     KeywordBaselineAnalyzer,
     LayaAnalyzer,

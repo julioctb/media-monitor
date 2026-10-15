@@ -1,6 +1,5 @@
 """Tests for scripts.backfill_content (content-less mention backfill)."""
 
-import pytest
 
 from app.models import Client, Mention, MentionSource, make_url_hash
 

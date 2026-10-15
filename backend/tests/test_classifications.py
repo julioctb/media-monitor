@@ -4,7 +4,6 @@ The classifier registry is injectable everywhere (fake agents / fake
 classifiers), so none of these tests load a model.
 """
 
-from dataclasses import dataclass
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, select

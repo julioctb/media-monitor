@@ -16,7 +16,6 @@ from app.api.deps import get_client_id
 from app.db import get_db
 from app.main import create_app
 from app.models import (
-    AlertDigest,
     Base,
     Client,
     Event,

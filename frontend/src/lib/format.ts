@@ -63,11 +63,11 @@ const TOPIC_LABELS: Record<string, string> = {
 	institutional: 'Institucional',
 	students: 'Estudiantes',
 	culture: 'Cultura',
+	sports: 'Deportes',
 	finance: 'Finanzas',
 	government: 'Gobierno',
 	health: 'Salud',
 	// v1 labels kept for rows not yet re-classified.
-	sports: 'Deportes',
 	economy: 'Economía'
 };
 
@@ -82,11 +82,11 @@ const TOPIC_BADGE_CLASSES: Record<string, string> = {
 	institutional: 'bg-slate-100 text-slate-600 ring-slate-500/20',
 	students: 'bg-sky-50 text-sky-700 ring-sky-600/20',
 	culture: 'bg-fuchsia-50 text-fuchsia-700 ring-fuchsia-600/20',
+	sports: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
 	finance: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
 	government: 'bg-orange-50 text-orange-700 ring-orange-600/20',
 	health: 'bg-teal-50 text-teal-700 ring-teal-600/20',
-	// v1 legacy
-	sports: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
+	// v1 legacy (rows not yet re-classified)
 	economy: 'bg-amber-50 text-amber-700 ring-amber-600/20'
 };
 

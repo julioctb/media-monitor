@@ -17,7 +17,6 @@ Host-runnable against any DATABASE_URL:
 import argparse
 import logging
 
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import SessionLocal

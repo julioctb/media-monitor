@@ -17,7 +17,6 @@ from app.models import (
     MentionSource,
     SavedSearch,
     Sentiment,
-    queries,
 )
 from app.models.mention import make_url_hash
 
