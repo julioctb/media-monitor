@@ -243,7 +243,7 @@ def answer_question(session: Session, *, client_id: int, question: str, enricher
         top = persons[0]
         mentions_n = session.scalar(
             select(func.count())
-            .selectFrom(MentionPerson)
+            .select_from(MentionPerson)
             .where(MentionPerson.person_id == top.id)
         )
         person_hint = (
