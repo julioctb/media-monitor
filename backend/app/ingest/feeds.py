@@ -8,6 +8,7 @@ never stall the cycle.
 """
 
 import logging
+import time
 from calendar import timegm
 from collections.abc import Sequence
 from datetime import datetime, timezone
@@ -90,7 +91,9 @@ class FeedsAdapter(SourceAdapter):
     ) -> None:
         self._urls = [url for url in (u.strip() for u in urls) if url]
         self._client = client or httpx.Client(
-            headers={"User-Agent": _USER_AGENT}, timeout=_TIMEOUT_S
+            headers={"User-Agent": _USER_AGENT},
+            timeout=_TIMEOUT_S,
+            follow_redirects=True,
         )
         self._owns_client = client is None
         self._max_per_feed = max_per_feed
@@ -101,12 +104,18 @@ class FeedsAdapter(SourceAdapter):
         results: list[RawMention] = []
         try:
             for url in self._urls:
-                try:
-                    resp = self._client.get(url)
-                    resp.raise_for_status()
-                    items = parse_feed(resp.text, keywords)
-                except (httpx.HTTPError, ValueError) as exc:
-                    log.warning("feed %s failed: %s", url, exc)
+                items = None
+                for attempt in range(2):
+                    try:
+                        resp = self._client.get(url)
+                        resp.raise_for_status()
+                        items = parse_feed(resp.text, keywords)
+                        break
+                    except (httpx.HTTPError, ValueError) as exc:
+                        # Transient DNS/SSL/redirect hiccups: one quiet retry.
+                        log.warning("feed %s failed (attempt %d): %s", url, attempt + 1, exc)
+                        time.sleep(1.5)
+                if items is None:
                     continue
                 if len(items) > self._max_per_feed:
                     items = items[: self._max_per_feed]
