@@ -100,9 +100,10 @@ def test_retrieve_ranks_token_hits_over_recency(db) -> None:
         title="Nota sin relacion alguna",
         published=now_dt,
     )
-    found = retrieve_mentions(
+    found, roles = retrieve_mentions(
         db, client_id=client_id, tokens=["becas", "deporte"], person_ids=[]
     )
+    assert roles == {}
     assert found[0].id == old_hit.id
     assert new_miss.id in [m.id for m in found] or True  # OR-match may include
     assert old_hit.id != new_miss.id
@@ -119,9 +120,11 @@ def test_retrieve_includes_person_links_without_token_hit(db) -> None:
     db.add(MentionPerson(mention_id=linked.id, person_id=person.id))
     db.commit()
 
-    found = retrieve_mentions(
+    found, roles = retrieve_mentions(
         db, client_id=client_id, tokens=["becas"], person_ids=[person.id]
     )
+    # Person-first: the linked mention is guaranteed even without token hit.
+    assert found[0].id == linked.id
     assert linked.id in [m.id for m in found]
 
 
@@ -244,3 +247,48 @@ def test_ask_endpoint_validates_question(api) -> None:
 def test_ask_endpoint_unknown_client_404(api) -> None:
     response = api.post("/api/clients/999/ask", json={"question": "becas?"})
     assert response.status_code == 404
+
+def test_retrieve_annotates_person_roles(db) -> None:
+    from app.ask import retrieve_mentions
+
+    client_id = db.scalar(select(Client.id).limit(1))
+    person = Person(
+        client_id=client_id, name="Margarito Rojas", name_key="margarito rojas"
+    )
+    db.add(person)
+    db.flush()
+    linked = seed_mention(db, client_id, "https://x/rol", title="Gesto municipal")
+    db.add(MentionPerson(mention_id=linked.id, person_id=person.id, role="Presidente municipal"))
+    other = seed_mention(db, client_id, "https://x/otros", title="Becas ampliadas")
+    db.commit()
+
+    found, roles = retrieve_mentions(
+        db, client_id=client_id, tokens=["becas"], person_ids=[person.id]
+    )
+    assert roles[linked.id] == "Presidente municipal"
+    assert other.id in [m.id for m in found]
+    assert linked.id in [m.id for m in found]
+
+
+def test_person_linked_mentions_survive_the_cap(db) -> None:
+    """12 token-hits must not starve the person's own coverage."""
+    from app.ask import retrieve_mentions
+
+    client_id = db.scalar(select(Client.id).limit(1))
+    person = Person(client_id=client_id, name="Margarito Rojas", name_key="margarito rojas")
+    db.add(person)
+    db.flush()
+    linked = seed_mention(db, client_id, "https://x/only-person", title="Gesto sin tokens")
+    db.add(MentionPerson(mention_id=linked.id, person_id=person.id))
+    for index in range(14):
+        seed_mention(
+            db, client_id, f"https://x/fill{index}", title=f"Becas y más becas {index}"
+        )
+    db.commit()
+
+    found, _roles = retrieve_mentions(
+        db, client_id=client_id, tokens=["becas"], person_ids=[person.id]
+    )
+    ids = [m.id for m in found]
+    assert linked.id in ids
+    assert len(ids) == 12

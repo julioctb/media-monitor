@@ -14,7 +14,7 @@ import logging
 import re
 from dataclasses import dataclass, field
 
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.models import Mention, Person, MentionPerson
@@ -103,7 +103,7 @@ def retrieve_mentions(
     tokens: list[str],
     person_ids: list[int],
     limit: int = MAX_CONTEXT_MENTIONS,
-) -> list[Mention]:
+) -> tuple[list[Mention], dict[int, str]]:
     """Token OR-match over title/content, precision-cut in memory.
 
     Person-linked mentions join the pool even when their text misses the
@@ -138,30 +138,75 @@ def retrieve_mentions(
 
     token_set = set(tokens)
 
+    # Person-first: mentions linked to the asked-about person get guaranteed
+    # slots, ranked by recency — token matches fill the rest. A pure token
+    # ranking starves exactly the rows that answer "quién es / qué hizo".
+    linked: list[Mention] = []
+    linked_roles: dict[int, str] = {}
+    if person_ids:
+        rows = session.execute(
+            select(Mention, MentionPerson.role)
+            .join(MentionPerson, MentionPerson.mention_id == Mention.id)
+            .where(
+                Mention.client_id == client_id,
+                MentionPerson.person_id.in_(person_ids),
+            )
+            .order_by(Mention.published_at.desc().nullslast(), Mention.id.desc())
+            .limit(limit)
+        ).all()
+        for mention, role in rows:
+            linked.append(mention)
+            if role:
+                linked_roles[mention.id] = role
+    linked_ids = {mention.id for mention in linked}
+
     def score(mention: Mention) -> tuple[int, object]:
         haystack = f"{mention.title or ''} {mention.content or ''}".lower()
-        return (
-            sum(1 for token in token_set if token in haystack)
-            + (2 if mention.id in person_ids else 0),
-            mention.published_at or mention.ingested_at,
-        )
+        token_hits = sum(1 for token in token_set if token in haystack)
+        person_bonus = 2 if mention.id in person_ids else 0
+        return (token_hits + person_bonus, mention.published_at or mention.ingested_at)
 
-    candidates.sort(key=score, reverse=True)
-    return candidates[:limit]
+    pool: dict[int, Mention] = {mention.id: mention for mention in linked}
+    for mention in candidates:
+        pool.setdefault(mention.id, mention)
+    ranked = sorted(pool.values(), key=score, reverse=True)
+
+    forced_ids = linked_ids
+    rest = [mention for mention in ranked if mention.id not in forced_ids]
+    merged = linked + rest
+    seen: set[int] = set()
+    unique: list[Mention] = []
+    for mention in merged:
+        if mention.id in seen:
+            continue
+        seen.add(mention.id)
+        unique.append(mention)
+    return unique[:limit], linked_roles
 
 
-def build_context(mentions: list[Mention]) -> tuple[str, list[dict]]:
-    """Numbered context block + the citation metadata mirror."""
+def build_context(
+    mentions: list[Mention], linked_roles: dict[int, str] | None = None
+) -> tuple[str, list[dict]]:
+    """Numbered context block + the citation metadata mirror.
+
+    `linked_roles` annotates rows where the asked-about person appears in a
+    named capacity — the strongest signal for "quién es / qué hace".
+    """
+    linked_roles = linked_roles or {}
     blocks: list[str] = []
     citations: list[dict] = []
     for index, mention in enumerate(mentions, start=1):
         snippet = " ".join((mention.content or "").split())[:SNIPPET_CHARS]
         when = (mention.published_at or mention.ingested_at).strftime("%Y-%m-%d %H:%M")
+        role_line = ""
+        role = linked_roles.get(mention.id)
+        if role:
+            role_line = f"ROL: {role}\n"
         blocks.append(
             f"[{index}] {mention.title or '(sin título)'} — "
             f"{mention.source} — {when} — sentimiento: "
             f"{mention.sentiment.value if mention.sentiment else 'sin clasificar'}\n"
-            f"{snippet}\n{mention.url}"
+            f"{role_line}{snippet}\n{mention.url}"
         )
         citations.append(
             {
@@ -181,7 +226,7 @@ def answer_question(session: Session, *, client_id: int, question: str, enricher
     tokens = tokenize(question)
     persons = find_persons(session, client_id, tokens)
     person_ids = [person.id for person in persons]
-    mentions = retrieve_mentions(
+    mentions, linked_roles = retrieve_mentions(
         session, client_id=client_id, tokens=tokens, person_ids=person_ids
     )
     if not mentions:
@@ -192,14 +237,20 @@ def answer_question(session: Session, *, client_id: int, question: str, enricher
             matched_mentions=0,
         )
 
-    context, citations = build_context(mentions)
+    context, citations = build_context(mentions, linked_roles=linked_roles)
     person_hint = ""
     if persons:
         top = persons[0]
+        mentions_n = session.scalar(
+            select(func.count())
+            .selectFrom(MentionPerson)
+            .where(MentionPerson.person_id == top.id)
+        )
         person_hint = (
             f" La pregunta parece referirse a: {top.name}"
             + (f" ({top.role} de {top.org})" if top.role or top.org else "")
-            + "."
+            + (f", quien acumula {mentions_n} menciones en el monitoreo." if mentions_n else ".")
+            + " Las notas marcadas ROL tienen el cargo que detenta en esa cobertura."
         )
     user = (
         f"Pregunta: {question.strip()}\n\n"
