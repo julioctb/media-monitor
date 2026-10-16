@@ -134,3 +134,32 @@ export function formatDayLabel(isoDate: string): string {
 	return Number.isNaN(date.getTime()) ? isoDate : dayFormatter.format(date);
 }
 
+
+/** Lowercase, de-accented, punctuation-free token set for fuzzy comparisons. */
+function contentTokens(text: string): Set<string> {
+	return new Set(
+		text
+			.toLowerCase()
+			.normalize('NFD')
+			.replace(/[\u0300-\u036f]/g, '')
+			.replace(/[^a-z0-9\s]/g, ' ')
+			.split(/\s+/)
+			.filter((t) => t.length > 2)
+	);
+}
+
+/**
+ * Chip label for the canonical-event link: the event title when it adds
+ * information, or a plain call-to-action when it would just repeat the mention
+ * title (the cluster title is inherited from its first mention, source
+ * suffix included, so the two usually near-duplicate).
+ */
+export function eventChipLabel(mentionTitle: string | null, eventTitle: string): string {
+	const mentionTokens = contentTokens(mentionTitle ?? '');
+	const eventTokens = contentTokens(eventTitle);
+	if (mentionTokens.size === 0 || eventTokens.size === 0) return `Evento: ${eventTitle}`;
+	const overlap = [...eventTokens].filter((t) => mentionTokens.has(t)).length;
+	const duplicated =
+		overlap / eventTokens.size >= 0.8 || overlap / mentionTokens.size >= 0.8;
+	return duplicated ? 'Ver evento' : `Evento: ${eventTitle}`;
+}

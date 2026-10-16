@@ -1,6 +1,7 @@
 <script lang="ts">
 	import {
 		formatDisplayDateTime,
+		eventChipLabel,
 		sentimentBadgeClass,
 		sentimentLabel,
 		sourceLabel,
@@ -82,9 +83,10 @@
 	{#if event}
 		<a
 			href={`/events/${event.id}`}
+			title={event.title}
 			class="mt-2 inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800 ring-1 ring-inset ring-amber-600/20 hover:bg-amber-100"
 		>
-			Evento: {event.title}
+			{eventChipLabel(mention.title, event.title)}
 		</a>
 	{/if}
 
