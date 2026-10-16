@@ -1,12 +1,22 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import MentionCard from '$lib/components/MentionCard.svelte';
+	import EventGroup from '$lib/components/EventGroup.svelte';
 	import FeedFilterBar from '$lib/components/FeedFilterBar.svelte';
+	import { groupByEvent } from '$lib/grouping';
+	import type { FeedGroup } from '$lib/grouping';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
 
 	const keywordNames = $derived(new Map(data.keywords.map((k) => [k.id, k.text])));
+
+	/** Same event = same story: one card plus a collapsed coverage list. */
+	const groups = $derived(groupByEvent(data.mentions.items));
+
+	function keywordLabelFor(group: FeedGroup): string | null {
+		const keywordId = group.mentions[0]?.keyword_id ?? null;
+		return keywordId !== null ? (keywordNames.get(keywordId) ?? null) : null;
+	}
 
 	const activeKeywords = $derived(data.keywords.filter((k) => k.is_active));
 	const selectedKeywordId = $derived(data.filters.keyword_id ?? '');
@@ -97,19 +107,9 @@
 	</div>
 {:else}
 	<ul class="mt-6 grid gap-3" aria-label="Menciones">
-		{#each data.mentions.items as mention (mention.id)}
+		{#each groups as group (group.key)}
 			<li>
-				<MentionCard
-					{mention}
-					event={
-						mention.event_id != null && mention.event_title
-							? { id: mention.event_id, title: mention.event_title }
-							: null
-					}
-					keywordLabel={
-						mention.keyword_id !== null ? (keywordNames.get(mention.keyword_id) ?? null) : null
-					}
-				/>
+				<EventGroup {group} keywordLabel={keywordLabelFor(group)} />
 			</li>
 		{/each}
 	</ul>
