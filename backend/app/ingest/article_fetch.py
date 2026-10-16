@@ -191,6 +191,29 @@ def _fetch_page(url: str, client: httpx.Client) -> str | None:
         return None
 
 
+def resolve_publisher_url(url: str, client: httpx.Client | None = None) -> str:
+    """Canonical publisher URL for dedupe; passthrough for non-Google-News.
+
+    Google News `/rss/articles/` links are per-reader redirect URLs: the same
+    article ingested via news_rss and rss_custom hashes differently and lands
+    twice. Resolving to the publisher URL (same batchexchange trick the content
+    fetch uses) makes both paths collide on one url_hash. Any failure returns
+    the input untouched — dedupe must never break ingest.
+    """
+    if not url or not _is_google_news(url):
+        return url
+    own_client = client is None
+    http = client or httpx.Client(timeout=FETCH_TIMEOUT_S, follow_redirects=True)
+    try:
+        return _resolve_google_news_redirect(url, http) or url
+    except Exception as exc:  # noqa: BLE001 - canonicalization is best-effort
+        log.debug("publisher url resolution failed for %s: %s", url, exc)
+        return url
+    finally:
+        if own_client:
+            http.close()
+
+
 def fetch_article(url: str, client: httpx.Client | None = None) -> str | None:
     """Article body for a mention URL; None on ANY failure.
 

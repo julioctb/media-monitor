@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.classifications.base import Classifier, classification_results
 from app.enrich.summary import maybe_summarize_event
+from app.ingest import article_fetch
 from app.ingest.article_fetch import fetcher_for
 from app.ingest.base import RawMention, SourceAdapter
 from app.ingest.events import assign_mention_to_event
@@ -175,11 +176,20 @@ def persist_raw_mentions(
             except Exception as exc:  # noqa: BLE001 - sentiment must not break ingest
                 log.warning("sentiment analysis failed: %s", exc)
 
+        # Canonicalize Google News redirect links to the publisher URL so the
+        # same story arriving via news_rss and rss_custom dedupes to one row.
+        # Best-effort: resolution failure keeps the original URL.
+        try:
+            item_url = article_fetch.resolve_publisher_url(item.url)
+        except Exception as exc:  # noqa: BLE001 - dedupe must not break ingest
+            log.warning("url canonicalization failed for %s: %s", item.url, exc)
+            item_url = item.url
+
         created = queries.insert_mention(
             session,
             client_id=client_id,
             source=item.source,
-            url=item.url,
+            url=item_url,
             keyword_id=keyword.id if keyword else None,
             external_id=item.external_id,
             title=item.title,
