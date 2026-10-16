@@ -65,6 +65,9 @@ export interface Mention {
 	classifications: Classification[];
 	/** F3 persons linked via mention_persons; absent on stub payloads. */
 	persons?: PersonRef[];
+	/** Canonical event cluster; absent on stub payloads. */
+	event_id?: number | null;
+	event_title?: string | null;
 }
 
 /** Person chip on a mention card: id for the detail link, name for display. */

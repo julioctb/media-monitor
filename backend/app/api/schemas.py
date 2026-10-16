@@ -64,6 +64,10 @@ class MentionOut(BaseModel):
     # F3: persons linked via mention_persons; attached batched by the list
     # endpoint (transient attr), never a lazy relationship per row.
     persons: list[PersonRefOut] = []
+    # Canonical event context, attached batched by the list endpoint
+    # (event_title is a transient attr; event_id comes from the column).
+    event_id: int | None = None
+    event_title: str | None = None
 
 
 class MentionPage(BaseModel):

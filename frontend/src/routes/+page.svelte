@@ -101,6 +101,11 @@
 			<li>
 				<MentionCard
 					{mention}
+					event={
+						mention.event_id != null && mention.event_title
+							? { id: mention.event_id, title: mention.event_title }
+							: null
+					}
 					keywordLabel={
 						mention.keyword_id !== null ? (keywordNames.get(mention.keyword_id) ?? null) : null
 					}

@@ -214,6 +214,34 @@ def test_mentions_empty_state(api) -> None:
     assert response.json() == {"items": [], "total": 0}
 
 
+def test_mentions_include_canonical_event(api, db) -> None:
+    """Feed rows carry event_id/event_title so the UI can chip the cluster."""
+    client_id = first_client_id(db)
+    event = seed_event(
+        db,
+        client_id,
+        "Campaña Échale los kilos",
+        now_utc() - timedelta(hours=2),
+        now_utc(),
+        mention_count=1,
+    )
+    seed_mention(
+        db,
+        client_id,
+        "https://example.com/evented",
+        title="Con evento",
+        event_id=event.id,
+    )
+    seed_mention(db, client_id, "https://example.com/plain", title="Sin evento")
+
+    body = api.get("/api/mentions").json()
+    by_url = {item["url"]: item for item in body["items"]}
+    assert by_url["https://example.com/evented"]["event_id"] == event.id
+    assert by_url["https://example.com/evented"]["event_title"] == "Campaña Échale los kilos"
+    assert by_url["https://example.com/plain"]["event_id"] is None
+    assert by_url["https://example.com/plain"]["event_title"] is None
+
+
 @pytest.fixture()
 def mentions_seeded(db):
     """Three mentions: two classified, one with NULL sentiment."""
