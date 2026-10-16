@@ -78,7 +78,7 @@
 		</label>
 
 		<div class="rounded-lg border border-slate-200 bg-slate-50/60 p-3">
-			<p class="text-xs font-medium text-slate-500">Sentiment shift alert (saved searches)</p>
+			<p class="text-xs font-medium text-slate-500">Alerta de viraje de sentimiento (búsquedas guardadas)</p>
 			<label class="mt-2 flex items-center gap-2 text-sm text-slate-700">
 				<input
 					type="checkbox"
@@ -87,10 +87,10 @@
 					checked={current.sentiment_shift_enabled}
 					class="size-4 rounded border-slate-300 text-slate-900 focus:ring-slate-300"
 				/>
-				Notify when the positive/negative balance swings
+				Cuando el balance positivo/negativo gira más allá del umbral
 			</label>
 			<label for="a-shift-threshold" class="mt-2 block text-xs font-medium text-slate-500">
-				Threshold in percentage points
+				Umbral en puntos porcentuales
 			</label>
 			<input
 				id="a-shift-threshold"
