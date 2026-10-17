@@ -33,6 +33,14 @@
 	});
 	const totals = $derived(summary?.content.totals ?? {});
 
+	/** Spanish labels for the totals row; unknown keys fall back to the raw key. */
+	const TOTAL_LABELS: Record<string, string> = {
+		sources: 'Fuentes',
+		mentions: 'Menciones',
+		keywords_with_mentions: 'Palabras con menciones',
+		silent_keywords: 'Palabras sin menciones'
+	};
+
 	const modeLabel: Record<string, string> = {
 		heuristic: 'Plantilla',
 		llm: 'IA'
@@ -169,7 +177,9 @@
 		{#each Object.entries(totals) as [key, value] (key)}
 			<div class="rounded-xl border border-slate-200 bg-white p-4 text-center shadow-sm">
 				<div class="text-2xl font-semibold text-slate-900">{value}</div>
-				<div class="text-xs uppercase tracking-wide text-slate-500">{key.replaceAll('_', ' ')}</div>
+				<div class="text-xs uppercase tracking-wide text-slate-500">
+					{TOTAL_LABELS[key] ?? key.replaceAll('_', ' ')}
+				</div>
 			</div>
 		{/each}
 	</section>
