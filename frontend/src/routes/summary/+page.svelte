@@ -104,14 +104,14 @@
 	</section>
 
 	<div class="mt-6 grid gap-6 lg:grid-cols-3">
-		<section aria-label="Por fuente" class="lg:col-span-2">
+		<section aria-label="Por fuente" class="min-w-0 lg:col-span-2">
 			<h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Por fuente</h2>
 			{#if perSource.length === 0}
 				<p class="mt-2 text-sm text-slate-500">Sin menciones registradas ese día.</p>
 			{:else}
 				<div class="mt-3 grid gap-4 sm:grid-cols-2">
 					{#each perSource as [source, info] (source)}
-						<article class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+						<article class="min-w-0 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
 							<header class="flex items-baseline justify-between">
 								<h3 class="font-medium text-slate-900">{source}</h3>
 								<span class="text-sm text-slate-500">{info.count}</span>
