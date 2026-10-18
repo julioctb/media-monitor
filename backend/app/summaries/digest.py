@@ -52,6 +52,14 @@ def gaps_for(
     )
 
 
+def _single_topic(mention) -> str | None:
+    """The mention's canonical topic label, else None."""
+    for c in mention.classifications:
+        if c.classifier == "topic":
+            return c.label
+    return None
+
+
 def build_digest_facts(
     session,
     *,
@@ -59,11 +67,15 @@ def build_digest_facts(
     day,
     tz: str,
     focus_person_id: int | None = None,
+    mentions: list | None = None,
 ) -> dict:
     """Deterministic facts for one client-day. No LLM, no prose.
 
     Window, source counts and the SQLite/PostgreSQL tz dance mirror
     builder.build_daily_summary (UTC walls over mentions.published_at).
+    ``mentions`` optionally injects the day's rows (the composer already
+    queried them); otherwise they are loaded here. Ordered by id so the
+    section layout is stable across engines.
     """
     from collections import Counter
 
@@ -75,15 +87,20 @@ def build_digest_facts(
     start, end = day_window(day, tz)
     utc_start = start.astimezone(timezone.utc)
     utc_end = end.astimezone(timezone.utc)
-    mentions = list(
-        session.scalars(
-            select(Mention).where(
-                Mention.client_id == client_id,
-                Mention.published_at >= utc_start,
-                Mention.published_at < utc_end,
+    if mentions is None:
+        mentions = list(
+            session.scalars(
+                select(Mention)
+                .where(
+                    Mention.client_id == client_id,
+                    Mention.published_at >= utc_start,
+                    Mention.published_at < utc_end,
+                )
+                .order_by(Mention.id)
             )
         )
-    )
+    else:
+        mentions = sorted(mentions, key=lambda m: m.id)
 
     by_source: Counter[str] = Counter(m.source.value for m in mentions)
     by_topic: Counter[str] = Counter(
@@ -107,6 +124,31 @@ def build_digest_facts(
     noticias: list[dict] = []
     for event_id, items in grouped.items():
         event = events_by_id.get(event_id) if event_id is not None else None
+        if event is None:
+            # Loose mentions: each its own baja item (grouping unrelated
+            # rows would fabricate a story).
+            for mention in items:
+                noticias.append(
+                    {
+                        "event_id": None,
+                        "title": mention.title,
+                        "summary": None,
+                        "topic": _single_topic(mention),
+                        "sources": [
+                            {
+                                "source": mention.source.value,
+                                "url": mention.url,
+                                "title": mention.title,
+                            }
+                        ],
+                        "confidence": "baja",
+                        "person_ids": sorted(
+                            {p.id for p in mention.person_links}
+                        ),
+                        "why_it_matters": None,
+                    }
+                )
+            continue
         topic_counts = Counter(
             c.label for m in items for c in m.classifications if c.classifier == "topic"
         )
@@ -115,8 +157,8 @@ def build_digest_facts(
         noticias.append(
             {
                 "event_id": event_id,
-                "title": event.title if event else items[0].title,
-                "summary": event.summary if event else None,
+                "title": event.title,
+                "summary": event.summary,
                 "topic": topic,
                 "sources": [
                     {"source": m.source.value, "url": m.url, "title": m.title}
@@ -212,6 +254,99 @@ def build_digest_facts(
         "personas": personas,
         "pendientes": [],  # composed at T5: silent keywords + coverage gaps
     }
+
+
+def apply_narrative(content: dict, payload: object) -> list[str]:
+    """Merge LLM narrative fields into ``content``; return digest errors.
+
+    Expected payload (anything missing or malformed is skipped; the
+    deterministic sections are never rewritten):
+
+        {"headline": str,
+         "items": [{"index": int, "summary": str, "why_it_matters": str}],
+         "rectora": {"tone": str, "watch": str}}
+    """
+    if not isinstance(content, dict) or not isinstance(payload, dict):
+        return ["payload must be an object"]
+    items = payload.get("items")
+    noticias = content.get("noticias")
+    if items is not None:
+        if not isinstance(items, list):
+            return ["items must be a list"]
+        for entry in items:
+            if not isinstance(entry, dict) or not isinstance(noticias, list):
+                continue
+            index = entry.get("index")
+            if not isinstance(index, int) or not 0 <= index < len(noticias):
+                continue
+            target = noticias[index]
+            if not isinstance(target, dict):
+                continue
+            for key in ("summary", "why_it_matters"):
+                value = entry.get(key)
+                if isinstance(value, str) and value.strip():
+                    target[key] = value.strip()
+    rectora = payload.get("rectora")
+    if isinstance(rectora, dict) and isinstance(content.get("rectora"), dict):
+        for key in ("tone", "watch"):
+            value = rectora.get(key)
+            if isinstance(value, str) and value.strip():
+                content["rectora"][key] = value.strip()
+    return validate_digest(content)
+
+
+def render_plain_text(content: dict, narrative: str) -> str:
+    """Sectioned plain text (RAG chunk + readable fallback), es mirrors UI."""
+    lines = [narrative, ""]
+    lines.append("NOTICIAS")
+    for item in content.get("noticias") or []:
+        confidence = item.get("confidence") or "?"
+        lines.append(f"- [{confidence}] {item.get('title') or '(sin título)'}")
+        if item.get("summary"):
+            lines.append(f"  {item['summary']}")
+        if item.get("why_it_matters"):
+            lines.append(f"  Por qué importa: {item['why_it_matters']}")
+        sources = ", ".join(
+            f"{s.get('source')}" for s in item.get("sources") or []
+        )
+        if sources:
+            lines.append(f"  Fuentes: {sources}")
+    lines.append("")
+    lines.append("RECTORA")
+    rectora = content.get("rectora") or {}
+    if rectora.get("mention_count"):
+        for action in rectora.get("actions") or []:
+            lines.append(f"- {action.get('title')}")
+        if rectora.get("tone"):
+            lines.append(f"  Tono: {rectora['tone']}")
+        if rectora.get("watch"):
+            lines.append(f"  Vigilar: {rectora['watch']}")
+    else:
+        lines.append("- Sin menciones de la persona focal en la ventana.")
+    if rectora.get("gaps"):
+        lines.append(f"  Gap: {rectora['gaps']}")
+    lines.append("")
+    lines.append("REDES")
+    for source, data in (content.get("redes") or {}).items():
+        note = f" — {data['note']}" if isinstance(data, dict) and data.get("note") else ""
+        count = data.get("count") if isinstance(data, dict) else data
+        lines.append(f"- {source}: {count}{note}")
+    lines.append("")
+    lines.append("PERSONAS")
+    for person in content.get("personas") or []:
+        role = " · ".join(p for p in (person.get("role"), person.get("org")) if p)
+        suffix = f" ({role})" if role else ""
+        fact = f": {person['fact']}" if person.get("fact") else ""
+        lines.append(
+            f"- {person.get('name')}{suffix} — {person.get('mention_count', 0)} menciones{fact}"
+        )
+    lines.append("")
+    lines.append("PENDIENTES")
+    for pending in content.get("pendientes") or []:
+        lines.append(f"- {pending}")
+    if not content.get("pendientes"):
+        lines.append("- ninguno")
+    return "\n".join(lines)
 
 
 def validate_digest(content: object) -> list[str]:

@@ -72,6 +72,10 @@ class ClientSettings(IntPk, Base):
         # queries._validate_digest_hour, clamped again on read.
         mapped_column(Integer, nullable=False, default=21, server_default="21")
     )
+    digest_focus_person_id: Mapped[int | None] = (
+        # The digest's RECTORA section tracks this person (nullable = none).
+        mapped_column(Integer, nullable=True)
+    )
     gdelt_enabled: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default="1"
     )

@@ -1,9 +1,10 @@
-"""Daily summary tests (T11): builder, tz window, LLM gating, API, worker job.
+"""Daily digest tests (T11 -> digest v2): builder, tz window, LLM gating, API, worker.
 
 Fully offline: the LLM path is either injected as a callable or faked at
 httpx.post; the heuristic path never touches the network.
 """
 
+import json
 from datetime import datetime, timezone
 
 import pytest
@@ -16,6 +17,7 @@ from app.main import create_app
 from app.models import (
     Client,
     ClientSettings,
+    Event,
     Keyword,
     MentionSource,
     queries,
@@ -23,6 +25,7 @@ from app.models import (
 from app.settings_runtime import EffectiveSettings
 from app.summaries import build_daily_summary
 from app.summaries.builder import day_window, summary_generator
+from app.summaries.digest import validate_digest
 
 DAY = datetime(2026, 10, 9, 18, 0, tzinfo=timezone.utc)  # 12:00 in Mexico City
 
@@ -43,8 +46,8 @@ def add_keyword(session, client_id, text, active=True):
     return row
 
 
-def add_mention(session, client_id, title, published, *, source=MentionSource.news_rss, keyword_id=None):
-    return queries.insert_mention(
+def add_mention(session, client_id, title, published, *, source=MentionSource.news_rss, keyword_id=None, event_id=None):
+    mention = queries.insert_mention(
         session,
         client_id=client_id,
         source=source,
@@ -53,66 +56,86 @@ def add_mention(session, client_id, title, published, *, source=MentionSource.ne
         keyword_id=keyword_id,
         published_at=published,
     )
+    if event_id is not None and mention is not None:
+        mention.event_id = event_id
+        session.commit()
+    return mention
 
 
 # --------------------------------------------------------------------- builder
 
 
-def test_heuristic_builder_aggregates_sources_keywords_silent(session):
+def test_heuristic_builder_shape_v2(session):
     client = add_client(session)
     buap = add_keyword(session, client.id, "BUAP")
     lilia = add_keyword(session, client.id, "lilia cedillo")
-    add_keyword(session, client.id, "sin datos")  # active, no mentions -> silent
+    add_keyword(session, client.id, "sin datos")  # active, no mentions -> pending
 
     add_mention(session, client.id, "BUAP abre convocatoria", DAY, keyword_id=buap.id)
-    add_mention(session, client.id, "Nota general sin keyword", DAY)
-    add_mention(
-        session,
-        client.id,
-        "Cedillo encabeza mesa",
-        DAY,
-        source=MentionSource.x_twitter,
-        keyword_id=lilia.id,
-    )
+    add_mention(session, client.id, "Cedillo encabeza mesa", DAY, keyword_id=lilia.id)
 
     row = build_daily_summary(session, client_id=client.id, day=DAY.date())
 
     assert row.mode == "heuristic"
     assert row.summary_date == DAY.date()
     content = row.content
-    assert content["per_source"]["news_rss"]["count"] == 2
-    assert content["per_source"]["x_twitter"]["count"] == 1
-    # Newest-first titles, capped at 3.
-    assert content["per_source"]["news_rss"]["top_titles"] == [
-        "Nota general sin keyword",
+    assert content["schema"] == 2
+    assert validate_digest(content) == []
+    assert content["coverage"]["total"] == 2
+    assert content["coverage"]["by_source"] == {"news_rss": 2}
+    # No events ingested -> every mention is its own baja-confidence item.
+    assert len(content["noticias"]) == 2
+    assert {n["confidence"] for n in content["noticias"]} == {"baja"}
+    assert {n["title"] for n in content["noticias"]} == {
         "BUAP abre convocatoria",
-    ]
-    assert content["per_keyword"]["BUAP"]["count"] == 1
-    assert content["per_keyword"]["lilia cedillo"]["top_titles"] == [
-        "Cedillo encabeza mesa"
-    ]
-    assert content["silent_keywords"] == ["sin datos"]
-    assert content["totals"] == {
-        "mentions": 3,
-        "sources": 2,
-        "keywords_with_mentions": 2,
-        "silent_keywords": 1,
+        "Cedillo encabeza mesa",
     }
-    # Narrative: date, total, dominant source, keyword clauses, silent note.
-    assert "9 de octubre de 2026" in row.narrative
-    assert "se registraron 3 menciones" in row.narrative
-    assert "La fuente dominante fue news_rss" in row.narrative
-    assert "Sobre BUAP se registraron 1 mención" in row.narrative
-    assert "«BUAP abre convocatoria»" in row.narrative
-    assert "Sin menciones: sin datos" in row.narrative
-    # Plain text render for RAG: narrative plus every structured section.
+    assert content["rectora"]["person_id"] is None
+    assert content["redes"]["x"]["count"] == 0
+    # Pending: the silent keyword, human-readable.
+    assert any("sin datos" in p for p in content["pendientes"])
+    # Plain text render for RAG: sectioned, deterministic.
     plain = content["plain_text"]
-    assert row.narrative in plain
-    assert "- news_rss: 2 menciones." in plain
-    assert "- BUAP: 1 mención." in plain
-    assert "- sin datos: sin menciones." in plain
+    assert "NOTICIAS" in plain
+    assert "RECTORA" in plain
+    assert "REDES" in plain
+    assert "PERSONAS" in plain
+    assert "PENDIENTES" in plain
+    assert "BUAP abre convocatoria" in plain
     # Stored exactly once, readable back through the query helper.
     assert queries.get_daily_summary(session, client.id, DAY.date()).id == row.id
+
+
+def test_event_grouping_carries_confidence(session):
+    client = add_client(session)
+    event = Event(
+        client_id=client.id,
+        title="BUAP inaugura edificio en Zacapoaxtla",
+        title_tokens="buap inaugura edificio",
+        mention_count=2,
+        source_count=2,
+        first_seen_at=DAY,
+        last_seen_at=DAY,
+    )
+    session.add(event)
+    session.flush()
+    add_mention(session, client.id, "BUAP inaugura edificio", DAY, event_id=event.id)
+    add_mention(
+        session,
+        client.id,
+        "Edificio inaugurado en Zacapoaxtla",
+        DAY,
+        source=MentionSource.rss_custom,
+        event_id=event.id,
+    )
+
+    row = build_daily_summary(session, client_id=client.id, day=DAY.date())
+
+    noticias = row.content["noticias"]
+    assert len(noticias) == 1
+    assert noticias[0]["event_id"] == event.id
+    assert noticias[0]["confidence"] == "media"
+    assert {s["source"] for s in noticias[0]["sources"]} == {"news_rss", "rss_custom"}
 
 
 def test_day_window_follows_settings_timezone(session):
@@ -136,44 +159,68 @@ def test_day_window_follows_settings_timezone(session):
         datetime(2026, 10, 9, 5, 0, tzinfo=timezone.utc),
     )
     row = build_daily_summary(session, client_id=client.id, day=DAY.date())
-    assert row.content["totals"]["mentions"] == 1
-    assert row.content["per_source"]["news_rss"]["top_titles"] == ["Noche MX"]
+    assert row.content["coverage"]["total"] == 1
+    assert row.content["coverage"]["by_source"] == {"news_rss": 1}
     assert row.content["timezone"] == MX_TZ
 
 
-def test_llm_mode_with_injected_generator_and_fallback(session):
+def _digest_payload() -> str:
+    return json.dumps(
+        {
+            "headline": "Titular del modelo.",
+            "items": [
+                {"index": 0, "summary": "Síntesis del modelo.", "why_it_matters": "Porque sí."}
+            ],
+            "rectora": {"tone": "neutral", "watch": "votación del 28"},
+        }
+    )
+
+
+def test_llm_mode_fields_applied_and_fallback(session):
     client = add_client(session)
-    buap = add_keyword(session, client.id, "BUAP")
-    add_mention(session, client.id, "BUAP publica", DAY, keyword_id=buap.id)
+    add_mention(session, client.id, "BUAP publica", DAY)
 
     captured: dict[str, str] = {}
 
     def good(prompt: str) -> str:
         captured["prompt"] = prompt
-        return "Narrativa generada por el modelo."
+        return _digest_payload()
 
-    row = build_daily_summary(
-        session, client_id=client.id, day=DAY.date(), generate=good
-    )
+    row = build_daily_summary(session, client_id=client.id, day=DAY.date(), generate=good)
     assert row.mode == "llm"
-    assert row.narrative == "Narrativa generada por el modelo."
-    # The prompt carries the verified stats only.
-    assert '"per_source"' in captured["prompt"]
+    assert row.narrative == "Titular del modelo."
+    assert row.content["noticias"][0]["summary"] == "Síntesis del modelo."
+    assert row.content["noticias"][0]["why_it_matters"] == "Porque sí."
+    assert row.content["rectora"]["tone"] == "neutral"
+    # The prompt carries the verified facts only.
+    assert '"noticias"' in captured["prompt"]
     assert "2026-10-09" in captured["prompt"]
-    # Structured content is untouched by the narrative rewrite.
-    assert row.content["totals"]["mentions"] == 1
+    # Deterministic sections untouched by the narrative pass.
+    assert row.content["coverage"]["total"] == 1
 
     def boom(prompt: str) -> str:
         raise RuntimeError("provider down")
 
-    row = build_daily_summary(
-        session, client_id=client.id, day=DAY.date(), generate=boom
-    )
+    row = build_daily_summary(session, client_id=client.id, day=DAY.date(), generate=boom)
     assert row.mode == "heuristic"
     assert "se registraron 1 mención" in row.narrative
 
 
-def test_empty_day_stays_heuristic_and_lists_silent(session):
+def test_llm_garbage_payload_falls_back(session):
+    client = add_client(session)
+    add_mention(session, client.id, "BUAP publica", DAY)
+
+    def garbage(prompt: str) -> str:
+        return "esto no es json {"
+
+    row = build_daily_summary(
+        session, client_id=client.id, day=DAY.date(), generate=garbage
+    )
+    assert row.mode == "heuristic"
+    assert validate_digest(row.content) == []
+
+
+def test_empty_day_stays_heuristic_and_lists_pending(session):
     client = add_client(session)
     add_keyword(session, client.id, "BUAP")
 
@@ -186,7 +233,9 @@ def test_empty_day_stays_heuristic_and_lists_silent(session):
     assert row.mode == "heuristic"
     assert "no se registraron menciones" in row.narrative
     assert "Sin cobertura para: BUAP." in row.narrative
-    assert row.content["totals"]["mentions"] == 0
+    assert row.content["coverage"]["total"] == 0
+    assert row.content["noticias"] == []
+    assert any("BUAP" in p for p in row.content["pendientes"])
 
 
 def test_summary_generator_gating():
@@ -203,8 +252,7 @@ def test_summary_generator_gating():
 
 def test_openai_provider_path_via_fake_http(monkeypatch, session):
     client = add_client(session)
-    buap = add_keyword(session, client.id, "BUAP")
-    add_mention(session, client.id, "BUAP publica resultados", DAY, keyword_id=buap.id)
+    add_mention(session, client.id, "BUAP publica resultados", DAY)
     session.add(
         ClientSettings(
             client_id=client.id, ai_provider="openai", ai_api_key="sk-test"
@@ -221,7 +269,7 @@ def test_openai_provider_path_via_fake_http(monkeypatch, session):
         def json(self) -> dict:
             return {
                 "choices": [
-                    {"message": {"content": " Cierre informativo del modelo. "}}
+                    {"message": {"content": _digest_payload()}}
                 ]
             }
 
@@ -235,25 +283,24 @@ def test_openai_provider_path_via_fake_http(monkeypatch, session):
 
     row = build_daily_summary(session, client_id=client.id, day=DAY.date())
     assert row.mode == "llm"
-    assert row.narrative == "Cierre informativo del modelo."
+    assert row.narrative == "Titular del modelo."
     assert calls["url"] == "https://api.openai.com/v1/chat/completions"
     assert calls["headers"]["Authorization"] == "Bearer sk-test"
     body = calls["json"]
     assert body["model"] == "gpt-4o-mini"
     assert body["temperature"] == 0
     assert body["messages"][0]["role"] == "system"
-    assert "BUAP" in body["messages"][1]["content"]
+    assert "noticias" in body["messages"][1]["content"]
 
 
 def test_upsert_regenerates_same_row(session):
     client = add_client(session)
-    buap = add_keyword(session, client.id, "BUAP")
     first = build_daily_summary(session, client_id=client.id, day=DAY.date())
-    add_mention(session, client.id, "BUAP amplía", DAY, keyword_id=buap.id)
+    add_mention(session, client.id, "BUAP amplía", DAY)
     second = build_daily_summary(session, client_id=client.id, day=DAY.date())
 
     assert second.id == first.id
-    assert second.content["totals"]["mentions"] == 1
+    assert second.content["coverage"]["total"] == 1
     assert len(queries.list_daily_summaries(session, client.id)) == 1
 
 
@@ -307,8 +354,7 @@ def test_api_summary_roundtrip(api):
     assert http.get(f"/api/clients/{client_id}/summaries").json() == []
     assert http.get(f"/api/clients/{client_id}/summaries/2026-10-09").json() is None
 
-    buap = add_keyword(db, client_id, "BUAP")
-    add_mention(db, client_id, "BUAP publica", DAY, keyword_id=buap.id)
+    add_mention(db, client_id, "BUAP publica", DAY)
 
     generated = http.post(
         f"/api/clients/{client_id}/summaries/generate", json={"date": "2026-10-09"}
@@ -317,7 +363,8 @@ def test_api_summary_roundtrip(api):
     body = generated.json()
     assert body["summary_date"] == "2026-10-09"
     assert body["mode"] == "heuristic"
-    assert body["content"]["totals"]["mentions"] == 1
+    assert body["content"]["schema"] == 2
+    assert body["content"]["coverage"]["total"] == 1
 
     fetched = http.get(f"/api/clients/{client_id}/summaries/2026-10-09").json()
     assert fetched["id"] == body["id"]
@@ -385,16 +432,28 @@ def test_worker_daily_summary_job(tmp_path, monkeypatch):
     check.close()
     assert row is not None
     assert row.mode == "heuristic"
+    assert row.content["schema"] == 2
     engine.dispose()
 
 
 def test_worker_scheduler_has_daily_summary_job(monkeypatch):
-    """build_scheduler registers the 21:00 summary cron in the settings tz."""
+    """build_scheduler registers the digest cron in the settings tz."""
     from app import worker
 
     monkeypatch.setattr(worker, "_schedule_timezone", lambda: MX_TZ)
+    monkeypatch.setattr(worker, "_digest_hour", lambda: 21)
     scheduler = worker.build_scheduler()
     entries = {job.id: job for job in scheduler.get_jobs()}
     job = entries["daily_summary"]
     assert "hour='21'" in str(job.trigger)
     assert "minute='0'" in str(job.trigger)
+
+
+def test_worker_scheduler_honors_digest_hour_setting(monkeypatch):
+    from app import worker
+
+    monkeypatch.setattr(worker, "_schedule_timezone", lambda: MX_TZ)
+    monkeypatch.setattr(worker, "_digest_hour", lambda: 7)
+    scheduler = worker.build_scheduler()
+    entries = {job.id: job for job in scheduler.get_jobs()}
+    assert "hour='7'" in str(entries["daily_summary"].trigger)

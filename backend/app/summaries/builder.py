@@ -1,22 +1,19 @@
-"""Daily summary builder (T11).
+"""Daily digest builder (T11 -> digest v2).
 
-Deterministic pipeline, always run:
+Pipeline, always run:
 
   1. day window in the settings timezone (zoneinfo) over mentions.published_at,
-  2. per-source and per-keyword counts plus top titles (newest first, max 3),
-  3. silent keywords: active keywords with no mention that day,
-  4. Spanish heuristic narrative from a fixed template,
-  5. a plain-text render of everything, stored as content["plain_text"]
-     so the future RAG chat can chunk the day without parsing JSON.
+  2. deterministic facts via summaries.digest.build_digest_facts (events,
+     personas, topics, rectora slice, redes counts, gaps),
+  3. silent keywords become the PENDIENTES section,
+  4. LLM narrative pass: the model ONLY fills headline / per-item
+     summary+why_it_matters / rectora tone+watch, merged by
+     digest.apply_narrative; any failure keeps the heuristic mode,
+  5. digest.render_plain_text stores the sectioned plain text as
+     content["plain_text"] for RAG and quick reading.
 
-LLM narrative: when the effective settings select the ``openai`` provider
-with an API key, the same chat-completions request shape as the sentiment
-analyzer (app.sentiment.api_analyzer) rewrites the narrative in 2-4
-journalistic Spanish sentences based only on the computed stats. Any
-failure — transport, shape, empty body — falls back to the heuristic
-template and ``mode`` stays ``heuristic``. The structured content never
-depends on the LLM, which is also skipped for empty days (the template
-already says it all; there is nothing to summarize).
+The structured content never depends on the LLM, which is also skipped for
+empty days (nothing to summarize); mode stays ``heuristic`` then.
 """
 
 import json
@@ -28,15 +25,20 @@ from zoneinfo import ZoneInfo
 
 import httpx
 from sqlalchemy import select
-from sqlalchemy.orm import Session
 
 from app.models import Mention, queries
 from app.models.settings import DEFAULT_OPENAI_BASE_URL
 from app.settings_runtime import EffectiveSettings, resolve_effective_settings
+from app.summaries.digest import (
+    DIGEST_SCHEMA_VERSION,
+    apply_narrative,
+    build_digest_facts,
+    render_plain_text,
+)
 
 log = logging.getLogger("summaries.builder")
 
-#: Spanish month names for the heuristic narrative.
+#: Spanish month names for the heuristic headline.
 MONTHS_ES = (
     "enero",
     "febrero",
@@ -52,11 +54,7 @@ MONTHS_ES = (
     "diciembre",
 )
 
-#: Top titles kept per source/keyword in the content JSON.
-TOP_TITLES = 3
-
-#: Keyword clauses (mentioned + silent) rendered inside the heuristic
-#: narrative; the full lists always live in the content JSON.
+#: Silent keywords shown inside the heuristic headline.
 MAX_KEYWORDS_NARRATIVE = 5
 
 # Chat-completions transport constants, mirroring app.sentiment.api_analyzer.
@@ -66,9 +64,12 @@ ATTEMPTS = 2
 BACKOFF_S = 0.5
 
 SYSTEM_PROMPT = (
-    "Eres editor de monitoreo de medios. Redacta de 2 a 4 oraciones "
-    "periodísticas en español sobre la jornada usando ÚNICAMENTE los datos "
-    "del resumen. No inventes datos ni títulos que no estén en la lista."
+    "Eres editor de monitoreo de medios. Recibes los HECHOS verificados del "
+    "día en JSON (noticias, rectora, redes, personas). Devuelve EXCLUSIVAMENTE "
+    "un objeto JSON con: headline (1-2 oraciones ejecutivas del día), items "
+    "[{index, summary, why_it_matters}] para las noticias que lo requieran, y "
+    "rectora {tone, watch}. Prohibido inventar datos, fuentes o títulos: usa "
+    "únicamente los hechos. Español periodístico, máximo 2 oraciones por campo."
 )
 
 
@@ -97,27 +98,44 @@ def day_window(day: date, tz_name: str) -> tuple[datetime, datetime]:
     return start, start + timedelta(days=1)
 
 
-def _sort_stamp(mention) -> tuple:
-    """Newest-first sort key; naive stamps are treated as UTC."""
-    ts = mention.published_at
-    if ts is None:
-        return (0, datetime.min.replace(tzinfo=timezone.utc), mention.id)
-    if ts.tzinfo is None:
-        ts = ts.replace(tzinfo=timezone.utc)
-    return (1, ts, mention.id)
-
-
-def _source_tag(mention) -> str:
-    value = mention.source
-    return str(value.value) if hasattr(value, "value") else str(value)
+def _noun(count: int) -> str:
+    return "mención" if count == 1 else "menciones"
 
 
 def _human_day(day: date) -> str:
     return f"{day.day} de {MONTHS_ES[day.month - 1]} de {day.year}"
 
 
+def _heuristic_headline(day: date, total: int, silent: list[str], by_source: dict) -> str:
+    """Fixed-template Spanish headline; deterministic for a given input."""
+    human = _human_day(day)
+    if total == 0:
+        sentence = f"Hoy {human} no se registraron menciones."
+        if silent:
+            shown = ", ".join(silent[:MAX_KEYWORDS_NARRATIVE])
+            sentence += f" Sin cobertura para: {shown}."
+        return sentence
+
+    parts = [f"Hoy {human} se registraron {total} {_noun(total)}."]
+    if by_source:
+        dominant = max(by_source.items(), key=lambda kv: (kv[1], kv[0]))[0]
+        parts.append(f"La fuente con más notas fue {dominant}.")
+    if silent:
+        shown = ", ".join(silent[:MAX_KEYWORDS_NARRATIVE])
+        parts.append(f"Sin menciones: {shown}.")
+    return " ".join(parts)
+
+
+def _digest_prompt(day: date, facts: dict) -> str:
+    return (
+        f"Digest del {day.isoformat()} (todas las cifras y títulos son datos "
+        f"verificados; el items[i].index corres a noticias[i]):\n"
+        f"{json.dumps(facts, ensure_ascii=False, default=str)}"
+    )
+
+
 def _openai_generator(effective: EffectiveSettings) -> Callable[[str], str]:
-    """Callable prompt->narrative for the configured provider.
+    """Callable prompt->payload for the configured provider.
 
     Same request shape as the sentiment analyzer: POST {base}/chat/
     completions, Bearer key, model from settings, temperature 0. Raises on
@@ -179,98 +197,18 @@ def summary_generator(effective: EffectiveSettings) -> Callable[[str], str] | No
     return _openai_generator(effective)
 
 
-def _stats_prompt(day: date, stats: dict) -> str:
-    return (
-        f"Resumen del {day.isoformat()} (todas las cifras son datos "
-        f"verificados):\n{json.dumps(stats, ensure_ascii=False)}"
-    )
-
-
-def _heuristic_narrative(
-    day: date,
-    total: int,
-    per_source: dict,
-    per_keyword: dict,
-    silent: list[str],
-) -> str:
-    """Fixed-template Spanish narrative; deterministic for a given input."""
-    human = _human_day(day)
-    if total == 0:
-        sentence = f"Hoy {human} no se registraron menciones."
-        if silent:
-            shown = ", ".join(silent[:MAX_KEYWORDS_NARRATIVE])
-            sentence += f" Sin cobertura para: {shown}."
-        return sentence
-
-    parts = [f"Hoy {human} se registraron {total} menciones."]
-    dominant, dominant_data = max(
-        per_source.items(), key=lambda kv: (kv[1]["count"], kv[0])
-    )
-    parts.append(
-        f"La fuente dominante fue {dominant}, "
-        f"con {dominant_data['count']} de {total}."
-    )
-    for name, data in sorted(
-        per_keyword.items(), key=lambda kv: (-kv[1]["count"], kv[0])
-    ):
-        count = data["count"]
-        clause = f"Sobre {name} se registraron {count} {_noun(count)}."
-        if data["top_titles"]:
-            clause += f" Destacando «{data['top_titles'][0]}»."
-        parts.append(clause)
-    if silent:
-        shown = ", ".join(silent[:MAX_KEYWORDS_NARRATIVE])
-        parts.append(f"Sin menciones: {shown}.")
-    return " ".join(parts)
-
-
-def _noun(count: int) -> str:
-    return "mención" if count == 1 else "menciones"
-
-
-def _plain_text(
-    narrative: str,
-    total: int,
-    per_source: dict,
-    per_keyword: dict,
-    silent: list[str],
-) -> str:
-    """Full plain-text render stored for the future RAG chat."""
-    lines = [narrative, ""]
-    if per_source:
-        lines.append("Fuentes:")
-        for name, data in sorted(per_source.items()):
-            titles = "; ".join(f"«{t}»" for t in data["top_titles"])
-            suffix = f" Titulares: {titles}." if titles else ""
-            lines.append(f"- {name}: {data['count']} {_noun(data['count'])}.{suffix}")
-        lines.append("")
-    if per_keyword or silent:
-        lines.append("Palabras clave:")
-        for name, data in sorted(
-            per_keyword.items(), key=lambda kv: (-kv[1]["count"], kv[0])
-        ):
-            titles = "; ".join(f"«{t}»" for t in data["top_titles"])
-            suffix = f" Titulares: {titles}." if titles else ""
-            lines.append(f"- {name}: {data['count']} {_noun(data['count'])}.{suffix}")
-        for name in silent:
-            lines.append(f"- {name}: sin menciones.")
-        lines.append("")
-    lines.append(f"Total: {total} {_noun(total)}.")
-    return "\n".join(lines)
-
-
 def build_daily_summary(
-    session: Session,
+    session,
     *,
     client_id: int,
     day: date,
     generate: Callable[[str], str] | None = None,
 ):
-    """Aggregate the client-day and upsert the DailySummary row.
+    """Assemble digest v2 and upsert the DailySummary row.
 
     ``generate`` overrides the settings-driven LLM callable (tests,
     tooling). Returns the stored row; ``mode`` is ``llm`` only when the
-    LLM narrative was actually used.
+    narrative pass applied cleanly.
     """
     effective = resolve_effective_settings(session, client_id)
     start, end = day_window(day, effective.timezone)
@@ -289,78 +227,53 @@ def build_daily_summary(
             )
         )
     )
-
     total = len(mentions)
-    by_source: dict[str, list] = {}
-    for mention in mentions:
-        by_source.setdefault(_source_tag(mention), []).append(mention)
-    per_source: dict[str, dict] = {}
-    for source, items in by_source.items():
-        items.sort(key=_sort_stamp, reverse=True)
-        per_source[source] = {
-            "count": len(items),
-            "top_titles": [m.title for m in items[:TOP_TITLES] if m.title],
-        }
 
+    # Silent keywords -> PENDIENTES (v1 semantics: an active keyword whose
+    # row never appears in the day's mentions; renamed rows still count).
     all_keywords = list(queries.list_keywords(session, client_id, active_only=False))
     keyword_text_by_id = {k.id: k.text for k in all_keywords}
-    by_keyword: dict[str, list] = {}
-    for mention in mentions:
-        text = keyword_text_by_id.get(mention.keyword_id) if mention.keyword_id else None
-        if text:
-            by_keyword.setdefault(text, []).append(mention)
-    per_keyword: dict[str, dict] = {}
-    for name, items in by_keyword.items():
-        items.sort(key=_sort_stamp, reverse=True)
-        per_keyword[name] = {
-            "count": len(items),
-            "top_titles": [m.title for m in items[:TOP_TITLES] if m.title],
-        }
-    # A mention whose keyword row was renamed still counts toward that
-    # keyword's presence for the silent check.
-    mentioned = set(per_keyword)
-    for mention in mentions:
-        if mention.keyword_id in keyword_text_by_id:
-            mentioned.add(keyword_text_by_id[mention.keyword_id])
+    mentioned = {
+        keyword_text_by_id[m.keyword_id]
+        for m in mentions
+        if m.keyword_id and m.keyword_id in keyword_text_by_id
+    }
     silent = sorted({k.text for k in all_keywords if k.is_active} - mentioned)
 
-    totals = {
-        "mentions": total,
-        "sources": len(per_source),
-        "keywords_with_mentions": len(per_keyword),
-        "silent_keywords": len(silent),
+    facts = build_digest_facts(
+        session,
+        client_id=client_id,
+        day=day,
+        tz=effective.timezone,
+        focus_person_id=effective.digest_focus_person_id,
+        mentions=mentions,
+    )
+    content = {
+        **facts,
+        "schema": DIGEST_SCHEMA_VERSION,
+        "date": day.isoformat(),
+        "timezone": effective.timezone,
     }
-    stats = {
-        "per_source": per_source,
-        "per_keyword": per_keyword,
-        "silent_keywords": silent,
-        "totals": totals,
-    }
+    content["pendientes"] = [f"«{name}» sin menciones" for name in silent]
 
-    narrative = _heuristic_narrative(day, total, per_source, per_keyword, silent)
+    narrative = _heuristic_headline(day, total, silent, content["coverage"]["by_source"])
     mode = "heuristic"
     if generate is None:
         generate = summary_generator(effective)
     if generate is not None and total > 0:
         try:
-            text = str(generate(_stats_prompt(day, stats))).strip()
+            payload = json.loads(generate(_digest_prompt(day, content)))
         except Exception as exc:  # noqa: BLE001 - heuristic is the contract
-            log.warning(
-                "daily summary llm failed for %s (%s); heuristic fallback", day, exc
-            )
+            log.warning("digest llm failed for %s (%s); heuristic fallback", day, exc)
         else:
-            if text:
-                narrative, mode = text, "llm"
+            errors = apply_narrative(content, payload)
+            headline = payload.get("headline") if isinstance(payload, dict) else None
+            if not errors and isinstance(headline, str) and headline.strip():
+                narrative, mode = headline.strip(), "llm"
+            else:
+                log.warning("digest llm payload rejected for %s: %s", day, errors)
 
-    content = {
-        "date": day.isoformat(),
-        "timezone": effective.timezone,
-        "per_source": per_source,
-        "per_keyword": per_keyword,
-        "silent_keywords": silent,
-        "totals": totals,
-        "plain_text": _plain_text(narrative, total, per_source, per_keyword, silent),
-    }
+    content["plain_text"] = render_plain_text(content, narrative)
     return queries.upsert_daily_summary(
         session,
         client_id=client_id,
