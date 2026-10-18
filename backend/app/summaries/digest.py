@@ -118,6 +118,11 @@ def build_digest_facts(
             select(Event).where(Event.id.in_(event_ids))
         ).all()
     } if event_ids else {}
+
+    def _mention_person_ids(mention) -> list[int]:
+        # person_links are MentionPerson rows; the person id lives on the link.
+        return sorted({link.person_id for link in mention.person_links})
+
     grouped: dict[int | None, list] = {}
     for mention in mentions:
         grouped.setdefault(mention.event_id, []).append(mention)
@@ -142,9 +147,7 @@ def build_digest_facts(
                             }
                         ],
                         "confidence": "baja",
-                        "person_ids": sorted(
-                            {p.id for p in mention.person_links}
-                        ),
+                        "person_ids": _mention_person_ids(mention),
                         "why_it_matters": None,
                     }
                 )
@@ -153,7 +156,7 @@ def build_digest_facts(
             c.label for m in items for c in m.classifications if c.classifier == "topic"
         )
         topic = topic_counts.most_common(1)[0][0] if topic_counts else None
-        person_ids = sorted({p.id for m in items for p in m.person_links})
+        person_ids = sorted({pid for m in items for pid in _mention_person_ids(m)})
         noticias.append(
             {
                 "event_id": event_id,
@@ -180,28 +183,35 @@ def build_digest_facts(
     # --- rectora: focus person slice.
     rectora: dict = {"person_id": focus_person_id, "actions": [], "mention_count": 0}
     if focus_person_id is not None:
-        focus_mentions = [
-            m for m in mentions if any(p.id == focus_person_id for p in m.person_links)
+        focus_links = [
+            (m, link)
+            for m in mentions
+            for link in m.person_links
+            if link.person_id == focus_person_id
         ]
-        rectora["mention_count"] = len(focus_mentions)
+        rectora["mention_count"] = len(focus_links)
         rectora["actions"] = [
             {
                 "title": m.title,
                 "event_id": m.event_id,
                 "sentiment": m.sentiment.value if m.sentiment else None,
+                # As extracted on THIS mention (the aggregated view lives on
+                # the person row); the digest shows the mention-level stance.
+                "role": link.role,
+                "org": link.org,
             }
-            for m in focus_mentions
+            for m, link in focus_links
         ]
         tones = Counter(
-            m.sentiment.value for m in focus_mentions if m.sentiment is not None
+            m.sentiment.value for m, _link in focus_links if m.sentiment is not None
         )
         rectora["tone"] = tones.most_common(1)[0][0] if tones else None
-        if not focus_mentions:
+        if not focus_links:
             rectora["gaps"] = "sin menciones de la persona focal en la ventana"
 
     # --- personas: everyone linked to the day's mentions, by volume.
     person_counts: Counter[int] = Counter(
-        p.id for m in mentions for p in m.person_links
+        link.person_id for m in mentions for link in m.person_links
     )
     persons_by_id = {
         p.id: p
@@ -212,11 +222,21 @@ def build_digest_facts(
     personas = []
     for person_id, count in person_counts.most_common():
         person = persons_by_id[person_id]
+        link = next(
+            (
+                link
+                for m in mentions
+                for link in m.person_links
+                if link.person_id == person_id
+            ),
+            None,
+        )
         fact = next(
             (
                 m.title
                 for m in mentions
-                if any(p.id == person_id for p in m.person_links) and m.title
+                if any(link.person_id == person_id for link in m.person_links)
+                and m.title
             ),
             None,
         )
@@ -224,8 +244,8 @@ def build_digest_facts(
             {
                 "person_id": person_id,
                 "name": person.name,
-                "role": person.role,
-                "org": person.org,
+                "role": (link.role if link and link.role else None) or person.role,
+                "org": (link.org if link and link.org else None) or person.org,
                 "mention_count": count,
                 "fact": fact,
             }

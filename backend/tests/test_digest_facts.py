@@ -145,3 +145,42 @@ def test_rectora_section_from_focus_person(session) -> None:
     assert facts["rectora"]["mention_count"] == 1
     assert facts["rectora"]["tone"] == "positive"
     assert facts["personas"][0]["person_id"] == person.id
+
+
+def test_person_ids_are_person_not_link_ids(session) -> None:
+    """Regression: person_links are MentionPerson rows; ids diverge quickly.
+
+    Two links on the first mention make the next link id (3) differ from
+    the person id (1); the digest must report person ids, never link ids.
+    """
+    from app import persons as persons_mod
+    from app.models import Person
+
+    client_id = _client(session)
+    first = _mention(session, client_id, "https://a/1", title="Dos personas")
+    first.raw_enrichment = {
+        "summary": "s",
+        "sentiment": "positive",
+        "sentiment_score": 1,
+        "persons": [{"name": "Uno"}, {"name": "Dos"}],
+        "topics": [],
+    }
+    persons_mod.persist_persons_from_enrichment(session, first)
+    second = _mention(session, client_id, "https://a/2", title="Repetida")
+    second.raw_enrichment = {
+        "summary": "s",
+        "sentiment": "positive",
+        "sentiment_score": 1,
+        "persons": [{"name": "Uno"}],
+        "topics": [],
+    }
+    persons_mod.persist_persons_from_enrichment(session, second)
+    session.commit()
+
+    uno = session.query(Person).filter_by(name="Uno").one()
+    facts = build_digest_facts(session, client_id=client_id, day=DAY, tz=TZ)
+
+    ids = {p["person_id"] for p in facts["personas"]}
+    assert ids == {p.id for p in session.query(Person).all()}
+    uno_row = next(p for p in facts["personas"] if p["person_id"] == uno.id)
+    assert uno_row["mention_count"] == 2
