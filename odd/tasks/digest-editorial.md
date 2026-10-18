@@ -31,4 +31,16 @@ nuevos: `daily_summaries.content` pasa a `schema: 2`.
 - Delivery: work-unit commits sobre `feat/scraper-ingest`; push/PR decide Julio.
 
 ## Estado
-- (en curso)
+- T1-T8 OK. Commits: cb390bf (digest_hour), b2b9ac7 (api settings), c73af64
+  (schema v2), ed458d4 (rules), 358e4f8 (facts), b3165ab (composer v2 +
+  focus person 0019), cf01985 (frontend), 2727426 (ask), 60b6fe4 (fix
+  person_ids: person_links son MentionPerson; el id vive en link.person_id).
+- Suite 411 passed; svelte-check 0; vitest 59.
+- Deploy verificado en vivo (2026-10-18): migraciones 0018/0019 aplicadas;
+  POST generate -> schema 2 con las 8 secciones (11 noticias / 13 personas);
+  GET por fecha OK; hero en / con link a /summary; RECTORA con focus person 4
+  (María Lilia Cedillo) -> 16 oct: 5 menciones tone positive.
+- Config live: digest_focus_person_id=4 via PUT /api/settings.
+- Nota para después: menciones scraper sin published_at no entran a ninguna
+  ventana de digest (behavior v1 del day-window); el ingest debería
+  fallback a ingested_at. Fuera de scope de este feature.
