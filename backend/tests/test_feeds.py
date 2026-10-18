@@ -29,3 +29,18 @@ def test_parse_feed_strips_html_from_description() -> None:
     assert "<img" not in content
     assert "<p>" not in content
     assert "Texto del artículo" in content
+
+
+def test_parse_feed_captures_author() -> None:
+    """Columnist byline from the feed lands on the mention (author tracking)."""
+    xml = (
+        '<?xml version="1.0"?><rss version="2.0"><channel>'
+        "<title>t</title><link>https://example.com</link><description>d</description>"
+        "<item><title>Columna</title><link>https://example.com/columna</link>"
+        "<description>Texto opinión</description>"
+        "<dc:creator>Patricia Gutiérrez Rodríguez</dc:creator>"
+        "</item></channel></rss>"
+    )
+    mentions = parse_feed(xml, ["palabra"])
+    assert len(mentions) == 1
+    assert mentions[0].author == "Patricia Gutiérrez Rodríguez"

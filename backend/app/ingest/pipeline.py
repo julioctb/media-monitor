@@ -134,6 +134,7 @@ def persist_raw_mentions(
         # sources with a registry fetcher, only rows without content, under
         # the per-cycle cap; any failure leaves content as-is.
         content = item.content
+        item_author = None
         fetcher = fetcher_for(item.source)
         if (
             fetcher is not None
@@ -147,8 +148,17 @@ def persist_raw_mentions(
             except Exception as exc:  # noqa: BLE001 - fetch must not break ingest
                 log.warning("content fetch failed for %s: %s", item.url, exc)
                 fetched = None
-            if fetched and fetched.strip():
-                content = fetched.strip()
+            # ArticleContent carries the byline; plain str keeps legacy
+            # fetchers (and test doubles) working.
+            if isinstance(fetched, article_fetch.ArticleContent):
+                fetched_author = fetched.author
+                fetched_text = fetched.text
+            else:
+                fetched_author = None
+                fetched_text = fetched
+            if fetched_text and fetched_text.strip():
+                content = fetched_text.strip()
+                item_author = fetched_author
                 text = "\n".join(p for p in [item.title or "", content] if p)
         # F2c enrichment first: it owns sentiment when it succeeds.
         enrichment = None
@@ -194,7 +204,7 @@ def persist_raw_mentions(
             external_id=item.external_id,
             title=item.title,
             content=content,
-            author=item.author,
+            author=item.author or item_author,
             lang=item.lang,
             published_at=item.published_at,
             reach=item.reach,
