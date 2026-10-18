@@ -155,6 +155,7 @@ class ClientSettingsOut(BaseModel):
     client_name: str
     timezone: str
     retention_days: int
+    digest_hour: int
     gdelt_enabled: bool
     facebook_pages: list[FacebookPageCredentials]
     rss_feeds: list[str]
@@ -175,6 +176,7 @@ class ClientSettingsUpdate(BaseModel):
     client_name: str | None = Field(default=None, max_length=200)
     timezone: str | None = None
     retention_days: int | None = Field(default=None, ge=0)
+    digest_hour: int | None = Field(default=None, ge=0, le=23)
     gdelt_enabled: bool | None = None
     facebook_pages: list[FacebookPageCredentials] | None = None
     rss_feeds: list[str] | None = None
