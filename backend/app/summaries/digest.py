@@ -26,6 +26,30 @@ CONFIDENCE_SCALE = ("alta", "media", "baja")
 REQUIRED_SECTIONS = ("coverage", "noticias", "rectora", "redes", "personas", "pendientes")
 
 
+def confidence_for(source_count: int) -> str:
+    """Auditability rule: independent outlets decide, never the LLM."""
+    if source_count >= 3:
+        return "alta"
+    if source_count == 2:
+        return "media"
+    return "baja"
+
+
+def gaps_for(
+    *, counts: dict[str, int], social: set[str], labels: dict[str, str]
+) -> list[str]:
+    """Human-readable gap lines for tracked social sources with zero mentions.
+
+    Sorted by label so the section is stable across runs; sources missing
+    from ``counts`` count as zero (no data ≠ covered).
+    """
+    return sorted(
+        f"{labels.get(source, source)} sin cobertura en la ventana"
+        for source in social
+        if counts.get(source, 0) == 0
+    )
+
+
 def validate_digest(content: object) -> list[str]:
     """Return human-readable errors; empty list means well-formed v2."""
     if not isinstance(content, dict):
