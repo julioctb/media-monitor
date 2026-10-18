@@ -8,6 +8,9 @@
 
 	let { data }: PageProps = $props();
 
+	const digest = $derived(data.digest);
+	const digestModeLabel: Record<string, string> = { heuristic: 'Plantilla', llm: 'IA' };
+
 	const keywordNames = $derived(new Map(data.keywords.map((k) => [k.id, k.text])));
 
 	/** Same event = same story: one card plus a collapsed coverage list. */
@@ -63,6 +66,30 @@
 		</p>
 	</div>
 </div>
+
+{#if digest}
+	<section
+		aria-label="Digest del día"
+		class="mt-4 rounded-xl border border-slate-200 bg-slate-900 p-5 text-white shadow-sm"
+	>
+		<div class="flex flex-wrap items-center gap-2 text-xs uppercase tracking-wide text-slate-400">
+			<span>Digest {digest.summary_date}</span>
+			<span
+				class="rounded-full px-2 py-0.5 text-[11px] font-medium
+				{digest.mode === 'llm' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-700 text-slate-300'}"
+			>
+				{digestModeLabel[digest.mode] ?? digest.mode}
+			</span>
+		</div>
+		<p class="mt-2 line-clamp-3 text-sm leading-relaxed">{digest.narrative}</p>
+		<a
+			href="/summary"
+			class="mt-2 inline-block text-xs font-medium text-sky-300 underline-offset-2 hover:underline"
+		>
+			Ver digest completo →
+		</a>
+	</section>
+{/if}
 
 <FeedFilterBar
 	sources={data.sources}

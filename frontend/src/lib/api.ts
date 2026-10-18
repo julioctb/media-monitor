@@ -683,15 +683,62 @@ export function askCorpus(question: string, options: RequestOptions = {}): Promi
 
 /* ------------------------------- daily summaries --------------------------- */
 
-/** Structured sections stored with every daily summary (open-shaped). */
+/** One source citation inside a digest news item. */
+export interface DigestSourceRef {
+	source: string;
+	url: string;
+	title?: string | null;
+}
+
+/** A digest news item: one canonical event (or loose mention) plus narrative. */
+export interface DigestNewsItem {
+	event_id: number | null;
+	title: string | null;
+	/** LLM/heuristic synthesis; grounded on the event facts. */
+	summary?: string | null;
+	/** Canonical topic key v2 (see format.topicLabel). */
+	topic?: string | null;
+	sources: DigestSourceRef[];
+	/** alta | media | baja — rule-based, never LLM-authored. */
+	confidence?: string;
+	person_ids?: number[];
+	why_it_matters?: string | null;
+}
+
+export interface DigestPersonItem {
+	person_id: number;
+	name: string;
+	role?: string | null;
+	org?: string | null;
+	mention_count: number;
+	fact?: string | null;
+}
+
+/** Structured sections of the editorial daily digest (schema 2). */
 export interface DailySummaryContent {
+	schema?: number;
 	date?: string;
 	timezone?: string;
-	per_source?: Record<string, { count: number; top_titles: string[] }>;
-	per_keyword?: Record<string, { count: number; top_titles: string[] }>;
-	silent_keywords?: string[];
-	totals?: Record<string, number>;
-	/** Plain-text render of the whole summary, kept for the future RAG chat. */
+	window?: { from?: string; to?: string };
+	coverage?: {
+		total?: number;
+		by_source?: Record<string, number>;
+		by_topic?: Record<string, number>;
+		gaps?: string[];
+	};
+	noticias?: DigestNewsItem[];
+	rectora?: {
+		person_id?: number | null;
+		actions?: { title?: string; event_id?: number | null; sentiment?: string | null }[];
+		mention_count?: number;
+		tone?: string | null;
+		watch?: string | null;
+		gaps?: string;
+	};
+	redes?: Record<string, { count: number; note?: string }>;
+	personas?: DigestPersonItem[];
+	pendientes?: string[];
+	/** Plain-text render of the whole digest, kept for the RAG chat. */
 	plain_text?: string;
 }
 

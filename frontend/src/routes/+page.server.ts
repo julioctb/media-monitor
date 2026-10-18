@@ -1,5 +1,5 @@
 import { error } from '@sveltejs/kit';
-import { ApiError, getStatsOverview, listKeywords, listMentions, type SentimentFilter } from '$lib/api';
+import { ApiError, getDailySummary, getStatsOverview, listKeywords, listMentions, type SentimentFilter } from '$lib/api';
 import type { PageServerLoad } from './$types';
 
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
@@ -41,8 +41,10 @@ export const load: PageServerLoad = async ({ url }) => {
 
 	try {
 		// Stats only provides the source facet: the source set is open, so the
-		// filter options come from data, never a hardcoded enum.
-		const [mentions, keywords, stats] = await Promise.all([
+		// filter options come from data, never a hardcoded enum. The digest is
+		// best-effort: an absent/unbuilt day must not break the feed.
+		const todayIso = new Date().toISOString().slice(0, 10);
+		const [mentions, keywords, stats, digest] = await Promise.all([
 			listMentions({
 				source: rawSource,
 				sentiment,
@@ -56,12 +58,14 @@ export const load: PageServerLoad = async ({ url }) => {
 				offset
 			}),
 			listKeywords(),
-			getStatsOverview()
+			getStatsOverview(),
+			getDailySummary(todayIso).catch(() => null)
 		]);
 
 		return {
 			mentions,
 			keywords,
+			digest,
 			sources: Object.keys(stats.by_source).sort(),
 			filters: {
 				source: params.get('source') ?? '',
