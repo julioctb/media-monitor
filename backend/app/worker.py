@@ -300,6 +300,20 @@ def _schedule_timezone() -> str:
         return DIGEST_TIMEZONE
 
 
+def _digest_hour() -> int:
+    """Digest build hour from settings, 21 fallback when the DB is unhappy."""
+    try:
+        session: Session = SessionLocal()
+        try:
+            row = queries.get_settings(session, settings.default_client_id)
+        finally:
+            session.close()
+        return max(0, min(23, int(row.digest_hour)))
+    except Exception as exc:  # noqa: BLE001 - scheduling must survive a bad DB
+        log.warning("could not resolve digest hour (%s); using %s", exc, DAILY_SUMMARY_HOUR)
+        return DAILY_SUMMARY_HOUR
+
+
 def build_scheduler() -> BlockingScheduler:
     """Ingest interval, both digest crons and the retention purge."""
     tz_name = _schedule_timezone()
@@ -356,7 +370,7 @@ def build_scheduler() -> BlockingScheduler:
     scheduler.add_job(
         daily_summary_job,
         "cron",
-        hour=DAILY_SUMMARY_HOUR,
+        hour=_digest_hour(),
         minute=0,
         timezone=tz_name,
         id="daily_summary",

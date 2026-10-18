@@ -34,6 +34,7 @@ class EffectiveSettings:
     client_name: str = ""
     timezone: str = DEFAULT_TIMEZONE
     retention_days: int = 365
+    digest_hour: int = 21
     gdelt_enabled: bool = True
     facebook_pages: tuple[FacebookPageCredentials, ...] = ()
     rss_feeds: tuple[str, ...] = ()
@@ -81,6 +82,8 @@ def resolve_effective_settings(session: Session, client_id: int) -> EffectiveSet
         client_name=row.client_name,
         timezone=row.timezone,
         retention_days=row.retention_days,
+        # Clamp on read too: a hand-edited row must not break scheduling.
+        digest_hour=max(0, min(23, row.digest_hour)),
         gdelt_enabled=row.gdelt_enabled,
         facebook_pages=pages,
         rss_feeds=tuple(row.rss_feeds or []),

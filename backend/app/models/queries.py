@@ -606,6 +606,14 @@ def _validate_retention(value: object) -> int:
     return value
 
 
+def _validate_digest_hour(value: object) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError("digest_hour must be an integer")
+    if not 0 <= value <= 23:
+        raise ValueError("digest_hour must be between 0 and 23")
+    return value
+
+
 def _validate_bool(value: object, field: str) -> bool:
     if not isinstance(value, bool):
         raise ValueError(f"{field} must be a boolean")
@@ -711,6 +719,7 @@ _VALIDATORS = {
     "client_name": _validate_client_name,
     "timezone": _validate_timezone,
     "retention_days": _validate_retention,
+    "digest_hour": _validate_digest_hour,
     "gdelt_enabled": lambda v: _validate_bool(v, "gdelt_enabled"),
     "facebook_pages": _validate_facebook_pages,
     "rss_feeds": _validate_rss_feeds,

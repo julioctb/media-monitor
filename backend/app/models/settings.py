@@ -67,6 +67,11 @@ class ClientSettings(IntPk, Base):
             server_default="365",
         )
     )
+    digest_hour: Mapped[int] = (
+        # Local hour (0..23) when the daily digest is built; validated in
+        # queries._validate_digest_hour, clamped again on read.
+        mapped_column(Integer, nullable=False, default=21, server_default="21")
+    )
     gdelt_enabled: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default="1"
     )
