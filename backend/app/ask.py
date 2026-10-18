@@ -221,6 +221,30 @@ def build_context(
     return "\n\n".join(blocks), citations
 
 
+def _recent_digest_block(session: Session, client_id: int) -> str:
+    """Plain text of the latest digest when it is fresh (<= 2 days).
+
+    Grounds the answers in the editorial layer: the digest already
+    synthesizes the day; stale digests are skipped, not trusted.
+    """
+    from datetime import date, timedelta
+
+    from app.models import DailySummary
+
+    row = session.scalar(
+        select(DailySummary)
+        .where(DailySummary.client_id == client_id)
+        .order_by(DailySummary.summary_date.desc())
+        .limit(1)
+    )
+    if row is None or row.summary_date < date.today() - timedelta(days=2):
+        return ""
+    plain = (row.content or {}).get("plain_text") if isinstance(row.content, dict) else None
+    if not plain:
+        return ""
+    return f"Digest editorial reciente ({row.summary_date}):\n{plain}"
+
+
 def answer_question(session: Session, *, client_id: int, question: str, enricher) -> AskResult:
     """One-shot ask: retrieve, ground, narrate. Empty question => recent feed."""
     tokens = tokenize(question)
@@ -252,9 +276,11 @@ def answer_question(session: Session, *, client_id: int, question: str, enricher
             + (f", quien acumula {mentions_n} menciones en el monitoreo." if mentions_n else ".")
             + " Las notas marcadas ROL tienen el cargo que detenta en esa cobertura."
         )
+    digest_block = _recent_digest_block(session, client_id)
     user = (
         f"Pregunta: {question.strip()}\n\n"
         f"Contexto ({len(mentions)} notas, más reciente primero):\n\n{context}"
+        + (f"\n\n{digest_block}" if digest_block else "")
         + person_hint
     )
     answer = enricher.complete(ASK_SYSTEM_PROMPT, user)

@@ -292,3 +292,73 @@ def test_person_linked_mentions_survive_the_cap(db) -> None:
     ids = [m.id for m in found]
     assert linked.id in ids
     assert len(ids) == 12
+
+
+# ------------------------------------------------------------ digest grounding
+
+def test_answer_includes_recent_digest(db) -> None:
+    from datetime import date
+
+    from app.models import queries
+
+    client_id = db.scalar(select(Client.id).limit(1))
+    queries.upsert_daily_summary(
+        db,
+        client_id=client_id,
+        day=date.today(),
+        content={"schema": 2, "plain_text": "NOTICIAS\n- [alta] Titular del día"},
+        narrative="Titular del día.",
+        mode="heuristic",
+    )
+    seed_mention(
+        db,
+        client_id,
+        "https://x/digest",
+        title="BUAP ampliación",
+        content="Texto.",
+    )
+
+    class FakeEnricher:
+        def __init__(self) -> None:
+            self.calls: list[tuple[str, str]] = []
+
+        def complete(self, system, user, **kwargs):
+            self.calls.append((system, user))
+            return "Ok."
+
+    fake = FakeEnricher()
+    answer_question(db, client_id=client_id, question="BUAP", enricher=fake)
+
+    user_prompt = fake.calls[0][1]
+    assert "Digest editorial" in user_prompt
+    assert "Titular del día" in user_prompt
+
+
+def test_answer_skips_stale_digest(db) -> None:
+    from datetime import date, timedelta
+
+    from app.models import queries
+
+    client_id = db.scalar(select(Client.id).limit(1))
+    queries.upsert_daily_summary(
+        db,
+        client_id=client_id,
+        day=date.today() - timedelta(days=6),
+        content={"schema": 2, "plain_text": "NOTICIAS viejas"},
+        narrative="Viejo.",
+        mode="heuristic",
+    )
+    seed_mention(db, client_id, "https://x/stale", title="BUAP", content="x.")
+
+    class FakeEnricher:
+        def __init__(self) -> None:
+            self.calls: list[tuple[str, str]] = []
+
+        def complete(self, system, user, **kwargs):
+            self.calls.append((system, user))
+            return "Ok."
+
+    fake = FakeEnricher()
+    answer_question(db, client_id=client_id, question="BUAP", enricher=fake)
+
+    assert "Digest editorial" not in fake.calls[0][1]
