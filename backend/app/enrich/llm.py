@@ -75,7 +75,11 @@ SYSTEM_PROMPT = (
     "government (funcionarios externos estatales/municipales/federales "
     "actuando alrededor de la institucion), "
     "health (medicina, enfermedades, hospitales, dispositivos medicos). "
-    "persons: personas nombradas en el texto, cada una "
+    "persons: SOLO personas centrales para la institucion monitoreada — "
+    "la autoridad o protagonista de la nota, quien emite la postura, o "
+    "quien actua en nombre de la institucion. Omiti menciones incidentales: "
+    "elenco secundario, rivales o participantes perifericos, y nombres "
+    'citados solo como referencia. Cada una '
     '{"name": str, "role": str|null, "org": str|null, "statement": str|null, '
     '"stance": str|null}; statement es cita textual solo si la nota la trae; '
     "stance es la postura que la persona expresa, null si no expresa ninguna. "

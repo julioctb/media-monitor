@@ -18,15 +18,14 @@ gpt-4o-mini. The estimate exists to size the spend BEFORE any call.
 
 import argparse
 import logging
-from datetime import datetime, timedelta, timezone
-
-from sqlalchemy import select
-from sqlalchemy.orm import Session
+from datetime import UTC, datetime, timedelta
 
 from app.db import SessionLocal
 from app.enrich.llm import ESTIMATED_OUTPUT_TOKENS, MAX_CONTENT_CHARS
-from app.models import Client, Mention, queries
+from app.models import Client, Mention, MentionPerson, queries
 from app.sentiment.canonical import apply_canonical_sentiment
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 log = logging.getLogger("backfill.enrichment")
 
@@ -70,11 +69,14 @@ def candidate_ids(
     force: bool = False,
     since: datetime | None = None,
     ids: list[int] | None = None,
+    with_persons: bool = False,
 ) -> list[int]:
     """Mentions needing enrichment: summary NULL, or every row with force.
 
     ``ids`` (from --ids-file) pins the candidate set to exactly those rows
-    (still intersected with client/since filters).
+    (still intersected with client/since filters). ``with_persons`` keeps
+    only rows with at least one person link — the re-enrichment scope when
+    the goal is repairing the persons graph without touching the rest.
     """
     stmt = select(Mention.id).order_by(Mention.id)
     if not force:
@@ -85,6 +87,10 @@ def candidate_ids(
         stmt = stmt.where(Mention.client_id == client_id)
     if since is not None:
         stmt = stmt.where(Mention.ingested_at >= since)
+    if with_persons:
+        stmt = stmt.where(
+            Mention.id.in_(select(MentionPerson.mention_id).distinct())
+        )
     return list(session.scalars(stmt))
 
 
@@ -124,6 +130,7 @@ def backfill(
     limit: int | None = None,
     batch_size: int = 50,
     ids: list[int] | None = None,
+    with_persons: bool = False,
 ) -> dict[str, int]:
     """Enrich candidate mentions; counters per outcome.
 
@@ -132,7 +139,9 @@ def backfill(
     verdict overwrites any stored value, and the previous label/score is
     logged when it differs (``canonical_overrides`` counts those rows).
     """
-    ids = candidate_ids(session, client_id=client_id, force=force, ids=ids)
+    ids = candidate_ids(
+        session, client_id=client_id, force=force, ids=ids, with_persons=with_persons
+    )
     if limit is not None:
         ids = ids[:limit]
     totals = {
@@ -140,6 +149,7 @@ def backfill(
         "failed": 0,
         "skipped_empty": 0,
         "canonical_overrides": 0,
+        "persons_relinked": 0,
         "candidates": len(ids),
     }
     processed = 0
@@ -163,6 +173,20 @@ def backfill(
         mention.summary = result.summary
         # F3 read-back: same payload the ingest path stores.
         mention.raw_enrichment = result.model_dump(mode="json")
+        # Re-link persons from the fresh payload: existing links reflect the
+        # previous extraction and would survive a prompt/policy change.
+        # Savepoint-scoped so one bad relink never drops the batch.
+        try:
+            with session.begin_nested():
+                session.query(MentionPerson).filter(  # type: ignore[attr-defined]
+                    MentionPerson.mention_id == mention.id
+                ).delete(synchronize_session=False)
+                from app.persons import persist_persons_from_enrichment
+
+                persist_persons_from_enrichment(session, mention)
+            totals["persons_relinked"] += 1
+        except Exception as exc:  # noqa: BLE001 - relink must not block backfill
+            log.warning("persons relink failed for %s: %s, keeping previous links", mention.id, exc)
         # Classification v2: the enrichment topic is canonical — same upsert
         # the ingest path runs after the registry classifiers.
         if result.topic:
@@ -231,6 +255,10 @@ def main() -> None:  # pragma: no cover - CLI wiring
         help="file with one mention id per line; only those rows are candidates",
     )
     parser.add_argument(
+        "--with-persons", action="store_true",
+        help="only mentions with at least one person link (persons repair)",
+    )
+    parser.add_argument(
         "--price-in", type=float, default=DEFAULT_PRICE_PER_M_IN,
         help="USD per million input tokens",
     )
@@ -251,14 +279,14 @@ def main() -> None:  # pragma: no cover - CLI wiring
             client_ids = [args.client_id]
         for client_id in client_ids:
             since = (
-                datetime.now(tz=timezone.utc) - timedelta(hours=args.hours)
+                datetime.now(tz=UTC) - timedelta(hours=args.hours)
                 if args.hours is not None
                 else None
             )
             pinned_ids = load_ids_file(args.ids_file) if args.ids_file else None
             ids = candidate_ids(
                 session, client_id=client_id, force=args.force, since=since,
-                ids=pinned_ids,
+                ids=pinned_ids, with_persons=args.with_persons,
             )
             if args.limit is not None:
                 ids = ids[: args.limit]
@@ -281,6 +309,7 @@ def main() -> None:  # pragma: no cover - CLI wiring
                     force=args.force,
                     limit=args.limit,
                     ids=pinned_ids,
+                    with_persons=args.with_persons,
                 )
                 log.info("client %s backfill: %s", client_id, stats)
     finally:
