@@ -7,10 +7,10 @@
 
 	let { data, form }: PageProps = $props();
 
-	const LABEL_CLS = 'mb-1 block text-xs font-medium text-slate-500';
-	const CHECK_CLS = 'size-4 rounded border-slate-300 text-slate-900 focus:ring-slate-300';
+	const LABEL_CLS = 'mb-1 block text-xs font-medium text-ink-2';
+	const CHECK_CLS = 'size-4 rounded border-line accent-accent';
 	const PROBE_BTN_CLS =
-		'rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-60';
+		'inline-flex min-h-[36px] items-center justify-center rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium text-ink-2 transition-colors hover:bg-surface-warm disabled:opacity-60';
 
 	const TIMEZONES = ['America/Mexico_City', 'America/Monterrey', 'America/Tijuana', 'UTC'];
 
@@ -114,8 +114,8 @@
 	<title>Configuración | Media Monitor</title>
 </svelte:head>
 
-<h1 class="text-2xl font-semibold tracking-tight">Configuración</h1>
-<p class="mt-1 text-sm text-slate-500">
+<h1 class="page-title">Configuración</h1>
+<p class="lead">
 	Fuentes de ingesta, retención y proveedor de análisis de sentimiento.
 </p>
 
@@ -124,8 +124,8 @@
 		role={form.ok ? 'status' : 'alert'}
 		class={`mt-4 rounded-lg px-4 py-3 text-sm ring-1 ring-inset ${
 			form.ok
-				? 'bg-green-50 text-green-800 ring-green-600/20'
-				: 'bg-red-50 text-red-800 ring-red-600/20'
+				? 'bg-success/10 text-success ring-success/30'
+				: 'bg-danger/10 text-danger ring-danger/30'
 		}`}
 	>
 		{form.message}
@@ -144,8 +144,8 @@
 	<button type="submit" tabindex="-1" aria-label="Guardar" class="hidden"></button>
 
 	<!-- General -->
-	<section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-		<h2 class="text-base font-semibold text-slate-900">General</h2>
+	<section class="panel">
+		<h2 class="panel-title">General</h2>
 		<div class="mt-4 grid gap-4 sm:grid-cols-2">
 			<div>
 				<label for="set-name" class={LABEL_CLS}>Nombre del cliente</label>
@@ -186,26 +186,26 @@
 					bind:value={draft.retention_days}
 					class={INPUT_CLS}
 				/>
-				<p class="mt-1 text-xs text-slate-500">0 desactiva el purge.</p>
+				<p class="mt-1 text-xs text-muted">0 desactiva el purge.</p>
 			</div>
 		</div>
 	</section>
 
 	<!-- Fuentes -->
-	<section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-		<h2 class="text-base font-semibold text-slate-900">Fuentes</h2>
+	<section class="panel">
+		<h2 class="panel-title">Fuentes</h2>
 		<div class="mt-4 space-y-6">
 			<div>
-				<h3 class="text-sm font-medium text-slate-700">Páginas de Facebook</h3>
+				<h3 class="text-sm font-medium text-ink-2">Páginas de Facebook</h3>
 				{#if draft.pages.length === 0}
-					<p class="mt-2 text-sm text-slate-500">
+					<p class="mt-2 text-sm text-muted">
 						No hay páginas configuradas. Agrega una con su page_id y un token de acceso con
 						permiso de lectura.
 					</p>
 				{/if}
 				<div class="mt-3 space-y-3">
 					{#each draft.pages as page, index (page)}
-						<div class="rounded-lg border border-slate-200 p-3">
+						<div class="rounded-xl border border-line-soft bg-surface-warm p-3">
 							<div class="grid gap-3 sm:grid-cols-3">
 								<div>
 									<label for={`fb-page-${index}`} class={LABEL_CLS}>Page ID</label>
@@ -255,14 +255,14 @@
 									type="button"
 									onclick={() => removePage(index)}
 									disabled={submitting}
-									class="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-500 transition-colors hover:bg-slate-50 hover:text-red-600 disabled:opacity-60"
+									class="rounded-full border border-line px-3 py-1.5 text-xs font-medium text-muted transition-colors hover:bg-surface-warm hover:text-danger disabled:opacity-60"
 								>
 									Eliminar
 								</button>
 							</div>
 							{#if form?.action === 'test-facebook' && form.index === index}
 								{#if form.ok}
-									<p class="mt-2 text-xs text-green-700">
+									<p class="mt-2 text-xs text-success">
 										Página verificada{form.page_name ? `: ${form.page_name}` : ''}
 										{#if form.page_link}
 											&middot;
@@ -270,12 +270,12 @@
 												href={form.page_link}
 												target="_blank"
 												rel="noreferrer"
-												class="underline hover:text-green-900">{form.page_link}</a
+												class="underline hover:text-success">{form.page_link}</a
 											>
 										{/if}
 									</p>
 								{:else}
-									<p class="mt-2 text-xs text-red-700">Error: {form.message}</p>
+									<p class="mt-2 text-xs text-danger">Error: {form.message}</p>
 								{/if}
 							{/if}
 						</div>
@@ -285,14 +285,14 @@
 					type="button"
 					onclick={addPage}
 					disabled={submitting}
-					class="mt-3 rounded-md border border-dashed border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-60"
+					class="mt-3 rounded-full border border-dashed border-line px-3 py-1.5 text-xs font-medium text-muted transition-colors hover:bg-surface-warm disabled:opacity-60"
 				>
 					+ Agregar página
 				</button>
 			</div>
 
 			<div>
-				<label for="set-rss" class="text-sm font-medium text-slate-700">Feeds RSS</label>
+				<label for="set-rss" class="text-sm font-medium text-ink-2">Feeds RSS</label>
 				<textarea
 					id="set-rss"
 					name="rss_feeds"
@@ -302,24 +302,24 @@
 					class={`mt-1 ${INPUT_CLS} font-mono text-xs`}
 				></textarea>
 				{#if draft.rss.trim() === ''}
-					<p class="mt-1 text-xs text-slate-500">
+					<p class="mt-1 text-xs text-muted">
 						Sin feeds: pega una URL por línea (http/https) para monitorear noticias.
 					</p>
 				{:else}
-					<p class="mt-1 text-xs text-slate-500">Una URL por línea.</p>
+					<p class="mt-1 text-xs text-muted">Una URL por línea.</p>
 				{/if}
 			</div>
 
 			<div>
-				<h3 class="text-sm font-medium text-slate-700">Scrapers (medios sin RSS)</h3>
+				<h3 class="text-sm font-medium text-ink-2">Scrapers (medios sin RSS)</h3>
 				{#if availableScrapers.length === 0}
-					<p class="mt-2 text-sm text-slate-500">
+					<p class="mt-2 text-sm text-muted">
 						No hay scrapers disponibles en el registro del servidor.
 					</p>
 				{:else}
 					<div class="mt-3 space-y-2">
 						{#each availableScrapers as scraper (scraper.name)}
-							<label class="flex items-center gap-2 text-sm text-slate-700">
+							<label class="flex items-center gap-2 text-sm text-ink-2">
 								<input
 									type="checkbox"
 									name="scrapers"
@@ -333,20 +333,20 @@
 									href={scraper.base_url}
 									target="_blank"
 									rel="noreferrer"
-									class="text-xs text-slate-400 underline hover:text-slate-600"
+									class="text-xs text-meta underline hover:text-ink-2"
 								>
 									{scraper.base_url}
 								</a>
 							</label>
 						{/each}
 					</div>
-					<p class="mt-2 text-xs text-slate-500">
+					<p class="mt-2 text-xs text-muted">
 						Medios sin feed RSS: el worker revisa su portada en cada ciclo.
 					</p>
 				{/if}
 			</div>
 
-			<label class="flex items-center gap-2 text-sm text-slate-700">
+			<label class="flex items-center gap-2 text-sm text-ink-2">
 				<input type="checkbox" name="gdelt_enabled" value="1" bind:checked={draft.gdelt_enabled} class={CHECK_CLS} />
 				Incluir GDELT
 			</label>
@@ -354,12 +354,12 @@
 	</section>
 
 	<!-- Inteligencia -->
-	<section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-		<h2 class="text-base font-semibold text-slate-900">Inteligencia</h2>
+	<section class="panel">
+		<h2 class="panel-title">Inteligencia</h2>
 		<div class="mt-4 space-y-2">
 			<span id="ai-provider-label" class={LABEL_CLS}>Proveedor de análisis</span>
 			<div class="flex gap-4" role="radiogroup" aria-labelledby="ai-provider-label">
-				<label class="flex items-center gap-2 text-sm text-slate-700">
+				<label class="flex items-center gap-2 text-sm text-ink-2">
 					<input
 						type="radio"
 						name="ai_provider"
@@ -370,7 +370,7 @@
 					/>
 					Modelo local
 				</label>
-				<label class="flex items-center gap-2 text-sm text-slate-700">
+				<label class="flex items-center gap-2 text-sm text-ink-2">
 					<input
 						type="radio"
 						name="ai_provider"
@@ -386,7 +386,7 @@
 
 		<!-- Rendered but hidden for `local`: the values still submit, so
 			switching providers never wipes stored credentials. -->
-		<div class={draft.ai_provider === 'openai' ? 'mt-4 space-y-4 border-l-2 border-slate-100 pl-4' : 'hidden'}>
+		<div class={draft.ai_provider === 'openai' ? 'mt-4 space-y-4 border-l-2 border-line-soft pl-4' : 'hidden'}>
 			<div>
 				<label for="set-ai-base-url" class={LABEL_CLS}>Base URL</label>
 				<input
@@ -420,7 +420,7 @@
 					class={INPUT_CLS}
 				/>
 			</div>
-			<label class="flex items-center gap-2 text-sm text-slate-700">
+			<label class="flex items-center gap-2 text-sm text-ink-2">
 				<input
 					type="checkbox"
 					name="ai_fallback_local"
@@ -438,7 +438,7 @@
 			</button>
 			{#if form?.action === 'test-ai'}
 				{#if form.ok}
-					<p class="mt-2 text-xs text-green-700">
+					<p class="mt-2 text-xs text-success">
 						Conexión correcta
 						{#if form.engine}
 							&middot; {form.engine}
@@ -454,7 +454,7 @@
 						{/if}
 					</p>
 				{:else}
-						<p class="mt-2 text-xs text-red-700">Error: {form.message}</p>
+						<p class="mt-2 text-xs text-danger">Error: {form.message}</p>
 						{/if}
 						{/if}
 						</div>
@@ -464,11 +464,11 @@
 		<button
 			type="submit"
 			disabled={submitting}
-			class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-700 disabled:opacity-60"
+			class="inline-flex min-h-[44px] items-center justify-center rounded-full border border-accent bg-accent px-[22px] text-sm font-semibold text-accent-on transition-colors hover:border-accent-hover hover:bg-accent-hover active:border-accent-active active:bg-accent-active disabled:opacity-60"
 		>
 			Guardar configuración
 			{#if dirty}
-				<span class="ml-1.5 inline-block size-1.5 rounded-full bg-amber-300" title="Cambios sin guardar"></span>
+				<span class="ml-1.5 inline-block size-1.5 rounded-full bg-warn" title="Cambios sin guardar"></span>
 				<span class="sr-only">(cambios sin guardar)</span>
 			{/if}
 		</button>
