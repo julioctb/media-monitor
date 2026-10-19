@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="es-ES"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Actores · Media Monitor</title><style>
+:root {
+  --bg: #ffffff;
+  --surface: #f5f5f7;
+  --surface-warm: #fbfbfd;
+  --fg: #1d1d1f;
+  --fg-2: #424245;
+  --muted: #6e6e73;
+  --meta: #86868b;
+  --border: #d2d2d7;
+  --border-soft: #e8e8ed;
+  --accent: #0071e3;
+  --accent-on: #ffffff;
+  --accent-hover: #0077ed;
+  --accent-active: #0066cc;
+  --success: #16a34a;
+  --warn: #eab308;
+  --danger: #dc2626;
+  --font-display: "SF Pro Display", "SF Pro Icons", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-body: "SF Pro Text", "SF Pro Icons", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: "SF Mono", ui-monospace, "JetBrains Mono", Menlo, Monaco, Consolas, monospace;
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-base: 17px;
+  --text-lg: 21px;
+  --text-xl: 28px;
+  --text-2xl: 40px;
+  --text-3xl: 56px;
+  --text-4xl: 80px;
+  --leading-body: 1.47;
+  --leading-tight: 1.05;
+  --tracking-display: -0.015em;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --section-y-desktop: 100px;
+  --section-y-tablet: 64px;
+  --section-y-phone: 40px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-pill: 980px;
+  --elev-flat: none;
+  --elev-ring: 0 0 0 1px var(--border);
+  --elev-raised: 0 12px 32px rgba(0, 0, 0, 0.08);
+  --focus-ring: 0 0 0 4px color-mix(in oklab, var(--accent), transparent 65%);
+  --motion-fast: 150ms;
+  --motion-base: 220ms;
+  --ease-standard: cubic-bezier(0.28, 0, 0.22, 1);
+  --container-max: 1024px;
+  --container-gutter-desktop: 22px;
+  --container-gutter-tablet: 18px;
+  --container-gutter-phone: 16px;
+}
+*{box-sizing:border-box}body{margin:0;background:var(--surface);color:var(--fg);font:var(--text-base)/var(--leading-body) var(--font-body)}button,input{font:inherit}a{color:inherit;text-decoration:none}:focus-visible{outline:2px solid var(--accent);outline-offset:3px}.topbar{background:var(--fg);color:var(--bg)}.topbar-inner{max-width:1280px;min-height:64px;margin:auto;padding:0 40px;display:flex;align-items:center;gap:28px}.brand{font-weight:700;letter-spacing:-.02em;white-space:nowrap}.nav{margin-left:auto;display:flex;align-items:stretch;gap:22px;min-height:64px}.nav a{display:flex;align-items:center;position:relative;font-size:var(--text-sm);color:var(--surface);min-height:44px}.nav a:hover{color:var(--bg)}.nav a[aria-current="page"]{color:var(--bg);font-weight:700}.nav a[aria-current="page"]::after{content:"";position:absolute;bottom:0;left:0;right:0;height:3px;background:var(--accent)}.menu-toggle{display:none;min-height:44px;padding:9px 13px;margin-left:auto;border:1px solid var(--border);border-radius:var(--radius-sm);background:transparent;color:var(--bg)}.menu-toggle:hover{background:var(--fg-2)}.page{max-width:1280px;margin:auto;padding:40px 40px 72px}h1{margin:0 0 10px;font:600 clamp(32px,4vw,40px)/1.08 var(--font-display);letter-spacing:var(--tracking-display)}.lead{max-width:75ch;margin:0;color:var(--fg-2);font-size:var(--text-base)}.panel{margin-top:16px;padding:24px 28px;border:1px solid var(--border-soft);border-radius:var(--radius-lg);background:var(--bg)}.panel-head{padding-bottom:14px;border-bottom:1px solid var(--border)}.filter-panel{margin-top:28px;padding:20px 28px;border:1px solid var(--border-soft);border-radius:var(--radius-lg);background:var(--bg)}.filter-panel h2{margin:0 0 14px;font:600 var(--text-lg)/1.2 var(--font-display)}.filter-form{display:flex;align-items:flex-end;gap:12px}.filter-field{flex:1;min-width:0}.search-button{min-height:44px;padding:9px 22px;border:1px solid var(--accent);border-radius:var(--radius-pill);background:var(--accent);color:var(--accent-on);font-size:var(--text-sm);font-weight:600;cursor:pointer}.search-button:hover{border-color:var(--accent-hover);background:var(--accent-hover);color:var(--accent-on)}.search-button:active{border-color:var(--accent-active);background:var(--accent-active);color:var(--accent-on)}.panel h2{margin:0;font:600 var(--text-lg)/1.2 var(--font-display)}.panel-note{margin:6px 0 0;color:var(--muted);font-size:var(--text-sm)}.search-label{display:block;margin-bottom:6px;color:var(--fg-2);font-size:var(--text-xs);font-weight:600}.search{width:100%;min-height:44px;padding:0 13px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);color:var(--fg);font-size:var(--text-sm)}.search:hover{border-color:var(--meta)}.search::placeholder{color:var(--muted)}.table-wrap{overflow-x:auto}.actors{width:100%;border-collapse:collapse;table-layout:fixed}.actors th{text-align:left;padding:10px 12px;border-bottom:1px solid var(--border);color:var(--fg-2);font-size:var(--text-xs);font-weight:700;text-transform:uppercase;letter-spacing:.06em}.actors td{padding:18px 12px;border-bottom:1px solid var(--border-soft);vertical-align:middle;font-size:var(--text-sm);overflow-wrap:anywhere}.actors tr:last-child td{border-bottom:0}.actors th:first-child,.actors td:first-child{padding-left:0;width:24%}.actors th:nth-child(2){width:19%}.actors th:nth-child(3){width:28%}.actors th:nth-child(4){width:12%}.actors th:last-child{width:17%}.person{display:flex;align-items:center;gap:12px;font-weight:600}.person a{text-decoration:underline;text-decoration-color:var(--border);text-underline-offset:3px}.person a:hover{text-decoration-color:var(--fg)}.monogram{flex:none;display:grid;place-items:center;width:42px;height:42px;border-radius:50%;background:var(--surface);color:var(--fg);font-size:var(--text-xs);font-weight:700}.count{font-variant-numeric:tabular-nums;font-weight:600}.missing{color:var(--muted)}.empty{padding:28px;border:1px solid var(--border);border-radius:var(--radius-md);color:var(--fg-2);font-size:var(--text-sm)}.empty[hidden],tr[hidden]{display:none}.footnote{margin:18px 0 0;color:var(--muted);font-size:var(--text-xs)}@media(max-width:800px){.topbar-inner{padding:0 20px}.page{padding:28px 20px 48px}.actors,.actors tbody,.actors tr,.actors td{display:block;width:100%}.actors thead{display:none}.actors tr{padding:16px 0;border-bottom:1px solid var(--border-soft)}.actors td,.actors td:first-child{width:100%;padding:5px 0;border:0}.actors td:not(:first-child)::before{content:attr(data-label) ': ';color:var(--muted);font-weight:600}.panel,.filter-panel{padding:20px}}@media(max-width:560px){.topbar-inner{padding:0 16px;flex-wrap:wrap}.menu-toggle{display:block}.nav{display:none;order:3;width:100%;min-height:0;margin:0;padding:8px 0 16px;gap:16px}.nav.open{display:flex}.page{padding:24px 16px 40px}.filter-form{align-items:stretch;flex-direction:column}.search-button{width:100%}}
+</style></head><body><header class="topbar" data-od-id="header"><div class="topbar-inner"><a class="brand" href="resumen-diario-media-monitor.html">Media Monitor</a><button class="menu-toggle" type="button" aria-controls="primary-nav" aria-expanded="false">Menú</button><nav class="nav" id="primary-nav" aria-label="Navegación principal"><a href="resumen-diario-media-monitor.html">Resumen</a><a href="feed-media-monitor.html">Feed</a><a href="eventos-media-monitor.html">Eventos</a><a href="actores-media-monitor.html" aria-current="page">Actores</a><a href="consultas-media-monitor.html">Consultas</a><a href="configuracion-media-monitor.html">Configuración</a></nav></div></header><main class="page" data-od-id="actors-page"><header data-od-id="actors-intro"><h1 data-od-id="actors-title">Actores</h1><p class="lead">Personas identificadas en la cobertura de medios y redes sociales. Consulta su cargo, institución y frecuencia de aparición.</p></header><section class="filter-panel" aria-labelledby="actors-filter-title" data-od-id="actors-controls"><h2 id="actors-filter-title">Filtrar actores</h2><form class="filter-form" id="actors-filter-form" role="search"><div class="filter-field"><label class="search-label" for="actor-search">Buscar actor</label><input class="search" id="actor-search" type="search" placeholder="Nombre, cargo o institución" autocomplete="off" data-od-id="actor-search"></div><button class="search-button" type="submit" data-od-id="actor-search-button">Buscar</button></form></section><section class="panel" aria-labelledby="actors-list-title" data-od-id="actors-list"><div class="panel-head"><div><h2 id="actors-list-title">Actores en seguimiento</h2><p class="panel-note" id="actors-count" role="status" aria-live="polite">1 persona disponible en esta muestra</p></div></div><div class="table-wrap"><table class="actors"><thead><tr><th scope="col">Nombre</th><th scope="col">Cargo</th><th scope="col">Institución</th><th scope="col">Menciones</th><th scope="col">Última vez</th></tr></thead><tbody><tr data-actor="lilia cedillo rectora benemerita universidad autonoma de puebla buap" data-od-id="actor-lilia-cedillo"><td data-label="Nombre"><div class="person"><span class="monogram" aria-hidden="true">LC</span><a href="detalle-actor-media-monitor.html" data-od-id="actor-lilia-cedillo-link">Lilia Cedillo</a></div></td><td data-label="Cargo">Rectora</td><td data-label="Institución">Benemérita Universidad Autónoma de Puebla</td><td data-label="Menciones"><span class="count">214</span></td><td data-label="Última vez"><span class="missing">No disponible</span></td></tr></tbody></table></div><p class="empty" id="actors-empty" hidden>No se encontraron actores con esa búsqueda.</p><p class="footnote">Vista de ejemplo. Las 214 menciones son el total histórico mostrado en la referencia; la fecha de la última publicación y el resto de actores requieren datos del backend.</p></section></main><script>
+(() => {
+ const menu=document.querySelector('.menu-toggle');const nav=document.querySelector('.nav');
+ menu.addEventListener('click',()=>{const open=nav.classList.toggle('open');menu.setAttribute('aria-expanded',String(open))});
+ nav.addEventListener('click',event=>{if(event.target.closest('a')){nav.classList.remove('open');menu.setAttribute('aria-expanded','false')}});
+ const search=document.querySelector('#actor-search');const form=document.querySelector('#actors-filter-form');const rows=[...document.querySelectorAll('.actors tbody tr')];const count=document.querySelector('#actors-count');const empty=document.querySelector('#actors-empty');
+ form.addEventListener('submit',event=>{event.preventDefault();const query=search.value.trim().toLocaleLowerCase('es').normalize('NFD').replace(/[\u0300-\u036f]/g,'');let visible=0;rows.forEach(row=>{row.hidden=!row.dataset.actor.includes(query);if(!row.hidden)visible++});count.textContent=`${visible} ${visible===1?'persona disponible':'personas disponibles'} en esta muestra`;empty.hidden=visible!==0});
+})();
+</script></body></html>

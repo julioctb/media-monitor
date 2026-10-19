@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="es-ES">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Feed · Media Monitor</title>
+<style>
+:root {
+  --bg: #ffffff;
+  --surface: #f5f5f7;
+  --surface-warm: #fbfbfd;
+  --fg: #1d1d1f;
+  --fg-2: #424245;
+  --muted: #6e6e73;
+  --meta: #86868b;
+  --border: #d2d2d7;
+  --border-soft: #e8e8ed;
+  --accent: #0071e3;
+  --accent-on: #ffffff;
+  --accent-hover: #0077ed;
+  --accent-active: #0066cc;
+  --success: #16a34a;
+  --warn: #eab308;
+  --danger: #dc2626;
+  --font-display: "SF Pro Display", "SF Pro Icons", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-body: "SF Pro Text", "SF Pro Icons", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: "SF Mono", ui-monospace, "JetBrains Mono", Menlo, Monaco, Consolas, monospace;
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-base: 17px;
+  --text-lg: 21px;
+  --text-xl: 28px;
+  --text-2xl: 40px;
+  --text-3xl: 56px;
+  --text-4xl: 80px;
+  --leading-body: 1.47;
+  --leading-tight: 1.05;
+  --tracking-display: -0.015em;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --section-y-desktop: 100px;
+  --section-y-tablet: 64px;
+  --section-y-phone: 40px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-pill: 980px;
+  --elev-flat: none;
+  --elev-ring: 0 0 0 1px var(--border);
+  --elev-raised: 0 12px 32px rgba(0, 0, 0, 0.08);
+  --focus-ring: 0 0 0 4px color-mix(in oklab, var(--accent), transparent 65%);
+  --motion-fast: 150ms;
+  --motion-base: 220ms;
+  --ease-standard: cubic-bezier(0.28, 0, 0.22, 1);
+  --container-max: 1024px;
+  --container-gutter-desktop: 22px;
+  --container-gutter-tablet: 18px;
+  --container-gutter-phone: 16px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--surface);color:var(--fg);font:var(--text-base)/var(--leading-body) var(--font-body)}
+button,input,select{font:inherit}
+button{cursor:pointer}
+a{color:inherit;text-decoration:none}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.topbar{background:var(--fg);color:var(--bg)}
+.topbar-inner{max-width:1280px;min-height:64px;margin:auto;padding:0 40px;display:flex;align-items:center;gap:28px}
+.brand{font-weight:700;letter-spacing:-.02em;white-space:nowrap}
+.nav{margin-left:auto;display:flex;align-items:stretch;gap:22px;min-height:64px}
+.nav a{display:flex;align-items:center;position:relative;font-size:var(--text-sm);color:var(--surface);min-height:44px}
+.nav a:hover{color:var(--bg)}
+.nav a[aria-current="page"]{color:var(--bg);font-weight:700}
+.nav a[aria-current="page"]::after{content:"";position:absolute;bottom:0;left:0;right:0;height:3px;background:var(--accent)}
+.nav .disabled{display:flex;align-items:center;color:var(--meta);font-size:var(--text-sm)}
+.menu-toggle{display:none;min-height:44px;padding:9px 13px;margin-left:auto;border:1px solid var(--border);border-radius:var(--radius-sm);background:transparent;color:var(--bg)}
+.menu-toggle:hover{background:var(--fg-2);color:var(--bg)}
+.page{max-width:1280px;margin:auto;padding:36px 40px 72px}
+.intro{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(360px,.9fr);gap:28px;align-items:center;padding:30px 32px;border:1px solid var(--border-soft);border-radius:var(--radius-lg);background:var(--bg)}
+.intro-content{min-width:0}
+.intro-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-self:stretch}
+.intro-stat{display:flex;flex-direction:column;justify-content:space-between;min-width:0;padding:20px;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--surface-warm)}
+.intro-stat-label{margin:0;color:var(--fg-2);font-size:var(--text-sm);font-weight:600;line-height:1.3}
+.intro-stat-value{margin:14px 0 0;color:var(--fg);font:600 clamp(32px,3vw,40px)/1 var(--font-display);letter-spacing:var(--tracking-display)}
+.intro-stat-note{margin:12px 0 0;color:var(--muted);font-size:var(--text-xs);line-height:1.4}
+.eyebrow{margin:0;color:var(--fg-2);font-size:var(--text-xs);font-weight:700;text-transform:uppercase;letter-spacing:.13em}
+h1{margin:8px 0 9px;font:600 clamp(32px,4vw,40px)/1.08 var(--font-display);letter-spacing:var(--tracking-display)}
+.intro-copy{max-width:68ch;margin:0;color:var(--fg-2);font-size:var(--text-sm)}
+.source-note{display:inline-flex;margin-top:18px;padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius-pill);color:var(--fg-2);font-size:var(--text-xs);font-weight:600}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 252px;gap:20px;align-items:start;margin-top:18px}
+.panel{min-width:0;background:var(--bg);border:1px solid var(--border-soft);border-radius:var(--radius-lg)}
+.feed-main{min-width:0;display:grid;gap:16px}.feed-panel,.feed-filter-panel{padding:24px 28px 28px}.feed-filter-panel h2{padding-bottom:14px;border-bottom:1px solid var(--border)}.search-button{min-height:44px;padding:8px 20px;border:1px solid var(--accent);border-radius:var(--radius-pill);background:var(--accent);color:var(--accent-on);font-size:var(--text-sm);font-weight:600}.search-button:hover{border-color:var(--accent-hover);background:var(--accent-hover);color:var(--accent-on)}.search-button:active{border-color:var(--accent-active);background:var(--accent-active);color:var(--accent-on)}
+.panel-heading{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding-bottom:14px;border-bottom:1px solid var(--border)}
+h2{margin:0;font:600 var(--text-lg)/1.2 var(--font-display)}
+.panel-note{color:var(--muted);font-size:var(--text-xs)}
+.filter-bar{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:14px;margin-top:20px;align-items:end}
+.search-label{display:block;margin-bottom:6px;font-size:var(--text-xs);font-weight:600;color:var(--fg-2)}
+.search{width:100%;height:44px;padding:0 14px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);color:var(--fg);font-size:var(--text-sm)}
+.search:hover{border-color:var(--meta)}
+.search::placeholder{color:var(--muted)}
+.filter-group{display:flex;flex-wrap:wrap;gap:6px;margin-top:16px}
+.sidebar .filter-group{display:grid;grid-template-columns:1fr;margin-top:16px}
+.sidebar .filter{text-align:left}
+.filter{min-height:44px;padding:8px 15px;border:1px solid var(--border);border-radius:var(--radius-pill);background:var(--bg);color:var(--fg);font-size:var(--text-sm);font-weight:600}
+.filter:hover{background:var(--surface);color:var(--fg)}
+.filter[aria-pressed="true"]{background:var(--fg);border-color:var(--fg);color:var(--bg)}
+.filter[aria-pressed="true"]:hover{background:var(--fg-2);border-color:var(--fg-2);color:var(--bg)}
+.keyword-filter{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:16px}
+.keyword-label{margin-right:4px;color:var(--fg-2);font-size:var(--text-xs);font-weight:600}
+.keyword-chip{min-height:44px;padding:8px 14px;border:1px solid var(--border);border-radius:var(--radius-pill);background:var(--bg);color:var(--fg);font-size:var(--text-sm);font-weight:600}
+.keyword-chip:hover{background:var(--surface);color:var(--fg)}
+.keyword-chip[aria-pressed="true"]{border-color:var(--fg);background:var(--fg);color:var(--bg)}
+.keyword-chip[aria-pressed="true"]:hover{border-color:var(--fg-2);background:var(--fg-2);color:var(--bg)}
+.keyword-hint{margin:4px 0 0;color:var(--muted);font-size:var(--text-xs)}
+.select-label{display:block;margin-bottom:6px;font-size:var(--text-xs);font-weight:600;color:var(--fg-2)}
+.select{min-width:145px;height:44px;padding:0 32px 0 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);color:var(--fg);font-size:var(--text-sm)}
+.side-date-fields{display:grid;gap:12px;margin-top:16px}
+.date-input{width:100%;min-width:0;height:44px;padding:0 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);color:var(--fg);font-size:var(--text-sm)}
+.date-input:hover,.select:hover{border-color:var(--meta)}
+.date-input[aria-invalid="true"]{border-color:var(--danger)}
+.date-input[aria-invalid="true"]:focus-visible{outline-color:var(--danger)}
+.date-error{margin:8px 0 0;color:var(--danger);font-size:var(--text-xs);font-weight:600}
+.date-error[hidden]{display:none}
+.result-line{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:24px;color:var(--muted);font-size:var(--text-xs)}
+.filter-actions{display:flex;justify-content:flex-end;margin-top:8px}.clear{min-height:44px;padding:8px 4px;border:0;background:transparent;color:var(--fg);font-size:var(--text-xs);font-weight:600;text-decoration:underline;text-underline-offset:3px}
+.clear:hover{color:var(--fg);text-decoration-thickness:2px}
+.feed-list{display:grid;gap:12px;list-style:none;margin:12px 0 0;padding:0}
+.feed-item{min-width:0;padding:0;border:1px solid var(--border-soft);border-radius:var(--radius-md);background:var(--surface-warm)}
+.feed-item article{padding:17px 18px}
+.feed-item[hidden]{display:none}
+.feed-list[hidden]{display:none}
+.item-top{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px 14px}
+.item-channel{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:var(--text-xs);font-weight:600;color:var(--fg-2);text-transform:none;letter-spacing:normal}
+.item-channel .sentiment{text-transform:none;letter-spacing:normal}
+.item-time{display:flex;justify-content:flex-start;gap:6px;flex-wrap:wrap;margin:8px 0 0;font-size:var(--text-xs);color:var(--muted)}
+.item-title{margin:10px 0 0;font:600 18px/1.36 var(--font-display);letter-spacing:-.01em;text-wrap:pretty}
+.item-summary{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden;margin:6px 0 0;color:var(--fg-2);font-size:var(--text-sm);line-height:1.5}
+.item-meta{margin:0;color:var(--fg-2);font-size:var(--text-sm)}
+.item-bottom{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-top:8px}
+.sentiment{display:inline-flex;align-items:center;padding:4px 10px;border-radius:var(--radius-pill);font-size:var(--text-xs);font-weight:700}
+.positive{background:color-mix(in oklch,var(--success) 22%,var(--bg));color:var(--fg)}
+.neutral{background:var(--surface);color:var(--fg-2)}
+.negative{background:color-mix(in oklch,var(--danger) 20%,var(--bg));color:var(--fg)}
+.item-title-link[href]{color:var(--fg);text-decoration:underline;text-decoration-color:var(--border);text-underline-offset:4px}
+.item-title-link[href]:hover{color:var(--fg);text-decoration-color:var(--fg)}
+.item-title-link[href]:focus-visible{outline:2px solid var(--accent);outline-offset:4px;border-radius:2px}
+.item-details{margin-top:4px}
+.item-entity-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.item-entity-chip{display:inline-flex;align-items:center;min-height:28px;padding:4px 10px;border:1px solid var(--border-soft);border-radius:var(--radius-pill);background:var(--bg);color:var(--fg-2);font-size:var(--text-xs);font-weight:600;line-height:1.3}
+.item-footer{display:flex;align-items:center;justify-content:space-between;gap:8px 16px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid var(--border-soft)}
+.item-footer .item-entity-chips{margin-top:0}
+.item-event{margin:0 0 0 auto;color:var(--muted);font-size:var(--text-xs);text-align:right}
+.item-event a{color:var(--accent-active);font-weight:600;text-decoration:underline;text-underline-offset:3px}
+.item-event a:hover{color:var(--accent-active);text-decoration-thickness:2px}
+.item-details summary{display:inline-flex;align-items:center;min-height:44px;padding:6px 8px 6px 0;color:var(--fg);font-size:var(--text-sm);font-weight:600;cursor:pointer;text-decoration:underline;text-decoration-color:var(--border);text-underline-offset:4px}
+.item-details summary:hover{color:var(--fg);text-decoration-color:var(--fg)}
+.item-details[open] summary{margin-bottom:8px}
+.item-detail-content{padding:14px 16px;border:1px solid var(--border-soft);border-radius:var(--radius-sm);background:var(--surface-warm)}
+.item-detail-content p{margin:0;color:var(--fg-2);font-size:var(--text-sm);line-height:1.5}
+.item-detail-content p strong{color:var(--fg)}
+.item-facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:14px 0 0;padding-top:12px;border-top:1px solid var(--border-soft)}
+.item-facts div{min-width:0}
+.item-facts dt{color:var(--muted);font-size:var(--text-xs);font-weight:600}
+.item-facts dd{margin:3px 0 0;color:var(--fg);font-size:var(--text-sm);overflow-wrap:anywhere}
+.feed-item[data-od-id="feed-budget"] .item-facts{margin:0;padding-top:0;border-top:0}
+.empty{margin-top:18px;padding:24px;border:1px solid var(--border-soft);border-radius:var(--radius-sm);background:var(--surface-warm)}
+.empty[hidden]{display:none}
+.empty strong{display:block;font-size:var(--text-sm)}
+.empty p{margin:5px 0 0;color:var(--fg-2);font-size:var(--text-sm)}
+.loading,.error-state{margin-top:18px;padding:24px;border:1px solid var(--border-soft);border-radius:var(--radius-sm);background:var(--surface-warm);color:var(--fg-2);font-size:var(--text-sm)}
+.loading[hidden],.error-state[hidden]{display:none}
+.error-state strong{display:block;color:var(--fg)}
+.error-state p{margin:5px 0 0}
+.pagination{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding-top:16px;border-top:1px solid var(--border-soft)}
+.pagination[hidden]{display:none}
+.page-status{color:var(--fg-2);font-size:var(--text-sm);font-variant-numeric:tabular-nums}
+.page-controls{display:flex;align-items:end;gap:12px;flex-wrap:wrap}
+.page-actions{display:flex;gap:8px}
+.page-button{min-height:44px;padding:8px 15px;border:1px solid var(--border);border-radius:var(--radius-pill);background:var(--bg);color:var(--fg);font-size:var(--text-sm);font-weight:600}
+.page-button:hover:not(:disabled){background:var(--surface);color:var(--fg)}
+.page-button:disabled{cursor:not-allowed;color:var(--muted);background:var(--surface)}
+.side-panel{padding:22px 20px}
+.history-panel{min-width:0}
+.history-panel h2{padding-bottom:15px;border-bottom:1px solid var(--border)}
+.history-intro{margin:8px 0 0;color:var(--fg-2);font-size:var(--text-sm);line-height:1.5}
+.history-empty{margin-top:16px;padding:14px;border:1px solid var(--border-soft);border-radius:var(--radius-sm);background:var(--surface-warm)}
+.history-empty strong{display:block;font-size:var(--text-sm)}
+.history-empty p{margin:5px 0 0;color:var(--fg-2);font-size:var(--text-sm);line-height:1.5}
+.side-panel h2{padding-bottom:15px;border-bottom:1px solid var(--border)}
+.side-panel p{margin:14px 0 0;color:var(--fg-2);font-size:var(--text-sm);line-height:1.5}
+.side-panel .date-error{margin-top:8px;color:var(--danger);font-size:var(--text-xs);font-weight:600}
+.side-panel .small{color:var(--muted);font-size:var(--text-xs)}
+.side-panel + .side-panel{margin-top:16px}
+.back{display:inline-flex;align-items:center;min-height:44px;margin-top:14px;color:var(--fg);font-size:var(--text-sm);font-weight:600;text-decoration:underline;text-decoration-color:var(--border);text-underline-offset:4px}
+.back:hover{text-decoration-color:var(--fg)}
+@media(max-width:1020px){.topbar-inner{padding:0 24px}.menu-toggle{display:block}.nav{display:none;order:3;width:100%;min-height:0;margin:0;padding:8px 0 16px;flex-wrap:wrap;gap:0 20px}.nav.open{display:flex}.topbar-inner{flex-wrap:wrap}.page{padding:28px 24px 60px}.layout{grid-template-columns:minmax(0,1fr) 220px}}
+@media(max-width:900px){.intro{grid-template-columns:1fr;gap:20px}.intro-stats{align-self:auto}}
+@media(max-width:760px){.layout{grid-template-columns:1fr}.sidebar{display:grid;grid-template-columns:1fr 1fr;gap:16px}.side-panel + .side-panel{margin:0}}
+@media(max-width:600px){.topbar-inner{padding:0 16px}.page{padding:16px 16px 48px}.intro{padding:24px 20px}.feed-panel,.feed-filter-panel{padding:20px}.filter-bar{grid-template-columns:1fr}.search-button{width:100%}.select{width:100%}.sidebar{grid-template-columns:1fr}.side-panel + .side-panel{margin:0}.result-line{margin-top:16px}}
+@media(max-width:600px){.item-facts{grid-template-columns:1fr;gap:10px}}
+@media(max-width:600px){.feed-item article{padding:17px 18px}}
+@media(max-width:420px){.intro-stats{grid-template-columns:1fr}.intro-stat{padding:16px}.panel-heading{align-items:flex-start;flex-direction:column}.item-footer{align-items:flex-start}.item-event{margin-left:0;text-align:left}.page-controls,.page-controls>div:first-child{width:100%}.page-actions{width:100%}.page-button{flex:1}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<header class="topbar" data-od-id="header"><div class="topbar-inner">
+  <a class="brand" href="resumen-diario-media-monitor.html" data-od-id="brand">Media Monitor</a>
+  <button class="menu-toggle" type="button" aria-controls="primary-nav" aria-expanded="false" data-od-id="menu-toggle">Menú</button>
+  <nav class="nav" id="primary-nav" aria-label="Navegación principal" data-od-id="navigation"><a href="resumen-diario-media-monitor.html">Resumen</a><a href="feed-media-monitor.html" aria-current="page">Feed</a><a href="eventos-media-monitor.html">Eventos</a><a href="actores-media-monitor.html">Actores</a><a href="consultas-media-monitor.html">Consultas</a><a href="configuracion-media-monitor.html">Configuración</a></nav>
+</div></header>
+<main class="page" data-od-id="feed-page">
+  <section class="intro" data-od-id="feed-intro"><div class="intro-content"><p class="eyebrow">Monitor de medios · BUAP</p><h1 data-od-id="feed-title">Feed de noticias</h1><p class="intro-copy">Noticias y publicaciones de redes sociales en una sola vista. Filtra por fuente, tono, fecha o palabras del titular para revisar la cobertura.</p><span class="source-note">Vista de ejemplo · 19 oct 2026 · sin actualización automática</span></div><div class="intro-stats" aria-label="Estadísticas de esta muestra" data-od-id="feed-stats"><article class="intro-stat" data-od-id="stat-news-outlets"><p class="intro-stat-label">Medios con noticias</p><p class="intro-stat-value">4</p><p class="intro-stat-note">Fuentes distintas en esta muestra</p></article><article class="intro-stat" data-od-id="stat-events"><p class="intro-stat-label">Eventos</p><p class="intro-stat-value" aria-label="Dato pendiente">—</p><p class="intro-stat-note">Pendiente de agrupar por hecho</p></article></div></section>
+  <div class="layout">
+    <div class="feed-main">
+    <section class="panel feed-filter-panel" aria-labelledby="feed-filter-heading" data-od-id="feed-filter-panel">
+      <h2 id="feed-filter-heading">Filtrar publicaciones</h2>
+      <form id="feed-search-form" role="search">
+      <div class="filter-bar" data-od-id="feed-controls">
+        <div><label class="search-label" for="feed-search">Buscar en el feed</label><input class="search" id="feed-search" type="search" placeholder="Buscar titular o medio" autocomplete="off" data-od-id="feed-search"></div>
+        <div><label class="select-label" for="tone-filter">Tono</label><select class="select" id="tone-filter" data-od-id="tone-filter"><option value="all">Todos los tonos</option><option value="positive">Positivo</option><option value="neutral">Neutro</option><option value="negative">Negativo</option></select></div>
+        <div><button class="search-button" type="submit" data-od-id="feed-search-button">Buscar</button></div>
+      </div>
+      <div class="keyword-filter" role="group" aria-label="Filtrar por palabra clave monitorizada" aria-describedby="keyword-hint" data-od-id="keyword-filters"><span class="keyword-label">Palabras clave</span><button class="keyword-chip" type="button" data-keyword="" aria-pressed="true" aria-label="Todas las noticias" data-od-id="keyword-all">Todas</button><button class="keyword-chip" type="button" data-keyword="lilia cedillo" aria-pressed="false" data-od-id="keyword-lilia-cedillo">Lilia Cedillo</button><button class="keyword-chip" type="button" data-keyword="buap" aria-pressed="false" data-od-id="keyword-buap">BUAP</button></div>
+      <p class="keyword-hint" id="keyword-hint">En esta muestra, se filtra por coincidencias en el titular.</p>
+      <div class="filter-actions"><button class="clear" type="button" data-od-id="clear-filters">Limpiar filtros</button></div>
+      </form>
+    </section>
+    <section class="panel feed-panel" aria-labelledby="results-heading" data-od-id="feed-results">
+      <div class="panel-heading"><h2 id="results-heading">Cobertura reciente</h2><span class="panel-note">Ordenada de más reciente a más antigua</span></div>
+      <div class="result-line"><span id="result-count" role="status" aria-live="polite">4 publicaciones encontradas</span></div>
+      <div class="loading" id="feed-loading" role="status" aria-live="polite" hidden data-od-id="feed-loading">Cargando publicaciones…</div>
+      <!-- Pendiente: cargar la URL directa de cada noticia en data-article-url. El titular solo se convierte en enlace cuando existe una URL válida. -->
+      <ol class="feed-list" data-od-id="feed-items">
+        <li class="feed-item" data-source="news" data-tone="negative" data-od-id="feed-budget"><article><div class="item-top"><span class="item-channel">Noticias · NVI Noticias</span><span class="sentiment negative">Negativa</span></div><p class="item-time"><time datetime="2026-10-19T11:02">19 de octubre de 2026 · 11:02</time><span>· Palabra clave: no registrada</span></p><h3 class="item-title"><span class="item-title-link" data-article-url="">Presupuesto 2027: reclaman mayor aportación a la BUAP</span></h3><p class="item-summary" data-od-id="feed-budget-summary">Resumen no disponible en esta vista de ejemplo.</p><div class="item-footer"><div class="item-entity-chips" aria-label="Categoría y actor"><span class="item-entity-chip" data-od-id="feed-budget-category-chip">Categoría · Sin registrar</span><span class="item-entity-chip" data-od-id="feed-budget-actor-chip" data-backend-field="actor">Actor · Sin asignar</span></div><p class="item-event" data-od-id="feed-budget-event" data-event-url="">Sin evento relacionado</p></div></article></li>
+        <li class="feed-item" data-source="news" data-tone="neutral" data-od-id="feed-expansion"><article><div class="item-top"><span class="item-channel">Noticias · e-consulta</span><span class="sentiment neutral">Neutra</span></div><p class="item-time"><time datetime="2026-10-19T10:15">19 de octubre de 2026 · 10:15</time><span>· Palabra clave: no registrada</span></p><h3 class="item-title"><span class="item-title-link" data-article-url="">Presenta BUAP resultados de expansión regional</span></h3><p class="item-summary" data-od-id="feed-expansion-summary">Resumen no disponible en esta vista de ejemplo.</p><div class="item-footer"><div class="item-entity-chips" aria-label="Categoría y actor"><span class="item-entity-chip" data-od-id="feed-expansion-category-chip">Categoría · Sin registrar</span><span class="item-entity-chip" data-od-id="feed-expansion-actor-chip" data-backend-field="actor">Actor · Sin asignar</span></div><p class="item-event" data-od-id="feed-expansion-event" data-event-url="">Sin evento relacionado</p></div></article></li>
+        <li class="feed-item" data-source="news" data-tone="positive" data-od-id="feed-scholarships"><article><div class="item-top"><span class="item-channel">Noticias · Periódico Central</span><span class="sentiment positive">Positiva</span></div><p class="item-time"><time datetime="2026-10-19T09:40">19 de octubre de 2026 · 09:40</time><span>· Palabra clave: no registrada</span></p><h3 class="item-title"><span class="item-title-link" data-article-url="">Más de 75 mil estudiantes de la BUAP han recibido becas</span></h3><p class="item-summary" data-od-id="feed-scholarships-summary">Resumen no disponible en esta vista de ejemplo.</p><div class="item-footer"><div class="item-entity-chips" aria-label="Categoría y actor"><span class="item-entity-chip" data-od-id="feed-scholarships-category-chip">Categoría · Sin registrar</span><span class="item-entity-chip" data-od-id="feed-scholarships-actor-chip" data-backend-field="actor">Actor · Sin asignar</span></div><p class="item-event" data-od-id="feed-scholarships-event" data-event-url="">Sin evento relacionado</p></div></article></li>
+        <li class="feed-item" data-source="news" data-tone="positive" data-od-id="feed-rector"><article><div class="item-top"><span class="item-channel">Noticias · El Sol de Puebla</span><span class="sentiment positive">Positiva</span></div><p class="item-time"><time datetime="2026-10-19T08:12">19 de octubre de 2026 · 08:12</time><span>· Palabra clave: no registrada</span></p><h3 class="item-title"><span class="item-title-link" data-article-url="">Rinde su Primer Informe de Labores la rectora María Lilia Cedillo</span></h3><p class="item-summary" data-od-id="feed-rector-summary">Resumen no disponible en esta vista de ejemplo.</p><div class="item-footer"><div class="item-entity-chips" aria-label="Categoría y actor"><span class="item-entity-chip" data-od-id="feed-rector-category-chip">Categoría · Sin registrar</span><span class="item-entity-chip" data-od-id="feed-rector-actor-chip" data-backend-field="actor">Actor · Sin asignar</span></div><p class="item-event" data-od-id="feed-rector-event" data-event-url="">Sin evento relacionado</p></div></article></li>
+      </ol>
+      <div class="empty" role="status" aria-live="polite" hidden data-od-id="feed-empty"><strong>Sin resultados</strong><p id="empty-detail">No hay publicaciones que coincidan con estos filtros.</p></div>
+      <div class="error-state" id="feed-error" role="alert" hidden data-od-id="feed-error"><strong>No se pudo mostrar el feed</strong><p>Vuelve a intentar la búsqueda o limpia los filtros.</p></div>
+      <nav class="pagination" aria-label="Páginas del feed" data-od-id="feed-pagination"><span class="page-status" id="page-status" role="status" aria-live="polite">Página 1 de 1 · 1–4 de 4</span><div class="page-controls"><div data-od-id="feed-page-size"><label class="select-label" for="page-size">Por página</label><select class="select" id="page-size" data-od-id="page-size"><option value="10">10 publicaciones</option><option value="25">25 publicaciones</option><option value="50">50 publicaciones</option></select></div><div class="page-actions"><button class="page-button" type="button" id="page-previous" disabled>Anterior</button><button class="page-button" type="button" id="page-next" disabled>Siguiente</button></div></div></nav>
+    </section>
+    </div>
+    <aside class="sidebar" aria-label="Filtros y contexto del feed" data-od-id="feed-sidebar"><section class="panel side-panel" aria-labelledby="date-filter-heading" data-od-id="feed-date-filter"><h2 id="date-filter-heading">Filtrar feed</h2><div class="filter-group" role="group" aria-label="Filtrar por tipo de contenido" data-od-id="source-filters"><button class="filter" type="button" data-source="all" aria-pressed="true">Todo</button><button class="filter" type="button" data-source="news" aria-pressed="false">Noticias</button><button class="filter" type="button" data-source="social" aria-pressed="false">Redes sociales</button><button class="filter" type="button" data-source="field" aria-pressed="false">Datos de campo</button></div><div class="side-date-fields"><div><label class="select-label" for="date-from">Desde</label><input class="date-input" id="date-from" type="date" aria-describedby="date-error" data-od-id="date-from"></div><div><label class="select-label" for="date-to">Hasta</label><input class="date-input" id="date-to" type="date" aria-describedby="date-error" data-od-id="date-to"></div></div><p class="date-error" id="date-error" role="alert" hidden>La fecha inicial no puede ser posterior a la fecha final.</p></section>    <section class="panel side-panel history-panel" aria-labelledby="history-heading" data-od-id="feed-history">
+      <div class="panel-heading"><h2 id="history-heading">Histórico</h2><span class="panel-note">Archivo de noticias y columnas</span></div>
+      <p class="history-intro">Aquí se mostrarán noticias antiguas y columnas recuperadas mediante scraping, separadas de la cobertura reciente. Cada registro conservará su medio y fecha de publicación original.</p>
+      <div class="history-empty" role="status" data-od-id="feed-history-empty"><strong>Aún no hay registros históricos</strong><p>Cuando se incorporen fuentes de archivo, sus resultados aparecerán en esta sección. La muestra actual del feed no contiene noticias antiguas ni columnas.</p></div>
+    </section>
+<section class="panel side-panel" data-od-id="feed-source-status"><h2>Estado de las fuentes</h2><p><strong>Noticias:</strong> cuatro entradas de ejemplo disponibles.</p><p><strong>Redes sociales:</strong> sin publicaciones cargadas en esta vista.</p><p><strong>Datos de campo:</strong> sin registros cargados en esta vista.</p><p class="small">El feed no se actualiza automáticamente todavía.</p></section><section class="panel side-panel" data-od-id="feed-context"><h2>Seguimiento</h2><p>Los actores, categorías y temas prioritarios se resumen en la página principal.</p><a class="back" href="resumen-diario-media-monitor.html">Volver al resumen →</a></section></aside>
+  </div>
+</main>
+<script>
+(() => {
+  const menu = document.querySelector('.menu-toggle');
+  const nav = document.querySelector('.nav');
+  menu.addEventListener('click', () => {
+    const open = nav.classList.toggle('open');
+    menu.setAttribute('aria-expanded', String(open));
+  });
+  nav.addEventListener('click', event => {
+    if (event.target.closest('a')) { nav.classList.remove('open'); menu.setAttribute('aria-expanded', 'false'); }
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && nav.classList.contains('open')) { nav.classList.remove('open'); menu.setAttribute('aria-expanded', 'false'); menu.focus(); }
+  });
+  const buttons = [...document.querySelectorAll('.filter')];
+  const keywordButtons = [...document.querySelectorAll('.keyword-chip')];
+  const items = [...document.querySelectorAll('.feed-item')];
+  document.querySelectorAll('.item-title-link').forEach(title => {
+    const articleUrl = title.dataset.articleUrl.trim();
+    if (!articleUrl) return;
+    try {
+      const url = new URL(articleUrl);
+      if (!['http:', 'https:'].includes(url.protocol)) return;
+      const link = document.createElement('a');
+      link.className = title.className;
+      link.href = url.href;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.textContent = title.textContent;
+      title.replaceWith(link);
+    } catch { /* La URL pendiente no debe producir un enlace roto. */ }
+  });
+  document.querySelectorAll('.item-event').forEach(status => {
+    const raw = status.dataset.eventUrl?.trim();
+    if (!raw) return;
+    try {
+      const url = new URL(raw, document.baseURI);
+      if (!['http:', 'https:'].includes(url.protocol)) return;
+      const link = document.createElement('a');
+      link.href = url.href;
+      link.textContent = 'Ver evento';
+      status.replaceChildren(link);
+    } catch { /* Un evento sin URL válida conserva su estado sin enlace. */ }
+  });
+  const search = document.getElementById('feed-search');
+  const searchForm = document.getElementById('feed-search-form');
+  const tone = document.getElementById('tone-filter');
+  const dateFrom = document.getElementById('date-from');
+  const dateTo = document.getElementById('date-to');
+  const dateError = document.getElementById('date-error');
+  const sizeSelect = document.getElementById('page-size');
+  const count = document.getElementById('result-count');
+  const empty = document.querySelector('.empty');
+  const loading = document.getElementById('feed-loading');
+  const errorState = document.getElementById('feed-error');
+  const feedList = document.querySelector('.feed-list');
+  const results = document.querySelector('[data-od-id="feed-results"]');
+  const emptyDetail = document.getElementById('empty-detail');
+  const pagination = document.querySelector('[data-od-id="feed-pagination"]');
+  const pageStatus = document.getElementById('page-status');
+  const previous = document.getElementById('page-previous');
+  const next = document.getElementById('page-next');
+  let appliedQuery = '';
+  let source = 'all';
+  let keyword = '';
+  let page = 1;
+  let totalPages = 1;
+  function render() {
+    const query = appliedQuery;
+    const invalidDates = Boolean(dateFrom.value && dateTo.value && dateFrom.value > dateTo.value);
+    dateError.hidden = !invalidDates;
+    dateFrom.setAttribute('aria-invalid', String(invalidDates));
+    dateTo.setAttribute('aria-invalid', String(invalidDates));
+    const pageSize = Number(sizeSelect.value);
+    const matches = invalidDates ? [] : items.filter(item => {
+      const date = item.querySelector('time')?.dateTime.slice(0, 10) || '';
+      return (source === 'all' || item.dataset.source === source)
+        && (!keyword || (item.querySelector('.item-title')?.textContent || '').toLocaleLowerCase('es-ES').includes(keyword))
+        && (tone.value === 'all' || item.dataset.tone === tone.value)
+        && (!dateFrom.value || date >= dateFrom.value)
+        && (!dateTo.value || date <= dateTo.value)
+        && (!query || item.textContent.toLocaleLowerCase('es-ES').includes(query));
+    });
+    const total = matches.length;
+    const pages = Math.max(1, Math.ceil(total / pageSize));
+    totalPages = pages;
+    page = Math.min(page, pages);
+    const start = (page - 1) * pageSize;
+    const current = new Set(matches.slice(start, start + pageSize));
+    items.forEach(item => { item.hidden = !current.has(item); });
+    count.textContent = `${total} ${total === 1 ? 'publicación encontrada' : 'publicaciones encontradas'}`;
+    empty.hidden = total > 0 && !invalidDates;
+    empty.querySelector('strong').textContent = invalidDates ? 'Revisa las fechas' : 'Sin resultados';
+    emptyDetail.textContent = invalidDates ? 'La fecha inicial debe ser anterior o igual a la fecha final.' : source === 'social' ? 'No hay publicaciones de redes sociales cargadas en esta vista de ejemplo.' : source === 'field' ? 'No hay datos de campo cargados en esta vista de ejemplo.' : 'No hay publicaciones que coincidan con estos filtros.';
+    pagination.hidden = total === 0;
+    pageStatus.textContent = `Página ${page} de ${pages} · ${start + 1}–${Math.min(start + pageSize, total)} de ${total}`;
+    previous.disabled = page === 1;
+    next.disabled = page === pages;
+  }
+  function update() {
+    loading.hidden = false;
+    errorState.hidden = true;
+    results.setAttribute('aria-busy', 'true');
+    try {
+      render();
+      feedList.hidden = false;
+    } catch (error) {
+      feedList.hidden = true;
+      empty.hidden = true;
+      pagination.hidden = true;
+      count.textContent = 'No se pudieron mostrar las publicaciones';
+      errorState.hidden = false;
+      console.error('Error al actualizar el feed', error);
+    } finally {
+      loading.hidden = true;
+      results.removeAttribute('aria-busy');
+    }
+  }
+  buttons.forEach(button => button.addEventListener('click', () => {
+    source = button.dataset.source;
+    page = 1;
+    buttons.forEach(candidate => candidate.setAttribute('aria-pressed', String(candidate === button)));
+    update();
+  }));
+  keywordButtons.forEach(button => button.addEventListener('click', () => {
+    keyword = keyword === button.dataset.keyword ? '' : button.dataset.keyword;
+    page = 1;
+    keywordButtons.forEach(candidate => candidate.setAttribute('aria-pressed', String(candidate.dataset.keyword === keyword)));
+    update();
+  }));
+  searchForm.addEventListener('submit', event => { event.preventDefault(); appliedQuery = search.value.trim().toLocaleLowerCase('es-ES'); page = 1; update(); });
+  tone.addEventListener('change', () => { page = 1; update(); });
+  [dateFrom, dateTo, sizeSelect].forEach(control => control.addEventListener('change', () => { page = 1; update(); }));
+  previous.addEventListener('click', () => { if (page > 1) { page--; update(); } });
+  next.addEventListener('click', () => { if (page < totalPages) { page++; update(); } });
+  document.querySelector('[data-od-id="clear-filters"]').addEventListener('click', () => {
+    source = 'all'; keyword = ''; appliedQuery = ''; page = 1; search.value = ''; tone.value = 'all'; dateFrom.value = ''; dateTo.value = ''; sizeSelect.value = '10';
+    buttons.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.source === 'all')));
+    keywordButtons.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.keyword === '')));
+    update(); search.focus();
+  });
+  update();
+})();
+</script>
+</body>
+</html>

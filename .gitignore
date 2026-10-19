@@ -20,3 +20,6 @@ venv/
 .idea/
 .vscode/
 .DS_Store
+
+# Design reference captures (source of truth is the HTML+MD+JSON)
+referencia visual/*.png
