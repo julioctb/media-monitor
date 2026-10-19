@@ -172,12 +172,17 @@ class EnrichmentResult(BaseModel):
         return [topic.strip() for topic in value if isinstance(topic, str) and topic.strip()]
 
 
-def _strip_code_fence(text: str) -> str:
+def strip_code_fence(text: str) -> str:
+    """Strip a leading ```json fence: models wrap payloads in markdown."""
+
     cleaned = text.strip()
     if cleaned.startswith("```"):
         cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
         cleaned = re.sub(r"\s*```$", "", cleaned)
     return cleaned.strip()
+
+
+_strip_code_fence = strip_code_fence  # legacy internal alias
 
 
 def parse_enrichment(content: str) -> EnrichmentResult:

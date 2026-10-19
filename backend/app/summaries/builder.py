@@ -26,6 +26,8 @@ from zoneinfo import ZoneInfo
 import httpx
 from sqlalchemy import select
 
+from app.enrich.llm import strip_code_fence
+
 from app.models import Mention, queries
 from app.models.settings import DEFAULT_OPENAI_BASE_URL
 from app.settings_runtime import EffectiveSettings, resolve_effective_settings
@@ -171,7 +173,9 @@ def _openai_generator(effective: EffectiveSettings) -> Callable[[str], str]:
                     # content:null becomes str "None" and breaks json.loads
                     # upstream; treat it as a failed attempt instead.
                     raise ValueError("empty summary content")
-                payload = raw_content.strip()
+                # Models wrap the JSON in ``` fences; the digest json.loads
+                # chokes on the leading backtick otherwise.
+                payload = strip_code_fence(raw_content)
                 break
             except (
                 httpx.HTTPError,

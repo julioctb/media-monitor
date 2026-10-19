@@ -287,6 +287,42 @@ def test_digest_generator_none_content_retried(monkeypatch):
     assert len(calls) == 2
 
 
+def test_digest_generator_strips_code_fence(monkeypatch):
+    # GLM wraps the JSON in ``` fences; the digest json.loads used to die
+    # with "Expecting value: line 1 column 1 (char 0)" on the backtick.
+    from app.summaries import builder
+
+    class FakeResponse:
+        def raise_for_status(self) -> None:
+            pass
+
+        def json(self) -> dict:
+            return {
+                "choices": [
+                    {
+                        "message": {
+                            "content": '```json\n{"headline": "ok"}\n```'
+                        }
+                    }
+                ]
+            }
+
+    def fake_post(url, *, headers=None, json=None, timeout=None):  # noqa: A002
+        return FakeResponse()
+
+    monkeypatch.setattr(builder.httpx, "post", fake_post)
+    generate = builder._openai_generator(
+        EffectiveSettings(
+            client_id=1,
+            ai_provider="openai",
+            ai_api_key="sk",
+            ai_base_url="https://api.example.com/v1",
+            ai_model="m",
+        )
+    )
+    assert json.loads(generate("prompt")) == {"headline": "ok"}
+
+
 def test_openai_provider_path_via_fake_http(monkeypatch, session):
     client = add_client(session)
     add_mention(session, client.id, "BUAP publica resultados", DAY)
