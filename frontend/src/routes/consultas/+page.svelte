@@ -48,7 +48,7 @@
 			</p>
 			{#if result.matched_mentions}
 				<p class="mt-3 text-xs text-slate-400">
-					Contexto: {result.matched_mentions} notas
+					Fuentes citadas: {result.matched_mentions} nota{result.matched_mentions === 1 ? '' : 's'}
 				</p>
 			{/if}
 		</article>

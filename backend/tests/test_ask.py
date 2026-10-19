@@ -264,6 +264,45 @@ def test_answer_happy_path_cites(db) -> None:
     # The context block carried the citation markers the answer references.
     assert "[1]" in fake.calls[0][1]
 
+    # Fuentes = solo lo que la respuesta cita: [1] filtra a una sola nota.
+    seed_mention(
+        db,
+        client_id,
+        "https://x/becas-2",
+        title="Otra nota de becas",
+        content="Mas contexto del programa.",
+    )
+
+    import re as _re
+
+    class CitedOnly(FakeEnricher):
+        def __init__(self, marker: str) -> None:
+            self.marker = marker
+            self.calls: list[tuple[str, str]] = []
+
+        def complete(self, system, user, **kwargs):
+            self.calls.append((system, user))
+            return f"Respuesta {self.marker}"
+
+    def cited_context_title(enricher) -> str:
+        user = enricher.calls[0][1]
+        return _re.search(r"\[1\] (.+?) —", user).group(1)
+
+    fake2 = CitedOnly("parcial [1].")
+    result = answer_question(db, client_id=client_id, question="becas?", enricher=fake2)
+    assert len(result.citations) == 1
+    title = cited_context_title(fake2)
+    expected_url = (
+        "https://x/becas" if title == "BUAP amplía becas" else "https://x/becas-2"
+    )
+    assert result.citations[0]["url"] == expected_url
+
+    # Sin marcadores (modelo desobediente): se conservan todas.
+    result = answer_question(
+        db, client_id=client_id, question="becas?", enricher=CitedOnly("sin marcas.")
+    )
+    assert len(result.citations) == 2
+
 
 def test_answer_llm_failure_raises_ask_error(db) -> None:
     client_id = db.scalar(select(Client.id).limit(1))

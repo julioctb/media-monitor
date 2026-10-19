@@ -343,9 +343,23 @@ def answer_question(session: Session, *, client_id: int, question: str, enricher
     if not answer:
         raise AskError("El modelo de consulta no respondió; intenta de nuevo.", status=503)
 
+    answer = str(answer).strip()
+    # Fuentes = solo las notas que la respuesta cita con [n]; el resto era
+    # contexto recuperado, no respaldo. Sin marcadores (modelo desobediente)
+    # se conservan todas: mejor ruido transparente que fuentes vacías.
+    cited = {
+        marker
+        for marker in (int(match) for match in re.findall(r"\[(\d{1,2})\]", answer))
+        if 1 <= marker <= len(citations)
+    }
+    if cited:
+        citations = [
+            citation for index, citation in enumerate(citations, start=1) if index in cited
+        ]
+
     matched = len(citations)
     return AskResult(
-        answer=str(answer).strip(),
+        answer=answer,
         citations=citations,
         person={"id": persons[0].id, "name": persons[0].name} if persons else None,
         matched_mentions=matched,
