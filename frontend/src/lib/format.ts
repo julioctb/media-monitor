@@ -50,7 +50,8 @@ export function sentimentBadgeClass(value: string | null): string {
 /** Classification labels (open set; unknown labels fall through). */
 const CLASSIFICATION_LABELS: Record<string, string> = {
 	political: 'Política',
-	not_political: 'No política'
+	not_political: 'No política',
+	uncertain: 'Sin clasificar'
 };
 
 export function classificationLabel(label: string): string {
