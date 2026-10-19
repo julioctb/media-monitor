@@ -23,18 +23,12 @@
 	// working. A group's second page is reached via the tab strip, never a
 	// JS dropdown.
 	const navGroups: NavGroup[] = [
-		{ label: 'Feed', href: '/' },
+		{ label: 'Resumen', href: '/' },
+		{ label: 'Feed', href: '/feed' },
 		{ label: 'Eventos', href: '/events' },
 		{ label: 'Personas', href: '/persons' },
 		{ label: 'Consultas', href: '/consultas' },
-		{
-			label: 'Análisis',
-			href: '/stats',
-			children: [
-				{ href: '/stats', label: 'Estadísticas' },
-				{ href: '/summary', label: 'Resumen diario' }
-			]
-		},
+		{ label: 'Estadísticas', href: '/stats' },
 		{
 			label: 'Alertas',
 			href: '/alerts',

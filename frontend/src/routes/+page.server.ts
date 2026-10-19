@@ -1,87 +1,63 @@
-import { error } from '@sveltejs/kit';
-import { ApiError, getDailySummary, getStatsOverview, listKeywords, listMentions, type SentimentFilter } from '$lib/api';
-import type { PageServerLoad } from './$types';
+import { error, fail, redirect } from '@sveltejs/kit';
+import {
+	ApiError,
+	generateDailySummary,
+	getDailySummary,
+	listSummaryDays
+} from '$lib/api';
+import type { Actions, PageServerLoad } from './$types';
 
-const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
-const SENTIMENT_FILTERS = new Set<SentimentFilter>(['positive', 'negative', 'neutral', 'none']);
-const DEFAULT_LIMIT = 50;
-const MAX_LIMIT = 200;
-function intParam(params: URLSearchParams, key: string, fallback: number, min: number, max: number): number {
-	const raw = params.get(key);
-	if (raw === null || !/^\d+$/.test(raw.trim())) return fallback;
-	const value = Number.parseInt(raw, 10);
-	return Number.isNaN(value) ? fallback : Math.min(max, Math.max(min, value));
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Server-local today as YYYY-MM-DD; the date input's default. */
+function todayIso(): string {
+	const now = new Date();
+	const mm = String(now.getMonth() + 1).padStart(2, '0');
+	const dd = String(now.getDate()).padStart(2, '0');
+	return `${now.getFullYear()}-${mm}-${dd}`;
+}
+
+function dayFromForm(value: FormDataEntryValue | null): string | null {
+	const raw = String(value ?? '').trim();
+	return DATE_RE.test(raw) ? raw : null;
 }
 
 export const load: PageServerLoad = async ({ url }) => {
-	const params = url.searchParams;
-
-	// Echo raw values for the form; expand date-only bounds to UTC day edges
-	// (the API compares with >= since and <= until).
-	const rawSource = params.get('source')?.trim() || undefined;
-	const rawSentiment = params.get('sentiment')?.trim() || undefined;
-	const sentiment = rawSentiment && SENTIMENT_FILTERS.has(rawSentiment as SentimentFilter)
-		? (rawSentiment as SentimentFilter)
-		: undefined;
-	const rawKeyword = params.get('keyword_id')?.trim() ?? '';
-	const keywordId = /^\d+$/.test(rawKeyword) ? Number(rawKeyword) : undefined;
-	const q = params.get('q')?.trim() || undefined;
-
-	const sinceRaw = params.get('since')?.trim() || undefined;
-	const untilRaw = params.get('until')?.trim() || undefined;
-	const since = sinceRaw && DATE_ONLY.test(sinceRaw) ? `${sinceRaw}T00:00:00Z` : sinceRaw;
-	const until = untilRaw && DATE_ONLY.test(untilRaw) ? `${untilRaw}T23:59:59Z` : untilRaw;
-
-	const limit = intParam(params, 'limit', DEFAULT_LIMIT, 1, MAX_LIMIT);
-	const offset = intParam(params, 'offset', 0, 0, Number.MAX_SAFE_INTEGER);
-
-	// 'Solo políticas' checkbox: one param expands to the classifier probe
-	// classifier=political + label=political (v1's only facet).
-	const politicalOnly = params.get('political')?.trim() === '1';
-
+	const requested = url.searchParams.get('date');
+	const day = requested && DATE_RE.test(requested) ? requested : todayIso();
 	try {
-		// Stats only provides the source facet: the source set is open, so the
-		// filter options come from data, never a hardcoded enum. The digest is
-		// best-effort: an absent/unbuilt day must not break the feed.
-		const todayIso = new Date().toISOString().slice(0, 10);
-		const [mentions, keywords, stats, digest] = await Promise.all([
-			listMentions({
-				source: rawSource,
-				sentiment,
-				keyword_id: keywordId,
-				classifier: politicalOnly ? 'political' : undefined,
-				label: politicalOnly ? 'political' : undefined,
-				since,
-				until,
-				q,
-				limit,
-				offset
-			}),
-			listKeywords(),
-			getStatsOverview(),
-			getDailySummary(todayIso).catch(() => null)
+		const [summary, days] = await Promise.all([
+			getDailySummary(day),
+			listSummaryDays().catch(() => [])
 		]);
-
-		return {
-			mentions,
-			keywords,
-			digest,
-			sources: Object.keys(stats.by_source).sort(),
-			filters: {
-				source: params.get('source') ?? '',
-				sentiment: params.get('sentiment') ?? '',
-				keyword_id: rawKeyword,
-				political: params.get('political') ?? '',
-				since: params.get('since') ?? '',
-				until: params.get('until') ?? '',
-				q: params.get('q') ?? '',
-				limit,
-				offset
-			}
-		};
+		return { day, summary, days };
 	} catch (cause) {
 		const status = cause instanceof ApiError && cause.status >= 400 ? cause.status : 503;
 		const detail = cause instanceof Error ? cause.message : 'error desconocido';
-		throw error(status, `No se pudo cargar el feed: ${detail}`);
+		throw error(status, `No se pudo cargar el resumen: ${detail}`);
+	}
+};
+
+export const actions: Actions = {
+	/** Plain navigation: re-read the picked day through the load above. */
+	view: async ({ request }) => {
+		const form = await request.formData();
+		const day = dayFromForm(form.get('date'));
+		redirect(303, day ? `/summary?date=${day}` : '/summary');
+	},
+
+	generate: async ({ request }) => {
+		const form = await request.formData();
+		const day = dayFromForm(form.get('date'));
+		let generated;
+		try {
+			// Empty/invalid date defers to the API: today in the client tz.
+			generated = await generateDailySummary(day);
+		} catch (cause) {
+			const status = cause instanceof ApiError && cause.status >= 400 ? cause.status : 502;
+			const message = cause instanceof Error ? cause.message : 'error desconocido';
+			return fail(status, { action: 'generate', ok: false, message });
+		}
+		redirect(303, `/summary?date=${generated.summary_date}`);
 	}
 };

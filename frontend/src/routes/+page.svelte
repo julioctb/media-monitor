@@ -1,167 +1,114 @@
 <script lang="ts">
-	import { page } from '$app/state';
-	import EventGroup from '$lib/components/EventGroup.svelte';
-	import FeedFilterBar from '$lib/components/FeedFilterBar.svelte';
-	import { groupByEvent } from '$lib/grouping';
-	import type { FeedGroup } from '$lib/grouping';
+	import { INPUT_CLS } from '$lib/ui';
+	import DigestSections from '$lib/components/DigestSections.svelte';
 	import type { PageProps } from './$types';
 
-	let { data }: PageProps = $props();
+	let { data, form }: PageProps = $props();
 
-	const digest = $derived(data.digest);
-	const digestModeLabel: Record<string, string> = { heuristic: 'Plantilla', llm: 'IA' };
+	const summary = $derived(data.summary);
+	const day = $derived(data.day);
 
-	const keywordNames = $derived(new Map(data.keywords.map((k) => [k.id, k.text])));
-
-	/** Same event = same story: one card plus a collapsed coverage list. */
-	const groups = $derived(groupByEvent(data.mentions.items));
-
-	function keywordLabelFor(group: FeedGroup): string | null {
-		const keywordId = group.mentions[0]?.keyword_id ?? null;
-		return keywordId !== null ? (keywordNames.get(keywordId) ?? null) : null;
-	}
-
-	const activeKeywords = $derived(data.keywords.filter((k) => k.is_active));
-	const selectedKeywordId = $derived(data.filters.keyword_id ?? '');
-
-	function hrefWithKeyword(keywordId: string | null): string {
-		const params = new URLSearchParams(page.url.searchParams);
-		if (keywordId === null) params.delete('keyword_id');
-		else params.set('keyword_id', keywordId);
-		params.delete('offset'); // a new filter facet resets pagination
-		const qs = params.toString();
-		return `${page.url.pathname}${qs ? `?${qs}` : ''}`;
-	}
-
-	function hrefWithOffset(offset: number): string {
-		const params = new URLSearchParams(page.url.searchParams);
-		params.set('offset', String(offset));
-		return `${page.url.pathname}?${params.toString()}`;
-	}
-
-	const pagination = $derived.by(() => {
-		const { limit, offset } = data.filters;
-		const total = data.mentions.total;
-		return {
-			from: total === 0 ? 0 : offset + 1,
-			to: Math.min(offset + limit, total),
-			hasPrev: offset > 0,
-			hasNext: offset + limit < total,
-			prevHref: hrefWithOffset(Math.max(0, offset - limit)),
-			nextHref: hrefWithOffset(offset + limit)
-		};
-	});
+	const modeLabel: Record<string, string> = {
+		heuristic: 'Plantilla',
+		llm: 'IA'
+	};
 </script>
 
 <svelte:head>
-	<title>Feed | Media Monitor</title>
+	<title>Resumen diario | Media Monitor</title>
 </svelte:head>
 
-<div class="flex flex-wrap items-end justify-between gap-3">
+<div class="flex flex-wrap items-end justify-between gap-4">
 	<div>
-		<h1 class="text-2xl font-semibold tracking-tight">Feed de menciones</h1>
+		<h1 class="text-2xl font-semibold tracking-tight">Digest del día</h1>
 		<p class="mt-1 text-sm text-slate-500">
-			{data.mentions.total}
-			{data.mentions.total === 1 ? 'mención' : 'menciones'} en total
+			Resumen editorial: noticias por eje, rectora, redes y personas.
 		</p>
 	</div>
+
+	<form method="POST" action="?/view" class="flex flex-wrap items-center gap-2">
+		<input
+			type="date"
+			name="date"
+			value={day}
+			aria-label="Fecha del digest"
+			class={INPUT_CLS}
+		/>
+		<button
+			type="submit"
+			class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
+		>
+			Ver
+		</button>
+		<button
+			type="submit"
+			formaction="?/generate"
+			class="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-700"
+		>
+			Generar ahora
+		</button>
+	</form>
 </div>
 
-{#if digest}
-	<section
-		aria-label="Digest del día"
-		class="mt-4 rounded-xl border border-slate-200 bg-slate-900 p-5 text-white shadow-sm"
-	>
-		<div class="flex flex-wrap items-center gap-2 text-xs uppercase tracking-wide text-slate-400">
-			<span>Digest {digest.summary_date}</span>
+{#if form && !form.ok}
+	<div role="alert" class="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+		{form.message}
+	</div>
+{/if}
+
+{#if summary}
+	<section aria-label="Titular del día" class="mt-6 rounded-xl border border-slate-200 bg-slate-900 p-6 text-white shadow-sm">
+		<div class="flex items-center gap-2 text-xs uppercase tracking-wide text-slate-400">
+			<span>{summary.summary_date}</span>
 			<span
 				class="rounded-full px-2 py-0.5 text-[11px] font-medium
-				{digest.mode === 'llm' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-700 text-slate-300'}"
+				{summary.mode === 'llm' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-700 text-slate-300'}"
 			>
-				{digestModeLabel[digest.mode] ?? digest.mode}
+				{modeLabel[summary.mode] ?? summary.mode}
 			</span>
 		</div>
-		<p class="mt-2 line-clamp-3 text-sm leading-relaxed">{digest.narrative}</p>
-		<a
-			href="/summary"
-			class="mt-2 inline-block text-xs font-medium text-sky-300 underline-offset-2 hover:underline"
-		>
-			Ver digest completo →
-		</a>
+		<p class="mt-3 text-lg leading-relaxed">{summary.narrative}</p>
 	</section>
-{/if}
 
-<FeedFilterBar
-	sources={data.sources}
-	keywords={data.keywords}
-	filters={data.filters}
-	resetHref={page.url.pathname}
-/>
-
-<!-- Quick keyword pills: same keyword_id param as the form, one source of truth. -->
-{#if activeKeywords.length > 0}
-	<div class="mt-4 flex flex-wrap items-center gap-2" aria-label="Filtro rápido por palabra clave">
-		<span class="text-xs font-medium text-slate-500">Palabras clave:</span>
-		<a
-			href={hrefWithKeyword(null)}
-			class={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-				selectedKeywordId === ''
-					? 'bg-slate-900 text-white'
-					: 'border border-slate-300 bg-white text-slate-600 hover:border-slate-400 hover:text-slate-900'
-			}`}
-		>
-			Todas
-		</a>
-		{#each activeKeywords as keyword (keyword.id)}
-			<a
-				href={hrefWithKeyword(String(keyword.id))}
-				class={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-					selectedKeywordId === String(keyword.id)
-						? 'bg-slate-900 text-white'
-						: 'border border-slate-300 bg-white text-slate-600 hover:border-slate-400 hover:text-slate-900'
-				}`}
-			>
-				{keyword.text}
-			</a>
-		{/each}
-	</div>
-{/if}
-
-{#if data.mentions.items.length === 0}
-	<div class="mt-8 rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center">
-		<p class="text-sm font-medium text-slate-700">Sin menciones para los filtros aplicados.</p>
-		<p class="mt-1 text-sm text-slate-500">Ajusta los filtros o espera la próxima ingesta.</p>
-	</div>
-{:else}
-	<ul class="mt-6 grid gap-3" aria-label="Menciones">
-		{#each groups as group (group.key)}
-			<li>
-				<EventGroup {group} keywordLabel={keywordLabelFor(group)} />
-			</li>
-		{/each}
-	</ul>
-
-	<nav class="mt-6 flex items-center justify-between" aria-label="Paginación">
-		<p class="text-xs text-slate-500">
-			Mostrando {pagination.from}–{pagination.to} de {data.mentions.total}
-		</p>
-		<div class="flex gap-2">
-			{#if pagination.hasPrev}
-				<a
-					href={pagination.prevHref}
-					class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
-				>
-					← Anterior
-				</a>
-			{/if}
-			{#if pagination.hasNext}
-				<a
-					href={pagination.nextHref}
-					class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
-				>
-					Siguiente →
-				</a>
-			{/if}
+	<div class="mt-6 grid gap-6 lg:grid-cols-3">
+		<div class="min-w-0 lg:col-span-2">
+			<DigestSections content={summary.content} />
 		</div>
-	</nav>
+
+		<aside aria-label="Historial" class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+			<h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Historial</h2>
+			{#if data.days.length === 0}
+				<p class="mt-2 text-sm text-slate-500">Todavía no hay digests guardados.</p>
+			{:else}
+				<ul class="mt-3 space-y-1">
+					{#each data.days as entry (entry.summary_date)}
+						<li>
+							<a
+								href="?date={entry.summary_date}"
+								class="flex items-center justify-between rounded-md px-2 py-1.5 text-sm
+								{entry.summary_date === day ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100'}"
+							>
+								<span>{entry.summary_date}</span>
+								<span class="text-xs opacity-70">{modeLabel[entry.mode] ?? entry.mode}</span>
+							</a>
+						</li>
+					{/each}
+				</ul>
+			{/if}
+		</aside>
+	</div>
+
+	<details class="mt-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+		<summary class="cursor-pointer text-sm font-medium text-slate-700">
+		Texto plano (para el chat con RAG)
+		</summary>
+		<pre class="mt-3 whitespace-pre-wrap text-sm text-slate-600">{summary.content.plain_text}</pre>
+	</details>
+{:else}
+	<div class="mt-10 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-10 text-center">
+		<p class="text-sm text-slate-500">
+			No hay digest guardado para <span class="font-medium text-slate-700">{day}</span>.
+		</p>
+		<p class="mt-1 text-sm text-slate-400">Usá «Generar ahora» para construirlo.</p>
+	</div>
 {/if}
