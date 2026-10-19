@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 
-	import { INPUT_CLS } from '$lib/ui';
+	import { CONTROL_CLS, INPUT_CLS } from '$lib/ui';
 	import { formatDisplayDateTime } from '$lib/format';
 	import type { PageProps } from './$types';
 
@@ -73,7 +73,12 @@
 		aria-label="Buscar persona"
 		class={`${INPUT_CLS} min-w-0 flex-1`}
 	/>
-	<select name="sort" aria-label="Orden" class={INPUT_CLS} onchange={submitFilters}>
+	<select
+		name="sort"
+		aria-label="Orden"
+		class={`${CONTROL_CLS} w-auto px-3 py-2`}
+		onchange={submitFilters}
+	>
 		<option value="mentions" selected={data.sort === 'mentions'}>Más mencionadas</option>
 		<option value="recent" selected={data.sort === 'recent'}>Actividad reciente</option>
 	</select>
