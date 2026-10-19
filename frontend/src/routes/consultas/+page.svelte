@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { formatDisplayDateTime, sentimentLabel, sourceLabel } from '$lib/format';
-	import { INPUT_CLS } from '$lib/ui';
+	import { BTN_PRIMARY_CLS, INPUT_CLS } from '$lib/ui';
 	import type { PageProps } from './$types';
 
 	let { form: result }: PageProps = $props();
@@ -10,14 +10,60 @@
 	<title>Consultas | Media Monitor</title>
 </svelte:head>
 
-<div class="max-w-3xl">
-	<h1 class="text-2xl font-semibold tracking-tight">Consultas</h1>
-	<p class="mt-1 text-sm text-slate-500">
+<header>
+	<h1 class="page-title">Consultas</h1>
+	<p class="lead">
 		Pregunta en lenguaje natural sobre la cobertura; la respuesta se apoya
 		exclusivamente en las notas ingestadas, con citas.
 	</p>
+</header>
 
-	<form method="POST" class="mt-6 flex flex-wrap items-start gap-2">
+<section class="panel mt-6" aria-labelledby="consultas-chat-title">
+	<div class="panel-head">
+		<h2 class="panel-title" id="consultas-chat-title">Nueva consulta</h2>
+		<p class="panel-note">
+			Las respuestas se generan solo con notas ingestadas y muestran sus citas.
+		</p>
+	</div>
+
+	{#if result?.error}
+		<div class="empty mt-4 border-warn/40" role="alert">
+			{result.error}
+		</div>
+	{/if}
+
+	<div class="mt-4" aria-live="polite">
+		{#if result?.answer}
+			{#if result.question}
+				<div class="flex justify-end">
+					<p class="max-w-[85%] rounded-2xl bg-ink px-4 py-2.5 text-sm text-white">
+						{result.question}
+					</p>
+				</div>
+			{/if}
+			<div class="mt-3 rounded-2xl border border-line-soft bg-surface-warm p-5">
+				<h3 class="text-xs font-bold uppercase tracking-wide text-meta">Respuesta</h3>
+				<p class="mt-2 whitespace-pre-line text-sm leading-relaxed text-ink-2">
+					{result.answer}
+				</p>
+				{#if result.matched_mentions}
+					<p class="mt-3 text-xs text-meta">
+						Fuentes citadas: {result.matched_mentions} nota{result.matched_mentions === 1 ? '' : 's'}
+					</p>
+				{/if}
+			</div>
+		{:else if !result?.error}
+			<div class="rounded-2xl border border-dashed border-line bg-surface-warm p-8 text-center">
+				<p class="text-base font-semibold text-ink">Explora la cobertura</p>
+				<p class="mt-1 text-sm text-muted">
+					Haz una pregunta sobre las notas registradas. La respuesta debe incluir citas
+					verificables.
+				</p>
+			</div>
+		{/if}
+	</div>
+
+	<form method="POST" class="mt-4 flex flex-wrap items-center gap-2">
 		<input
 			type="text"
 			name="question"
@@ -26,47 +72,29 @@
 			aria-label="Pregunta"
 			class={`min-w-0 flex-1 ${INPUT_CLS}`}
 		/>
-		<button
-			type="submit"
-			class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
-		>
-			Consultar
-		</button>
+		<button type="submit" class={BTN_PRIMARY_CLS}>Consultar</button>
 	</form>
+</section>
 
-	{#if result?.error}
-		<div class="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-			{result.error}
+{#if result?.citations && result.citations.length > 0}
+	<section class="panel mt-4" aria-labelledby="consultas-sources-title">
+		<div class="panel-head">
+			<h2 class="panel-title" id="consultas-sources-title">Fuentes</h2>
+			<p class="panel-note">Notas que sustentan la respuesta.</p>
 		</div>
-	{/if}
-
-	{#if result?.answer}
-		<article class="mt-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-			<h2 class="text-xs font-semibold uppercase tracking-wide text-slate-400">Respuesta</h2>
-			<p class="mt-2 whitespace-pre-line text-sm leading-relaxed text-slate-800">
-				{result.answer}
-			</p>
-			{#if result.matched_mentions}
-				<p class="mt-3 text-xs text-slate-400">
-					Fuentes citadas: {result.matched_mentions} nota{result.matched_mentions === 1 ? '' : 's'}
-				</p>
-			{/if}
-		</article>
-	{/if}
-
-	{#if result?.citations && result.citations.length > 0}
-		<h2 class="mt-6 text-xs font-semibold uppercase tracking-wide text-slate-400">Fuentes</h2>
-		<ul class="mt-2 grid gap-2" aria-label="Fuentes de la respuesta">
+		<ul class="mt-4 grid gap-2" aria-label="Fuentes de la respuesta">
 			{#each result.citations as citation (citation.mention_id)}
 				<li>
 					<a
 						href={citation.url}
 						target="_blank"
 						rel="noopener noreferrer"
-						class="block rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm shadow-sm hover:border-slate-300"
+						class="block rounded-xl border border-line-soft bg-white px-4 py-2.5 text-sm transition-colors hover:border-line"
 					>
-						<span class="font-medium text-slate-800">{citation.title ?? citation.url}</span>
-						<span class="ml-2 text-xs text-slate-400">
+						<span class="font-medium text-ink underline decoration-line underline-offset-[3px] hover:decoration-ink"
+							>{citation.title ?? citation.url}</span
+						>
+						<span class="ml-2 text-xs text-meta">
 							{sourceLabel(citation.source)} ·
 							{formatDisplayDateTime(citation.published_at)}
 							{#if citation.sentiment}
@@ -77,14 +105,14 @@
 				</li>
 			{/each}
 		</ul>
-	{/if}
+	</section>
+{/if}
 
-	{#if result?.person}
-		<p class="mt-4 text-xs text-slate-400">
-			Pregunta vinculada a:
-			<a href={`/persons/${result.person.id}`} class="underline hover:text-slate-600">
-				{result.person.name}
-			</a>
-		</p>
-	{/if}
-</div>
+{#if result?.person}
+	<p class="footnote">
+		Pregunta vinculada a:
+		<a href={`/persons/${result.person.id}`} class="underline hover:text-ink">
+			{result.person.name}
+		</a>
+	</p>
+{/if}
