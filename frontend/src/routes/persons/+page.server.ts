@@ -8,8 +8,8 @@ const VIEWS = new Set(['cards', 'table']);
 export const load: PageServerLoad = async ({ url }) => {
 	const sortParam = url.searchParams.get('sort') ?? 'mentions';
 	const sort = SORTS.has(sortParam) ? (sortParam as 'mentions' | 'recent') : 'mentions';
-	const viewParam = url.searchParams.get('view') ?? 'cards';
-	const view = VIEWS.has(viewParam) ? (viewParam as 'cards' | 'table') : 'cards';
+	const viewParam = url.searchParams.get('view') ?? 'table';
+	const view = VIEWS.has(viewParam) ? (viewParam as 'cards' | 'table') : 'table';
 	const q = url.searchParams.get('q')?.trim() || undefined;
 
 	try {

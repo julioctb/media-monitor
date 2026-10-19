@@ -23,7 +23,7 @@
 		return `${page.url.pathname}${qs ? `?${qs}` : ''}`;
 	}
 
-	const view = $derived(data.view === 'table' ? 'table' : 'cards');
+	const view = $derived(data.view === 'cards' ? 'cards' : 'table');
 </script>
 
 <svelte:head>
@@ -64,14 +64,14 @@
 	</div>
 </div>
 
-<form bind:this={filterForm} method="get" class="mt-6 flex flex-wrap items-center gap-2">
+<form bind:this={filterForm} method="get" class="mt-6 flex flex-wrap items-center gap-2 md:flex-nowrap">
 	<input
 		type="search"
 		name="q"
 		value={data.q}
 		placeholder="Buscar por nombre"
 		aria-label="Buscar persona"
-		class={`${INPUT_CLS} min-w-0 flex-1 basis-64`}
+		class={`${INPUT_CLS} min-w-0 flex-1`}
 	/>
 	<select name="sort" aria-label="Orden" class={INPUT_CLS} onchange={submitFilters}>
 		<option value="mentions" selected={data.sort === 'mentions'}>Más mencionadas</option>
