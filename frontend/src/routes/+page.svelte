@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { INPUT_CLS } from '$lib/ui';
+	import { formatDisplayDateTime } from '$lib/format';
 	import DigestSections from '$lib/components/DigestSections.svelte';
 	import type { PageProps } from './$types';
 
@@ -58,13 +59,16 @@
 
 {#if summary}
 	<section aria-label="Titular del día" class="mt-6 rounded-xl border border-slate-200 bg-slate-900 p-6 text-white shadow-sm">
-		<div class="flex items-center gap-2 text-xs uppercase tracking-wide text-slate-400">
+		<div class="flex flex-wrap items-center gap-2 text-xs uppercase tracking-wide text-slate-400">
 			<span>{summary.summary_date}</span>
 			<span
 				class="rounded-full px-2 py-0.5 text-[11px] font-medium
 				{summary.mode === 'llm' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-700 text-slate-300'}"
 			>
 				{modeLabel[summary.mode] ?? summary.mode}
+			</span>
+			<span class="normal-case text-slate-500">
+				actualizado {formatDisplayDateTime(summary.updated_at)}
 			</span>
 		</div>
 		<p class="mt-3 text-lg leading-relaxed">{summary.narrative}</p>
