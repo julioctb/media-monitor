@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { Keyword } from '$lib/api';
 	import { sourceLabel } from '$lib/format';
-	import { COMPACT_CLS, INPUT_CLS } from '$lib/ui';
+	import { BTN_PRIMARY_CLS, COMPACT_CLS, INPUT_CLS } from '$lib/ui';
 
 	interface FeedFilters {
 		source: string;
@@ -25,7 +25,7 @@
 	let { sources, keywords, filters, resetHref }: Props = $props();
 
 	// Compact pills: same box height as a chip, native picker inside.
-	const LABEL_CLS = 'mb-1 block text-xs font-medium text-slate-500';
+	const LABEL_CLS = 'mb-1 block text-xs font-medium text-ink-2';
 
 	const sentimentOptions: Array<{ value: string; label: string }> = [
 		{ value: '', label: 'Todos' },
@@ -57,7 +57,7 @@
 
 <!-- Filters: plain GET form, works without JavaScript. The pills auto-submit
 	when JS is available; the hidden-in-details Aplicar button covers no-JS. -->
-<form bind:this={formEl} method="get" class="mt-6 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
+<form bind:this={formEl} method="get" class="filter-form mt-3 items-center">
 	<!-- Búsqueda: primary filter, always visible; Enter submits via the
 		Aplicar button (first submit in tree order, works with details closed). -->
 	<div class="min-w-0 flex-1 basis-40">
@@ -93,14 +93,14 @@
 		</select>
 	</div>
 
-		<details class="min-w-0">
+	<details class="min-w-0">
 		<summary
-			class="flex cursor-pointer list-none items-center gap-1.5 rounded-full px-2 py-1.5 text-xs font-medium text-slate-500 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
+			class="flex cursor-pointer list-none items-center gap-1.5 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium text-muted transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/25"
 		>
 			Más filtros
 			{#if advancedCount > 0}
 				<span
-					class="flex size-4.5 items-center justify-center rounded-full bg-slate-900 text-[10px] font-semibold text-white"
+					class="flex size-4.5 items-center justify-center rounded-full bg-accent text-[10px] font-semibold text-white"
 					aria-label="{advancedCount} filtros avanzados activos"
 				>
 					{advancedCount}
@@ -108,7 +108,7 @@
 			{/if}
 		</summary>
 
-		<div class="mt-3 grid gap-4 rounded-lg bg-slate-50 p-3 sm:grid-cols-2 lg:grid-cols-4">
+		<div class="mt-3 grid gap-4 rounded-xl bg-surface p-3 sm:grid-cols-2 lg:grid-cols-4">
 			<div>
 				<label class={LABEL_CLS} for="f-keyword">Palabra clave</label>
 				<select id="f-keyword" name="keyword_id" class={INPUT_CLS}>
@@ -123,13 +123,13 @@
 
 			<div>
 				<span class={LABEL_CLS}>Clasificación</span>
-				<label class="flex items-center gap-2 text-sm text-slate-700">
+				<label class="flex items-center gap-2 text-sm text-ink-2">
 					<input
 						type="checkbox"
 						name="political"
 						value="1"
 						checked={filters.political === '1'}
-						class="size-4 rounded border-slate-300 text-slate-900 focus:ring-slate-200"
+						class="size-4 rounded border-line accent-accent"
 					/>
 					Solo políticas
 				</label>
@@ -145,7 +145,7 @@
 						aria-label="Desde"
 						class={`${INPUT_CLS} min-w-0 flex-1 basis-28`}
 					/>
-					<span class="text-xs text-slate-400">a</span>
+					<span class="text-xs text-meta">a</span>
 					<input
 						type="date"
 						name="until"
@@ -166,10 +166,7 @@
 			</div>
 
 			<div class="flex items-end">
-				<button
-					type="submit"
-					class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
-				>
+				<button type="submit" class={BTN_PRIMARY_CLS}>
 					Aplicar
 				</button>
 			</div>
@@ -178,7 +175,7 @@
 
 	<a
 		href={resetHref}
-		class="rounded px-1 py-1 text-xs text-slate-400 underline underline-offset-2 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
+		class="rounded px-1 py-1 text-xs text-meta underline underline-offset-2 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/25"
 	>
 		Limpiar
 	</a>

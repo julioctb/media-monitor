@@ -73,7 +73,7 @@ describe('MentionCard', () => {
 
 		expect(card.textContent).toContain('Fuente: News RSS');
 		expect(card.textContent).toContain('Sentimiento: Positivo');
-		expect(card.innerHTML).toContain('bg-green-50');
+		expect(card.innerHTML).toContain('bg-success/10');
 	});
 
 	it('labels unclassified sentiment explicitly', () => {

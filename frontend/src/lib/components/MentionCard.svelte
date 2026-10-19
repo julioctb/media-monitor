@@ -2,7 +2,6 @@
 	import {
 		formatDisplayDateTime,
 		eventChipLabel,
-		sentimentBadgeClass,
 		sentimentLabel,
 		sourceLabel,
 		topicBadgeClass,
@@ -36,20 +35,30 @@
 	);
 	const topics = $derived(mention.classifications?.filter((c) => c.classifier === 'topic') ?? []);
 	const headline = $derived(mention.title?.trim() || mention.url);
+
+	const SENTIMENT_CHIP_CLS: Record<string, string> = {
+		positive: 'border-success/40 bg-success/10 text-success',
+		negative: 'border-danger/40 bg-danger/10 text-danger',
+		neutral: 'border-line bg-surface text-muted'
+	};
+
+	function sentimentChipClass(value: string | null): string {
+		return value
+			? (SENTIMENT_CHIP_CLS[value] ?? 'border-line bg-surface text-muted')
+			: 'border-line text-meta';
+	}
 </script>
 
 <article
 	aria-labelledby={`mention-${mention.id}-title`}
-	class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-colors hover:border-slate-300"
+	class="rounded-2xl border border-line-soft bg-white p-5 transition-colors hover:border-line"
 >
-	<div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
-		<span
-			class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600 ring-1 ring-inset ring-slate-500/20"
-		>
+	<div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-meta">
+		<span class="rounded-full bg-surface px-2.5 py-1 font-medium text-ink-2">
 			{`Fuente: ${sourceLabel(mention.source)}`}
 		</span>
 		<span
-			class={`inline-flex items-center rounded-full px-2 py-0.5 font-medium ring-1 ring-inset ${sentimentBadgeClass(mention.sentiment)}`}
+			class={`inline-flex items-center rounded-full border px-2.5 py-0.5 font-medium ${sentimentChipClass(mention.sentiment)}`}
 		>
 			{`Sentimiento: ${mention.sentiment ? sentimentLabel(mention.sentiment) : sentimentLabel(null)}`}
 		</span>
@@ -64,27 +73,27 @@
 		{/if}
 	</div>
 
-	<h3 id={`mention-${mention.id}-title`} class="mt-2 text-sm font-semibold text-slate-900">
+	<h3 id={`mention-${mention.id}-title`} class="mt-2 text-base font-semibold leading-snug text-ink">
 		<a
 			href={mention.url}
 			target="_blank"
 			rel="noopener noreferrer"
 			aria-label={`${headline} (abre en una pestaña nueva)`}
-			class="break-words hover:underline"
+			class="break-words underline decoration-line underline-offset-[3px] hover:decoration-ink"
 		>
 			{headline}
 		</a>
 	</h3>
 
 	{#if mention.content?.trim()}
-		<p class="mt-1 line-clamp-2 break-words text-sm text-slate-600">{mention.content}</p>
+		<p class="mt-1 line-clamp-2 break-words text-sm text-ink-2">{mention.content}</p>
 	{/if}
 
 	{#if event}
 		<a
 			href={`/events/${event.id}`}
 			title={event.title}
-			class="mt-2 inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800 ring-1 ring-inset ring-amber-600/20 hover:bg-amber-100"
+			class="mt-2 inline-flex items-center gap-1 rounded-full border border-accent/30 bg-accent/10 px-2.5 py-0.5 text-xs font-medium text-accent transition-colors hover:bg-accent/20"
 		>
 			{eventChipLabel(mention.title, event.title)}
 		</a>
@@ -93,16 +102,14 @@
 	{#if isPolitical || (mention.persons?.length ?? 0) > 0 || topics.length > 0}
 		<div class="mt-2 flex flex-wrap items-center gap-1">
 			{#if isPolitical}
-				<span
-					class="inline-flex items-center rounded-full bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-700 ring-1 ring-inset ring-sky-600/20"
-				>
+				<span class="inline-flex items-center rounded-full border border-line bg-surface px-2.5 py-0.5 text-xs font-medium text-ink-2">
 					Política
 				</span>
 			{/if}
 			{#each (mention.persons ?? []) as person (person.id)}
 				<a
 					href={`/persons/${person.id}`}
-					class="inline-flex items-center rounded-full bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700 ring-1 ring-inset ring-violet-600/20 hover:bg-violet-100"
+					class="inline-flex items-center rounded-full border border-line-soft bg-surface px-2.5 py-0.5 text-xs font-medium text-ink-2 transition-colors hover:border-accent/40 hover:text-accent"
 					title="Ver persona"
 				>
 					{person.name}
@@ -110,7 +117,7 @@
 			{/each}
 			{#each topics as topic (topic.label)}
 				<span
-					class={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${topicBadgeClass(topic.label)}`}
+					class={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${topicBadgeClass(topic.label)}`}
 				>
 					{topicLabel(topic.label)}
 				</span>
@@ -120,10 +127,10 @@
 
 	{#if hasSummary}
 		<details class="mt-2">
-			<summary class="cursor-pointer text-xs font-medium text-slate-600 hover:text-slate-900">
+			<summary class="cursor-pointer text-xs font-medium text-muted hover:text-ink">
 				Resumen del análisis
 			</summary>
-			<p class="mt-1 border-l-2 border-slate-200 pl-3 text-sm text-slate-700">{mention.summary}</p>
+			<p class="mt-1 border-l-2 border-line pl-3 text-sm text-ink-2">{mention.summary}</p>
 		</details>
 	{/if}
 </article>
