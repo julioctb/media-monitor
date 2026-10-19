@@ -90,6 +90,32 @@ def token_variants(token: str) -> list[str]:
     return list(dict.fromkeys(variants))
 
 
+#: Question words that name a sentiment value; "notas negativas hacia X"
+#: must reach the negative linked coverage, not the latest (positive) page.
+SENTIMENT_WORDS = {
+    "positiva": "positive",
+    "positivo": "positive",
+    "positivas": "positive",
+    "positivos": "positive",
+    "negativa": "negative",
+    "negativo": "negative",
+    "negativas": "negative",
+    "negativos": "negative",
+    "neutral": "neutral",
+    "neutro": "neutral",
+    "neutra": "neutral",
+}
+
+
+def requested_sentiment(tokens: list[str]) -> str | None:
+    """The sentiment value named in the question, if any."""
+    for token in tokens:
+        for variant in token_variants(token):
+            if variant in SENTIMENT_WORDS:
+                return SENTIMENT_WORDS[variant]
+    return None
+
+
 def find_persons(session: Session, client_id: int, tokens: list[str]) -> list[Person]:
     """Persons whose name/alias tokens appear in the question."""
     if not tokens:
@@ -138,15 +164,24 @@ def retrieve_mentions(
     if not conditions:
         # Nothing to match on (e.g. question of only stopwords): the latest
         # coverage is the least-wrong context.
+        query = select(Mention).where(Mention.client_id == client_id)
+        sentiment = requested_sentiment(tokens)
+        if sentiment:
+            query = query.where(Mention.sentiment == sentiment)
         return session.scalars(
-            select(Mention)
-            .where(Mention.client_id == client_id)
-            .order_by(Mention.published_at.desc().nullslast(), Mention.id.desc())
-            .limit(limit)
+            query.order_by(
+                Mention.published_at.desc().nullslast(), Mention.id.desc()
+            ).limit(limit)
         ).all()
+    filters = [Mention.client_id == client_id, or_(*conditions)]
+    sentiment = requested_sentiment(tokens)
+    if sentiment:
+        # "notas negativas": token matches must carry that sentiment, or the
+        # latest positive page crowds the answer out.
+        filters.append(Mention.sentiment == sentiment)
     candidates = session.scalars(
         select(Mention)
-        .where(Mention.client_id == client_id, or_(*conditions))
+        .where(*filters)
         .order_by(Mention.published_at.desc().nullslast(), Mention.id.desc())
         .limit(CANDIDATE_POOL)
     ).all()
@@ -159,13 +194,16 @@ def retrieve_mentions(
     linked: list[Mention] = []
     linked_roles: dict[int, str] = {}
     if person_ids:
+        linked_filters = [
+            Mention.client_id == client_id,
+            MentionPerson.person_id.in_(person_ids),
+        ]
+        if sentiment:
+            linked_filters.append(Mention.sentiment == sentiment)
         rows = session.execute(
             select(Mention, MentionPerson.role)
             .join(MentionPerson, MentionPerson.mention_id == Mention.id)
-            .where(
-                Mention.client_id == client_id,
-                MentionPerson.person_id.in_(person_ids),
-            )
+            .where(*linked_filters)
             .order_by(Mention.published_at.desc().nullslast(), Mention.id.desc())
             .limit(limit)
         ).all()

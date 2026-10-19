@@ -135,6 +135,7 @@ def persist_raw_mentions(
         # the per-cycle cap; any failure leaves content as-is.
         content = item.content
         item_author = None
+        item_published = None
         fetcher = fetcher_for(item.source)
         if (
             fetcher is not None
@@ -153,12 +154,15 @@ def persist_raw_mentions(
             if isinstance(fetched, article_fetch.ArticleContent):
                 fetched_author = fetched.author
                 fetched_text = fetched.text
+                fetched_published = fetched.published_at
             else:
                 fetched_author = None
                 fetched_text = fetched
+                fetched_published = None
             if fetched_text and fetched_text.strip():
                 content = fetched_text.strip()
                 item_author = fetched_author
+                item_published = fetched_published
                 text = "\n".join(p for p in [item.title or "", content] if p)
         # F2c enrichment first: it owns sentiment when it succeeds.
         enrichment = None
@@ -206,7 +210,7 @@ def persist_raw_mentions(
             content=content,
             author=item.author or item_author,
             lang=item.lang,
-            published_at=item.published_at,
+            published_at=item.published_at or item_published,
             reach=item.reach,
             raw=item.raw,
         )

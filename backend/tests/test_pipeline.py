@@ -38,11 +38,15 @@ class MockAnalyzer:
         return R(self.label, self.score)
 
 
+_UNSET = object()
+
+
 def _raw(
     url: str,
     keyword: str = "BUAP",
     title: str | None = "BUAP noticia",
     source: MentionSource = MentionSource.news_rss,
+    published: object = _UNSET,
 ) -> RawMention:
     return RawMention(
         source=source,
@@ -50,7 +54,9 @@ def _raw(
         url=url,
         title=title,
         lang="es",
-        published_at=datetime(2026, 10, 8, tzinfo=timezone.utc),
+        published_at=datetime(2026, 10, 8, tzinfo=timezone.utc)
+        if published is _UNSET
+        else published,  # type: ignore[arg-type]
     )
 
 
@@ -468,6 +474,43 @@ class TestArticleFetchWiring:
         assert inserted == 1
         (mention,) = session.query(Mention).all()
         assert mention.content is None
+
+    def test_fetch_fills_published_at_when_item_has_none(
+        self, session, monkeypatch
+    ) -> None:
+        # Scraper/Google News items carry no date; the article page does.
+        # Without it the row ranks last in every recency-ordered context.
+        from datetime import datetime, timezone as tz
+
+        published = datetime(2026, 10, 15, 18, 42, tzinfo=tz.utc)
+
+        def fake_fetcher(url: str) -> article_fetch.ArticleContent:
+            return article_fetch.ArticleContent(
+                text="Cuerpo suficiente para contar como articulo completo. " * 5,
+                published_at=published,
+            )
+
+        monkeypatch.setattr(pipeline, "fetcher_for", lambda source: fake_fetcher)
+        self._run(session, [_raw("https://example.com/p1", published=None)])
+        (mention,) = session.query(Mention).all()
+        assert mention.published_at == published
+
+    def test_item_published_at_wins_over_fetched(self, session, monkeypatch) -> None:
+        from datetime import datetime, timezone as tz
+
+        feed_date = datetime(2026, 10, 10, 9, 0, tzinfo=tz.utc)
+        page_date = datetime(2026, 10, 15, 18, 42, tzinfo=tz.utc)
+
+        def fake_fetcher(url: str) -> article_fetch.ArticleContent:
+            return article_fetch.ArticleContent(
+                text="Cuerpo suficiente para contar como articulo completo. " * 5,
+                published_at=page_date,
+            )
+
+        monkeypatch.setattr(pipeline, "fetcher_for", lambda source: fake_fetcher)
+        self._run(session, [_raw("https://example.com/p2", published=feed_date)])
+        (mention,) = session.query(Mention).all()
+        assert mention.published_at == feed_date
 
     def test_existing_content_is_not_refetched(self, session, monkeypatch) -> None:
         calls: list[str] = []

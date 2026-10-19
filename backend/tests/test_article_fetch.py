@@ -122,3 +122,41 @@ def test_fetch_article_never_raises_on_garbage_url():
     # Empty / malformed URLs return None instead of raising.
     assert article_fetch.fetch_article("") is None
     assert article_fetch.fetch_article("not a url") is None
+
+
+def test_extract_published_from_meta():
+    html = '<html><head><meta property="article:published_time" content="2026-10-15T18:42:29-06:00"></head></html>'
+    published = article_fetch.extract_published_at(html)
+    assert published is not None
+    assert published.year == 2026 and published.month == 10 and published.day == 15
+    assert published.utcoffset().total_seconds() == -6 * 3600
+
+
+def test_extract_published_from_jsonld():
+    html = (
+        '<html><head><script type="application/ld+json">'
+        '{"datePublished": "2026-10-15T18:42:29+00:00"}'
+        "</script></head></html>"
+    )
+    published = article_fetch.extract_published_at(html)
+    assert published is not None and published.day == 15
+
+
+def test_extract_published_from_time_tag_and_none_case():
+    html = "<html><body><time datetime='2026-10-15T09:00:00Z'>hoy</time></body></html>"
+    published = article_fetch.extract_published_at(html)
+    assert published is not None and published.day == 15
+    assert article_fetch.extract_published_at("<html><body>x</body></html>") is None
+    assert article_fetch.extract_published_at("") is None
+
+
+def test_fetch_article_content_carries_published_at(monkeypatch):
+    html = '<html><head><meta property="article:published_time" content="2026-10-15T18:42:29-06:00"></head><body><p>' + "Parrafo con cuerpo suficiente. " * 20 + "</p></body></html>"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, text=html)
+
+    with _client(handler) as client:
+        result = article_fetch.fetch_article_content("https://example.com/a", client)
+    assert result.published_at is not None and result.published_at.day == 15
+    assert result.text and "Parrafo" in result.text

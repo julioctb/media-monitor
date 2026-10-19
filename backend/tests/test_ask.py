@@ -128,6 +128,64 @@ def test_retrieve_matches_morphological_variants(db) -> None:
     assert singular.id in [m.id for m in found]
 
 
+def test_retrieve_sentiment_filter_with_person(db) -> None:
+    # "notas negativas hacia la rectora": person-linked slots must not be
+    # flooded by positive coverage — the sentiment word narrows the linked
+    # query itself.
+    from app.ask import retrieve_mentions
+
+    client_id = db.scalar(select(Client.id).limit(1))
+    person = Person(client_id=client_id, name="Margarito Rojas", name_key="margarito rojas")
+    db.add(person)
+    db.flush()
+    neg = seed_mention(
+        db, client_id, "https://x/neg", title="Gesto cuestionado", sentiment=Sentiment.negative
+    )
+    pos = seed_mention(
+        db, client_id, "https://x/pos", title="Gesto celebrado", sentiment=Sentiment.positive
+    )
+    for mention in (neg, pos):
+        db.add(MentionPerson(mention_id=mention.id, person_id=person.id))
+    db.commit()
+
+    found, _roles = retrieve_mentions(
+        db, client_id=client_id, tokens=["notas", "negativas"], person_ids=[person.id]
+    )
+    ids = [m.id for m in found]
+    assert neg.id in ids
+    assert pos.id not in ids
+
+
+def test_retrieve_sentiment_filter_without_person(db) -> None:
+    from app.ask import retrieve_mentions
+
+    client_id = db.scalar(select(Client.id).limit(1))
+    neg = seed_mention(
+        db,
+        client_id,
+        "https://x/neg-presupuesto",
+        title="Presupuesto criticado fuerte",
+        content="El presupuesto genera rechazo",
+        sentiment=Sentiment.negative,
+    )
+    pos = seed_mention(
+        db,
+        client_id,
+        "https://x/pos-presupuesto",
+        title="Presupuesto aprobado con aplausos",
+        content="El presupuesto satisface",
+        sentiment=Sentiment.positive,
+    )
+    db.commit()
+
+    found, _ = retrieve_mentions(
+        db, client_id=client_id, tokens=["presupuesto", "negativas"], person_ids=[]
+    )
+    ids = [m.id for m in found]
+    assert neg.id in ids
+    assert pos.id not in ids
+
+
 def test_retrieve_includes_person_links_without_token_hit(db) -> None:
     from app.ask import retrieve_mentions
 
