@@ -168,10 +168,52 @@ class TestResolvePerson:
         persons.resolve_person(session, client_id=client_id, name="Xochitl")
         session.commit()
         assert first.aliases == ["Xochitl"]
-        assert "xochitl" in first.alias_keys.split()
+        assert "xochitl" in first.alias_keys.split(",")
         # alias lookup resolves to the same row
         again = persons.resolve_person(session, client_id=client_id, name="XOCHITL")
         assert again.id == first.id
+
+    def test_repeated_resolve_never_duplicates_alias(self, session) -> None:
+        # Historical bug: space-splitting fragmented multi-word keys and the
+        # guard never hit, appending the same alias on every enrichment pass.
+        client_id = _client(session)
+        first = persons.resolve_person(
+            session, client_id=client_id, name="Xóchitl Gálvez Ramírez"
+        )
+        for _ in range(3):
+            persons.resolve_person(session, client_id=client_id, name="Xochitl Gálvez")
+            persons.resolve_person(session, client_id=client_id, name="Xochitl")
+        session.commit()
+        assert sorted(first.aliases) == ["Xochitl", "Xochitl Gálvez"]
+        keys = first.alias_keys.split(",")
+        assert sorted(keys) == ["xochitl", "xochitl galvez"]
+
+    def test_repair_person_dedupes_and_rebuilds_keys(self, session) -> None:
+        from scripts.repair_person_aliases import repair_person, repair_all
+
+        client_id = _client(session)
+        person = Person(
+            client_id=client_id,
+            name="Xóchitl Gálvez",
+            name_key="xochitl galvez",
+            aliases=["Xochitl Buendía"] * 5 + ["Xochitl"],
+            alias_keys="xochitl buendia " * 5 + "xochitl",
+        )
+        session.add(person)
+        session.commit()
+
+        aliases, keys = repair_person(person)
+        assert aliases == ["Xochitl Buendía", "Xochitl"]
+        assert keys == ["xochitl buendia", "xochitl"]
+
+        totals = repair_all(session, dry_run=False)
+        assert totals["changed"] == 1
+        session.expire_all()
+        stored = session.get(Person, person.id)
+        assert stored.aliases == ["Xochitl Buendía", "Xochitl"]
+        assert stored.alias_keys == "xochitl buendia,xochitl"
+        # idempotent
+        assert repair_all(session, dry_run=False)["changed"] == 0
 
     def test_scoped_per_client(self, session) -> None:
         client_id = _client(session)
