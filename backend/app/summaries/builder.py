@@ -166,7 +166,12 @@ def _openai_generator(effective: EffectiveSettings) -> Callable[[str], str]:
                     timeout=TIMEOUT_S,
                 )
                 resp.raise_for_status()
-                payload = str(resp.json()["choices"][0]["message"]["content"]).strip()
+                raw_content = resp.json()["choices"][0]["message"]["content"]
+                if not isinstance(raw_content, str) or not raw_content.strip():
+                    # content:null becomes str "None" and breaks json.loads
+                    # upstream; treat it as a failed attempt instead.
+                    raise ValueError("empty summary content")
+                payload = raw_content.strip()
                 break
             except (
                 httpx.HTTPError,

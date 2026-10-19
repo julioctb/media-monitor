@@ -242,7 +242,12 @@ class LLMEnricher:
             headers={"Authorization": f"Bearer {self._api_key}"},
         )
         resp.raise_for_status()
-        return str(resp.json()["choices"][0]["message"]["content"])
+        content = resp.json()["choices"][0]["message"]["content"]
+        if content is None or not str(content).strip():
+            # Local servers return content:null under load; str(None) would
+            # leak the literal "None" into answers/digests. Retry instead.
+            raise ValueError("empty completion content")
+        return str(content)
 
     def _with_retries(self, fn):  # type: ignore[no-untyped-def]
         """Run fn() with the attempt/backoff policy; None once exhausted."""

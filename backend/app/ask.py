@@ -34,7 +34,7 @@ STOPWORDS = frozenset(
 )
 
 #: Mentions handed to the model: enough breadth, bounded tokens.
-MAX_CONTEXT_MENTIONS = 12
+MAX_CONTEXT_MENTIONS = 24
 #: Candidates fetched before the in-memory relevance cut.
 CANDIDATE_POOL = 80
 #: Content chars per context block (token budget guard).
@@ -76,6 +76,20 @@ def tokenize(question: str) -> list[str]:
     return seen
 
 
+def token_variants(token: str) -> list[str]:
+    """The token plus naive singular forms; substring match covers the rest.
+
+    "becas" must reach notes written "beca": exact matching starved the
+    context of morphological neighbours. Long es/s endings are stripped.
+    """
+    variants = [token]
+    if len(token) > 3 and token.endswith("es"):
+        variants.append(token[:-2])
+    if len(token) > 3 and token.endswith("s"):
+        variants.append(token[:-1])
+    return list(dict.fromkeys(variants))
+
+
 def find_persons(session: Session, client_id: int, tokens: list[str]) -> list[Person]:
     """Persons whose name/alias tokens appear in the question."""
     if not tokens:
@@ -111,9 +125,10 @@ def retrieve_mentions(
     """
     conditions = []
     for token in tokens:
-        pattern = f"%{token}%"
-        conditions.append(Mention.title.ilike(pattern))
-        conditions.append(Mention.content.ilike(pattern))
+        for variant in token_variants(token):
+            pattern = f"%{variant}%"
+            conditions.append(Mention.title.ilike(pattern))
+            conditions.append(Mention.content.ilike(pattern))
     if person_ids:
         conditions.append(Mention.id.in_(
             select(MentionPerson.mention_id).where(
@@ -162,9 +177,12 @@ def retrieve_mentions(
 
     def score(mention: Mention) -> tuple[int, object]:
         haystack = f"{mention.title or ''} {mention.content or ''}".lower()
-        token_hits = sum(1 for token in token_set if token in haystack)
-        person_bonus = 2 if mention.id in person_ids else 0
-        return (token_hits + person_bonus, mention.published_at or mention.ingested_at)
+        token_hits = sum(
+            1
+            for token in token_set
+            if any(variant in haystack for variant in token_variants(token))
+        )
+        return (token_hits, mention.published_at or mention.ingested_at)
 
     pool: dict[int, Mention] = {mention.id: mention for mention in linked}
     for mention in candidates:

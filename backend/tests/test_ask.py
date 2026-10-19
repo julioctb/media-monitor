@@ -109,6 +109,25 @@ def test_retrieve_ranks_token_hits_over_recency(db) -> None:
     assert old_hit.id != new_miss.id
 
 
+def test_retrieve_matches_morphological_variants(db) -> None:
+    # "becas" in the question must reach notes written with "beca" (and
+    # vice versa): exact-substring matching starved the context otherwise.
+    from app.ask import retrieve_mentions
+
+    client_id = db.scalar(select(Client.id).limit(1))
+    singular = seed_mention(
+        db,
+        client_id,
+        "https://x/singular",
+        title="Entrega de beca nueva",
+        published=now(),
+    )
+    found, _ = retrieve_mentions(
+        db, client_id=client_id, tokens=["becas"], person_ids=[]
+    )
+    assert singular.id in [m.id for m in found]
+
+
 def test_retrieve_includes_person_links_without_token_hit(db) -> None:
     from app.ask import retrieve_mentions
 
@@ -271,8 +290,8 @@ def test_retrieve_annotates_person_roles(db) -> None:
 
 
 def test_person_linked_mentions_survive_the_cap(db) -> None:
-    """12 token-hits must not starve the person's own coverage."""
-    from app.ask import retrieve_mentions
+    """A full page of token-hits must not starve the person's own coverage."""
+    from app.ask import MAX_CONTEXT_MENTIONS, retrieve_mentions
 
     client_id = db.scalar(select(Client.id).limit(1))
     person = Person(client_id=client_id, name="Margarito Rojas", name_key="margarito rojas")
@@ -280,7 +299,7 @@ def test_person_linked_mentions_survive_the_cap(db) -> None:
     db.flush()
     linked = seed_mention(db, client_id, "https://x/only-person", title="Gesto sin tokens")
     db.add(MentionPerson(mention_id=linked.id, person_id=person.id))
-    for index in range(14):
+    for index in range(MAX_CONTEXT_MENTIONS + 2):
         seed_mention(
             db, client_id, f"https://x/fill{index}", title=f"Becas y más becas {index}"
         )
@@ -291,7 +310,7 @@ def test_person_linked_mentions_survive_the_cap(db) -> None:
     )
     ids = [m.id for m in found]
     assert linked.id in ids
-    assert len(ids) == 12
+    assert len(ids) == MAX_CONTEXT_MENTIONS
 
 
 # ------------------------------------------------------------ digest grounding

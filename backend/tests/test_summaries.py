@@ -250,6 +250,43 @@ def test_summary_generator_gating():
     assert callable(callable_gen)
 
 
+def test_digest_generator_none_content_retried(monkeypatch):
+    # content:null (local EXL3 servers under load) used to become the string
+    # "None" and blow up json.loads in the digest with
+    # "Expecting value: line 1 column 1 (char 0)".
+    from app.summaries import builder
+
+    payloads: list[str | None] = [None, json.dumps({"headline": "ok"})]
+
+    class FakeResponse:
+        def raise_for_status(self) -> None:
+            pass
+
+        def json(self) -> dict:
+            body = payloads[len(calls) - 1] if calls else None
+            return {"choices": [{"message": {"content": body}}]}
+
+    calls: list[int] = []
+
+    def fake_post(url, *, headers=None, json=None, timeout=None):  # noqa: A002
+        calls.append(1)
+        return FakeResponse()
+
+    monkeypatch.setattr(builder.httpx, "post", fake_post)
+    generate = builder._openai_generator(
+        EffectiveSettings(
+            client_id=1,
+            ai_provider="openai",
+            ai_api_key="sk",
+            ai_base_url="https://api.example.com/v1",
+            ai_model="m",
+        )
+    )
+    payload = json.loads(generate("prompt"))
+    assert payload == {"headline": "ok"}
+    assert len(calls) == 2
+
+
 def test_openai_provider_path_via_fake_http(monkeypatch, session):
     client = add_client(session)
     add_mention(session, client.id, "BUAP publica resultados", DAY)
