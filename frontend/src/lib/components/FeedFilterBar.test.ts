@@ -4,17 +4,6 @@ import { mount, unmount } from 'svelte';
 import type { Keyword } from '$lib/api';
 import FeedFilterBar from './FeedFilterBar.svelte';
 
-function keywordFixture(overrides: Partial<Keyword> = {}): Keyword {
-	return {
-		id: 3,
-		text: 'nvidia',
-		language: 'es',
-		is_active: true,
-		created_at: '2026-01-01T00:00:00Z',
-		...overrides
-	};
-}
-
 interface Filters {
 	source: string;
 	sentiment: string;

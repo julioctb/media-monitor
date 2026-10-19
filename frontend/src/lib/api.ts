@@ -10,7 +10,7 @@
 const DEFAULT_API_BASE_URL = 'http://localhost:8000';
 
 /** Resolved API base URL (no trailing slash). */
-export function apiBaseUrl(): string {
+function apiBaseUrl(): string {
 	const fromEnv = typeof process !== 'undefined' ? process.env?.API_BASE_URL : undefined;
 	const base = fromEnv?.trim() || DEFAULT_API_BASE_URL;
 	return base.replace(/\/+$/, '');
@@ -33,7 +33,7 @@ export class ApiError extends Error {
 /* ---------------------------------- types --------------------------------- */
 
 /** Sentiment label; rows without classification carry null. */
-export type Sentiment = 'positive' | 'negative' | 'neutral';
+type Sentiment = 'positive' | 'negative' | 'neutral';
 /** `none` is the explicit unclassified filter on GET /api/mentions. */
 export type SentimentFilter = Sentiment | 'none';
 
@@ -41,7 +41,7 @@ export type SentimentFilter = Sentiment | 'none';
  * Source tag as stored by the backend (news_rss, gdelt, x_twitter, ...).
  * The set is open: new sources must render in the UI without changes here.
  */
-export type MentionSource = string;
+type MentionSource = string;
 
 export interface Mention {
 	id: number;
@@ -71,13 +71,13 @@ export interface Mention {
 }
 
 /** Person chip on a mention card: id for the detail link, name for display. */
-export interface PersonRef {
+interface PersonRef {
 	id: number;
 	name: string;
 }
 
 /** One classifier's stored label for a mention. */
-export interface Classification {
+interface Classification {
 	classifier: string;
 	label: string;
 	score: number;
@@ -104,7 +104,7 @@ export interface MentionQuery {
 	offset?: number;
 }
 
-export type KeywordLanguage = 'es' | 'en';
+type KeywordLanguage = 'es' | 'en';
 
 export interface Keyword {
 	id: number;
@@ -144,7 +144,7 @@ export interface AlertSettingsInput {
 	sentiment_shift_threshold?: number;
 }
 
-export interface DailyVolumePoint {
+interface DailyVolumePoint {
 	/** ISO date of the UTC day bucket. */
 	date: string;
 	count: number;
@@ -165,7 +165,7 @@ export interface StatsOverview {
 }
 
 /** Aggregates for one classifier: total rows and count per label. */
-export interface ClassifierBreakdown {
+interface ClassifierBreakdown {
 	classifier: string;
 	total_classified: number;
 	breakdown: Record<string, number>;
@@ -173,10 +173,10 @@ export interface ClassifierBreakdown {
 
 /* --------------------------------- settings -------------------------------- */
 
-export type AiProvider = 'local' | 'openai';
+type AiProvider = 'local' | 'openai';
 
 /** One monitored Facebook page (mirrors FacebookPageCredentials). */
-export interface FacebookPage {
+interface FacebookPage {
 	page_id: string;
 	token: string;
 	label: string;
@@ -250,7 +250,7 @@ export interface AiProbeInput {
 
 /* --------------------------------- plumbing -------------------------------- */
 
-export type FetchLike = typeof fetch;
+type FetchLike = typeof fetch;
 
 export interface RequestOptions {
 	/** Override the base URL for this call (tests, tooling). */
@@ -543,7 +543,7 @@ export interface PersonSummary {
 }
 
 /** One mention of the person: quote, source and context (F3 exit gate). */
-export interface PersonTimelineItem {
+interface PersonTimelineItem {
 	mention_id: number;
 	title: string | null;
 	url: string;
@@ -598,7 +598,7 @@ export interface EventSummary {
 }
 
 /** Mention stub inside an event detail: enough to rank and link out. */
-export interface EventMention {
+interface EventMention {
 	id: number;
 	source: MentionSource;
 	url: string;
@@ -613,7 +613,7 @@ export interface EventDetail extends EventSummary {
 }
 
 /** Per-source coverage slice of one event. */
-export interface EventCoverageRow {
+interface EventCoverageRow {
 	source: MentionSource;
 	n_mentions: number;
 	outlets: number;
@@ -656,7 +656,7 @@ export function getEventCoverage(
 
 /* ------------------------------- ask (F4) --------------------------------- */
 
-export interface AskCitation {
+interface AskCitation {
 	mention_id: number;
 	title: string | null;
 	url: string;
@@ -684,14 +684,14 @@ export function askCorpus(question: string, options: RequestOptions = {}): Promi
 /* ------------------------------- daily summaries --------------------------- */
 
 /** One source citation inside a digest news item. */
-export interface DigestSourceRef {
+interface DigestSourceRef {
 	source: string;
 	url: string;
 	title?: string | null;
 }
 
 /** A digest news item: one canonical event (or loose mention) plus narrative. */
-export interface DigestNewsItem {
+interface DigestNewsItem {
 	event_id: number | null;
 	title: string | null;
 	/** LLM/heuristic synthesis; grounded on the event facts. */
@@ -705,7 +705,7 @@ export interface DigestNewsItem {
 	why_it_matters?: string | null;
 }
 
-export interface DigestPersonItem {
+interface DigestPersonItem {
 	person_id: number;
 	name: string;
 	role?: string | null;
@@ -742,7 +742,7 @@ export interface DailySummaryContent {
 	plain_text?: string;
 }
 
-export type SummaryMode = 'heuristic' | 'llm';
+type SummaryMode = 'heuristic' | 'llm';
 
 export interface DailySummary {
 	id: number;

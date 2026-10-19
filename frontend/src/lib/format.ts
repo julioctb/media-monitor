@@ -22,7 +22,7 @@ export function sourceLabel(source: string): string {
 		.replace(/(^|\s)(\w)/g, (_match, separator: string, letter: string) => separator + letter.toUpperCase());
 }
 
-export const SENTIMENT_LABELS: Record<string, string> = {
+const SENTIMENT_LABELS: Record<string, string> = {
 	positive: 'Positivo',
 	negative: 'Negativo',
 	neutral: 'Neutro',
@@ -95,14 +95,13 @@ export function topicBadgeClass(label: string): string {
 	return TOPIC_BADGE_CLASSES[label] ?? 'bg-slate-100 text-slate-500 ring-slate-400/20';
 }
 
-const PAD = (value: number) => String(value).padStart(2, '0');
 
 /**
  * Display timezone: client headquarters (America/Mexico_City, UTC-6 all
  * year — Mexico abolished DST in 2022). When multi-timezone clients land,
  * thread settings.timezone through the layout load instead.
  */
-export const DISPLAY_TIMEZONE = 'America/Mexico_City';
+const DISPLAY_TIMEZONE = 'America/Mexico_City';
 
 const mexicoFormatter = new Intl.DateTimeFormat('es-MX', {
 	timeZone: DISPLAY_TIMEZONE,
