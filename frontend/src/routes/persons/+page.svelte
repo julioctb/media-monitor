@@ -98,7 +98,8 @@
 			<thead>
 				<tr class="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
 					<th scope="col" class="px-4 py-3 font-medium">Persona</th>
-					<th scope="col" class="px-4 py-3 font-medium">Cargo / Medio</th>
+					<th scope="col" class="px-4 py-3 font-medium">Cargo</th>
+					<th scope="col" class="px-4 py-3 font-medium">Medio</th>
 					<th scope="col" class="px-4 py-3 text-right font-medium">Menciones</th>
 					<th scope="col" class="px-4 py-3 font-medium">Última vez vista</th>
 				</tr>
@@ -120,7 +121,10 @@
 							{/if}
 						</td>
 						<td class="px-4 py-3 text-slate-600">
-							{[person.role, person.org].filter(Boolean).join(' · ') || '—'}
+							{person.role || '—'}
+						</td>
+						<td class="px-4 py-3 text-slate-600">
+							{person.org || '—'}
 						</td>
 						<td class="px-4 py-3 text-right tabular-nums text-slate-700">
 							{person.mention_count}
