@@ -22,10 +22,10 @@
 	<title>Eventos | Media Monitor</title>
 </svelte:head>
 
-<div class="flex flex-wrap items-end justify-between gap-3">
+<header class="flex flex-wrap items-end justify-between gap-4">
 	<div>
-		<h1 class="text-2xl font-semibold tracking-tight">Eventos</h1>
-		<p class="mt-1 max-w-2xl text-sm text-slate-500">
+		<h1 class="page-title">Eventos</h1>
+		<p class="lead">
 			Cada evento agrupa las notas que cubren el mismo hecho, aunque sea en
 			distintos medios — la vista de la historia completa. El
 			<span class="font-medium">feed</span>, en cambio, lista cada nota
@@ -33,57 +33,35 @@
 		</p>
 	</div>
 
-	<!-- Scope toggle: same pill language as the layout tab strip. -->
-	<div
-		role="group"
-		aria-label="Alcance de eventos"
-		class="flex items-center gap-1 rounded-full border border-slate-200 bg-white p-1 shadow-sm"
-	>
-		<a
-			href={scopeHref('eco')}
-			aria-current={data.scope === 'eco' ? 'true' : undefined}
-			class={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-				data.scope === 'eco'
-					? 'bg-slate-900 text-white'
-					: 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
-			}`}
-		>
+	<!-- Scope toggle -->
+	<div class="segmented" role="group" aria-label="Alcance de eventos">
+		<a href={scopeHref('eco')} aria-current={data.scope === 'eco' ? 'page' : undefined}>
 			Con eco de medios
 		</a>
-		<a
-			href={scopeHref('todas')}
-			aria-current={data.scope === 'todas' ? 'true' : undefined}
-			class={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-				data.scope === 'todas'
-					? 'bg-slate-900 text-white'
-					: 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
-			}`}
-		>
+		<a href={scopeHref('todas')} aria-current={data.scope === 'todas' ? 'page' : undefined}>
 			Todas
 		</a>
 	</div>
-</div>
+</header>
 
 {#if data.events.length === 0}
-	<div class="mt-8 rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center">
+	<div class="empty mt-6">
 		{#if data.scope === 'eco'}
-			<p class="text-sm font-medium text-slate-700">
-				Ningún evento con eco de varios medios todavía.
-			</p>
-			<p class="mt-1 text-sm text-slate-500">
+			<p class="font-medium text-ink">Ningún evento con eco de varios medios todavía.</p>
+			<p class="mt-1">
 				Cuando dos o más notas cubran el mismo hecho, aparecerá aquí. También
 				puedes ver
-				<a href={scopeHref('todas')} class="underline hover:text-slate-700">todas</a>.
+				<a href={scopeHref('todas')} class="underline hover:text-ink">todas</a>.
 			</p>
 		{:else}
-			<p class="text-sm font-medium text-slate-700">Sin eventos registrados todavía.</p>
-			<p class="mt-1 text-sm text-slate-500">
+			<p class="font-medium text-ink">Sin eventos registrados todavía.</p>
+			<p class="mt-1">
 				Los eventos aparecen cuando la ingesta agrupa menciones del mismo suceso.
 			</p>
 		{/if}
 	</div>
 {:else}
-	<p class="mt-4 text-xs text-slate-400">
+	<p class="mt-4 text-sm text-muted" role="status" aria-live="polite">
 		{data.events.length}
 		{data.scope === 'eco' ? 'historias con cobertura de varios medios' : 'eventos'} ·
 		{ecoCount} con eco de 2+ medios

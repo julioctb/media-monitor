@@ -11,9 +11,9 @@
 
 <article
 	aria-labelledby={`event-${event.id}-title`}
-	class="flex h-full flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-colors hover:border-slate-300"
+	class="flex h-full flex-col rounded-2xl border border-line-soft bg-white p-5 transition-colors hover:border-line"
 >
-	<div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
+	<div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-meta">
 		<span class="tabular-nums">{`${event.mention_count} ${event.mention_count === 1 ? 'mención' : 'menciones'}`}</span>
 		<span aria-hidden="true">·</span>
 		<span>{`${event.source_count} ${event.source_count === 1 ? 'fuente' : 'fuentes'}`}</span>
@@ -24,15 +24,20 @@
 		</span>
 	</div>
 
-	<h3 id={`event-${event.id}-title`} class="mt-2 text-sm font-semibold text-slate-900">
-		<a href={`/events/${event.id}`} class="hover:underline">{event.title}</a>
+	<h3 id={`event-${event.id}-title`} class="mt-2 text-base font-semibold leading-snug text-ink">
+		<a
+			href={`/events/${event.id}`}
+			class="underline decoration-line underline-offset-[3px] hover:decoration-ink"
+		>
+			{event.title}
+		</a>
 	</h3>
 
 	{#if event.summary?.trim()}
-		<p class="mt-1 line-clamp-3 text-sm text-slate-600">{event.summary}</p>
+		<p class="mt-1 line-clamp-3 text-sm text-ink-2">{event.summary}</p>
 	{/if}
 
-	<p class="mt-auto pt-2 text-xs text-slate-400">
+	<p class="mt-auto pt-2 text-xs text-meta">
 		Primera detección:
 		<time datetime={event.first_seen_at} class="tabular-nums">
 			{formatDisplayDateTime(event.first_seen_at)}
