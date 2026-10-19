@@ -7,7 +7,7 @@
 
 	let { data, form }: PageProps = $props();
 
-	const BTN_CLS = 'rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors';
+	const BTN_CLS = 'rounded-full border px-3 py-1.5 text-xs font-medium transition-colors';
 
 	const UNREADY_HINTS: Record<string, string> = {
 		x_twitter: 'falta el token del provider (env X_PROVIDER_API_KEY)',
@@ -28,8 +28,8 @@
 	<title>Búsquedas guardadas | Media Monitor</title>
 </svelte:head>
 
-<h1 class="text-2xl font-semibold tracking-tight">Búsquedas guardadas</h1>
-<p class="mt-1 text-sm text-slate-500">
+<h1 class="page-title">Búsquedas guardadas</h1>
+<p class="lead">
 	Consultas almacenadas que alimentan la detección de picos y las alertas por cambio de sentimiento.
 </p>
 
@@ -38,8 +38,8 @@
 		role={form.ok ? 'status' : 'alert'}
 		class={`mt-4 rounded-lg px-4 py-3 text-sm ring-1 ring-inset ${
 			form.ok
-				? 'bg-green-50 text-green-800 ring-green-600/20'
-				: 'bg-red-50 text-red-800 ring-red-600/20'
+				? 'bg-success/10 text-success ring-success/30'
+				: 'bg-danger/10 text-danger ring-danger/30'
 		}`}
 	>
 		{form.message}
@@ -49,11 +49,11 @@
 <form
 	method="POST"
 	action="?/create"
-	class="mt-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+	class="filter-panel"
 >
 	<div class="grid gap-3 md:grid-cols-2">
 		<div>
-			<label for="ss-name" class="mb-1 block text-xs font-medium text-slate-500">Nombre</label>
+			<label for="ss-name" class="mb-1 block text-xs font-medium text-ink-2">Nombre</label>
 			<input
 				id="ss-name"
 				name="name"
@@ -65,7 +65,7 @@
 			/>
 		</div>
 		<div>
-			<label for="ss-query" class="mb-1 block text-xs font-medium text-slate-500">
+			<label for="ss-query" class="mb-1 block text-xs font-medium text-ink-2">
 				Consulta (coincide en título y contenido)
 			</label>
 			<input
@@ -80,11 +80,11 @@
 	</div>
 
 	<fieldset class="mt-3">
-		<legend class="mb-1 block text-xs font-medium text-slate-500">Fuentes (ninguna = todas)</legend>
+		<legend class="mb-1 block text-xs font-medium text-ink-2">Fuentes (ninguna = todas)</legend>
 		<div class="flex flex-wrap gap-3">
 			{#each data.sources as source (source)}
 				<label
-					class={`flex items-center gap-1.5 text-sm ${isReady(source) ? 'text-slate-700' : 'text-slate-400'}`}
+					class={`flex items-center gap-1.5 text-sm ${isReady(source) ? 'text-ink-2' : 'text-meta'}`}
 				>
 					<input
 						type="checkbox"
@@ -92,14 +92,14 @@
 						value="1"
 						disabled={!isReady(source)}
 						title={isReady(source) ? '' : `Sin configurar: ${UNREADY_HINTS[source] ?? ''}`}
-						class="size-4 rounded border-slate-300 text-slate-900 focus:ring-slate-300 disabled:cursor-not-allowed"
+						class="size-4 rounded border-line accent-accent disabled:cursor-not-allowed"
 					/>
 					{sourceLabel(source)}
 				</label>
 			{/each}
 		</div>
 		{#if unreadySources.length > 0}
-			<p class="mt-2 text-xs text-amber-600">
+			<p class="mt-2 text-xs text-muted"><span class="font-semibold text-ink-2">Sin ingesta activa:</span>
 				Sin ingesta activa:
 				{unreadySources.map((source) => `${sourceLabel(source)} (${UNREADY_HINTS[source]})`).join(' ·')}.
 				Configura la fuente en Ajustes para poder seleccionarla.
@@ -109,19 +109,19 @@
 
 	<div class="mt-3 grid gap-3 sm:grid-cols-3">
 		<div>
-			<label for="ss-classifier" class="mb-1 block text-xs font-medium text-slate-500">
+			<label for="ss-classifier" class="mb-1 block text-xs font-medium text-ink-2">
 				Clasificador (opcional)
 			</label>
 			<input id="ss-classifier" name="classifier" maxlength={32} placeholder="political" class={INPUT_CLS} />
 		</div>
 		<div>
-			<label for="ss-label" class="mb-1 block text-xs font-medium text-slate-500">
+			<label for="ss-label" class="mb-1 block text-xs font-medium text-ink-2">
 				Etiqueta (opcional)
 			</label>
 			<input id="ss-label" name="label" maxlength={32} placeholder="political" class={INPUT_CLS} />
 		</div>
 		<div>
-			<label for="ss-range" class="mb-1 block text-xs font-medium text-slate-500">
+			<label for="ss-range" class="mb-1 block text-xs font-medium text-ink-2">
 				Rango por defecto (días)
 			</label>
 			<input
@@ -138,30 +138,30 @@
 
 	<button
 		type="submit"
-		class="mt-4 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
+		class="mt-4 inline-flex min-h-[44px] items-center justify-center rounded-full border border-accent bg-accent px-[22px] text-sm font-semibold text-accent-on transition-colors hover:border-accent-hover hover:bg-accent-hover active:border-accent-active active:bg-accent-active disabled:opacity-60"
 	>
 		Crear búsqueda guardada
 	</button>
 </form>
 
 {#if data.savedSearches.length === 0}
-	<div class="mt-8 rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center">
-		<p class="text-sm font-medium text-slate-700">Todavía no hay búsquedas guardadas.</p>
-		<p class="mt-1 text-sm text-slate-500">Crea la primera con el formulario de arriba.</p>
+	<div class="empty mt-6">
+		<p class="text-sm font-medium text-ink-2">Todavía no hay búsquedas guardadas.</p>
+		<p class="lead">Crea la primera con el formulario de arriba.</p>
 	</div>
 {:else}
-	<ul class="mt-6 divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white shadow-sm">
+	<ul class="mt-6 divide-y divide-line-soft rounded-2xl border border-line-soft bg-white">
 		{#each data.savedSearches as search (search.id)}
 			<li class="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
 				<div class="min-w-0">
 					<div class="flex flex-wrap items-center gap-2">
-						<span class="text-sm font-medium text-slate-900">{search.name}</span>
+						<span class="text-sm font-medium text-ink">{search.name}</span>
 						{#if !search.is_active}
-							<span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">Pausada</span>
+							<span class="rounded-full border border-line bg-surface px-2 py-0.5 text-xs text-muted">Pausada</span>
 						{/if}
 					</div>
-					<p class="mt-0.5 truncate text-xs text-slate-500">“{search.query}”</p>
-					<p class="mt-0.5 text-xs text-slate-400">
+					<p class="mt-0.5 truncate text-xs text-muted">“{search.query}”</p>
+					<p class="mt-0.5 text-xs text-meta">
 						{search.sources.length === 0
 							? 'Todas las fuentes'
 							: search.sources.map((source) => sourceLabel(source)).join(', ')}
@@ -176,13 +176,13 @@
 					<form method="POST" action="?/toggle">
 						<input type="hidden" name="id" value={search.id} />
 						<input type="hidden" name="is_active" value={search.is_active ? '0' : '1'} />
-						<button type="submit" class={`${BTN_CLS} border-slate-300 text-slate-600 hover:bg-slate-50`}>
+						<button type="submit" class={`${BTN_CLS} border-line text-ink-2 hover:bg-surface-warm`}>
 							{search.is_active ? 'Pausar' : 'Activar'}
 						</button>
 					</form>
 					<form method="POST" action="?/delete">
 						<input type="hidden" name="id" value={search.id} />
-						<button type="submit" class={`${BTN_CLS} border-red-200 text-red-600 hover:bg-red-50`}>
+						<button type="submit" class={`${BTN_CLS} border-danger/40 text-danger hover:bg-danger/10`}>
 							Eliminar
 						</button>
 					</form>

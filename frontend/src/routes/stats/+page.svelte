@@ -192,12 +192,13 @@
 	<title>Estadísticas | Media Monitor</title>
 </svelte:head>
 
-<h1 class="text-2xl font-semibold tracking-tight">Estadísticas</h1>
+<h1 class="page-title">Estadísticas</h1>
+<p class="lead">Panorama de la cobertura: volumen, tono, clasificación y fuentes.</p>
 
 <div class="mt-6 grid gap-4 sm:grid-cols-3">
 	{#each kpis as kpi (kpi.label)}
-		<div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-			<p class="text-sm text-slate-500">{kpi.label}</p>
+		<div class="rounded-2xl border border-line-soft bg-white p-5">
+			<p class="text-sm text-muted">{kpi.label}</p>
 			<p class="mt-1 text-3xl font-semibold tabular-nums">{kpi.value}</p>
 		</div>
 	{/each}
@@ -205,13 +206,13 @@
 
 <div class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
 	{#each sentimentRows as row (row.key)}
-		<div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+		<div class="rounded-2xl border border-line-soft bg-white p-4">
 			<div class="flex items-center gap-2">
 				<span
-					class="inline-block size-2.5 rounded-full ring-1 ring-slate-200"
+					class="inline-block size-2.5 rounded-full ring-1 ring-line"
 					style={`background: ${SENTIMENT_COLORS[row.key]}`}
 				></span>
-				<p class="text-sm text-slate-500">{row.label}</p>
+				<p class="text-sm text-muted">{row.label}</p>
 			</div>
 			<p class="mt-1 text-2xl font-semibold tabular-nums">{row.count}</p>
 		</div>
@@ -219,43 +220,43 @@
 </div>
 
 <div class="mt-4 grid gap-4 lg:grid-cols-3">
-	<section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm lg:col-span-2">
-		<h2 class="text-sm font-semibold text-slate-700">Volumen diario (últimos 30 días)</h2>
+	<section class="mt-4 rounded-2xl border border-line-soft bg-white p-5 lg:col-span-2">
+		<h2 class="text-lg font-semibold text-ink">Volumen diario (últimos 30 días)</h2>
 		<div class="relative mt-4 h-72" role="img" aria-label="Volumen diario de menciones">
 			<canvas bind:this={volumeCanvas}></canvas>
 		</div>
-		<p class="mt-2 flex items-center gap-1.5 text-xs text-slate-400">
+		<p class="mt-2 flex items-center gap-1.5 text-xs text-meta">
 			<span class="inline-block size-2 rounded-sm" style={`background: ${SPIKE_BAR}`}></span>
 			día con pico detectado (saved searches)
 		</p>
 	</section>
 
-	<section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-		<h2 class="text-sm font-semibold text-slate-700">Sentimiento</h2>
+	<section class="rounded-2xl border border-line-soft bg-white p-5">
+		<h2 class="text-lg font-semibold text-ink">Sentimiento</h2>
 		<div class="relative mt-4 h-72" role="img" aria-label="Distribución por sentimiento">
 			<canvas bind:this={sentimentCanvas}></canvas>
 		</div>
 	</section>
 </div>
 
-<section class="mt-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-	<h2 class="text-sm font-semibold text-slate-700">Spikes (últimos 30 días)</h2>
+<section class="mt-4 rounded-2xl border border-line-soft bg-white p-5">
+	<h2 class="text-lg font-semibold text-ink">Spikes (últimos 30 días)</h2>
 	{#if data.spikes.length === 0}
-		<p class="mt-3 text-sm text-slate-500">
+		<p class="mt-3 text-sm text-muted">
 			Sin picos detectados: aparecen cuando una búsqueda guardada supera su baseline.
 		</p>
 	{:else}
 		<ul class="mt-4 space-y-3">
 			{#each data.spikes as spike (spike.id)}
-				<li class="rounded-lg border border-amber-200 bg-amber-50/60 p-3">
+				<li class="rounded-xl border border-warn/40 bg-warn/10 p-3">
 					<div class="flex flex-wrap items-baseline justify-between gap-2">
-						<p class="text-sm font-medium text-slate-800">{spike.saved_search_name}</p>
-						<p class="text-xs tabular-nums text-slate-500">
+						<p class="text-sm font-medium text-ink">{spike.saved_search_name}</p>
+						<p class="text-xs tabular-nums text-muted">
 							{formatDisplayDateTime(spike.window_start)} · {spike.count} menciones · z =
 							{spike.zscore.toFixed(1)}
 						</p>
 					</div>
-					<p class="mt-1 text-sm text-slate-600">
+					<p class="mt-1 text-sm text-ink-2">
 						{spike.summary ?? 'Resumen pendiente (sin proveedor de IA configurado o fallo transitorio).'}
 					</p>
 				</li>
@@ -264,11 +265,11 @@
 	{/if}
 </section>
 
-<section class="mt-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+<section class="mt-4 rounded-2xl border border-line-soft bg-white p-5">
 	<div class="flex flex-wrap items-baseline justify-between gap-2">
-		<h2 class="text-sm font-semibold text-slate-700">Clasificaciones</h2>
+		<h2 class="text-lg font-semibold text-ink">Clasificaciones</h2>
 		{#if political}
-			<p class="text-xs text-slate-500">
+			<p class="text-xs text-muted">
 				{politicalTotal}
 				{politicalTotal === 1 ? 'mención clasificada' : 'menciones clasificadas'}
 				· {politicalPct}% políticas
@@ -276,7 +277,7 @@
 		{/if}
 	</div>
 	{#if politicalTotal === 0}
-		<p class="mt-3 text-sm text-slate-500">
+		<p class="mt-3 text-sm text-muted">
 			Sin clasificaciones todavía: ejecuta el backfill o espera al próximo ciclo de ingesta.
 		</p>
 	{:else}
@@ -288,12 +289,12 @@
 				{#each politicalRows as row (row.label)}
 					<li>
 						<div class="flex items-baseline justify-between gap-4 text-sm">
-							<span class="font-medium text-slate-700">{row.text}</span>
-							<span class="tabular-nums text-slate-500">
+							<span class="font-medium text-ink-2">{row.text}</span>
+							<span class="tabular-nums text-muted">
 								{row.count} · {row.pct}%
 							</span>
 						</div>
-						<div class="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-100">
+						<div class="mt-1 h-1.5 overflow-hidden rounded-full bg-surface">
 							<div
 								class="h-full rounded-full"
 								style={`width: ${row.pct}%; background: ${POLITICAL_COLORS[row.label] ?? '#94a3b8'}`}
@@ -306,15 +307,15 @@
 	{/if}
 </section>
 
-<section class="mt-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+<section class="mt-4 rounded-2xl border border-line-soft bg-white p-5">
 	<div class="flex flex-wrap items-baseline justify-between gap-2">
-		<h2 class="text-sm font-semibold text-slate-700">Temas</h2>
+		<h2 class="text-lg font-semibold text-ink">Temas</h2>
 		{#if topicRows.length > 0}
-			<p class="text-xs text-slate-500">multi-etiqueta: una nota puede tener varios temas</p>
+			<p class="text-xs text-muted">multi-etiqueta: una nota puede tener varios temas</p>
 		{/if}
 	</div>
 	{#if topicRows.length === 0}
-		<p class="mt-3 text-sm text-slate-500">
+		<p class="mt-3 text-sm text-muted">
 			Sin temas todavía: ejecuta el backfill del clasificador topic o espera al próximo ciclo de
 			ingesta.
 		</p>
@@ -323,10 +324,10 @@
 			{#each topicRows as row (row.label)}
 				<li>
 					<div class="flex items-baseline justify-between gap-4 text-sm">
-						<span class="font-medium text-slate-700">{row.text}</span>
-						<span class="tabular-nums text-slate-500">{row.count} · {row.pct}%</span>
+						<span class="font-medium text-ink-2">{row.text}</span>
+						<span class="tabular-nums text-muted">{row.count} · {row.pct}%</span>
 					</div>
-					<div class="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-100">
+					<div class="mt-1 h-1.5 overflow-hidden rounded-full bg-surface">
 						<div
 							class="h-full rounded-full"
 							style={`width: ${Math.round((row.count / maxTopicCount) * 100)}%; background: ${TOPIC_COLORS[row.label] ?? '#94a3b8'}`}
@@ -338,21 +339,21 @@
 	{/if}
 </section>
 
-<section class="mt-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-	<h2 class="text-sm font-semibold text-slate-700">Por fuente</h2>
+<section class="mt-4 rounded-2xl border border-line-soft bg-white p-5">
+	<h2 class="text-lg font-semibold text-ink">Por fuente</h2>
 	{#if sourceRows.length === 0}
-		<p class="mt-3 text-sm text-slate-500">Sin datos todavía.</p>
+		<p class="mt-3 text-sm text-muted">Sin datos todavía.</p>
 	{:else}
 		<ul class="mt-4 space-y-3">
 			{#each sourceRows as row (row.source)}
 				<li>
 					<div class="flex items-baseline justify-between gap-4 text-sm">
-						<span class="font-medium text-slate-700">{row.label}</span>
-						<span class="tabular-nums text-slate-500">{row.count}</span>
+						<span class="font-medium text-ink-2">{row.label}</span>
+						<span class="tabular-nums text-muted">{row.count}</span>
 					</div>
-					<div class="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-100">
+					<div class="mt-1 h-1.5 overflow-hidden rounded-full bg-surface">
 						<div
-							class="h-full rounded-full bg-slate-900"
+							class="h-full rounded-full bg-accent"
 							style={`width: ${Math.round((row.count / maxSourceCount) * 100)}%`}
 						></div>
 					</div>
