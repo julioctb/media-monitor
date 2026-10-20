@@ -98,7 +98,7 @@ describe('DigestSections', () => {
 		const host = renderCard(digestFixture());
 		const text = host.textContent ?? '';
 		expect(text).toContain('Institucional');
-		expect(text).toContain('News RSS · RSS propios');
+		expect(text).toContain('Noticias · a · b');
 		expect(text).toContain('Tonos de la selección');
 		expect(text).toContain('La rectora encabezó la inauguración.');
 		expect(text).toContain('Por qué importa: Obra regional emblemática.');

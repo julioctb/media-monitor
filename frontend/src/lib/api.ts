@@ -660,7 +660,7 @@ interface DigestSourceRef {
 }
 
 /** A digest news item: one canonical event (or loose mention) plus narrative. */
-interface DigestNewsItem {
+export interface DigestNewsItem {
 	event_id: number | null;
 	title: string | null;
 	/** LLM/heuristic synthesis; grounded on the event facts. */

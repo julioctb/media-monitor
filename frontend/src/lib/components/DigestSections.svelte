@@ -4,7 +4,7 @@
 
 	import { categoryRows, combineTones, toneRows, type ToneCounts } from '$lib/digest-stats';
 	import { formatDisplayDateTime } from '$lib/format';
-	import type { DailySummaryContent } from '$lib/api';
+	import type { DailySummaryContent, DigestNewsItem } from '$lib/api';
 
 	let {
 		content,
@@ -25,6 +25,26 @@
 	} = $props();
 
 	const noticias = $derived(content.noticias ?? []);
+
+	const SOCIAL_SOURCES = new Set(['x_twitter', 'facebook_page']);
+	/** Same chain anatomy as the feed cards: tipo · outlets. */
+	function newsChannel(item: DigestNewsItem): string {
+		if (!item.sources?.length) return 'Fuente no registrada';
+		const first = item.sources[0];
+		const parts: string[] = [
+			SOCIAL_SOURCES.has(first.source) ? 'Redes sociales' : 'Noticias'
+		];
+		for (const s of item.sources) {
+			try {
+				const host = new URL(s.url).hostname.replace(/^www\./, '');
+				const root = host.split('.').shift() ?? host;
+				parts.push(root.length < 3 ? host : root);
+			} catch {
+				parts.push(s.source);
+			}
+		}
+		return [...new Set(parts)].join(' · ');
+	}
 	const rectora = $derived(content.rectora ?? {});
 	const redes = $derived(Object.entries(content.redes ?? {}));
 	const personas = $derived(content.personas ?? []);
@@ -324,15 +344,14 @@
 			{#each visibleNews as item, i (item.event_id ?? `i${i}`)}
 				<li class="news-item" data-channel="news">
 					<NewsEntry
-						variant="row"
-						channel={item.sources.length > 0
-							? [...new Set(item.sources.map((s) => sourceLabel(s.source)))].join(' · ')
-							: 'Fuente no registrada'}
+						variant="card"
+						channel={newsChannel(item)}
 						sentimentClass={item.event_id ? (sentimentByEvent[String(item.event_id)] ?? null) : null}
 						sentimentText={item.event_id && sentimentByEvent[String(item.event_id)]
 							? sentimentLabel(sentimentByEvent[String(item.event_id)])
 							: null}
 						title={item.title ?? 'Sin título'}
+						titleHref={item.sources[0]?.url ?? null}
 						body={[
 							item.summary ?? null,
 							item.why_it_matters ? `Por qué importa: ${item.why_it_matters}` : null
@@ -346,7 +365,11 @@
 						{/snippet}
 
 						{#snippet footerRight()}
-							{item.event_id ? `Evento #${item.event_id}` : 'Sin evento relacionado'}
+							{#if item.event_id}
+								<a href={`/events/${item.event_id}`}>Evento #{item.event_id}</a>
+							{:else}
+								Sin evento relacionado
+							{/if}
 						{/snippet}
 					</NewsEntry>
 				</li>
