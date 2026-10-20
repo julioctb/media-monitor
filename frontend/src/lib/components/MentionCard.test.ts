@@ -68,18 +68,19 @@ describe('MentionCard', () => {
 		expect(link?.textContent?.trim()).toBe('https://example.com/nota');
 	});
 
-	it('shows the source and sentiment badges', () => {
+	it('shows the source and sentiment badges without prefixes', () => {
 		const { card } = renderCard({ mention: mentionFixture() });
 
-		expect(card.textContent).toContain('Fuente: News RSS');
-		expect(card.textContent).toContain('Sentimiento: Positivo');
-		expect(card.innerHTML).toContain('bg-success/10');
+		expect(card.textContent).toContain('News RSS');
+		expect(card.textContent).not.toContain('Fuente:');
+		expect(card.querySelector('.item-top .sentiment')?.textContent).toContain('Positivo');
+		expect(card.querySelector('.sentiment.positive')).not.toBeNull();
 	});
 
 	it('labels unclassified sentiment explicitly', () => {
 		const { card } = renderCard({ mention: mentionFixture({ sentiment: null }) });
 
-		expect(card.textContent).toContain('Sentimiento: Sin clasificar');
+		expect(card.textContent).toContain('Sin clasificar');
 	});
 
 	it('omits the enrichment block when there is no summary', () => {

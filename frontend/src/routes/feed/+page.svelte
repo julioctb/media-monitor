@@ -1,16 +1,16 @@
 <script lang="ts">
 	import { page } from '$app/state';
+
 	import EventGroup from '$lib/components/EventGroup.svelte';
-	import FeedFilterBar from '$lib/components/FeedFilterBar.svelte';
 	import { groupByEvent } from '$lib/grouping';
 	import type { FeedGroup } from '$lib/grouping';
-	import { BTN_GHOST_CLS } from '$lib/ui';
+	import { CHANNEL_LABELS, type FeedChannel } from '$lib/feed-filters';
+	import { INPUT_CLS } from '$lib/ui';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
 
-	const digest = $derived(data.digest);
-	const digestModeLabel: Record<string, string> = { heuristic: 'Plantilla', llm: 'IA' };
+	const filters = $derived(data.filters);
 
 	const keywordNames = $derived(new Map(data.keywords.map((k) => [k.id, k.text])));
 
@@ -23,7 +23,6 @@
 	}
 
 	const activeKeywords = $derived(data.keywords.filter((k) => k.is_active));
-	const selectedKeywordId = $derived(data.filters.keyword_id ?? '');
 
 	function hrefWithKeyword(keywordId: string | null): string {
 		const params = new URLSearchParams(page.url.searchParams);
@@ -40,119 +39,284 @@
 		return `${page.url.pathname}?${params.toString()}`;
 	}
 
+	/** Intro stat: news outlets with at least one mention. */
+	const newsOutlets = $derived(data.channelGroups.news.length);
+	const newsTotal = $derived(
+		data.channelGroups.news.reduce((sum, source) => sum + (data.sourceCounts[source] ?? 0), 0)
+	);
+	const socialTotal = $derived(
+		data.channelGroups.social.reduce((sum, source) => sum + (data.sourceCounts[source] ?? 0), 0)
+	);
+
 	const pagination = $derived.by(() => {
-		const { limit, offset } = data.filters;
+		const { limit, offset } = filters;
 		const total = data.mentions.total;
+		const pages = Math.max(1, Math.ceil(total / limit));
+		const current = Math.floor(offset / limit) + 1;
 		return {
 			from: total === 0 ? 0 : offset + 1,
 			to: Math.min(offset + limit, total),
+			pages,
+			current,
 			hasPrev: offset > 0,
 			hasNext: offset + limit < total,
 			prevHref: hrefWithOffset(Math.max(0, offset - limit)),
 			nextHref: hrefWithOffset(offset + limit)
 		};
 	});
+
+	const limitOptions = [10, 25, 50, 100];
 </script>
 
 <svelte:head>
 	<title>Feed | Media Monitor</title>
 </svelte:head>
 
-<header class="flex flex-wrap items-end justify-between gap-3">
-	<div>
-		<h1 class="page-title">Feed de menciones</h1>
-		<p class="lead">
-			{data.mentions.total}
-			{data.mentions.total === 1 ? 'mención' : 'menciones'} en total
+<section class="intro" aria-labelledby="feed-title">
+	<div class="intro-content">
+		<div class="eyebrow">Monitor de medios · BUAP</div>
+		<h1 id="feed-title" class="page-title">Feed de noticias</h1>
+		<p class="intro-copy">
+			Noticias y publicaciones de redes sociales en una sola vista. Filtra por fuente, tono,
+			fecha o palabras del titular para revisar la cobertura.
 		</p>
+		<p class="footnote">El feed no se actualiza automáticamente todavía.</p>
 	</div>
-</header>
-
-{#if digest}
-	<section aria-label="Digest del día" class="mt-6 rounded-2xl bg-ink p-5 text-white">
-		<div class="flex flex-wrap items-center gap-2 text-xs uppercase tracking-wide text-white/60">
-			<span>Digest {digest.summary_date}</span>
-			<span
-				class="rounded-full px-2 py-0.5 text-[11px] font-medium
-				{digest.mode === 'llm' ? 'bg-accent text-white' : 'bg-white/15 text-white/80'}"
-			>
-				{digestModeLabel[digest.mode] ?? digest.mode}
-			</span>
-		</div>
-		<p class="mt-2 line-clamp-3 text-sm leading-relaxed">{digest.narrative}</p>
-		<a
-			href="/"
-			class="mt-2 inline-block text-xs font-medium text-white/90 underline decoration-white/40 underline-offset-[3px] hover:decoration-white"
-		>
-			Ver digest completo →
-		</a>
-	</section>
-{/if}
-
-<section class="filter-panel" aria-labelledby="feed-filter-title">
-	<h2 class="panel-title" id="feed-filter-title">Filtrar publicaciones</h2>
-	<FeedFilterBar
-		sources={data.sources}
-		keywords={data.keywords}
-		filters={data.filters}
-		resetHref={page.url.pathname}
-	/>
+	<div class="intro-stats" aria-label="Números del feed">
+		<article class="intro-stat">
+			<p class="intro-stat-label">Medios con noticias</p>
+			<p class="intro-stat-value">{newsOutlets}</p>
+			<p class="intro-stat-note">Fuentes de noticias con registros.</p>
+		</article>
+		<article class="intro-stat">
+			<p class="intro-stat-label">Eventos</p>
+			<p class="intro-stat-value">{groups.length}</p>
+			<p class="intro-stat-note">Hechos agrupados en esta página.</p>
+		</article>
+	</div>
 </section>
 
-<!-- Quick keyword pills: same keyword_id param as the form, one source of truth. -->
-{#if activeKeywords.length > 0}
-	<div class="mt-4 flex flex-wrap items-center gap-2" aria-label="Filtro rápido por palabra clave">
-		<span class="text-xs font-medium text-muted">Palabras clave:</span>
-		<a
-			href={hrefWithKeyword(null)}
-			class={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-				selectedKeywordId === ''
-					? 'bg-ink text-white'
-					: 'border border-line bg-white text-ink-2 hover:border-meta hover:text-ink'
-			}`}
-		>
-			Todas
-		</a>
-		{#each activeKeywords as keyword (keyword.id)}
-			<a
-				href={hrefWithKeyword(String(keyword.id))}
-				class={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-					selectedKeywordId === String(keyword.id)
-						? 'bg-ink text-white'
-						: 'border border-line bg-white text-ink-2 hover:border-meta hover:text-ink'
-				}`}
-			>
-				{keyword.text}
-			</a>
-		{/each}
-	</div>
-{/if}
+<div class="layout">
+	<div class="feed-main">
+		<section class="panel feed-panel" aria-labelledby="cobertura-title">
+			<div class="section-heading">
+				<h2 id="cobertura-title" class="panel-title">Cobertura reciente</h2>
+				<span class="section-note">Ordenada de más reciente a más antigua</span>
+			</div>
+			<p class="result-line">
+				<span>{data.mentions.total} publicaciones encontradas</span>
+			</p>
 
-{#if data.mentions.items.length === 0}
-	<div class="empty mt-6" role="status">
-		<p class="font-medium text-ink">Sin menciones para los filtros aplicados.</p>
-		<p class="mt-1">Ajusta los filtros o espera la próxima ingesta.</p>
-	</div>
-{:else}
-	<ul class="mt-6 grid gap-3" aria-label="Menciones">
-		{#each groups as group (group.key)}
-			<li>
-				<EventGroup {group} keywordLabel={keywordLabelFor(group)} />
-			</li>
-		{/each}
-	</ul>
+			{#if data.mentions.items.length === 0}
+				<div class="error-state" role="status">
+					<strong>Sin resultados</strong>
+					<p>No hay publicaciones que coincidan con estos filtros.</p>
+				</div>
+			{:else}
+				<ul class="feed-list" aria-label="Publicaciones">
+					{#each groups as group (group.key)}
+						<li>
+							<EventGroup {group} keywordLabel={keywordLabelFor(group)} />
+						</li>
+					{/each}
+				</ul>
 
-	<nav class="mt-6 flex items-center justify-between" aria-label="Paginación">
-		<p class="text-xs text-muted">
-			Mostrando {pagination.from}–{pagination.to} de {data.mentions.total}
-		</p>
-		<div class="flex gap-2">
-			{#if pagination.hasPrev}
-				<a href={pagination.prevHref} class={BTN_GHOST_CLS}>← Anterior</a>
+				<nav class="pagination" aria-label="Paginación">
+					<p class="page-status">
+						Página {pagination.current} de {pagination.pages} ·
+						{pagination.from}–{pagination.to} de {data.mentions.total}
+					</p>
+					<div class="page-buttons">
+						<form method="get" class="per-page">
+							<!-- keep every active facet while changing the page size -->
+							<input type="hidden" name="channel" value={filters.channel} />
+							<input type="hidden" name="sentiment" value={filters.sentiment} />
+							<input type="hidden" name="keyword_id" value={filters.keyword_id} />
+							<input type="hidden" name="political" value={filters.political} />
+							<input type="hidden" name="q" value={filters.q} />
+							<input type="hidden" name="since" value={filters.since} />
+							<input type="hidden" name="until" value={filters.until} />
+							<label class="sr-only" for="per-page">Por página</label>
+							<select
+								id="per-page"
+								name="limit"
+								class={`per-page-select ${INPUT_CLS}`}
+								onchange={(event) => event.currentTarget.form?.requestSubmit()}
+							>
+								{#each limitOptions as option (option)}
+									<option value={String(option)} selected={filters.limit === option}>
+										{option} publicaciones
+									</option>
+								{/each}
+							</select>
+							<noscript><button type="submit">Aplicar</button></noscript>
+						</form>
+						{#if pagination.hasPrev}
+							<a href={pagination.prevHref} class="page-button">← Anterior</a>
+						{:else}
+							<span class="page-button" aria-disabled="true">← Anterior</span>
+						{/if}
+						{#if pagination.hasNext}
+							<a href={pagination.nextHref} class="page-button">Siguiente →</a>
+						{:else}
+							<span class="page-button" aria-disabled="true">Siguiente →</span>
+						{/if}
+					</div>
+				</nav>
 			{/if}
-			{#if pagination.hasNext}
-				<a href={pagination.nextHref} class={BTN_GHOST_CLS}>Siguiente →</a>
-			{/if}
-		</div>
-	</nav>
-{/if}
+		</section>
+	</div>
+
+	<aside class="sidebar" aria-label="Filtros, histórico y estado">
+		<section class="sidebar-section" aria-labelledby="filtro-title">
+			<h2 id="filtro-title">Filtrar feed</h2>
+			<form method="get" class="filter-stack">
+				<div>
+					<label class="filter-label" for="f-q">Buscar</label>
+					<input
+						type="search"
+						id="f-q"
+						name="q"
+						value={filters.q}
+						placeholder="Buscar titular o medio"
+						class={INPUT_CLS}
+					/>
+				</div>
+
+				<fieldset class="filter-group">
+					<legend class="filter-label">Fuente</legend>
+					<button
+						type="submit"
+						name="channel"
+						value=""
+						class="filter"
+						aria-pressed={filters.channel === ''}
+					>
+						{CHANNEL_LABELS.all}
+					</button>
+					<button
+						type="submit"
+						name="channel"
+						value="news"
+						class="filter"
+						aria-pressed={filters.channel === 'news'}
+					>
+						{CHANNEL_LABELS.news}
+					</button>
+					<button
+						type="submit"
+						name="channel"
+						value="social"
+						class="filter"
+						aria-pressed={filters.channel === 'social'}
+					>
+						{CHANNEL_LABELS.social}
+					</button>
+					<button
+						type="submit"
+						name="channel"
+						value="field"
+						class="filter"
+						aria-pressed={filters.channel === 'field'}
+					>
+						{CHANNEL_LABELS.field}
+					</button>
+				</fieldset>
+
+				<div>
+					<label class="filter-label" for="f-sentiment">Tono</label>
+					<select id="f-sentiment" name="sentiment" class={INPUT_CLS}>
+						<option value="" selected={filters.sentiment === ''}>Todos los tonos</option>
+						<option value="positive" selected={filters.sentiment === 'positive'}>Positivo</option>
+						<option value="neutral" selected={filters.sentiment === 'neutral'}>Neutro</option>
+						<option value="negative" selected={filters.sentiment === 'negative'}>Negativo</option>
+						<option value="none" selected={filters.sentiment === 'none'}>Sin clasificar</option>
+					</select>
+				</div>
+
+				<div>
+					<label class="filter-label" for="f-keyword">Palabras clave</label>
+					<select id="f-keyword" name="keyword_id" class={INPUT_CLS}>
+						<option value="">Todas</option>
+						{#each data.keywords as keyword (keyword.id)}
+							<option
+								value={String(keyword.id)}
+								selected={filters.keyword_id === String(keyword.id)}
+							>
+								{keyword.text}{keyword.is_active ? '' : ' · inactiva'}
+							</option>
+						{/each}
+					</select>
+				</div>
+
+				<label class="check-row">
+					<input
+						type="checkbox"
+						name="political"
+						value="1"
+						checked={filters.political === '1'}
+					/>
+					Solo políticas
+				</label>
+
+				<div class="date-row">
+					<div>
+						<label class="filter-label" for="date-from">Desde</label>
+						<input
+							type="date"
+							id="date-from"
+							name="since"
+							value={filters.since}
+							class={INPUT_CLS}
+						/>
+					</div>
+					<div>
+						<label class="filter-label" for="date-to">Hasta</label>
+						<input
+							type="date"
+							id="date-to"
+							name="until"
+							value={filters.until}
+							class={INPUT_CLS}
+						/>
+					</div>
+				</div>
+				{#if filters.dateError}
+					<p class="date-error">{filters.dateError}</p>
+				{/if}
+
+				<div class="filter-actions">
+					<button type="submit" class="filter apply">Aplicar filtros</button>
+					<a href={page.url.pathname} class="clear-link">Limpiar filtros</a>
+				</div>
+			</form>
+		</section>
+
+		<section class="sidebar-section history-panel" aria-labelledby="historico-title">
+			<h2 id="historico-title">Histórico</h2>
+			<p class="side-note">Archivo de noticias y columnas</p>
+			<div class="history-empty">
+				<strong>Aún no hay registros históricos</strong>
+				<p>
+					Cuando se incorporen fuentes de archivo, sus resultados aparecerán en esta sección,
+					con su medio y fecha de publicación original.
+				</p>
+			</div>
+		</section>
+
+		<section class="sidebar-section" aria-labelledby="estado-title">
+			<h2 id="estado-title">Estado de las fuentes</h2>
+			<p><strong>Noticias:</strong> {newsTotal} registros.</p>
+			<p><strong>Redes sociales:</strong> {socialTotal} registros.</p>
+			<p><strong>Datos de campo:</strong> sin registros cargados.</p>
+		</section>
+
+		<section class="sidebar-section" aria-labelledby="seguimiento-title">
+			<h2 id="seguimiento-title">Seguimiento</h2>
+			<p class="side-note">
+				Los actores, categorías y temas prioritarios se resumen en la página principal.
+			</p>
+			<a class="back" href="/">Volver al resumen →</a>
+		</section>
+	</aside>
+</div>
