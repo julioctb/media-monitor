@@ -333,14 +333,13 @@
 							? sentimentLabel(sentimentByEvent[String(item.event_id)])
 							: null}
 						title={item.title ?? 'Sin título'}
-						teaser={item.summary ?? null}
+						body={[
+							item.summary ?? null,
+							item.why_it_matters ? `Por qué importa: ${item.why_it_matters}` : null
+						]
+							.filter(Boolean)
+							.join(' ')}
 					>
-						{#snippet note()}
-							{#if item.why_it_matters}
-								<p class="feed-preview-note">Por qué importa: {item.why_it_matters}</p>
-							{/if}
-						{/snippet}
-
 						{#snippet footerLeft()}
 							{#if item.topic}<span>Categoría · {topicLabel(item.topic)}</span>{/if}
 						{/snippet}

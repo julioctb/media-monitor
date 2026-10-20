@@ -10,32 +10,33 @@
 	let {
 		variant = 'card',
 		channel,
+		sourceDetail = null,
 		sentimentClass = null,
 		sentimentText = null,
 		title,
 		titleHref = null,
 		titleId = undefined,
-		teaser = null,
-		detailsText = null,
+		body = null,
+		clampBody = false,
 		meta,
-		note,
 		footerLeft,
 		footerRight
 	}: {
 		variant?: 'card' | 'row';
 		channel: string;
+		/** Concrete outlet next to the channel (domain / @account / page). */
+		sourceDetail?: string | null;
 		/** Sentiment css key (positive|negative|neutral); pill hidden when null. */
 		sentimentClass?: string | null;
 		sentimentText?: string | null;
 		title: string;
 		titleHref?: string | null;
 		titleId?: string;
-		/** 2-line body teaser (article excerpt); omitted when empty. */
-		teaser?: string | null;
-		/** Optional collapsible IA analysis text; hidden when null. */
-		detailsText?: string | null;
+		/** Body text: enrichment summary or article excerpt. */
+		body?: string | null;
+		/** Clamp the body to two lines (raw-content fallback). */
+		clampBody?: boolean;
 		meta?: Snippet;
-		note?: Snippet;
 		footerLeft?: Snippet;
 		footerRight?: Snippet;
 	} = $props();
@@ -43,7 +44,9 @@
 
 <article class={variant === 'card' ? 'feed-card' : 'feed-preview'} aria-labelledby={titleId}>
 	<div class="item-top">
-		<span class="item-channel">{channel}</span>
+		<span class="item-channel">
+			{channel}{#if sourceDetail}<span class="item-source"> ({sourceDetail})</span>{/if}
+		</span>
 		{#if sentimentClass && sentimentText}
 			<span class="sentiment {sentimentClass}">{sentimentText}</span>
 		{/if}
@@ -63,12 +66,8 @@
 		{/if}
 	</h3>
 
-	{#if teaser}
-		<p class="item-summary">{teaser}</p>
-	{/if}
-
-	{#if note}
-		{@render note()}
+	{#if body}
+		<p class="item-summary" class:clamped={clampBody}>{body}</p>
 	{/if}
 
 	{#if footerLeft || footerRight}
@@ -76,20 +75,5 @@
 			<div class="item-chips">{@render footerLeft?.()}</div>
 			<span class="item-event">{@render footerRight?.()}</span>
 		</div>
-	{/if}
-
-	{#if detailsText}
-		<details class="mt-1">
-			<summary
-				class="inline-flex min-h-11 cursor-pointer items-center py-1.5 pr-2 text-sm font-semibold text-ink underline decoration-line underline-offset-4 hover:decoration-ink"
-			>
-				Resumen del análisis
-			</summary>
-			<div
-				class="rounded-(--radius-control) border border-line-soft bg-surface-warm px-4 py-3.5 text-sm leading-[1.5] text-ink-2"
-			>
-				{detailsText}
-			</div>
-		</details>
 	{/if}
 </article>

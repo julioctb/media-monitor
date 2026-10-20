@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { eventChipLabel, formatDisplayDateTime, sentimentLabel, sourceLabel, topicBadgeClass, topicLabel } from '$lib/format';
+	import { formatDisplayDateTimeLong, sentimentLabel, topicBadgeClass, topicLabel } from '$lib/format';
+	import { isNewsSource } from '$lib/digest-stats';
 	import type { Mention } from '$lib/api';
 	import NewsEntry from '$lib/components/NewsEntry.svelte';
 
@@ -15,17 +16,38 @@
 		event?: MentionEventRef | null;
 		/** Matched keyword text, when the mention is linked to one. */
 		keywordLabel?: string | null;
+		/** Mentions in the same-event group (footer coverage count). */
+		coverageCount?: number;
 	}
 
-	let { mention, event = null, keywordLabel = null }: Props = $props();
+	let { mention, event = null, keywordLabel = null, coverageCount = 1 }: Props = $props();
 
 	const when = $derived(mention.published_at ?? mention.ingested_at);
-	/** The `*` marks ingest-date fallbacks (no published_at on the row). */
-	const inferred = $derived(mention.published_at === null);
-	const isPolitical = $derived(
-		mention.classifications?.some((c) => c.classifier === 'political' && c.label === 'political') ??
-			false
+	/** Channel label per mockup: tipo de fuente, not the raw tag. */
+	const channelLabel = $derived(
+		mention.source.startsWith('field')
+			? 'Datos de campo'
+			: isNewsSource(mention.source)
+				? 'Noticias'
+				: 'Redes sociales'
 	);
+	/** Concrete outlet: author handle/page when present, else the URL host. */
+	const sourceDetail = $derived.by(() => {
+		const author = mention.author?.trim();
+		if (author) return author;
+		try {
+			return new URL(mention.url).hostname.replace(/^www\./, '');
+		} catch {
+			return null;
+		}
+	});
+	/** Body: the editorial summary when enriched, else the article excerpt. */
+	const body = $derived.by(() => {
+		const summary = mention.summary?.trim();
+		if (summary) return { text: summary, clamp: false };
+		const content = mention.content?.trim();
+		return content ? { text: content, clamp: true } : { text: null, clamp: false };
+	});
 	const topics = $derived(mention.classifications?.filter((c) => c.classifier === 'topic') ?? []);
 	const headline = $derived(mention.title?.trim() || mention.url);
 
@@ -44,36 +66,36 @@
 
 <NewsEntry
 	variant="card"
-	channel={sourceLabel(mention.source)}
+	channel={channelLabel}
+	sourceDetail={sourceDetail}
 	sentimentClass={sentimentClass}
 	sentimentText={sentimentText}
 	title={headline}
 	titleHref={mention.url}
 	titleId={`mention-${mention.id}-title`}
-	teaser={mention.content?.trim() || null}
-	detailsText={typeof mention.summary === 'string' && mention.summary.trim() !== '' ? mention.summary : null}
+	body={body.text}
+	clampBody={body.clamp}
 >
 	{#snippet meta()}
-		<time datetime={when}>{formatDisplayDateTime(when)}</time>{inferred ? '*' : ''}
+		<span class="item-when">{formatDisplayDateTimeLong(when)}</span>
 		{#if keywordLabel}<span>· Palabra clave: {keywordLabel}</span>{/if}
-		{#if mention.reach !== null}<span>· Alcance: {mention.reach}</span>{/if}
 	{/snippet}
 
 	{#snippet footerLeft()}
-		{#if isPolitical}<span>Política</span>{/if}
-		{#each (mention.persons ?? []) as person (person.id)}
-			<a href={`/persons/${person.id}`} title="Ver persona">{person.name}</a>
-		{/each}
 		{#each topics as topic (topic.label)}
 			<span class={`topic-chip ${topicBadgeClass(topic.label)}`}>{topicLabel(topic.label)}</span>
+		{/each}
+		{#each (mention.persons ?? []) as person (person.id)}
+			<a href={`/persons/${person.id}`} title="Ver persona">{person.name}</a>
 		{/each}
 	{/snippet}
 
 	{#snippet footerRight()}
 		{#if event}
-			<a href={`/events/${event.id}`} title={event.title}>{eventChipLabel(mention.title, event.title)}</a>
-		{:else}
-			Sin evento relacionado
+			<a href={`/events/${event.id}`} title={event.title}>
+				Evento #{event.id} · {coverageCount}
+				{coverageCount === 1 ? 'cobertura' : 'coberturas'} del mismo evento
+			</a>
 		{/if}
 	{/snippet}
 </NewsEntry>

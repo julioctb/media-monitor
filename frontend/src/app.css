@@ -2118,16 +2118,25 @@ span.page-button {
 	text-decoration-color: var(--color-ink);
 }
 .item-summary {
-	/* 2-line teaser per mockup; full text lives at the source link. */
+	margin: 6px 0 0;
+	color: var(--color-ink-2);
+	font-size: 14px;
+	line-height: 1.5;
+}
+.item-summary.clamped {
 	display: -webkit-box;
 	-webkit-box-orient: vertical;
 	-webkit-line-clamp: 2;
 	line-clamp: 2;
 	overflow: hidden;
-	margin: 6px 0 0;
-	color: var(--color-ink-2);
-	font-size: 14px;
-	line-height: 1.5;
+}
+.item-source {
+	color: var(--color-muted);
+	font-weight: 400;
+}
+.item-footer {
+	border-top: 1px solid var(--color-line-soft);
+	padding-top: 10px;
 }
 .item-footer {
 	display: flex;

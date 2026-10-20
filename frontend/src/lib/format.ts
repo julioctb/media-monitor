@@ -112,6 +112,27 @@ export function formatDisplayDateTime(value: string | null | undefined): string 
 	return `${parts.day}/${parts.month}/${parts.year} ${parts.hour}:${parts.minute}`;
 }
 
+/** `2026-10-20T14:03` → `20 de octubre de 2026 - 14:03` (24h, hora local). */
+export function formatDisplayDateTimeLong(value: string | null | undefined): string {
+	if (!value) return '—';
+	const date = new Date(value);
+	if (Number.isNaN(date.getTime())) return value;
+	const fmt = new Intl.DateTimeFormat('es-MX', {
+		timeZone: DISPLAY_TIMEZONE,
+		day: 'numeric',
+		month: 'long',
+		year: 'numeric',
+		hour: '2-digit',
+		minute: '2-digit',
+		hour12: false
+	});
+	const parts = fmt.formatToParts(date).reduce<Record<string, string>>((acc, p) => {
+		acc[p.type] = p.value;
+		return acc;
+	}, {});
+	return `${parts.day} de ${parts.month} de ${parts.year} - ${parts.hour}:${parts.minute}`;
+}
+
 const dayFormatter = new Intl.DateTimeFormat('es', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 
 /** `2026-10-19T06:24` → `19/10/2026 a las 06:24` (detalle-actor mockup). */

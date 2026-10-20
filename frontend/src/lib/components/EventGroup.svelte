@@ -14,10 +14,10 @@
 </script>
 
 {#if rest.length === 0}
-	<MentionCard mention={group.mentions[0]} {keywordLabel} event={null} />
+	<MentionCard mention={group.mentions[0]} {keywordLabel} event={null} coverageCount={group.mentions.length} />
 {:else}
 	<div class="space-y-2">
-		<MentionCard mention={group.mentions[0]} {keywordLabel} event={group.event} />
+		<MentionCard mention={group.mentions[0]} {keywordLabel} event={group.event} coverageCount={group.mentions.length} />
 		<details class="rounded-xl border border-line-soft bg-surface-warm">
 			<summary class="cursor-pointer select-none px-3 py-2 text-xs font-medium text-muted hover:text-ink">
 				Otras {rest.length} {rest.length === 1 ? 'cobertura' : 'coberturas'} del mismo evento
