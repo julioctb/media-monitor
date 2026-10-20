@@ -33,20 +33,6 @@ export function sentimentLabel(value: string | null): string {
 	return SENTIMENT_LABELS[String(value)] ?? String(value);
 }
 
-/** Badge palette: green positive, red negative, gray neutral, outline unclassified. */
-export function sentimentBadgeClass(value: string | null): string {
-	switch (value) {
-		case 'positive':
-			return 'bg-green-50 text-green-700 ring-green-600/20';
-		case 'negative':
-			return 'bg-red-50 text-red-700 ring-red-600/20';
-		case 'neutral':
-			return 'bg-slate-100 text-slate-600 ring-slate-500/20';
-		default:
-			return 'bg-white text-slate-500 ring-slate-300';
-	}
-}
-
 /** Classification labels (open set; unknown labels fall through). */
 const CLASSIFICATION_LABELS: Record<string, string> = {
 	political: 'Política',
