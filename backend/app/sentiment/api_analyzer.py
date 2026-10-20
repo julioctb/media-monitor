@@ -5,8 +5,9 @@ prompt demands exactly one word (positive|neutral|negative). The score is
 the chosen label's logprob when the response carries logprobs, else the
 flat 0.8 default. Transport: httpx, 20s timeout, 3 attempts.
 
-``fallback`` (typically the local Laya analyzer, per ai_fallback_local)
-chains in when every attempt fails, so a dead API never stalls ingest.
+Roles: the worker builds it as the sentiment FALLBACK for rows whose
+enrichment failed; the settings probe instantiates it directly as a
+connectivity check.
 """
 
 import logging
@@ -68,7 +69,6 @@ class ApiSentimentAnalyzer(SentimentAnalyzer):
         api_key: str,
         base_url: str | None = None,
         model: str | None = None,
-        fallback: SentimentAnalyzer | None = None,
         client: httpx.Client | None = None,
         timeout: float = TIMEOUT_S,
         attempts: int = ATTEMPTS,
@@ -79,7 +79,6 @@ class ApiSentimentAnalyzer(SentimentAnalyzer):
         self._api_key = api_key
         self._base_url = (base_url or DEFAULT_OPENAI_BASE_URL).rstrip("/")
         self._model = model or DEFAULT_OPENAI_MODEL
-        self._fallback = fallback
         self._client = client or httpx.Client(timeout=timeout)
         self._owns_client = client is None
         self._attempts = max(1, attempts)
@@ -123,9 +122,6 @@ class ApiSentimentAnalyzer(SentimentAnalyzer):
                 log.debug(
                     "sentiment api attempt %d/%d failed: %s", attempt + 1, self._attempts, exc
                 )
-        if self._fallback is not None:
-            log.warning("sentiment api failed after %d attempts (%s); local fallback", self._attempts, last_error)
-            return self._fallback.analyze(text, lang)
         assert last_error is not None  # at least one attempt always ran
         raise last_error
 

@@ -167,7 +167,6 @@ class ClientSettingsOut(BaseModel):
     ai_api_key: str | None
     ai_base_url: str | None
     ai_model: str | None
-    ai_fallback_local: bool
     enrich_max_per_cycle: int
     fetch_max_per_cycle: int
     updated_at: datetime
@@ -202,7 +201,6 @@ class ClientSettingsUpdate(BaseModel):
     ai_api_key: str | None = None
     ai_base_url: str | None = None
     ai_model: str | None = None
-    ai_fallback_local: bool | None = None
     enrich_max_per_cycle: int | None = Field(default=None, ge=1, le=1000)
     fetch_max_per_cycle: int | None = Field(default=None, ge=1, le=1000)
 

@@ -7,12 +7,16 @@ from fastapi import APIRouter
 
 from app.api.deps import ClientIdDep, SessionDep
 from app.api.schemas import ClassifierBreakdown, DailyVolume, StatsOverview
-from app.classifications import classifier_names
 from app.models import queries
 
 router = APIRouter(tags=["stats"])
 
 VOLUME_DAYS = 30
+
+#: Classifier axes whose rows render on the stats page. Historical values
+#: plus the enrichment-persisted ones ('political' now comes from the
+#: enrichment pass; 'topic'/'topics' too). Keys of mention_classifications.
+CLASSIFIER_NAMES = ("political", "topic", "topics")
 
 
 def _utc_day(value: datetime) -> date:
@@ -44,9 +48,9 @@ def stats_overview(session: SessionDep, client_id: ClientIdDep) -> StatsOverview
     ]
 
     def _classification_block() -> list[ClassifierBreakdown]:
-        """Per-registry-classifier totals; empty until the backfill runs."""
+        """Per-classifier totals; empty until rows exist."""
         blocks = []
-        for name in classifier_names():
+        for name in CLASSIFIER_NAMES:
             breakdown = queries.classification_breakdown(
                 session, client_id=client_id, classifier=name
             )

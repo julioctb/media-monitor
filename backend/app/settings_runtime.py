@@ -47,7 +47,6 @@ class EffectiveSettings:
     ai_api_key: str | None = None
     ai_base_url: str | None = None
     ai_model: str | None = None
-    ai_fallback_local: bool = True
     enrich_max_per_cycle: int = 50
     fetch_max_per_cycle: int = 20
 
@@ -133,7 +132,6 @@ def resolve_effective_settings(session: Session, client_id: int) -> EffectiveSet
         ai_api_key=row.ai_api_key,
         ai_base_url=row.ai_base_url,
         ai_model=row.ai_model,
-        ai_fallback_local=row.ai_fallback_local,
         enrich_max_per_cycle=row.enrich_max_per_cycle,
         fetch_max_per_cycle=row.fetch_max_per_cycle,
     )

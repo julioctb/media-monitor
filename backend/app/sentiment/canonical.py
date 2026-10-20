@@ -1,8 +1,8 @@
 """Canonical sentiment policy: enrichment (raw_enrichment) is the truth.
 
 The LLM enrichment verdict decides ``mentions.sentiment`` /
-``sentiment_score`` whenever it carries a sentiment; the local analyzer
-(laya) only fills rows that have no enrichment. When the canonical write
+``sentiment_score`` whenever it carries a sentiment; the API analyzer
+only fills rows that have no enrichment. When the canonical write
 replaces a previously stored value, the old value (label + score) is
 logged, so the pre-override value stays recoverable from the logs
 without a schema change.

@@ -8,7 +8,6 @@ x-backend-env: &backend-env
   SMTP_PASSWORD: ${SMTP_PASSWORD:-}
   ALERT_FROM: ${ALERT_FROM:-alerts@example.com}
   INGEST_INTERVAL_MIN: ${INGEST_INTERVAL_MIN:-15}
-  LAYA_POLITICAL_CONFIDENCE_THRESHOLD: ${LAYA_POLITICAL_CONFIDENCE_THRESHOLD:-0.70}
 
 services:
   db:
@@ -53,10 +52,6 @@ services:
       dockerfile: backend/Dockerfile
     command: ["python", "-m", "app.worker"]
     environment: *backend-env
-    volumes:
-      # Persist the HuggingFace cache: the Laya sentiment model (~300MB)
-      # must survive container recreation, else every up --build re-downloads.
-      - hfcache:/root/.cache/huggingface
     depends_on:
       db:
         condition: service_healthy
@@ -83,4 +78,3 @@ services:
 
 volumes:
   pgdata:
-  hfcache:

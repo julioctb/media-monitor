@@ -41,7 +41,6 @@ function settingsRow() {
 		ai_api_key: null,
 		ai_base_url: null,
 		ai_model: null,
-		ai_fallback_local: true,
 		updated_at: '2026-10-19T03:00:00Z'
 	};
 }

@@ -72,8 +72,8 @@ class TestBackfillEnrichment:
         assert stats["output_tokens_est"] == 300
         assert stats["cost_usd_est"] == round(stats["input_tokens"] / 1e6, 4) + 300 / 1e6
 
-    def test_backfill_applies_summary_and_overrides_stale_laya(self, session) -> None:
-        """Canonical policy: enrichment sentiment replaces the laya value."""
+    def test_backfill_applies_summary_and_overrides_stale_sentiment(self, session) -> None:
+        """Canonical policy: enrichment sentiment replaces the stored value."""
         from scripts.backfill_enrichment import backfill
 
         client = Client(name="c")
@@ -115,7 +115,7 @@ class TestBackfillEnrichment:
             "candidates": 1,
         }
         assert mention.summary == "Resumen."
-        # Canonical: the enrichment verdict, not the stale laya value.
+        # Canonical: the enrichment verdict, not the stale stored value.
         assert mention.sentiment is Sentiment.positive
         assert mention.sentiment_score == 0.9
         rows = session.execute(

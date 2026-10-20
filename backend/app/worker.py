@@ -6,10 +6,10 @@ Every INGEST_INTERVAL_MIN minutes, for the configured client:
   2. load active keywords (client-scoped),
   3. run every enabled adapter (Google News RSS, GDELT, custom RSS feeds,
      Facebook Pages, X provider) — GDELT/pages/feeds per settings,
-  4. persist mentions (dedupe on url_hash) with the cycle's sentiment
-     analyzer (local Laya, or an OpenAI-compatible API with optional
-     local fallback), then run the classifier registry over each new
-     mention (political v1; classifier failures never block the row),
+  4. persist mentions (dedupe on url_hash) with an OpenAI-compatible
+     sentiment fallback plus the enrichment pass (sentiment, summary,
+     topics and the political v1 label — classifier failures never block
+     the row),
   5. hook the alert engine (best-effort), plus the daily retention purge
      and the digest jobs scheduled in the configured timezone.
 
@@ -27,7 +27,6 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 from sqlalchemy.orm import Session
 
 from app.alerts.engine import check_sentiment_shift, run_alert_cycle, run_digest
-from app.classifications import build_classifiers
 from app.config import settings
 from app.db import SessionLocal
 from app.enrich.llm import LLMEnricher
@@ -36,7 +35,7 @@ from app.ingest.google_news import GoogleNewsAdapter
 from app.ingest.pipeline import run_ingest_cycle
 from app.models import AlertDigest, queries
 from app.models.settings import DEFAULT_TIMEZONE
-from app.sentiment.factory import build_sentiment_analyzer
+from app.sentiment.api_analyzer import ApiSentimentAnalyzer
 from app.settings_runtime import (
     EffectiveSettings,
     get_effective_settings,
@@ -132,20 +131,21 @@ def build_adapters(effective: EffectiveSettings) -> list:
 
 
 def cycle_sentiment_analyzer(client_id: int):
-    """Analyzer for this cycle, built from the pinned settings snapshot."""
+    """Sentiment fallback for this cycle, from the pinned settings snapshot.
+
+    The enrichment pass owns sentiment (app.sentiment.canonical); this
+    API analyzer only covers rows whose enrichment failed or never ran.
+    ``None`` (provider local / no key) is fine: those rows stay NULL and
+    backfillable — there is no local model anymore.
+    """
     effective = get_effective_settings(client_id)
-    log.info(
-        "sentiment analyzer: provider=%s model=%s fallback_local=%s",
-        effective.ai_provider,
-        effective.ai_model or "(default)",
-        effective.ai_fallback_local,
-    )
-    return build_sentiment_analyzer(
-        provider=effective.ai_provider,
+    if effective.ai_provider != "openai" or not effective.ai_api_key:
+        return None
+    log.info("sentiment fallback analyzer: model=%s", effective.ai_model or "(default)")
+    return ApiSentimentAnalyzer(
         api_key=effective.ai_api_key,
         base_url=effective.ai_base_url,
         model=effective.ai_model,
-        fallback_local=effective.ai_fallback_local,
     )
 
 
@@ -153,30 +153,22 @@ def cycle_enricher(client_id: int) -> tuple[LLMEnricher | None, int]:
     """F2c enrichment pass for this cycle plus the per-cycle call cap.
 
     Returns ``(None, cap)`` unless an OpenAI-compatible provider with an
-    API key is configured — without it the pipeline degrades to the plain
-    sentiment path and rows stay backfillable. The agreement analyzer
-    (TE5) is the shared lazy laya proxy: the enrich-agreement line only
-    fires when laya has actually run in this process (a fallback
-    materialized it), and no cycle ever constructs it up front.
+    API key is configured — without it rows stay backfillable and the
+    classifier columns get nothing on their next reingest.
     """
     effective = get_effective_settings(client_id)
     cap = max(1, int(effective.enrich_max_per_cycle))
     if effective.ai_provider != "openai" or not effective.ai_api_key:
         return None, cap
-    log.info(
-        "enricher: model=%s cap=%d agreement=laya(lazy)",
-        effective.ai_model or "(default)",
+    log.info("enricher: model=%s cap=%d", effective.ai_model or "(default)", cap)
+    return (
+        LLMEnricher(
+            api_key=effective.ai_api_key,
+            base_url=effective.ai_base_url,
+            model=effective.ai_model,
+        ),
         cap,
     )
-    from app.sentiment.factory import shared_laya
-
-    enricher = LLMEnricher(
-        api_key=effective.ai_api_key,
-        base_url=effective.ai_base_url,
-        model=effective.ai_model,
-        agreement_analyzer=shared_laya(),
-    )
-    return enricher, cap
 
 
 def ingest_job() -> dict[str, int]:
@@ -194,7 +186,6 @@ def ingest_job() -> dict[str, int]:
         adapters = build_adapters(effective)
         analyzer = cycle_sentiment_analyzer(client.id)
         enricher, enrich_limit = cycle_enricher(client.id)
-        classifiers = build_classifiers()
         keywords = list(queries.list_keywords(session, client.id))
         counts = run_ingest_cycle(
             session,
@@ -202,7 +193,6 @@ def ingest_job() -> dict[str, int]:
             keywords=keywords,
             adapters=adapters,
             sentiment_analyzer=analyzer,
-            classifiers=classifiers,
             enricher=enricher,
             enrich_limit=enrich_limit,
             fetch_limit=max(1, int(effective.fetch_max_per_cycle)),

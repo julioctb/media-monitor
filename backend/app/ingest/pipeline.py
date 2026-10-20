@@ -9,12 +9,11 @@ in exactly one place.
 
 import logging
 import time
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
 
-from app.classifications.base import Classifier, classification_results
 from app.enrich.summary import maybe_summarize_event
 from app.ingest import article_fetch
 from app.ingest.article_fetch import fetcher_for
@@ -34,47 +33,6 @@ def _text_of(item: RawMention) -> str:
     return "\n".join(p for p in parts if p)
 
 
-def _classify_mention(
-    session: Session,
-    *,
-    mention_id: int,
-    text: str,
-    lang: str,
-    classifiers: Sequence[Classifier],
-) -> int:
-    """Run every classifier over the text; store what succeeds.
-
-    A classifier failure only skips its own rows (mention stays insertable
-    and the remaining classifiers still run); rows land only via commit.
-    Returns the number of classifiers that produced a row.
-    """
-    if not text.strip():
-        return 0
-    stored = 0
-    for classifier in classifiers:
-        try:
-            result = classifier.classify(text, lang=lang)
-        except Exception as exc:  # noqa: BLE001 - one classifier must not block the rest
-            log.warning(
-                "classifier %s failed for mention %s: %s", classifier.name, mention_id, exc
-            )
-            continue
-        results = classification_results(result)
-        # Multi-label classifiers land one row per label; an empty result
-        # just clears the classifier's previous rows for this mention.
-        queries.upsert_classifications(
-            session,
-            mention_id=mention_id,
-            classifier=classifier.name,
-            results=[(item.label, item.score) for item in results],
-        )
-        if results:
-            stored += 1
-    if stored:
-        session.commit()
-    return stored
-
-
 def persist_raw_mentions(
     session: Session,
     *,
@@ -83,7 +41,6 @@ def persist_raw_mentions(
     keyword_by_text: Mapping[str, Keyword],
     all_keyword_texts: list[str],
     sentiment_analyzer=None,
-    classifiers: Sequence[Classifier] | None = None,
     enricher=None,
     enrich_limit: int | None = None,
     fetch_limit: int | None = None,
@@ -100,8 +57,10 @@ def persist_raw_mentions(
       fetches per cycle (settings.fetch_max_per_cycle); a failed fetch
       leaves content empty and the mention still inserts.
     - F2c enrichment is the primary pass when an `enricher` is given: one
-      LLM call yields sentiment, summary and topics. Its failure (None or
-      exception) degrades to the plain `sentiment_analyzer` — laya keeps
+      LLM call yields sentiment, summary, topics and the political label,
+      persisted into mention_classifications (classifier 'topic' /
+      'topics' / 'political'). Its failure (None or exception) degrades to
+      the plain `sentiment_analyzer` — an OpenAI-compatible call keeps
       sentiment alive and summary stays NULL/backfillable. `enrich_limit`
       caps LLM calls per cycle (settings.enrich_max_per_cycle); mentions
       past the cap go through the plain analyzer.
@@ -110,8 +69,6 @@ def persist_raw_mentions(
       can be backfilled). The enrichment verdict is canonical
       (app.sentiment.canonical): the plain analyzer only ever covers rows
       without a usable enrichment.
-    - Registry classifiers run after sentiment, same failure isolation:
-      a broken classifier leaves no rows instead of dropping the mention.
     """
     inserted = 0
     enrich_calls = 0
@@ -264,29 +221,9 @@ def persist_raw_mentions(
                             created.id,
                             exc,
                         )
-            if sentiment is not None:
-                # Canonical policy (app.sentiment.canonical): the enrichment
-                # verdict owns sentiment; on a fresh insert this is a plain
-                # first write, the helper just keeps one write path.
-                apply_canonical_sentiment(
-                    created,
-                    sentiment,
-                    sentiment_score,
-                    mention_id=created.id,
-                )
-                session.commit()
-            if classifiers:
-                _classify_mention(
-                    session,
-                    mention_id=created.id,
-                    text=text,
-                    lang=item.lang or "es",
-                    classifiers=classifiers,
-                )
-                # Classification v2: the enrichment verdict is canonical over
-                # the laya topic head, so it lands AFTER the registry pass and
-                # replaces its row (same delete+insert scoping).
-                if enrichment is not None and enrichment.topic:
+                if enrichment.topic:
+                    # Classification v2: the single dominant topic, canonical
+                    # over the free-form multi-label row above.
                     try:
                         queries.upsert_classifications(
                             session,
@@ -300,6 +237,17 @@ def persist_raw_mentions(
                             created.id,
                             exc,
                         )
+            if sentiment is not None:
+                # Canonical policy (app.sentiment.canonical): the enrichment
+                # verdict owns sentiment; on a fresh insert this is a plain
+                # first write, the helper just keeps one write path.
+                apply_canonical_sentiment(
+                    created,
+                    sentiment,
+                    sentiment_score,
+                    mention_id=created.id,
+                )
+                session.commit()
             # F2c event summary: title while a lone mention, LLM synthesis
             # once the event spans >=2 (maybe_summarize_event commits).
             if created.event_id is not None and enricher is not None:
@@ -323,7 +271,6 @@ def run_ingest_cycle(
     keywords: list[Keyword],
     adapters: list[SourceAdapter],
     sentiment_analyzer=None,
-    classifiers: Sequence[Classifier] | None = None,
     cycle_started: datetime | None = None,
     enricher=None,
     enrich_limit: int | None = None,
@@ -368,7 +315,6 @@ def run_ingest_cycle(
                     keyword_by_text=keyword_by_text,
                     all_keyword_texts=texts,
                     sentiment_analyzer=sentiment_analyzer,
-                    classifiers=classifiers,
                     enricher=enricher,
                     enrich_limit=enrich_limit,
                     fetch_limit=fetch_limit,

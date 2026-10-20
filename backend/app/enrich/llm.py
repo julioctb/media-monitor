@@ -17,11 +17,7 @@ Transport mirrors app.sentiment.api_analyzer: OpenAI-compatible chat
 completions, Bearer key, temperature 0, JSON mode, article truncated to
 MAX_CONTENT_CHARS. Every failure mode (transport, shape, broken JSON,
 schema violation) returns None after the retries — the caller falls back
-to plain sentiment (laya) and the row stays backfillable.
-
-``agreement_analyzer`` (TE5): when set, the agreement is logged alongside
-each successful enrichment — but only when that analyzer has actually run
-(``loaded``); the check never triggers a lazy load by itself.
+to plain sentiment and the row stays backfillable.
 """
 
 import json
@@ -32,7 +28,6 @@ import time
 import httpx
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.classifications.topics import TOPIC_LABELS
 from app.models.base import Sentiment
 
 log = logging.getLogger("enrich.llm")
@@ -46,6 +41,20 @@ BACKOFF_S = 0.5
 
 #: v1 political labels (former local classifier; now emitted by enrichment).
 POLITICAL_LABELS = ("political", "not_political", "uncertain")
+
+#: Classification v2 label set (odd/tasks/classification-v2.md). Single source
+#: of truth: the enrichment prompt and the frontend label maps mirror these.
+TOPIC_LABELS = (
+    "academic",
+    "infrastructure",
+    "institutional",
+    "students",
+    "culture",
+    "sports",
+    "finance",
+    "government",
+    "health",
+)
 
 #: Article text handed to the model, truncated (plan: ~1500 chars).
 MAX_CONTENT_CHARS = 1500
@@ -236,7 +245,6 @@ class LLMEnricher:
         timeout: float = TIMEOUT_S,
         attempts: int = ATTEMPTS,
         backoff_s: float = BACKOFF_S,
-        agreement_analyzer=None,
     ) -> None:
         if not api_key:
             raise ValueError("api_key is required for the openai provider")
@@ -247,7 +255,6 @@ class LLMEnricher:
         self._owns_client = client is None
         self._attempts = max(1, attempts)
         self._backoff_s = backoff_s
-        self._agreement = agreement_analyzer
 
     @property
     def model_name(self) -> str:
@@ -315,33 +322,7 @@ class LLMEnricher:
         result = self._with_retries(call)
         if result is None:
             return None
-        self._log_agreement(text, result)
         return result
-
-    def _log_agreement(self, text: str, result: EnrichmentResult) -> None:
-        """TE5: local-vs-LLM sentiment agreement, one week of data.
-
-        Fires only when the agreement analyzer has actually run (its
-        ``loaded`` flag is true); the check never triggers a load — a
-        cycle whose sentiment stayed on the API path logs nothing.
-        """
-        if self._agreement is None:
-            return
-        if getattr(self._agreement, "loaded", True) is False:
-            return
-        try:
-            local = self._agreement.analyze(text, "es")
-        except Exception as exc:  # noqa: BLE001 - telemetry must not break ingest
-            log.debug("agreement analyzer failed: %s", exc)
-            return
-        log.info(
-            "enrich-agreement enrich=%s/%.2f laya=%s/%.2f match=%s",
-            result.sentiment.value,
-            result.sentiment_score,
-            local.label.value,
-            local.score,
-            local.label is result.sentiment,
-        )
 
     def complete(self, system: str, user: str, *, json_mode: bool = False) -> str | None:
         """One-shot completion with the shared retry policy (F4 ask)."""

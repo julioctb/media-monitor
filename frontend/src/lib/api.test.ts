@@ -182,7 +182,6 @@ describe('api client', () => {
 			ai_api_key: 'sk-test',
 			ai_base_url: 'https://api.openai.com/v1',
 			ai_model: 'gpt-4o-mini',
-			ai_fallback_local: true,
 			updated_at: '2026-10-09T00:00:00Z'
 		};
 		const fetchMock = stubFetch(async () => jsonResponse(200, savedRow));
@@ -197,8 +196,7 @@ describe('api client', () => {
 			ai_provider: 'openai',
 			ai_api_key: 'sk-test',
 			ai_base_url: 'https://api.openai.com/v1',
-			ai_model: 'gpt-4o-mini',
-			ai_fallback_local: true
+			ai_model: 'gpt-4o-mini'
 		});
 
 		expect(saved).toEqual(savedRow);
@@ -216,8 +214,7 @@ describe('api client', () => {
 			ai_provider: 'openai',
 			ai_api_key: 'sk-test',
 			ai_base_url: 'https://api.openai.com/v1',
-			ai_model: 'gpt-4o-mini',
-			ai_fallback_local: true
+			ai_model: 'gpt-4o-mini'
 		});
 	});
 

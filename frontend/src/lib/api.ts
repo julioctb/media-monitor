@@ -178,7 +178,6 @@ export interface ClientSettings {
 	ai_api_key: string | null;
 	ai_base_url: string | null;
 	ai_model: string | null;
-	ai_fallback_local: boolean;
 	/** ISO datetime of the last update. */
 	updated_at: string;
 }
@@ -197,7 +196,6 @@ export interface ClientSettingsInput {
 	ai_api_key?: string | null;
 	ai_base_url?: string | null;
 	ai_model?: string | null;
-	ai_fallback_local?: boolean;
 }
 
 /** Result of POST /api/settings/test-facebook (always answers, ok flags success). */

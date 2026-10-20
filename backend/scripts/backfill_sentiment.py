@@ -1,9 +1,9 @@
-"""Backfill missing sentiment scores through the Laya analyzer.
+"""Backfill missing sentiment scores through the API analyzer.
 
 Rows with sentiment NULL (analyzer failures never block the insert) are
-re-scored in batches. The analyzer is constructed lazily so importing or
-running this module never downloads/loads a model until needed; tests
-inject a fake analyzer instead.
+re-scored in batches. The analyzer is the OpenAI-compatible one, built
+from the client's pinned settings; without a configured provider there is
+nothing to backfill with. Tests inject a fake analyzer instead.
 """
 
 import logging
@@ -77,11 +77,25 @@ def backfill_missing(
     return totals
 
 
-def build_analyzer():
-    """Lazy on purpose: heavy imports + model load at first backfill only."""
-    from app.sentiment.laya_analyzer import LayaAnalyzer
+def build_analyzer(session):
+    """API analyzer from the pinned client settings (the only engine left).
 
-    return LayaAnalyzer()
+    Returns ``None`` when no OpenAI-compatible provider is configured:
+    without it there is nothing to backfill with, by design.
+    """
+    from app.settings_runtime import resolve_effective_settings
+
+    effective = resolve_effective_settings(session, client_id=1)
+    if effective.ai_provider != "openai" or not effective.ai_api_key:
+        log.warning("no openai provider configured; sentiment backfill skipped")
+        return None
+    from app.sentiment.api_analyzer import ApiSentimentAnalyzer
+
+    return ApiSentimentAnalyzer(
+        api_key=effective.ai_api_key,
+        base_url=effective.ai_base_url,
+        model=effective.ai_model,
+    )
 
 
 def main() -> None:
@@ -90,7 +104,10 @@ def main() -> None:
     )
     session = SessionLocal()
     try:
-        stats = backfill_missing(session, build_analyzer())
+        analyzer = build_analyzer(session)
+        if analyzer is None:
+            return
+        stats = backfill_missing(session, analyzer)
         log.info("sentiment backfill complete: %s", stats)
     finally:
         session.close()

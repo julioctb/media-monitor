@@ -26,7 +26,7 @@ class TestAlignSentiment:
         mention = _mention(
             client.id,
             1,
-            sentiment=Sentiment.negative,  # stale laya verdict
+            sentiment=Sentiment.negative,  # stale analyzer verdict
             sentiment_score=0.4,
         )
         mention.raw_enrichment = {"sentiment": "positive", "sentiment_score": 0.8}

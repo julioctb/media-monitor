@@ -102,6 +102,8 @@ class ClientSettings(IntPk, Base):
         String(500), nullable=True, server_default=DEFAULT_OPENAI_BASE_URL
     )
     ai_model: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    # Legacy (laya removal): the local-fallback toggle is no longer exposed
+    # nor read; the column stays to avoid a migration in this pass.
     ai_fallback_local: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default="1"
     )

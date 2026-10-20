@@ -187,8 +187,8 @@ def backfill(
             totals["persons_relinked"] += 1
         except Exception as exc:  # noqa: BLE001 - relink must not block backfill
             log.warning("persons relink failed for %s: %s, keeping previous links", mention.id, exc)
-        # Classification v2: the enrichment topic is canonical — same upsert
-        # the ingest path runs after the registry classifiers.
+        # Classification v2: the enrichment topic is canonical — the same
+        # upsert the ingest path runs for enriched mentions.
         if result.topic:
             try:
                 queries.upsert_classifications(
@@ -200,7 +200,7 @@ def backfill(
             except Exception as exc:  # noqa: BLE001 - topics must not block
                 log.warning("canonical topic backfill failed for %s: %s", mention.id, exc)
         # Canonical policy: the enrichment verdict overwrites any earlier
-        # (laya) value; the previous label/score lands in the log.
+        # analyzer value; the previous label/score lands in the log.
         if apply_canonical_sentiment(
             mention,
             result.sentiment,

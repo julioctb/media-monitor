@@ -274,13 +274,13 @@ class TestPersistRawMentions:
             enricher=BoomEnricher(),
         )
         m = session.query(Mention).one()
-        # Fallback path: laya value stands, no enrichment stored.
+        # Fallback path: analyzer value stands, no enrichment stored.
         assert m.sentiment is Sentiment.negative
         assert m.sentiment_score == 0.4
         assert m.raw_enrichment is None
 
-    def test_enrichment_topic_overrides_classifier_topic(self, session) -> None:
-        """Classification v2: the enrichment verdict replaces the laya row."""
+    def test_enrichment_persists_canonical_topic(self, session) -> None:
+        """Classification v2: the enrichment verdict is the topic row."""
         from app.enrich.llm import EnrichmentResult
 
         class FakeEnricher:
@@ -292,14 +292,6 @@ class TestPersistRawMentions:
                     topic="infrastructure",
                 )
 
-        class LayaTopic:
-            name = "topic"
-
-            def classify(self, text: str, lang: str = "es"):
-                from app.classifications.base import ClassificationResult
-
-                return ClassificationResult(label="institutional", score=0.4)
-
         client, kws = _client_with_keywords(session)
         persist_raw_mentions(
             session,
@@ -308,7 +300,6 @@ class TestPersistRawMentions:
             keyword_by_text={"buap": kws[0]},
             all_keyword_texts=["BUAP"],
             enricher=FakeEnricher(),
-            classifiers=[LayaTopic()],
         )
         rows = session.query(MentionClassification).all()
         assert [(r.classifier, r.label) for r in rows] == [("topic", "infrastructure")]

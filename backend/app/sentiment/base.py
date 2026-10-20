@@ -11,7 +11,8 @@ class SentimentResult:
     """One classification: label plus the engine's confidence in it.
 
     `score` is the probability assigned to the chosen label when the
-    engine produces one (Laya does), else a heuristic strength in [0, 1].
+    engine produces one (logprob-based), else a heuristic strength in
+    [0, 1].
     """
 
     label: Sentiment

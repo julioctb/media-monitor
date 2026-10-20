@@ -42,7 +42,6 @@
 		ai_base_url: string;
 		ai_model: string;
 		ai_api_key: string;
-		ai_fallback_local: boolean;
 	}
 
 	function toDraft(settings: ClientSettings): SettingsDraft {
@@ -58,8 +57,7 @@
 			ai_provider: settings.ai_provider,
 			ai_base_url: settings.ai_base_url ?? '',
 			ai_model: settings.ai_model ?? '',
-			ai_api_key: settings.ai_api_key ?? '',
-			ai_fallback_local: settings.ai_fallback_local
+			ai_api_key: settings.ai_api_key ?? ''
 		};
 	}
 
@@ -517,16 +515,6 @@
 								Se guarda en la base del cliente; el backend la usa para enriquecimiento,
 								resumen y consultas.
 							</p>
-							<label class="check-row mt-2">
-								<input
-									type="checkbox"
-									name="ai_fallback_local"
-									value="1"
-									bind:checked={draft.ai_fallback_local}
-									class={CHECK_CLS}
-								/>
-								Si la API falla usar el modelo local
-							</label>
 						</div>
 					{/if}
 					<div class="mt-4">

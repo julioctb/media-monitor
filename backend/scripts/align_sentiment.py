@@ -1,7 +1,7 @@
 """Re-align mentions.sentiment/sentiment_score from raw_enrichment.
 
 Canonical policy (app.sentiment.canonical): the LLM enrichment verdict is
-the source of truth for sentiment; the local (laya) value only stands
+the source of truth for sentiment; the API-analyzer value only stands
 when no enrichment exists. Rows where a stale label/score disagrees with
 ``raw_enrichment`` are corrected here — batched, idempotent, and safe to
 re-run (a second pass changes nothing).

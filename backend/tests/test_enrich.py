@@ -1,12 +1,10 @@
-"""Enrichment tests (F2c): LLM client, parsing, event summary, TE5 log.
+"""Enrichment tests (F2c): LLM client, parsing, event summary.
 
 Fully offline: transport via httpx.MockTransport, event summary on
-in-memory SQLite, agreement analyzer faked.
+in-memory SQLite.
 """
 
 import json
-import logging
-from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
 import httpx
@@ -16,7 +14,6 @@ from app.enrich.llm import LLMEnricher, parse_enrichment
 from app.enrich.summary import maybe_summarize_event
 from app.models import Client, Event, Mention
 from app.models.base import Sentiment
-from app.sentiment.base import SentimentResult
 
 GOOD_PAYLOAD = {
     "summary": "La BUAP inauguró su nuevo edificio.",
@@ -199,60 +196,6 @@ class TestLLMEnricher:
         enricher = _enricher(handler, attempts=2, backoff_s=0)
         assert enricher.complete("s", "u") is None
         assert len(calls) == 2
-
-    def test_agreement_logged_on_success(self, caplog) -> None:
-        @dataclass
-        class FakeLaya:
-            calls: list = field(default_factory=list)
-
-            def analyze(self, text, lang):
-                self.calls.append(text)
-                @dataclass
-                class R:
-                    label: Sentiment = Sentiment.negative
-                    score: float = 0.7
-
-                return R()
-
-        laya = FakeLaya()
-        enricher = _enricher(_ok_handler([]), agreement_analyzer=laya)
-        with caplog.at_level(logging.INFO, logger="enrich.llm"):
-            assert enricher.enrich("texto") is not None
-        assert len(laya.calls) == 1
-        assert any("enrich-agreement" in r.message for r in caplog.records)
-
-    def test_agreement_skipped_until_analyzer_loaded(self, caplog) -> None:
-        """TE-lazy: no enrich-agreement line (and no analyze call) while the
-        shared lazy analyzer has never run; the check never loads it."""
-
-        class LazyStub:
-            loaded = False
-            calls: list = []
-
-            def analyze(self, text, lang):
-                self.calls.append(text)
-                return SentimentResult(label=Sentiment.neutral, score=0.5)
-
-        laya = LazyStub()
-        enricher = _enricher(_ok_handler([]), agreement_analyzer=laya)
-        with caplog.at_level(logging.INFO, logger="enrich.llm"):
-            assert enricher.enrich("texto") is not None
-        assert laya.calls == []
-        assert not any("enrich-agreement" in r.message for r in caplog.records)
-
-        laya.loaded = True  # a fallback materialized it elsewhere
-        with caplog.at_level(logging.INFO, logger="enrich.llm"):
-            assert enricher.enrich("otro") is not None
-        assert len(laya.calls) == 1
-        assert any("enrich-agreement" in r.message for r in caplog.records)
-
-    def test_agreement_failure_never_breakes_enrichment(self) -> None:
-        class Broken:
-            def analyze(self, text, lang):
-                raise RuntimeError("down")
-
-        enricher = _enricher(_ok_handler([]), agreement_analyzer=Broken())
-        assert enricher.enrich("texto") is not None
 
     def test_requires_api_key(self) -> None:
         with pytest.raises(ValueError):

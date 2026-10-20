@@ -101,15 +101,12 @@ def probe_facebook_page(
 
 
 def probe_ai(payload: AiProbeRequest, *, client: httpx.Client | None = None) -> dict:
-    """local -> engine ok without loading anything; openai -> minimal completion."""
+    """local -> nothing to reach (no local engine since the laya removal);
+    openai -> minimal completion against the configured endpoint."""
     if payload.provider == "local":
-        # Constructing LayaAnalyzer is lazy: no model download, no load.
-        from app.sentiment.laya_analyzer import LayaAnalyzer
-
-        LayaAnalyzer()
         return {
             "ok": True,
-            "engine": "laya",
+            "engine": "local",
             "model": None,
             "latency_ms": None,
             "label": None,

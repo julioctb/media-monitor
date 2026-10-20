@@ -768,7 +768,6 @@ _VALIDATORS = {
     "ai_api_key": lambda v: _validate_optional_str(v, "ai_api_key"),
     "ai_base_url": lambda v: _validate_optional_str(v, "ai_base_url", is_url=True),
     "ai_model": lambda v: _validate_optional_str(v, "ai_model"),
-    "ai_fallback_local": lambda v: _validate_bool(v, "ai_fallback_local"),
     "enrich_max_per_cycle": _validate_enrich_max,
     "fetch_max_per_cycle": _validate_fetch_max,
 }

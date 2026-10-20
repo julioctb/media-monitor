@@ -5,7 +5,7 @@ mention -- one row per (mention, classifier, label) under a triple
 unique -- and classifiers are independent axes, so a political note can
 still be sentiment-positive. Topic is single-label: one dominant theme,
 and no row at all when the answer is ``other`` (no theme). The classifier
-catalog lives in code (app.classifications registry), NOT in a CHECK
+catalog lives in code (the enrichment writers), NOT in a CHECK
 constraint: adding a classifier is a deploy, never a migration.
 """
 

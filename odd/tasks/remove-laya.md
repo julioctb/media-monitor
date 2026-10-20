@@ -6,13 +6,13 @@ artifact still consumed was `classifier='political'` (feed chip «Política»).
 
 ## Plan
 
-- [ ] T1 `feat(enrich)`: `enrich/llm.py` emits `political`
+- [x] T1 `feat(enrich)`: `enrich/llm.py` emits `political`
       (`political|not_political|uncertain`, tolerant parse, absent = None);
       `pipeline.py` persists `classifier='political'` next to `topics`
       (same best-effort pattern). NO backfill: historical laya-era rows stay
       as-is; the new label only lands on ingests with enrichment (documented
       in the commit body).
-- [ ] T2 `refactor!`: remove laya entirely —
+- [x] T2 `refactor!`: remove laya entirely —
       - pyproject: drop `laya==0.3.4`
       - worker: no `build_classifiers`/`shared_laya`/agreement; sentiment
         builder inlined (openai -> `ApiSentimentAnalyzer`, else None)
@@ -26,9 +26,9 @@ artifact still consumed was `classifier='political'` (feed chip «Política»).
       - compose: drop `hfcache` volume + `LAYA_POLITICAL_CONFIDENCE_THRESHOLD`
       - `backend/scripts/eval_classifications.py` deleted with its registry
         import; gold `.jsonl` data kept for future enrichment evals
-- [ ] T3 backfill: none (see T1 note).
-- [ ] T4 front: chips/stats read `classifier` rows — unchanged; no laya refs.
-- [ ] T5 tests rewritten inline with T1/T2; regression: enrichment persists
+- [x] T3 backfill: none (see T1 note).
+- [x] T4 front: chips/stats read `classifier` rows — unchanged; no laya refs.
+- [x] T5 tests rewritten inline with T1/T2; regression: enrichment persists
       political, pipeline laya-free, chip filters still green.
 
 ## Verification
