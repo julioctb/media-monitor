@@ -556,8 +556,9 @@
 	line-height: 1.5;
 }
 
-/* Cobertura del día: metric trio + category bars. */
-.coverage {
+/* Cobertura del día: metric trio + category bars (digest only; the event
+   detail table reuses the .coverage name per the detalle-evento mockup). */
+div.coverage {
 	display: grid;
 	grid-template-columns: repeat(3, minmax(0, 1fr));
 	gap: 12px;
@@ -1103,7 +1104,7 @@
 /* Digest responsive. */
 @media (max-width: 900px) {
 	.summary-grid,
-	.coverage,
+	div.coverage,
 	.quotes {
 		grid-template-columns: 1fr;
 	}
@@ -1173,6 +1174,257 @@
 .metric-unit {
 	font-size: 21px;
 	letter-spacing: 0;
+}
+
+/* ============================================================
+   Events (eventos / detalle-evento) and actor timeline
+   (detalle-actor) mockups.
+   ============================================================ */
+.events {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 16px;
+	list-style: none;
+	margin: 16px 0 0;
+	padding: 0;
+}
+.event-card {
+	position: relative;
+	height: 100%;
+	padding: 23px 26px;
+	border: 1px solid var(--color-line);
+	border-radius: 18px;
+	background: #fff;
+}
+.event-card:focus-within {
+	outline: 2px solid var(--color-accent);
+	outline-offset: 3px;
+}
+.event-meta {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 10px;
+	margin: 0 0 12px;
+	color: var(--color-ink-2);
+	font-size: 14px;
+	font-variant-numeric: tabular-nums;
+}
+.event-meta span:not(:last-child)::after {
+	content: '·';
+	margin-left: 10px;
+	color: var(--color-meta);
+}
+.event-card h2 {
+	margin: 0 0 10px;
+	font-size: 21px;
+	font-weight: 600;
+	line-height: 1.3;
+	letter-spacing: -0.015em;
+}
+.event-card h2 a {
+	color: var(--color-ink);
+}
+/* Whole card clickable; hover underlines the title only. */
+.event-card h2 a:hover {
+	text-decoration: underline;
+	text-underline-offset: 3px;
+}
+.event-card h2 a::after {
+	content: '';
+	position: absolute;
+	inset: 0;
+}
+.event-summary {
+	margin: 0;
+	color: var(--color-ink-2);
+	font-size: 14px;
+	line-height: 1.5;
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 3;
+	line-clamp: 3;
+	overflow: hidden;
+}
+.event-first {
+	margin: 16px 0 0;
+	color: var(--color-muted);
+	font-size: 12px;
+	font-variant-numeric: tabular-nums;
+}
+
+/* Event detail: bare sections, coverage table, mention list. */
+.block {
+	margin-top: 38px;
+}
+.block > h2,
+.timeline-section > h2 {
+	margin: 0 0 16px;
+	font-size: 21px;
+	font-weight: 600;
+}
+.support {
+	margin: 0 0 16px;
+	color: var(--color-muted);
+	font-size: 14px;
+}
+table.coverage {
+	width: 100%;
+	border-collapse: separate;
+	border-spacing: 0;
+	overflow: hidden;
+	border: 1px solid var(--color-line);
+	border-radius: 12px;
+	background: #fff;
+	font-size: 14px;
+}
+table.coverage th,
+table.coverage td {
+	text-align: left;
+	padding: 11px 16px;
+	border-bottom: 1px solid var(--color-line-soft);
+}
+table.coverage tr:last-child td {
+	border-bottom: 0;
+}
+table.coverage th {
+	background: var(--color-surface-warm);
+	color: var(--color-ink-2);
+	font-size: 12px;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+}
+
+/* Mention tags shared by the event detail list and the actor timeline. */
+.tag {
+	flex: none;
+	display: inline-flex;
+	align-items: center;
+	min-height: 28px;
+	padding: 3px 10px;
+	border: 1px solid var(--color-line-soft);
+	border-radius: 980px;
+	background: var(--color-surface-warm);
+	color: var(--color-ink-2);
+	font-size: 12px;
+	font-weight: 600;
+}
+.tag.positive {
+	color: var(--color-success);
+	border-color: color-mix(in oklab, var(--color-success) 35%, #fff);
+}
+.tag.negative {
+	color: var(--color-danger);
+	border-color: color-mix(in oklab, var(--color-danger) 35%, #fff);
+}
+.mention time {
+	color: var(--color-muted);
+	font-size: 12px;
+	font-variant-numeric: tabular-nums;
+}
+
+/* Event detail: dense mention rows. */
+.list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: grid;
+	gap: 8px;
+}
+.list .mention {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 10px;
+	min-width: 0;
+	padding: 12px 16px;
+	border: 1px solid var(--color-line-soft);
+	border-radius: 8px;
+	background: #fff;
+}
+.list .mention time {
+	flex: none;
+}
+.mention-title {
+	flex: 1;
+	min-width: 0;
+	margin: 0;
+	font-size: 14px;
+	font-weight: 600;
+	line-height: 1.4;
+}
+.mention-title a {
+	color: var(--color-ink);
+}
+.mention-title a:hover {
+	text-decoration: underline;
+	text-underline-offset: 3px;
+}
+
+/* Actor timeline: mention cards. */
+.timeline-section {
+	margin-top: 36px;
+}
+.timeline {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: grid;
+	gap: 14px;
+}
+.timeline .mention {
+	padding: 20px 24px;
+	border: 1px solid var(--color-line-soft);
+	border-radius: 18px;
+	background: #fff;
+}
+.mention-top {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+	margin-bottom: 9px;
+}
+.timeline .mention time {
+	margin-left: 4px;
+}
+.timeline .mention h3 {
+	margin: 0;
+	font-size: 19px;
+	font-weight: 600;
+	line-height: 1.35;
+}
+.mention-role {
+	margin: 7px 0 0;
+	color: var(--color-ink-2);
+	font-size: 14px;
+}
+.excerpt {
+	margin: 11px 0 0;
+	padding-left: 14px;
+	border-left: 2px solid var(--color-line-soft);
+	color: var(--color-ink-2);
+	font-size: 14px;
+}
+.event-ref {
+	margin: 11px 0 0;
+	color: var(--color-ink-2);
+	font-size: 14px;
+}
+.event-ref strong {
+	font-weight: 600;
+	color: var(--color-ink);
+}
+
+@media (max-width: 900px) {
+	.events {
+		grid-template-columns: 1fr;
+	}
+	.event-card {
+		padding: 20px;
+	}
+	.timeline .mention {
+		padding: 17px;
+	}
 }
 
 /* ============================================================

@@ -9,16 +9,6 @@
 	let { data }: PageProps = $props();
 
 	const SKELETON_CLS = 'animate-pulse rounded-lg bg-surface';
-
-	const SENTIMENT_CHIP_CLS: Record<string, string> = {
-		positive: 'border-success/40 bg-success/10 text-success',
-		negative: 'border-danger/40 bg-danger/10 text-danger',
-		neutral: 'border-line bg-surface text-muted'
-	};
-
-	function sentimentChipClass(value: string | null): string {
-		return value ? (SENTIMENT_CHIP_CLS[value] ?? 'border-line bg-surface text-muted') : 'border-line text-muted';
-	}
 </script>
 
 <svelte:head>
@@ -62,8 +52,8 @@
 		</section>
 	{/if}
 
-	<section class="mt-8" aria-labelledby="event-coverage-heading">
-		<h2 class="eyebrow" id="event-coverage-heading">Cobertura</h2>
+	<section class="block" aria-labelledby="event-coverage-heading">
+		<h2 id="event-coverage-heading">Cobertura</h2>
 		{#await data.coverage}
 			<div class="mt-4" aria-busy="true">
 				<span class="sr-only">Cargando cobertura…</span>
@@ -74,12 +64,12 @@
 			{#if coverage.by_source.length === 0}
 				<p class="empty mt-4">Sin cobertura registrada para este evento.</p>
 			{:else}
-				<p class="mt-2 text-sm text-muted">
+				<p class="support">
 					<span class="tabular-nums">{coverage.mention_count} menciones</span> en
 					<span class="tabular-nums">{coverage.outlet_count} medios</span>
 				</p>
 				<div class="table-wrap mt-4">
-					<table class="data-table">
+					<table class="coverage">
 						<caption class="sr-only">Cobertura del evento por fuente</caption>
 						<thead>
 							<tr>
@@ -110,45 +100,40 @@
 		{/await}
 	</section>
 
-	<section class="mt-8" aria-labelledby="event-mentions-heading">
-		<h2 class="eyebrow" id="event-mentions-heading">Menciones</h2>
-		<p class="mt-2 text-sm text-muted" role="status" aria-live="polite">
+	<section class="block" aria-labelledby="event-mentions-heading">
+		<h2 id="event-mentions-heading">Menciones</h2>
+		<p class="support" role="status" aria-live="polite">
 			{event.mentions.length}
 			{event.mentions.length === 1 ? 'mención asociada' : 'menciones asociadas'}
 		</p>
 		{#if event.mentions.length === 0}
 			<p class="empty mt-4">Sin menciones asociadas.</p>
 		{:else}
-			<ul class="mt-4 grid gap-2" aria-label="Menciones del evento">
+			<ol class="list" aria-label="Menciones del evento">
 				{#each event.mentions as mention (mention.id)}
-					<li
-						class="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-line-soft bg-surface-warm px-3 py-2 text-sm"
-					>
-						<span class="rounded-full border border-line-soft bg-surface px-2.5 py-1 text-xs font-medium text-ink-2">
-							{sourceLabel(mention.source)}
-						</span>
-						<span
-							class={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${sentimentChipClass(mention.sentiment)}`}
-						>
+					<li class="mention">
+						<span class="tag">{sourceLabel(mention.source)}</span>
+						<span class={`tag${mention.sentiment ? ` tone ${mention.sentiment}` : ''}`}>
 							{mention.sentiment ? sentimentLabel(mention.sentiment) : sentimentLabel(null)}
 						</span>
-						<a
-							href={mention.url}
-							target="_blank"
-							rel="noopener noreferrer"
-							aria-label={`${mention.title ?? mention.url} (abre en una pestaña nueva)`}
-							class="font-medium text-ink underline decoration-line underline-offset-[3px] hover:decoration-ink"
-						>
-							{mention.title ?? mention.url}
-						</a>
+						<p class="mention-title">
+							<a
+								href={mention.url}
+								target="_blank"
+								rel="noopener noreferrer"
+								aria-label={`${mention.title ?? mention.url} (abre en una pestaña nueva)`}
+							>
+								{mention.title ?? mention.url}
+							</a>
+						</p>
 						{#if mention.published_at}
-							<time datetime={mention.published_at} class="ml-auto text-xs tabular-nums text-meta">
+							<time datetime={mention.published_at}>
 								{formatDisplayDateTime(mention.published_at)}
 							</time>
 						{/if}
 					</li>
 				{/each}
-			</ul>
+			</ol>
 		{/if}
 	</section>
 {:catch cause}

@@ -66,7 +66,7 @@
 		{data.scope === 'eco' ? 'historias con cobertura de varios medios' : 'eventos'} ·
 		{ecoCount} con eco de 2+ medios
 	</p>
-	<ul class="mt-3 grid gap-3" aria-label="Eventos">
+	<ul class="events" aria-label="Eventos">
 		{#each data.events as event (event.id)}
 			<li>
 				<EventCard {event} />
