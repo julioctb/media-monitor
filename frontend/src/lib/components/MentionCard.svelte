@@ -31,14 +31,16 @@
 				? 'Noticias'
 				: 'Redes sociales'
 	);
-	/** Concrete outlet: author handle/page when present, else the URL host. */
+	/** Concrete outlet: news → URL host; social → author handle/page. */
 	const sourceDetail = $derived.by(() => {
-		const author = mention.author?.trim();
-		if (author) return author;
+		if (!isNewsSource(mention.source)) {
+			const author = mention.author?.trim();
+			if (author) return author;
+		}
 		try {
 			return new URL(mention.url).hostname.replace(/^www\./, '');
 		} catch {
-			return null;
+			return mention.author?.trim() ?? null;
 		}
 	});
 	/** Body: the editorial summary when enriched, else the article excerpt. */
