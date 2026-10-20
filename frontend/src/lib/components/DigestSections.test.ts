@@ -82,7 +82,7 @@ describe('DigestSections', () => {
 			'Cobertura del día',
 			'Datos de campo',
 			'Lilia Cedillo Ramírez',
-			'Noticias del día',
+			'Feed de noticias',
 			'Personas mencionadas',
 			'Pendientes y silencios'
 		]) {
@@ -90,11 +90,12 @@ describe('DigestSections', () => {
 		}
 	});
 
-	it('shows story details, confidence and rectora watch note', () => {
+	it('shows feed preview details and rectora watch note', () => {
 		const host = renderCard(digestFixture());
 		const text = host.textContent ?? '';
 		expect(text).toContain('Institucional');
-		expect(text).toContain('Confianza media');
+		expect(text).toContain('News RSS · RSS propios');
+		expect(text).toContain('Tonos de la selección');
 		expect(text).toContain('La rectora encabezó la inauguración.');
 		expect(text).toContain('Por qué importa: Obra regional emblemática.');
 		expect(text).toContain('Vigilar: reacciones post-votación');

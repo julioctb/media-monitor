@@ -58,6 +58,23 @@
 	);
 	const rectoraName = $derived(rectoraPersona?.name ?? 'Rectora');
 
+	/* Home feed filters (mockup: Todo / Noticias / Redes). Digest items are
+	   news-channel only, so the social filter renders the empty state. */
+	let feedFilter = $state<'all' | 'news' | 'social'>('all');
+	const FEED_FILTERS = [
+		{ key: 'all', label: 'Todo' },
+		{ key: 'news', label: 'Noticias' },
+		{ key: 'social', label: 'Redes' }
+	] as const;
+	const visibleNews = $derived(feedFilter === 'social' ? [] : noticias);
+	const newsStamp = $derived.by(() => {
+		const raw = content.date ?? (updatedAt ? updatedAt.slice(0, 10) : null);
+		if (!raw) return null;
+		const date = new Date(`${raw}T00:00:00`);
+		if (Number.isNaN(date.getTime())) return null;
+		return date.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
+	});
+
 	const sentimentedActions = $derived((rectora.actions ?? []).filter((action) => action.sentiment));
 	const positiveShare = $derived.by(() => {
 		if (sentimentedActions.length === 0) return null;
@@ -154,7 +171,7 @@
 			<span class="metric-detail">de {TOPIC_TOTAL} categorías posibles</span>
 		</div>
 		<div class="metric">
-			<span class="metric-label">Tonos del día</span>
+			<span class="metric-label">Tonos de la selección</span>
 			{#if overallTones && overallTones.total > 0 && overallTones.positive > 0}
 				<strong class="metric-big">
 					{overallTones.positive}
@@ -266,41 +283,66 @@
 
 <section id="noticias" class="section" aria-labelledby="noticias-heading">
 	<div class="section-heading">
-		<h2 id="noticias-heading">Noticias del día</h2>
+		<h2 id="noticias-heading">Feed de noticias</h2>
 		<a class="feed-full-link" href="/feed">Ver feed completo →</a>
+	</div>
+	<p class="feed-intro">
+		Noticias y publicaciones ordenadas por hora de llegada. Esta vista de ejemplo aún no recibe
+		actualizaciones en tiempo real.
+	</p>
+	<div class="feed-toolbar">
+		<div class="feed-filters" role="group" aria-label="Filtrar el feed por fuente">
+			{#each FEED_FILTERS as filter (filter.key)}
+				<button
+					class="feed-filter"
+					type="button"
+					data-filter={filter.key}
+					aria-pressed={feedFilter === filter.key}
+					onclick={() => (feedFilter = filter.key)}
+				>
+					{filter.label}
+				</button>
+			{/each}
+		</div>
+		<span class="feed-status">
+			{newsStamp ? `Muestra del ${newsStamp} · ` : ''}sin actualización automática
+		</span>
 	</div>
 	{#if noticias.length === 0}
 		<p class="breakdown-note">Sin noticias registradas ese día.</p>
 	{:else}
-		<ul class="story-list">
-			{#each noticias as item, i (item.event_id ?? `i${i}`)}
-				<li class="story-card">
-					<div class="story-top">
-						<span class="story-channel">
-							{item.sources.length > 0
-								? item.sources.map((s) => sourceLabel(s.source)).join(' · ')
-								: 'Fuente no registrada'}
-						</span>
-						{#if item.confidence}
-							<span class="sentiment">Confianza {item.confidence}</span>
-						{/if}
-					</div>
-					<h3 class="story-title">{item.title}</h3>
-					{#if item.summary}<p class="story-summary">{item.summary}</p>{/if}
-					{#if item.why_it_matters}
-						<p class="story-why">Por qué importa: {item.why_it_matters}</p>
-					{/if}
-					<div class="story-footer">
-						<div class="story-chips">
-							{#if item.topic}<span>Categoría · {topicLabel(item.topic)}</span>{/if}
+		<ol class="editorial-list feed-list" aria-label="Feed de noticias del día">
+			{#each visibleNews as item, i (item.event_id ?? `i${i}`)}
+				<li class="news-item" data-channel="news">
+					<article class="feed-preview">
+						<div class="feed-preview-top">
+							<span class="feed-channel">
+								{item.sources.length > 0
+									? item.sources.map((s) => sourceLabel(s.source)).join(' · ')
+									: 'Fuente no registrada'}
+							</span>
 						</div>
-						<span class="story-event">
-							{item.event_id ? `Evento #${item.event_id}` : 'Sin evento relacionado'}
-						</span>
-					</div>
+						<h3 class="news-title">{item.title}</h3>
+						{#if item.summary}<p class="feed-preview-summary">{item.summary}</p>{/if}
+						{#if item.why_it_matters}
+							<p class="feed-preview-note">Por qué importa: {item.why_it_matters}</p>
+						{/if}
+						<div class="feed-preview-footer">
+							<div class="feed-preview-chips" aria-label="Categoría y actor">
+								{#if item.topic}<span>Categoría · {topicLabel(item.topic)}</span>{/if}
+							</div>
+							<span class="feed-preview-event">
+								{item.event_id ? `Evento #${item.event_id}` : 'Sin evento relacionado'}
+							</span>
+						</div>
+					</article>
 				</li>
 			{/each}
-		</ul>
+		</ol>
+		<div class="feed-empty" role="status" aria-live="polite" hidden={visibleNews.length !== 0}>
+			No hay publicaciones de redes cargadas en esta vista de ejemplo. Aparecerán aquí cuando se
+			conecte la fuente.
+		</div>
 	{/if}
 </section>
 

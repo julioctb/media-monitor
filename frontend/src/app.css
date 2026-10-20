@@ -955,67 +955,96 @@
 	line-height: 1.5;
 }
 
-/* Editorial news cards inside the digest. */
-.story-card {
-	padding: 17px 18px;
-	border: 1px solid var(--color-line-soft);
-	border-radius: 12px;
-	background: var(--color-surface-warm);
+/* Digest news feed (resumen mockup): toolbar, filters, feed previews. */
+.editorial-list {
+	padding: 0;
+	margin: 0;
+	list-style: none;
 }
-.story-top {
+.news-item {
+	padding: 15px 0;
+	border-bottom: 1px solid var(--color-line-soft);
+}
+.news-item:last-child {
+	border-bottom: 0;
+}
+.feed-channel {
+	font-weight: 600;
+	color: var(--color-ink-2);
+}
+.news-title {
+	margin: 10px 0 0;
+	font-size: 18px;
+	font-weight: 600;
+	line-height: 1.36;
+	letter-spacing: -0.01em;
+}
+.feed-preview {
+	padding: 17px 18px;
+}
+.feed-toolbar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	flex-wrap: wrap;
+	gap: 12px;
+	margin: 18px 0 4px;
+}
+.feed-filters {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+.feed-filter {
+	min-height: 44px;
+	padding: 8px 15px;
+	border: 1px solid var(--color-line);
+	border-radius: 980px;
+	background: #fff;
+	color: var(--color-ink);
+	font-size: 14px;
+	font-weight: 600;
+}
+.feed-filter:hover {
+	background: var(--color-surface);
+	color: var(--color-ink);
+}
+.feed-filter[aria-pressed='true'] {
+	background: var(--color-ink);
+	border-color: var(--color-ink);
+	color: #fff;
+}
+.feed-filter[aria-pressed='true']:hover {
+	background: var(--color-ink-2);
+	border-color: var(--color-ink-2);
+	color: #fff;
+}
+.feed-status {
+	color: var(--color-muted);
+	font-size: 12px;
+	line-height: 1.45;
+}
+.feed-preview-top {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
 	flex-wrap: wrap;
 	gap: 8px 14px;
 }
-.story-channel {
-	font-weight: 600;
-	color: var(--color-ink-2);
-	font-size: 13px;
-}
-.sentiment {
-	display: inline-flex;
-	align-items: center;
-	padding: 3px 9px;
-	border: 1px solid var(--color-line-soft);
-	border-radius: 980px;
-	background: #fff;
-	color: var(--color-ink-2);
-	font-size: 12px;
-	font-weight: 600;
-}
-.sentiment.positive {
-	border-color: color-mix(in oklab, var(--color-success) 35%, #fff);
-	color: var(--color-success);
-}
-.sentiment.negative {
-	border-color: color-mix(in oklab, var(--color-danger) 35%, #fff);
-	color: var(--color-danger);
-}
-.sentiment.neutral {
-	color: var(--color-ink-2);
-}
-.story-title {
-	margin: 10px 0 0;
-	font-size: 18px;
-	font-weight: 600;
-	line-height: 1.3;
-}
-.story-summary {
+.feed-preview-summary {
 	margin: 6px 0 0;
 	color: var(--color-ink-2);
 	font-size: 14px;
 	line-height: 1.5;
 }
-.story-why {
+.feed-preview-note {
 	margin: 6px 0 0;
 	color: var(--color-muted);
 	font-size: 13px;
 	font-style: italic;
 	line-height: 1.5;
 }
-.story-footer {
+.feed-preview-footer {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
@@ -1025,12 +1054,12 @@
 	padding-top: 12px;
 	border-top: 1px solid var(--color-line-soft);
 }
-.story-chips {
+.feed-preview-chips {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 6px;
 }
-.story-chips span {
+.feed-preview-chips span {
 	display: inline-flex;
 	align-items: center;
 	min-height: 28px;
@@ -1041,6 +1070,20 @@
 	color: var(--color-ink-2);
 	font-size: 12px;
 	font-weight: 600;
+}
+.feed-preview-event {
+	color: var(--color-muted);
+	font-size: 12px;
+}
+.feed-empty {
+	margin-top: 14px;
+	padding: 20px;
+	border: 1px solid var(--color-line-soft);
+	border-radius: 8px;
+	background: var(--color-surface-warm);
+	color: var(--color-ink-2);
+	font-size: 14px;
+	line-height: 1.5;
 }
 .feed-full-link {
 	min-height: 44px;
@@ -1093,7 +1136,6 @@
 }
 
 /* Digest list odds and ends. */
-.story-list,
 .plain-list {
 	margin: 16px 0 0;
 	padding: 0;
@@ -1125,10 +1167,6 @@
 }
 .person-meta {
 	margin-left: 6px;
-	color: var(--color-muted);
-	font-size: 12px;
-}
-.story-event {
 	color: var(--color-muted);
 	font-size: 12px;
 }
@@ -1492,6 +1530,9 @@
 	padding: 0;
 	list-style: none;
 	display: grid;
+}
+/* Card gap only on the feed page; the digest list is border-separated. */
+.feed-panel .feed-list {
 	gap: 12px;
 }
 .loading,
