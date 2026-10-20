@@ -2,6 +2,7 @@ import { error, fail, redirect } from '@sveltejs/kit';
 import {
 	ApiError,
 	generateDailySummary,
+	getClientSettings,
 	getDailySummary,
 	listSummaryDays,
 	listMentions,
@@ -12,13 +13,16 @@ import { splitTones } from '$lib/digest-stats';
 import type { Actions, PageServerLoad } from './$types';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const DEFAULT_TZ = 'America/Mexico_City';
 
-/** Server-local today as YYYY-MM-DD; the date input's default. */
-function todayIso(): string {
-	const now = new Date();
-	const mm = String(now.getMonth() + 1).padStart(2, '0');
-	const dd = String(now.getDate()).padStart(2, '0');
-	return `${now.getFullYear()}-${mm}-${dd}`;
+/** Calendar date in the display timezone (container may run UTC). */
+function todayIn(tz: string): string {
+	return new Intl.DateTimeFormat('en-CA', {
+		timeZone: tz,
+		year: 'numeric',
+		month: '2-digit',
+		day: '2-digit'
+	}).format(new Date());
 }
 
 function dayFromForm(value: FormDataEntryValue | null): string | null {
@@ -53,7 +57,13 @@ async function loadSideData(day: string) {
 
 export const load: PageServerLoad = async ({ url }) => {
 	const requested = url.searchParams.get('date');
-	const day = requested && DATE_RE.test(requested) ? requested : todayIso();
+	let day = requested && DATE_RE.test(requested) ? requested : null;
+	if (!day) {
+		// "Today" must follow the client display timezone, not the container
+		// clock (UTC): after 18:00 local the UTC date is already tomorrow.
+		const settings = await getClientSettings().catch(() => null);
+		day = todayIn(settings?.timezone || DEFAULT_TZ);
+	}
 	try {
 		const [summary, days] = await Promise.all([
 			getDailySummary(day),
