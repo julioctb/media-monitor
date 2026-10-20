@@ -193,6 +193,40 @@ def _fetch_page(url: str, client: httpx.Client) -> str | None:
         return None
 
 
+#: Link shorteners whose target is worth resolving at ingest (the root
+#: split would print garbage like "t" otherwise).
+SHORTENER_HOSTS = {
+    "t.co",
+    "bit.ly",
+    "ow.ly",
+    "tinyurl.com",
+    "is.gd",
+    "buff.ly",
+}
+
+
+def _is_shortener(url: str) -> bool:
+    try:
+        return urlsplit(url).netloc.removeprefix("www.") in SHORTENER_HOSTS
+    except ValueError:
+        return False
+
+
+def _resolve_shortener(url: str, client: httpx.Client) -> str | None:
+    """Final URL behind a generic link shortener, or None.
+
+    A plain GET with redirects follows the hop chain; ``response.url`` is
+    the landing page. Any failure returns None -- callers keep the input.
+    """
+    try:
+        response = client.get(url, follow_redirects=True)
+        final = str(response.url) if response.status_code < 400 else None
+        return final or None
+    except Exception as exc:  # noqa: BLE001 - best effort by contract
+        log.debug("shortener resolution failed for %s: %s", url, exc)
+        return None
+
+
 def resolve_publisher_url(url: str, client: httpx.Client | None = None) -> str:
     """Canonical publisher URL for dedupe; passthrough for non-Google-News.
 
@@ -202,11 +236,15 @@ def resolve_publisher_url(url: str, client: httpx.Client | None = None) -> str:
     fetch uses) makes both paths collide on one url_hash. Any failure returns
     the input untouched — dedupe must never break ingest.
     """
-    if not url or not _is_google_news(url):
+    if not url:
         return url
     own_client = client is None
     http = client or httpx.Client(timeout=FETCH_TIMEOUT_S, follow_redirects=True)
     try:
+        if _is_shortener(url):
+            return _resolve_shortener(url, http) or url
+        if not _is_google_news(url):
+            return url
         return _resolve_google_news_redirect(url, http) or url
     except Exception as exc:  # noqa: BLE001 - canonicalization is best-effort
         log.debug("publisher url resolution failed for %s: %s", url, exc)
