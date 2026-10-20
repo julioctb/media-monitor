@@ -435,6 +435,10 @@
 								autocomplete="off"
 								class={INPUT_CLS}
 							/>
+							<p class="field-hint">
+								Se guarda en la base del cliente; el backend la usa para enriquecimiento,
+								resumen y consultas.
+							</p>
 							<label class="check-row mt-2">
 								<input
 									type="checkbox"
