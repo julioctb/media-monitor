@@ -135,6 +135,38 @@ export function formatDayLabel(isoDate: string): string {
 }
 
 
+const MONTHS_ES = [
+	'enero',
+	'febrero',
+	'marzo',
+	'abril',
+	'mayo',
+	'junio',
+	'julio',
+	'agosto',
+	'septiembre',
+	'octubre',
+	'noviembre',
+	'diciembre'
+];
+
+const WEEKDAYS_ES = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+
+/**
+ * `2026-10-19` → `Domingo 19 de octubre, 2026` (digest h1, mockup wording).
+ * Non-date input falls through untouched. Computed in local time from the
+ * date-only components so no timezone can shift the weekday.
+ */
+export function formatLongDate(isoDate: string): string {
+	const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate);
+	if (!match) return isoDate;
+	const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+	if (Number.isNaN(date.getTime())) return isoDate;
+	const weekday = WEEKDAYS_ES[date.getDay()];
+	const capital = weekday.charAt(0).toUpperCase() + weekday.slice(1);
+	return `${capital} ${date.getDate()} de ${MONTHS_ES[date.getMonth()]}, ${date.getFullYear()}`;
+}
+
 /** Lowercase, de-accented, punctuation-free token set for fuzzy comparisons. */
 function contentTokens(text: string): Set<string> {
 	return new Set(

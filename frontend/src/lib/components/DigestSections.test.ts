@@ -8,7 +8,12 @@ import DigestSections from './DigestSections.svelte';
 function digestFixture(): DailySummaryContent {
 	return {
 		schema: 2,
-		coverage: { total: 2, by_source: { news_rss: 2 }, gaps: ['Facebook sin cobertura en la ventana'] },
+		coverage: {
+			total: 2,
+			by_source: { news_rss: 2 },
+			by_topic: { institutional: 1 },
+			gaps: ['Facebook sin cobertura en la ventana']
+		},
 		noticias: [
 			{
 				event_id: 673,
@@ -49,12 +54,17 @@ function digestFixture(): DailySummaryContent {
 	};
 }
 
+const TONES = {
+	media: { positive: 3, negative: 1, neutral: 2, unclassified: 1, total: 7 },
+	social: { positive: 0, negative: 0, neutral: 0, unclassified: 2, total: 2 }
+};
+
 let instance: Record<string, unknown> | undefined;
 
-function renderCard(content: DailySummaryContent) {
+function renderCard(content: DailySummaryContent, tones: typeof TONES | null = null) {
 	const target = document.createElement('div');
 	document.body.append(target);
-	instance = mount(DigestSections, { target, props: { content } });
+	instance = mount(DigestSections, { target, props: { content, tones } });
 	return target;
 }
 
@@ -67,32 +77,61 @@ describe('DigestSections', () => {
 	it('renders every editorial section', () => {
 		const host = renderCard(digestFixture());
 		const text = host.textContent ?? '';
-		for (const heading of ['Noticias', 'Rectora', 'Redes sociales', 'Personas mencionadas', 'Pendientes']) {
+		for (const heading of [
+			'Resumen general',
+			'Cobertura del día',
+			'Datos de campo',
+			'Lilia Cedillo Ramírez',
+			'Noticias del día',
+			'Personas mencionadas',
+			'Pendientes y silencios'
+		]) {
 			expect(text).toContain(heading);
 		}
 	});
 
-	it('shows topic, confidence, sources and rectora tone', () => {
+	it('shows story details, confidence and rectora watch note', () => {
 		const host = renderCard(digestFixture());
 		const text = host.textContent ?? '';
 		expect(text).toContain('Institucional');
 		expect(text).toContain('Confianza media');
 		expect(text).toContain('La rectora encabezó la inauguración.');
 		expect(text).toContain('Por qué importa: Obra regional emblemática.');
-		expect(text).toContain('Tono: positivo');
-		expect(text).toContain('reacciones post-votación');
+		expect(text).toContain('Vigilar: reacciones post-votación');
 		expect(text).toContain('BUAP inaugura edificio en Zacapoaxtla');
 	});
 
-	it('marks silent social sources and lists gaps', () => {
+	it('renders tone fallbacks and silent social sources without day stats', () => {
 		const host = renderCard(digestFixture());
 		const text = host.textContent ?? '';
-		expect(text).toContain('sin menciones');
+		expect(text).toContain('Sin calcular');
+		expect(text).toContain('Sin datos');
+		expect(text).toContain('X: sin menciones');
 		expect(text).toContain('Facebook sin cobertura en la ventana');
+		expect(text).toContain('distribución no disponible');
+	});
+
+	it('renders day tone split, category bars and rectora quotes', () => {
+		const host = renderCard(digestFixture(), TONES);
+		const text = host.textContent ?? '';
+		expect(text).toContain('Corresponde a las menciones de medios');
+		expect(text).toContain('1 · 50\u00a0%');
+		// Quote from the rectora news item, cited to its first source.
+		expect(text).toContain('News RSS · titular de la nota');
+	});
+
+	it('falls back to action quotes when no news item matches', () => {
+		const content = digestFixture();
+		content.noticias = [];
+		const host = renderCard(content);
+		const text = host.textContent ?? '';
+		expect(text).toContain('Inauguración');
+		expect(text).toContain('Resumen del día');
 	});
 
 	it('renders empty state without crash', () => {
 		const host = renderCard({ schema: 2 });
 		expect(host.textContent).toContain('Sin noticias registradas');
+		expect(host.textContent).toContain('Aún no hay resultados de campo');
 	});
 });

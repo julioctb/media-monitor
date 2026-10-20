@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { eventChipLabel, classificationLabel } from './format';
+import { eventChipLabel, classificationLabel, formatLongDate } from './format';
 
 describe('eventChipLabel', () => {
 	it('returns a plain CTA when the event title near-duplicates the mention title', () => {
@@ -32,5 +32,19 @@ describe('classificationLabel', () => {
 
 	it('passes unknown labels through untouched', () => {
 		expect(classificationLabel('whatever')).toBe('whatever');
+	});
+});
+
+describe('formatLongDate', () => {
+	it('renders the mockup wording for a known date', () => {
+		expect(formatLongDate('2026-10-19')).toBe('Lunes 19 de octubre, 2026');
+	});
+
+	it('capitalizes the weekday and handles month boundaries', () => {
+		expect(formatLongDate('2026-01-01')).toBe('Jueves 1 de enero, 2026');
+	});
+
+	it('falls through for non-ISO input', () => {
+		expect(formatLongDate('19/10/2026')).toBe('19/10/2026');
 	});
 });

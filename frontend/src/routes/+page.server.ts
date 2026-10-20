@@ -3,8 +3,12 @@ import {
 	ApiError,
 	generateDailySummary,
 	getDailySummary,
-	listSummaryDays
+	listSummaryDays,
+	listMentions,
+	listPersons,
+	listKeywords
 } from '$lib/api';
+import { splitTones } from '$lib/digest-stats';
 import type { Actions, PageServerLoad } from './$types';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -22,6 +26,31 @@ function dayFromForm(value: FormDataEntryValue | null): string | null {
 	return DATE_RE.test(raw) ? raw : null;
 }
 
+/** The UTC-day bounds the API expands date-only `since/until` to. */
+function nextDay(day: string): string {
+	const date = new Date(`${day}T12:00:00Z`);
+	date.setUTCDate(date.getUTCDate() + 1);
+	return date.toISOString().slice(0, 10);
+}
+
+/**
+ * Sidebar/summary aggregates: media vs social tone for the day, top
+ * tracked actors and active keywords. Each piece degrades to null/[]
+ * so a partial API outage keeps the digest readable.
+ */
+async function loadSideData(day: string) {
+	const [mentionsResult, persons, keywords] = await Promise.all([
+		listMentions({ since: day, until: nextDay(day), limit: 1000 })
+			.then((page) => splitTones(page.items))
+			.catch(() => null),
+		listPersons({ sort: 'mentions', limit: 3 }).catch(() => []),
+		listKeywords()
+			.then((rows) => rows.filter((keyword) => keyword.is_active))
+			.catch(() => [])
+	]);
+	return { tones: mentionsResult, persons, keywords };
+}
+
 export const load: PageServerLoad = async ({ url }) => {
 	const requested = url.searchParams.get('date');
 	const day = requested && DATE_RE.test(requested) ? requested : todayIso();
@@ -30,7 +59,8 @@ export const load: PageServerLoad = async ({ url }) => {
 			getDailySummary(day),
 			listSummaryDays().catch(() => [])
 		]);
-		return { day, summary, days };
+		const side = summary ? await loadSideData(day) : { tones: null, persons: [], keywords: [] };
+		return { day, summary, days, ...side };
 	} catch (cause) {
 		const status = cause instanceof ApiError && cause.status >= 400 ? cause.status : 503;
 		const detail = cause instanceof Error ? cause.message : 'error desconocido';
