@@ -61,10 +61,14 @@ const TONES = {
 
 let instance: Record<string, unknown> | undefined;
 
-function renderCard(content: DailySummaryContent, tones: typeof TONES | null = null) {
+function renderCard(
+	content: DailySummaryContent,
+	tones: typeof TONES | null = null,
+	props: Record<string, unknown> = {}
+) {
 	const target = document.createElement('div');
 	document.body.append(target);
-	instance = mount(DigestSections, { target, props: { content, tones } });
+	instance = mount(DigestSections, { target, props: { content, tones, ...props } });
 	return target;
 }
 
@@ -75,7 +79,7 @@ describe('DigestSections', () => {
 	});
 
 	it('renders every editorial section', () => {
-		const host = renderCard(digestFixture());
+		const host = renderCard(digestFixture(), null, { fieldCount: 3 });
 		const text = host.textContent ?? '';
 		for (const heading of [
 			'Resumen general',
@@ -130,9 +134,9 @@ describe('DigestSections', () => {
 		expect(text).toContain('Resumen del día');
 	});
 
-	it('renders empty state without crash', () => {
+	it('hides the field data section when the day has none', () => {
 		const host = renderCard({ schema: 2 });
 		expect(host.textContent).toContain('Sin noticias registradas');
-		expect(host.textContent).toContain('Aún no hay resultados de campo');
+		expect(host.textContent).not.toContain('Aún no hay resultados de campo');
 	});
 });
