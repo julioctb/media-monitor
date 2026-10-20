@@ -492,6 +492,20 @@ def test_worker_daily_summary_job(tmp_path, monkeypatch):
     client = Client(name="default")
     session.add(client)
     session.commit()
+    # The job skips mention-less days; seed one inside today's window so
+    # the build path is exercised.
+    from app.models import Mention
+
+    session.add(
+        Mention(
+            client_id=client.id,
+            source=MentionSource.news_rss,
+            url="https://example.com/worker-digest",
+            url_hash="hash-worker-digest",
+            published_at=datetime.now(timezone.utc),
+        )
+    )
+    session.commit()
     client_id = client.id
     session.close()
 
@@ -510,23 +524,25 @@ def test_worker_daily_summary_job(tmp_path, monkeypatch):
 
 
 def test_worker_scheduler_has_daily_summary_job(monkeypatch):
-    """build_scheduler registers the digest cron in the settings tz."""
+    """build_scheduler registers one digest cron per cut, in the settings tz."""
     from app import worker
 
     monkeypatch.setattr(worker, "_schedule_timezone", lambda: MX_TZ)
-    monkeypatch.setattr(worker, "_digest_hour", lambda: 21)
+    monkeypatch.setattr(worker, "_digest_hours", lambda: [21])
     scheduler = worker.build_scheduler()
     entries = {job.id: job for job in scheduler.get_jobs()}
-    job = entries["daily_summary"]
+    job = entries[f"{worker.DIGEST_JOB_PREFIX}21"]
     assert "hour='21'" in str(job.trigger)
     assert "minute='0'" in str(job.trigger)
+    assert "digest_schedule_sync" in entries
 
 
 def test_worker_scheduler_honors_digest_hour_setting(monkeypatch):
     from app import worker
 
     monkeypatch.setattr(worker, "_schedule_timezone", lambda: MX_TZ)
-    monkeypatch.setattr(worker, "_digest_hour", lambda: 7)
+    monkeypatch.setattr(worker, "_digest_hours", lambda: [7, 21])
     scheduler = worker.build_scheduler()
     entries = {job.id: job for job in scheduler.get_jobs()}
-    assert "hour='7'" in str(entries["daily_summary"].trigger)
+    assert "hour='7'" in str(entries[f"{worker.DIGEST_JOB_PREFIX}7"].trigger)
+    assert "hour='21'" in str(entries[f"{worker.DIGEST_JOB_PREFIX}21"].trigger)
