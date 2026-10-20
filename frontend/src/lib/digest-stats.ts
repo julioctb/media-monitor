@@ -7,9 +7,11 @@
  * the coherent empty state instead.
  */
 
-/** Sources counted as news media; every other tag is social/field. */
+/** Sources counted as news media; the known social tags are the exception. */
+const SOCIAL_SOURCES = new Set(['x_twitter', 'facebook_page']);
+
 export function isNewsSource(source: string): boolean {
-	return source === 'gdelt' || source.startsWith('news');
+	return !SOCIAL_SOURCES.has(source);
 }
 
 export interface ToneCounts {
