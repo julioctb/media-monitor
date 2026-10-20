@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { sourceLabel, topicLabel } from '$lib/format';
+	import { sourceLabel, sentimentLabel, topicLabel } from '$lib/format';
 
 	import { categoryRows, combineTones, toneRows, type ToneCounts } from '$lib/digest-stats';
 	import { formatDisplayDateTime } from '$lib/format';
@@ -8,11 +8,14 @@
 	let {
 		content,
 		tones = null,
+		sentimentByEvent = {},
 		updatedAt = null
 	}: {
 		content: DailySummaryContent;
 		/** Media/social sentiment split for the day; null when the query failed. */
 		tones?: { media: ToneCounts; social: ToneCounts } | null;
+		/** Majority sentiment per event id, keyed as string. Empty when unknown. */
+		sentimentByEvent?: Record<string, string>;
 		/** Summary last update, rendered in the rectora stamp. */
 		updatedAt?: string | null;
 	} = $props();
@@ -321,6 +324,10 @@
 									? item.sources.map((s) => sourceLabel(s.source)).join(' · ')
 									: 'Fuente no registrada'}
 							</span>
+							{#if item.event_id && sentimentByEvent[String(item.event_id)]}
+								{@const tone = sentimentByEvent[String(item.event_id)]}
+								<span class="sentiment {tone}">{sentimentLabel(tone)}</span>
+							{/if}
 						</div>
 						<h3 class="news-title">{item.title}</h3>
 						{#if item.summary}<p class="feed-preview-summary">{item.summary}</p>{/if}

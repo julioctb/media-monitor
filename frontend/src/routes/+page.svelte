@@ -49,6 +49,7 @@
 			<DigestSections
 				content={summary.content}
 				tones={data.tones}
+				sentimentByEvent={data.eventSentiment}
 				updatedAt={summary.updated_at}
 			/>
 

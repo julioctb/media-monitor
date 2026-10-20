@@ -36,17 +36,43 @@ function nextDay(day: string): string {
  * tracked actors and active keywords. Each piece degrades to null/[]
  * so a partial API outage keeps the digest readable.
  */
+type MentionLike = {
+	event_id?: number | null;
+	sentiment?: string | null;
+};
+
+/** Majority sentiment per canonical event, for the digest news pills. */
+function majoritySentimentByEvent(items: MentionLike[]): Record<string, string> {
+	const tally: Record<string, Record<string, number>> = {};
+	for (const item of items) {
+		if (!item.event_id || !item.sentiment || item.sentiment === 'none') continue;
+		const key = String(item.event_id);
+		const bucket = (tally[key] ??= {});
+		bucket[item.sentiment] = (bucket[item.sentiment] ?? 0) + 1;
+	}
+	const out: Record<string, string> = {};
+	for (const [key, counts] of Object.entries(tally)) {
+		out[key] = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+	}
+	return out;
+}
+
 async function loadSideData(day: string) {
 	const [mentionsResult, persons, keywords] = await Promise.all([
 		listMentions({ since: day, until: nextDay(day), limit: 1000 })
-			.then((page) => splitTones(page.items))
+			.then((page) => ({
+				tones: splitTones(page.items),
+				eventSentiment: majoritySentimentByEvent(page.items)
+			}))
 			.catch(() => null),
 		listPersons({ sort: 'mentions', limit: 3 }).catch(() => []),
 		listKeywords()
 			.then((rows) => rows.filter((keyword) => keyword.is_active))
 			.catch(() => [])
 	]);
-	return { tones: mentionsResult, persons, keywords };
+	const tones = mentionsResult?.tones ?? null;
+	const eventSentiment = mentionsResult?.eventSentiment ?? {};
+	return { tones, eventSentiment, persons, keywords };
 }
 
 export const load: PageServerLoad = async ({ url }) => {
@@ -63,7 +89,9 @@ export const load: PageServerLoad = async ({ url }) => {
 			getDailySummary(day),
 			listSummaryDays().catch(() => [])
 		]);
-		const side = summary ? await loadSideData(day) : { tones: null, persons: [], keywords: [] };
+		const side = summary
+			? await loadSideData(day)
+			: { tones: null, eventSentiment: {}, persons: [], keywords: [] };
 		return { day, summary, days, ...side };
 	} catch (cause) {
 		const status = cause instanceof ApiError && cause.status >= 400 ? cause.status : 503;
