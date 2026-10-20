@@ -672,6 +672,8 @@ interface DigestNewsItem {
 	sources: DigestSourceRef[];
 	/** alta | media | baja — rule-based, never LLM-authored. */
 	confidence?: string;
+	/** The event circulated in a previous edition; cover as reiteration. */
+	repeat?: boolean;
 	person_ids?: number[];
 	why_it_matters?: string | null;
 }

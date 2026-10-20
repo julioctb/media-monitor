@@ -24,7 +24,7 @@ from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 import httpx
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.enrich.llm import strip_code_fence
 
@@ -166,10 +166,20 @@ def _heuristic_headline(day: date, total: int, silent: list[str], by_source: dic
 
 
 def _digest_prompt(day: date, facts: dict) -> str:
+    repeats = any(n.get("repeat") for n in facts.get("noticias", []))
+    extra = (
+        "\nLas notas con repeat=true ya fueron cubiertas en ediciones "
+        "anteriores: trátalas como reiteración breve, destacando solo el "
+        "ángulo nuevo. Destaca explícitamente los cambios de tono negativos "
+        "del día."
+        if repeats
+        else ""
+    )
     return (
         f"Digest del {day.isoformat()} (todas las cifras y títulos son datos "
         f"verificados; el items[i].index corres a noticias[i]):\n"
         f"{json.dumps(facts, ensure_ascii=False, default=str)}"
+        f"{extra}"
     )
 
 
@@ -308,6 +318,26 @@ def build_daily_summary(
         # Persist the extended bounds: later cuts rebuild with the same
         # window instead of dropping the rescued late-evening tail.
         content["window_start"] = start.isoformat()
+
+    # Repeat detection: events whose earliest mention predates this
+    # window were already circulating in previous editions; the narrative
+    # must treat them as reiterations, not new stories.
+    window_start_utc = start.astimezone(timezone.utc)
+    for noticia in content["noticias"]:
+        eid = noticia.get("event_id")
+        if not eid:
+            continue
+        earliest = session.scalar(
+            select(func.min(Mention.published_at)).where(
+                Mention.client_id == client_id, Mention.event_id == eid
+            )
+        )
+        if earliest is not None:
+            # SQLite returns naive walls; normalize for the comparison.
+            if earliest.tzinfo is None:
+                earliest = earliest.replace(tzinfo=timezone.utc)
+            if earliest < window_start_utc:
+                noticia["repeat"] = True
 
     narrative = _heuristic_headline(day, total, silent, content["coverage"]["by_source"])
     mode = "heuristic"

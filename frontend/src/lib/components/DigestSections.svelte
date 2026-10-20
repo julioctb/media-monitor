@@ -341,6 +341,7 @@
 							.join(' ')}
 					>
 						{#snippet footerLeft()}
+							{#if item.repeat}<span class="text-meta">Reiteración</span>{/if}
 							{#if item.topic}<span>Categoría · {topicLabel(item.topic)}</span>{/if}
 						{/snippet}
 
