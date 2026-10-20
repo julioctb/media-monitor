@@ -50,6 +50,7 @@
 				content={summary.content}
 				tones={data.tones}
 				sentimentByEvent={data.eventSentiment}
+				fieldCount={data.fieldCount}
 				updatedAt={summary.updated_at}
 			/>
 

@@ -10,6 +10,7 @@
 		content,
 		tones = null,
 		sentimentByEvent = {},
+		fieldCount = 0,
 		updatedAt = null
 	}: {
 		content: DailySummaryContent;
@@ -17,6 +18,8 @@
 		tones?: { media: ToneCounts; social: ToneCounts } | null;
 		/** Majority sentiment per event id, keyed as string. Empty when unknown. */
 		sentimentByEvent?: Record<string, string>;
+		/** Field-data mentions for the day; the section hides at zero. */
+		fieldCount?: number;
 		/** Summary last update, rendered in the rectora stamp. */
 		updatedAt?: string | null;
 	} = $props();
@@ -212,6 +215,7 @@
 	{/if}
 </section>
 
+{#if fieldCount > 0}
 <section id="datos-campo" class="section" aria-labelledby="datos-campo-heading">
 	<div class="section-heading">
 		<h2 id="datos-campo-heading">Datos de campo</h2>
@@ -237,6 +241,7 @@
 		tiempo real.
 	</p>
 </section>
+{/if}
 
 <section id="rectora" class="section" aria-labelledby="rectora-heading">
 	<div class="section-heading">

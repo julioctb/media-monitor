@@ -62,7 +62,8 @@ async function loadSideData(day: string) {
 		listMentions({ since: day, until: nextDay(day), limit: 200 })
 			.then((page) => ({
 				tones: splitTones(page.items),
-				eventSentiment: majoritySentimentByEvent(page.items)
+				eventSentiment: majoritySentimentByEvent(page.items),
+				fieldCount: page.items.filter((m) => m.source === 'field').length
 			}))
 			.catch(() => null),
 		listPersons({ sort: 'mentions', limit: 3 }).catch(() => []),
@@ -72,7 +73,10 @@ async function loadSideData(day: string) {
 	]);
 	const tones = mentionsResult?.tones ?? null;
 	const eventSentiment = mentionsResult?.eventSentiment ?? {};
-	return { tones, eventSentiment, persons, keywords };
+	const fieldCount = mentionsResult?.fieldCount ?? 0;
+	// Field-data ingest does not exist yet; count for the day drives the
+	// conditional "Datos de campo" section (hidden while zero).
+	return { tones, eventSentiment, fieldCount, persons, keywords };
 }
 
 export const load: PageServerLoad = async ({ url }) => {
@@ -100,7 +104,7 @@ export const load: PageServerLoad = async ({ url }) => {
 		}
 		const side = visible
 			? await loadSideData(day)
-			: { tones: null, eventSentiment: {}, persons: [], keywords: [] };
+			: { tones: null, eventSentiment: {}, fieldCount: 0, persons: [], keywords: [] };
 		return { day, summary: visible, days, ...side };
 	} catch (cause) {
 		const status = cause instanceof ApiError && cause.status >= 400 ? cause.status : 503;
