@@ -483,6 +483,9 @@
 	align-items: baseline;
 	justify-content: space-between;
 	gap: 8px 16px;
+	/* Divider under every section heading (mockup .section-heading). */
+	padding-bottom: 12px;
+	border-bottom: 1px solid var(--color-line-soft);
 	margin: 0 0 4px;
 }
 .section-heading h2 {
@@ -2196,11 +2199,12 @@ span.page-button {
 	border-bottom: 1px solid var(--color-line);
 	font: 600 21px / 1.2 var(--font-display);
 }
-/* Results heading = mockup .panel-heading: rule under title + note. */
+/* Results heading: feed keeps the stronger line variant; divider comes
+   from the base .section-heading (single source of truth). */
 .feed-panel .section-heading {
 	margin-bottom: 0;
 	padding-bottom: 14px;
-	border-bottom: 1px solid var(--color-line);
+	border-bottom-color: var(--color-line);
 }
 .feed-panel .section-note {
 	font-size: 12px;
