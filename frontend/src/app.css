@@ -2079,6 +2079,12 @@ span.page-button {
 	text-decoration-color: var(--color-ink);
 }
 .item-summary {
+	/* 2-line teaser per mockup; full text lives at the source link. */
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+	line-clamp: 2;
+	overflow: hidden;
 	margin: 6px 0 0;
 	color: var(--color-ink-2);
 	font-size: 14px;
