@@ -59,7 +59,7 @@ function majoritySentimentByEvent(items: MentionLike[]): Record<string, string> 
 
 async function loadSideData(day: string) {
 	const [mentionsResult, persons, keywords] = await Promise.all([
-		listMentions({ since: day, until: nextDay(day), limit: 1000 })
+		listMentions({ since: day, until: nextDay(day), limit: 200 })
 			.then((page) => ({
 				tones: splitTones(page.items),
 				eventSentiment: majoritySentimentByEvent(page.items)
