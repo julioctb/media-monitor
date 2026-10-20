@@ -3,10 +3,16 @@ import {
 	ApiError,
 	getClientSettings,
 	listAvailableScrapers,
+	listKeywords,
 	testAi,
 	testFacebookPage,
 	updateClientSettings
 } from '$lib/api';
+import {
+	handleKeywordCreate,
+	handleKeywordDelete,
+	handleKeywordToggle
+} from '$lib/keyword-actions';
 import type { Actions, PageServerLoad } from './$types';
 
 /** Uniform action result: every branch carries the same keys for the view. */
@@ -96,9 +102,11 @@ function readFacebookPages(form: FormData): { page_id: string; token: string; la
 export const load: PageServerLoad = async () => {
 	try {
 		// Best-effort: an unavailable registry must not block the page; the
-		// card renders an empty state instead.
+		// card renders an empty state instead. Keywords feed the embedded
+		// panel; a failure there degrades to an empty table.
 		const scrapersAvailable = await listAvailableScrapers().catch(() => []);
-		return { settings: await getClientSettings(), scrapersAvailable };
+		const keywords = await listKeywords().catch(() => []);
+		return { settings: await getClientSettings(), scrapersAvailable, keywords };
 	} catch (cause) {
 		const status = cause instanceof ApiError && cause.status >= 400 ? cause.status : 503;
 		const detail = cause instanceof Error ? cause.message : 'error desconocido';
@@ -107,6 +115,10 @@ export const load: PageServerLoad = async () => {
 };
 
 export const actions: Actions = {
+	createKeyword: ({ request }) => handleKeywordCreate(request),
+	toggleKeyword: ({ request }) => handleKeywordToggle(request),
+	deleteKeyword: ({ request }) => handleKeywordDelete(request),
+
 	save: async ({ request }) => {
 		const form = await request.formData();
 

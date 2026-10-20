@@ -8,7 +8,7 @@ el usuario reporta cambios visuales incompletos.
 
 ## Estado
 - Gap analysis: hecha (spec en el encargo). A resumen-diario: implementada (commit feat(digest)).
-- C feed: implementada (commit feat(feed)). D configuracion / E shell+menores: pendientes.
+- D configuracion: implementada (keywords unificadas via KeywordsPanel + acciones compartidas; /keywords queda como ruta con la misma tabla). E shell+menores: pendiente.
 
 ## Verificación
 - `cd frontend && npm run check && npx vitest run`
