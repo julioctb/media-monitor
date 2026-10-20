@@ -1948,6 +1948,18 @@ span.page-button {
 	display: grid;
 	gap: 16px;
 }
+/* Keep the aside inside its grid column: date inputs have a wide
+   intrinsic size that otherwise forces horizontal overflow. */
+.sidebar .filter-stack,
+.sidebar .filter-group,
+.sidebar .date-row,
+.sidebar .sidebar-section {
+	min-width: 0;
+}
+.sidebar .date-row input {
+	width: 100%;
+	min-width: 0;
+}
 /* Digest home: mockup keeps the aside rail AND boxed sections
    (.sidebar-section carries bg/border/radius in the mockup base). */
 .digest-aside {
