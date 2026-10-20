@@ -1,15 +1,10 @@
 <script lang="ts">
-	import { BTN_PRIMARY_CLS, COMPACT_CLS, INPUT_CLS } from '$lib/ui';
+	import { BTN_PRIMARY_CLS, INPUT_CLS } from '$lib/ui';
 	import { formatDisplayDateTime } from '$lib/format';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
 
-
-	let filterForm: HTMLFormElement | undefined = $state();
-	function submitFilters() {
-		filterForm?.requestSubmit();
-	}
 
 	function initials(name: string): string {
 		return name
@@ -37,7 +32,7 @@
 
 <section class="filter-panel" aria-labelledby="persons-filter-title">
 	<h2 class="panel-title" id="persons-filter-title">Filtrar actores</h2>
-	<form bind:this={filterForm} method="get" class="filter-form mt-3">
+	<form method="get" class="filter-form mt-3">
 		<div class="min-w-0 flex-1">
 			<label class="mb-1.5 block text-xs font-semibold text-ink-2" for="q">Buscar actor</label>
 			<input
@@ -48,13 +43,6 @@
 				value={data.q}
 				placeholder="Nombre, cargo o institución"
 			/>
-		</div>
-		<div>
-			<label class="mb-1.5 block text-xs font-semibold text-ink-2" for="sort">Orden</label>
-			<select id="sort" name="sort" class={COMPACT_CLS} onchange={submitFilters}>
-				<option value="mentions" selected={data.sort === 'mentions'}>Más mencionadas</option>
-				<option value="recent" selected={data.sort === 'recent'}>Actividad reciente</option>
-			</select>
 		</div>
 		<button class={BTN_PRIMARY_CLS} type="submit">Buscar</button>
 	</form>
