@@ -405,9 +405,6 @@
 		align-items: stretch;
 		flex-direction: column;
 	}
-	.filter-form .btn {
-		width: 100%;
-	}
 }
 
 /* ============================================================
@@ -871,17 +868,6 @@ div.coverage {
 	color: var(--color-muted);
 	font-size: 12px;
 	line-height: 1.45;
-}
-.actor-count {
-	margin: 14px 0 0;
-	padding-top: 12px;
-	border-top: 1px solid var(--color-line-soft);
-	color: var(--color-ink-2);
-	font-size: 12px;
-}
-.actor-count strong {
-	color: var(--color-ink);
-	font-weight: 600;
 }
 .actor-link {
 	display: inline-flex;
@@ -1787,7 +1773,6 @@ table.coverage th {
 .feed-panel .feed-list {
 	gap: 12px;
 }
-.loading,
 .error-state {
 	margin-top: 18px;
 	padding: 24px;

@@ -123,27 +123,6 @@ export interface KeywordPatch {
 	is_active?: boolean;
 }
 
-export type AlertDigest = 'instant' | 'daily' | 'weekly';
-
-export interface AlertSettings {
-	digest: AlertDigest;
-	recipient_email: string | null;
-	is_active: boolean;
-	/** Sentiment-shift rule (T4): net share swing gate, in points. */
-	sentiment_shift_enabled: boolean;
-	sentiment_shift_threshold: number;
-}
-
-export interface AlertSettingsInput {
-	digest: AlertDigest;
-	/** The API requires a valid address on every PUT. */
-	recipient_email: string;
-	is_active: boolean;
-	/** Absent keys keep the stored values. */
-	sentiment_shift_enabled?: boolean;
-	sentiment_shift_threshold?: number;
-}
-
 interface DailyVolumePoint {
 	/** ISO date of the UTC day bucket. */
 	date: string;
@@ -374,17 +353,6 @@ export function updateKeyword(
 
 export async function deleteKeyword(id: number, options: RequestOptions = {}): Promise<void> {
 	await request<void>(`/api/keywords/${id}`, { method: 'DELETE' }, options);
-}
-
-export function getAlertSettings(options: RequestOptions = {}): Promise<AlertSettings> {
-	return request<AlertSettings>('/api/alerts/settings', { method: 'GET' }, options);
-}
-
-export function updateAlertSettings(
-	input: AlertSettingsInput,
-	options: RequestOptions = {}
-): Promise<AlertSettings> {
-	return request<AlertSettings>('/api/alerts/settings', jsonInit('PUT', input), options);
 }
 
 /* --------------------------------- settings -------------------------------- */

@@ -18,8 +18,8 @@
 		children?: NavNode[];
 	}
 
-	// Flat nav, mockup order. Estadísticas/Alertas are real pages and stay;
-	// Alertas/Configuración keep a sub-tab strip for their secondary pages
+	// Flat nav, mockup order. Estadísticas/Búsquedas are real pages and stay;
+	// Configuración keeps a sub-tab strip for its secondary page
 	// (saved-searches / keywords) instead of more top-level entries.
 	const navGroups: NavGroup[] = [
 		{ label: 'Resumen', href: '/' },
@@ -79,7 +79,7 @@
 				{menuOpen ? 'Cerrar' : 'Menú'}
 			</button>
 
-			<nav class={`nav${menuOpen ? ' open' : ''}`} id="primary-nav" aria-label="Principal">
+			<nav class={`nav${menuOpen ? ' open' : ''}`} id="primary-nav" aria-label="Navegación principal">
 				{#each navGroups as group (group.href)}
 					<a
 						href={group.href}
