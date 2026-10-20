@@ -10,7 +10,6 @@
 	let {
 		variant = 'card',
 		channel,
-		sourceDetail = null,
 		sentimentClass = null,
 		sentimentText = null,
 		title,
@@ -24,8 +23,6 @@
 	}: {
 		variant?: 'card' | 'row';
 		channel: string;
-		/** Concrete outlet next to the channel (domain / @account / page). */
-		sourceDetail?: string | null;
 		/** Sentiment css key (positive|negative|neutral); pill hidden when null. */
 		sentimentClass?: string | null;
 		sentimentText?: string | null;
@@ -44,9 +41,7 @@
 
 <article class={variant === 'card' ? 'feed-card' : 'feed-preview'} aria-labelledby={titleId}>
 	<div class="item-top">
-		<span class="item-channel">
-			{channel}{#if sourceDetail}<span class="item-source"> ({sourceDetail})</span>{/if}
-		</span>
+		<span class="item-channel">{channel}</span>
 		{#if sentimentClass && sentimentText}
 			<span class="sentiment {sentimentClass}">{sentimentText}</span>
 		{/if}

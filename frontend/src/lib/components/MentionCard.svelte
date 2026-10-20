@@ -31,17 +31,19 @@
 				? 'Noticias'
 				: 'Redes sociales'
 	);
-	/** Concrete outlet: news → URL host; social → author handle/page. */
-	const sourceDetail = $derived.by(() => {
-		if (!isNewsSource(mention.source)) {
-			const author = mention.author?.trim();
-			if (author) return author;
+	/** Source chain per mockup: canal · medio · autor. */
+	const sourceChain = $derived.by(() => {
+		const parts = [channelLabel];
+		if (isNewsSource(mention.source)) {
+			const outlet = outletFromUrl(mention.url);
+			if (outlet) parts.push(outlet);
+		} else {
+			const platform = PLATFORM_LABEL[mention.source] ?? null;
+			if (platform) parts.push(platform);
 		}
-		try {
-			return new URL(mention.url).hostname.replace(/^www\./, '');
-		} catch {
-			return mention.author?.trim() ?? null;
-		}
+		const author = mention.author?.trim();
+		if (author) parts.push(author);
+		return parts.join(' · ');
 	});
 	/** Body: the editorial summary when enriched, else the article excerpt. */
 	const body = $derived.by(() => {
@@ -50,6 +52,26 @@
 		const content = mention.content?.trim();
 		return content ? { text: content, clamp: true } : { text: null, clamp: false };
 	});
+
+	/** Second chain link: domain root for news (e-consulta), platform for social. */
+	function outletFromUrl(url: string): string | null {
+		try {
+			const host = new URL(url).hostname.replace(/^www\./, '');
+			return host.split('.').shift() ?? null;
+		} catch {
+			return null;
+		}
+	}
+
+	const PLATFORM_LABEL: Record<string, string> = {
+		x_twitter: 'X',
+		twitter: 'X',
+		facebook: 'Facebook',
+		facebook_page: 'Facebook',
+		instagram: 'Instagram',
+		youtube: 'YouTube',
+		tiktok: 'TikTok'
+	};
 	const topics = $derived(mention.classifications?.filter((c) => c.classifier === 'topic') ?? []);
 	const headline = $derived(mention.title?.trim() || mention.url);
 
@@ -68,8 +90,7 @@
 
 <NewsEntry
 	variant="card"
-	channel={channelLabel}
-	sourceDetail={sourceDetail}
+	channel={sourceChain}
 	sentimentClass={sentimentClass}
 	sentimentText={sentimentText}
 	title={headline}

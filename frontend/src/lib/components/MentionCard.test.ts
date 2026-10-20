@@ -72,7 +72,7 @@ describe('MentionCard', () => {
 		const { card } = renderCard({ mention: mentionFixture() });
 
 		expect(card.textContent).toContain('Noticias');
-		expect(card.textContent).toContain('example.com');
+		expect(card.textContent).toContain('Noticias · example');
 		expect(card.textContent).not.toContain('Fuente:');
 		expect(card.querySelector('.item-top .sentiment')?.textContent).toContain('Positivo');
 		expect(card.querySelector('.sentiment.positive')).not.toBeNull();

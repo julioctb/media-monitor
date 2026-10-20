@@ -2130,10 +2130,6 @@ span.page-button {
 	line-clamp: 2;
 	overflow: hidden;
 }
-.item-source {
-	color: var(--color-muted);
-	font-weight: 400;
-}
 .item-footer {
 	border-top: 1px solid var(--color-line-soft);
 	padding-top: 10px;
