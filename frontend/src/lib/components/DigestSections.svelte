@@ -1,4 +1,5 @@
 <script lang="ts">
+	import NewsEntry from '$lib/components/NewsEntry.svelte';
 	import { sourceLabel, sentimentLabel, topicLabel } from '$lib/format';
 
 	import { categoryRows, combineTones, toneRows, type ToneCounts } from '$lib/digest-stats';
@@ -317,32 +318,32 @@
 		<ol class="editorial-list feed-list" aria-label="Feed de noticias del día">
 			{#each visibleNews as item, i (item.event_id ?? `i${i}`)}
 				<li class="news-item" data-channel="news">
-					<article class="feed-preview">
-						<div class="feed-preview-top">
-							<span class="feed-channel">
-								{item.sources.length > 0
-									? [...new Set(item.sources.map((s) => sourceLabel(s.source)))].join(' · ')
-									: 'Fuente no registrada'}
-							</span>
-							{#if item.event_id && sentimentByEvent[String(item.event_id)]}
-								{@const tone = sentimentByEvent[String(item.event_id)]}
-								<span class="sentiment {tone}">{sentimentLabel(tone)}</span>
+					<NewsEntry
+						variant="row"
+						channel={item.sources.length > 0
+							? [...new Set(item.sources.map((s) => sourceLabel(s.source)))].join(' · ')
+							: 'Fuente no registrada'}
+						sentimentClass={item.event_id ? (sentimentByEvent[String(item.event_id)] ?? null) : null}
+						sentimentText={item.event_id && sentimentByEvent[String(item.event_id)]
+							? sentimentLabel(sentimentByEvent[String(item.event_id)])
+							: null}
+						title={item.title ?? 'Sin título'}
+						teaser={item.summary ?? null}
+					>
+						{#snippet note()}
+							{#if item.why_it_matters}
+								<p class="feed-preview-note">Por qué importa: {item.why_it_matters}</p>
 							{/if}
-						</div>
-						<h3 class="news-title">{item.title}</h3>
-						{#if item.summary}<p class="feed-preview-summary">{item.summary}</p>{/if}
-						{#if item.why_it_matters}
-							<p class="feed-preview-note">Por qué importa: {item.why_it_matters}</p>
-						{/if}
-						<div class="feed-preview-footer">
-							<div class="feed-preview-chips" aria-label="Categoría y actor">
-								{#if item.topic}<span>Categoría · {topicLabel(item.topic)}</span>{/if}
-							</div>
-							<span class="feed-preview-event">
-								{item.event_id ? `Evento #${item.event_id}` : 'Sin evento relacionado'}
-							</span>
-						</div>
-					</article>
+						{/snippet}
+
+						{#snippet footerLeft()}
+							{#if item.topic}<span>Categoría · {topicLabel(item.topic)}</span>{/if}
+						{/snippet}
+
+						{#snippet footerRight()}
+							{item.event_id ? `Evento #${item.event_id}` : 'Sin evento relacionado'}
+						{/snippet}
+					</NewsEntry>
 				</li>
 			{/each}
 		</ol>

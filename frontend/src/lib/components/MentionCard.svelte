@@ -1,13 +1,7 @@
 <script lang="ts">
-	import {
-		eventChipLabel,
-		formatDisplayDateTime,
-		sentimentLabel,
-		sourceLabel,
-		topicBadgeClass,
-		topicLabel
-	} from '$lib/format';
+	import { eventChipLabel, formatDisplayDateTime, sentimentLabel, sourceLabel, topicBadgeClass, topicLabel } from '$lib/format';
 	import type { Mention } from '$lib/api';
+	import NewsEntry from '$lib/components/NewsEntry.svelte';
 
 	/** Canonical event context, shown as a chip when the caller resolved it. */
 	export interface MentionEventRef {
@@ -41,69 +35,47 @@
 		neutral: 'neutral'
 	};
 	const sentimentClass = $derived(
-		mention.sentiment ? (SENTIMENT_CLASS[mention.sentiment] ?? 'neutral') : ''
+		mention.sentiment ? (SENTIMENT_CLASS[mention.sentiment] ?? 'neutral') : 'neutral'
 	);
 	const sentimentText = $derived(
 		mention.sentiment ? sentimentLabel(mention.sentiment) : 'Sin clasificar'
 	);
 </script>
 
-<article
-	aria-labelledby={`mention-${mention.id}-title`}
-	class="feed-card"
+<NewsEntry
+	variant="card"
+	channel={sourceLabel(mention.source)}
+	sentimentClass={sentimentClass}
+	sentimentText={sentimentText}
+	title={headline}
+	titleHref={mention.url}
+	titleId={`mention-${mention.id}-title`}
+	teaser={mention.content?.trim() || null}
+	detailsText={typeof mention.summary === 'string' && mention.summary.trim() !== '' ? mention.summary : null}
 >
-	<div class="item-top">
-		<span class="item-channel">{sourceLabel(mention.source)}</span>
-		<span class="sentiment {sentimentClass}">{sentimentText}</span>
-	</div>
-
-	<p class="item-meta">
+	{#snippet meta()}
 		<time datetime={when}>{formatDisplayDateTime(when)}</time>{inferred ? '*' : ''}
 		{#if keywordLabel}<span>· Palabra clave: {keywordLabel}</span>{/if}
 		{#if mention.reach !== null}<span>· Alcance: {mention.reach}</span>{/if}
-	</p>
+	{/snippet}
 
-	<h3 id={`mention-${mention.id}-title`} class="item-title">
-		<a
-			href={mention.url}
-			target="_blank"
-			rel="noopener noreferrer"
-			aria-label={`${headline} (abre en una pestaña nueva)`}
-		>
-			{headline}
-		</a>
-	</h3>
+	{#snippet footerLeft()}
+		{#if isPolitical}<span>Política</span>{/if}
+		{#each (mention.persons ?? []) as person (person.id)}
+			<a href={`/persons/${person.id}`} title="Ver persona">{person.name}</a>
+		{/each}
+		{#each topics as topic (topic.label)}
+			<span class={`topic-chip ${topicBadgeClass(topic.label)}`}>{topicLabel(topic.label)}</span>
+		{/each}
+	{/snippet}
 
-	{#if mention.content?.trim()}
-		<p class="item-summary">{mention.content}</p>
-	{/if}
+	{#snippet footerRight()}
+		{#if event}
+			<a href={`/events/${event.id}`} title={event.title}>{eventChipLabel(mention.title, event.title)}</a>
+		{:else}
+			Sin evento relacionado
+		{/if}
+	{/snippet}
+</NewsEntry>
 
-	<div class="item-footer">
-		<div class="item-chips">
-			{#if isPolitical}<span>Política</span>{/if}
-			{#each (mention.persons ?? []) as person (person.id)}
-				<a href={`/persons/${person.id}`} title="Ver persona">{person.name}</a>
-			{/each}
-			{#each topics as topic (topic.label)}
-				<span class={`topic-chip ${topicBadgeClass(topic.label)}`}>{topicLabel(topic.label)}</span>
-			{/each}
-		</div>
-		<span class="item-event">
-			{#if event}
-				<a href={`/events/${event.id}`} title={event.title}>{eventChipLabel(mention.title, event.title)}</a>
-			{:else}
-				Sin evento relacionado
-			{/if}
-		</span>
-	</div>
-
-	{#if typeof mention.summary === 'string' && mention.summary.trim() !== ''}
-		<details class="mt-2">
-			<summary class="cursor-pointer text-xs font-medium text-muted hover:text-ink">
-				Resumen del análisis
-			</summary>
-			<p class="mt-1 border-l-2 border-line pl-3 text-sm text-ink-2">{mention.summary}</p>
-		</details>
-	{/if}
-</article>
 
