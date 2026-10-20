@@ -128,6 +128,14 @@ export function formatDisplayDateTime(value: string | null | undefined): string 
 
 const dayFormatter = new Intl.DateTimeFormat('es', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 
+/** `2026-10-19T06:24` → `19/10/2026 a las 06:24` (detalle-actor mockup). */
+export function formatDisplayDateTimeAt(value: string | null | undefined): string {
+	const base = formatDisplayDateTime(value);
+	if (!base || base === '—') return base;
+	const [date, time] = base.split(' ');
+	return time ? `${date} a las ${time}` : base;
+}
+
 /** `2026-10-08` → `8 oct`, for chart axes (UTC, never shifted a day). */
 export function formatDayLabel(isoDate: string): string {
 	const date = new Date(`${isoDate}T00:00:00Z`);

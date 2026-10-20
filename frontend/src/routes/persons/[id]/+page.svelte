@@ -1,6 +1,7 @@
 <script lang="ts">
 	import {
 		formatDisplayDateTime,
+		formatDisplayDateTimeAt,
 		sentimentLabel,
 		sourceLabel
 	} from '$lib/format';
@@ -62,26 +63,14 @@
 		</div>
 	</div>
 	<div class="grid grid-cols-2 gap-3 sm:grid-cols-4" aria-label="Estadísticas históricas de menciones">
-		<div class="rounded-2xl border border-line-soft bg-white px-5 py-4 text-center">
-			<strong class="block text-2xl font-semibold tabular-nums text-ink">
-				{person.mention_count}
-			</strong>
-			<span class="text-xs text-muted">Menciones totales</span>
+		<div class="profile-stat">
+			<strong>{person.mention_count}</strong>
+			<span>Menciones totales</span>
 		</div>
-		{#each Object.entries(sentimentCounts) as [sentiment, count] (sentiment)}
-			<div class="rounded-2xl border border-line-soft bg-white px-5 py-4 text-center">
-				<strong
-					class={`block text-2xl font-semibold tabular-nums ${
-						sentiment === 'positive'
-							? 'text-success'
-							: sentiment === 'negative'
-								? 'text-danger'
-								: 'text-muted'
-					}`}
-				>
-					{count}
-				</strong>
-				<span class="text-xs text-muted">
+		{#each Object.entries(sentimentCounts) as [sentiment, count] (`${sentiment}-${count}`)}
+			<div class={`profile-stat ${sentiment}-stat`}>
+				<strong>{count}</strong>
+				<span>
 					{sentiment === 'positive' ? 'Positivas' : sentiment === 'negative' ? 'Negativas' : 'Neutras'}
 				</span>
 			</div>
@@ -115,7 +104,7 @@
 							</span>
 						{/if}
 						<time datetime={item.published_at ?? item.ingested_at} class="tabular-nums">
-							{formatDisplayDateTime(item.published_at ?? item.ingested_at)}
+							{formatDisplayDateTimeAt(item.published_at ?? item.ingested_at)}
 						</time>
 					</div>
 					<h3 class="mt-2 text-sm font-semibold text-ink">
@@ -147,6 +136,11 @@
 					{/if}
 				</li>
 			{/each}
-		</ol>
-	{/if}
-</section>
+			</ol>
+			{/if}
+			</section>
+
+			<p class="sample-note">
+				Los recuentos corresponden al histórico completo del cliente; el timeline refleja las
+				menciones vinculadas al actor durante el enriquecimiento.
+			</p>

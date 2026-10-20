@@ -18,15 +18,14 @@
 		children?: NavNode[];
 	}
 
-	// Grouped by intent (informarse / analizar / vigilar / configurar). Routes
-	// are untouched: groups only change navigation, so saved links keep
-	// working. A group's second page is reached via the tab strip, never a
-	// JS dropdown.
+	// Flat nav, mockup order. Estadísticas/Alertas are real pages and stay;
+	// Alertas/Configuración keep a sub-tab strip for their secondary pages
+	// (saved-searches / keywords) instead of more top-level entries.
 	const navGroups: NavGroup[] = [
 		{ label: 'Resumen', href: '/' },
 		{ label: 'Feed', href: '/feed' },
 		{ label: 'Eventos', href: '/events' },
-		{ label: 'Personas', href: '/persons' },
+		{ label: 'Actores', href: '/persons' },
 		{ label: 'Consultas', href: '/consultas' },
 		{ label: 'Estadísticas', href: '/stats' },
 		{
@@ -88,7 +87,7 @@
 			</button>
 
 			<nav class={`nav${menuOpen ? ' open' : ''}`} id="primary-nav" aria-label="Principal">
-				{#each navGroups as group (group.label)}
+				{#each navGroups as group (group.href)}
 					<a
 						href={group.href}
 						aria-current={groupActive(group) ? 'page' : undefined}

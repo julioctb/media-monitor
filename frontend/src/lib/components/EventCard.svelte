@@ -11,7 +11,7 @@
 
 <article
 	aria-labelledby={`event-${event.id}-title`}
-	class="flex h-full flex-col rounded-2xl border border-line-soft bg-white p-5 transition-colors hover:border-line"
+	class="group flex h-full flex-col rounded-2xl border border-line-soft bg-white p-5 transition-colors hover:border-line"
 >
 	<div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-meta">
 		<span class="tabular-nums">{`${event.mention_count} ${event.mention_count === 1 ? 'mención' : 'menciones'}`}</span>
@@ -25,9 +25,10 @@
 	</div>
 
 	<h3 id={`event-${event.id}-title`} class="mt-2 text-base font-semibold leading-snug text-ink">
+		<!-- Hover underlines the title only, never the whole card. -->
 		<a
 			href={`/events/${event.id}`}
-			class="underline decoration-line underline-offset-[3px] hover:decoration-ink"
+			class="decoration-transparent underline-offset-[3px] transition-[text-decoration-color] group-hover:decoration-ink"
 		>
 			{event.title}
 		</a>

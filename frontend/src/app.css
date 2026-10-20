@@ -96,7 +96,7 @@
 	align-items: center;
 	position: relative;
 	font-size: 14px;
-	color: var(--color-meta);
+	color: var(--color-surface);
 	min-height: 44px;
 }
 .nav a:hover {
@@ -267,6 +267,46 @@
 }
 
 /* --- Small shared bits --- */
+.sample-note {
+	margin: 22px 0 0;
+	color: var(--color-muted);
+	font-size: 12px;
+}
+.count {
+	font-variant-numeric: tabular-nums;
+	font-weight: 600;
+}
+.missing {
+	color: var(--color-muted);
+}
+.profile-stat {
+	padding: 14px 12px;
+	border: 1px solid var(--color-line);
+	border-radius: 12px;
+	background: #fff;
+	text-align: center;
+}
+.profile-stat strong {
+	display: block;
+	font: 600 29px/1 var(--font-display);
+	font-variant-numeric: tabular-nums;
+}
+.profile-stat span {
+	display: block;
+	margin-top: 7px;
+	color: var(--color-ink-2);
+	font-size: 12px;
+}
+.profile-stat.positive-stat strong {
+	color: color-mix(in oklch, var(--color-success) 70%, var(--color-ink));
+	border-color: var(--color-success);
+}
+.profile-stat.negative-stat strong {
+	color: color-mix(in oklch, var(--color-danger) 75%, var(--color-ink));
+}
+.profile-stat.neutral-stat strong {
+	color: var(--color-ink-2);
+}
 .empty {
 	padding: 28px;
 	border: 1px solid var(--color-line);

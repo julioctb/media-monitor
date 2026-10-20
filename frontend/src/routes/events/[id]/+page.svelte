@@ -55,25 +55,67 @@
 	</header>
 
 	{#if event.summary?.trim()}
-		<section class="panel mt-6" aria-labelledby="event-summary-heading">
-			<h2
-				class="text-xs font-bold uppercase tracking-wide text-meta"
-				id="event-summary-heading"
-			>
-				Resumen del evento
-			</h2>
-			<p class="mt-1 text-sm text-ink-2">{event.summary}</p>
+		<!-- Cardless sections: eyebrow heading, bare content (detalle-evento mockup). -->
+		<section class="mt-6" aria-labelledby="event-summary-heading">
+			<h2 class="eyebrow" id="event-summary-heading">Resumen del evento</h2>
+			<p class="mt-2 max-w-prose text-base text-ink-2">{event.summary}</p>
 		</section>
 	{/if}
 
-	<section class="panel mt-6" aria-labelledby="event-mentions-heading">
-		<div class="panel-head">
-			<h2 class="panel-title" id="event-mentions-heading">Menciones</h2>
-			<p class="panel-note" role="status" aria-live="polite">
-				{event.mentions.length}
-				{event.mentions.length === 1 ? 'mención asociada' : 'menciones asociadas'}
-			</p>
-		</div>
+	<section class="mt-8" aria-labelledby="event-coverage-heading">
+		<h2 class="eyebrow" id="event-coverage-heading">Cobertura</h2>
+		{#await data.coverage}
+			<div class="mt-4" aria-busy="true">
+				<span class="sr-only">Cargando cobertura…</span>
+				<div class={`${SKELETON_CLS} h-3 w-2/3`} aria-hidden="true"></div>
+				<div class={`${SKELETON_CLS} mt-2 h-3 w-1/2`} aria-hidden="true"></div>
+			</div>
+		{:then coverage}
+			{#if coverage.by_source.length === 0}
+				<p class="empty mt-4">Sin cobertura registrada para este evento.</p>
+			{:else}
+				<p class="mt-2 text-sm text-muted">
+					<span class="tabular-nums">{coverage.mention_count} menciones</span> en
+					<span class="tabular-nums">{coverage.outlet_count} medios</span>
+				</p>
+				<div class="table-wrap mt-4">
+					<table class="data-table">
+						<caption class="sr-only">Cobertura del evento por fuente</caption>
+						<thead>
+							<tr>
+								<th scope="col">Fuente de captura</th>
+								<th scope="col">Menciones</th>
+								<th scope="col">Medios</th>
+							</tr>
+						</thead>
+						<tbody>
+							{#each coverage.by_source as row (row.source)}
+								<tr>
+									<td data-label="Fuente de captura" class="font-medium text-ink">
+										{sourceLabel(row.source)}
+									</td>
+									<td data-label="Menciones" class="tabular-nums">{row.n_mentions}</td>
+									<td data-label="Medios" class="tabular-nums">{row.outlets}</td>
+								</tr>
+							{/each}
+						</tbody>
+					</table>
+				</div>
+			{/if}
+		{:catch cause}
+			<div class="empty mt-4 border-danger/40" role="alert">
+				<p class="font-medium text-danger">No se pudo cargar la cobertura.</p>
+				<p class="mt-1">{cause?.message ?? 'Error desconocido'}</p>
+			</div>
+		{/await}
+	</section>
+
+	<section class="mt-8" aria-labelledby="event-mentions-heading">
+		<h2 class="eyebrow" id="event-mentions-heading">Menciones</h2>
+		<p class="mt-2 text-sm text-muted" role="status" aria-live="polite">
+			{event.mentions.length}
+			{event.mentions.length === 1 ? 'mención asociada' : 'menciones asociadas'}
+		</p>
 		{#if event.mentions.length === 0}
 			<p class="empty mt-4">Sin menciones asociadas.</p>
 		{:else}
@@ -115,53 +157,3 @@
 		<p class="mt-1">{cause?.message ?? 'Error desconocido'}</p>
 	</div>
 {/await}
-
-<section class="panel mt-6" aria-labelledby="event-coverage-heading">
-	<div class="panel-head">
-		<h2 class="panel-title" id="event-coverage-heading">Cobertura</h2>
-	</div>
-	{#await data.coverage}
-		<div class="mt-4" aria-busy="true">
-			<span class="sr-only">Cargando cobertura…</span>
-			<div class={`${SKELETON_CLS} h-3 w-2/3`} aria-hidden="true"></div>
-			<div class={`${SKELETON_CLS} mt-2 h-3 w-1/2`} aria-hidden="true"></div>
-		</div>
-	{:then coverage}
-		{#if coverage.by_source.length === 0}
-			<p class="empty mt-4">Sin cobertura registrada para este evento.</p>
-		{:else}
-			<p class="panel-note">
-				<span class="tabular-nums">{coverage.mention_count} menciones</span> en
-				<span class="tabular-nums">{coverage.outlet_count} medios</span>
-			</p>
-			<div class="table-wrap mt-4">
-				<table class="data-table">
-					<caption class="sr-only">Cobertura del evento por fuente</caption>
-					<thead>
-						<tr>
-							<th scope="col">Fuente</th>
-							<th scope="col">Menciones</th>
-							<th scope="col">Medios</th>
-						</tr>
-					</thead>
-					<tbody>
-						{#each coverage.by_source as row (row.source)}
-							<tr>
-								<td data-label="Fuente" class="font-medium text-ink">
-									{sourceLabel(row.source)}
-								</td>
-								<td data-label="Menciones" class="tabular-nums">{row.n_mentions}</td>
-								<td data-label="Medios" class="tabular-nums">{row.outlets}</td>
-							</tr>
-						{/each}
-					</tbody>
-				</table>
-			</div>
-		{/if}
-	{:catch cause}
-		<div class="empty mt-4 border-danger/40" role="alert">
-			<p class="font-medium text-danger">No se pudo cargar la cobertura.</p>
-			<p class="mt-1">{cause?.message ?? 'Error desconocido'}</p>
-		</div>
-	{/await}
-</section>

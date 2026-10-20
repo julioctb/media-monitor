@@ -7,8 +7,12 @@ hasta igualar la estructura de `referencia visual/*.html` (fuente de verdad,
 el usuario reporta cambios visuales incompletos.
 
 ## Estado
-- Gap analysis: hecha (spec en el encargo). A resumen-diario: implementada (commit feat(digest)).
-- D configuracion: implementada (keywords unificadas via KeywordsPanel + acciones compartidas; /keywords queda como ruta con la misma tabla). E shell+menores: pendiente.
+- Gap analysis: hecha (spec en el encargo).
+- A resumen-diario: implementada (feat(digest)).
+- B consultas: implementada (feat(consultas)).
+- C feed: implementada (feat(feed)).
+- D configuracion: implementada (feat(settings); keywords unificadas via KeywordsPanel + acciones compartidas, /keywords queda como ruta con la misma tabla).
+- E shell+menores: implementada (nav con «Actores»; subnav solo para Alertas/Configuración; events 1 col + sample-note; events/[id] cardless; persons count/missing/footnote; persons/[id] profile-stat + hora «a las»).
 
 ## Verificación
 - `cd frontend && npm run check && npx vitest run`

@@ -126,10 +126,14 @@
 							</td>
 							<td data-label="Cargo">{person.role || '—'}</td>
 							<td data-label="Medio">{person.org || '—'}</td>
-							<td data-label="Menciones" class="font-semibold tabular-nums">
-								{person.mention_count}
+							<td data-label="Menciones"><span class="count">{person.mention_count}</span></td>
+							<td data-label="Última vez vista">
+								{#if person.last_seen_at}
+									{formatDisplayDateTime(person.last_seen_at)}
+								{:else}
+									<span class="missing">No disponible</span>
+								{/if}
 							</td>
-							<td data-label="Última vez vista">{formatDisplayDateTime(person.last_seen_at)}</td>
 						</tr>
 					{/each}
 				</tbody>
@@ -169,3 +173,8 @@
 		</ul>
 	{/if}
 </section>
+
+<p class="footnote">
+	Los actores se detectan automáticamente en el enriquecimiento de las notas; la columna «última
+	vez vista» refleja la última mención registrada.
+</p>
