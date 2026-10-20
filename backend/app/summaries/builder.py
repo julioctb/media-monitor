@@ -61,7 +61,7 @@ MAX_KEYWORDS_NARRATIVE = 5
 
 # Chat-completions transport constants, mirroring app.sentiment.api_analyzer.
 DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
-TIMEOUT_S = 20.0
+TIMEOUT_S = 60.0  # digest narrative is a long prompt+completion; 20s timed out under load
 ATTEMPTS = 2
 BACKOFF_S = 0.5
 
