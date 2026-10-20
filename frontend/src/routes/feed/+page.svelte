@@ -145,10 +145,6 @@
 						</button>
 					{/each}
 				</div>
-				<label class="check-row">
-					<input type="checkbox" name="political" value="1" checked={filters.political === '1'} />
-					Solo políticas
-				</label>
 				<div class="filter-actions">
 					<a href={page.url.pathname} class="clear-link">Limpiar filtros</a>
 				</div>
@@ -189,7 +185,6 @@
 							<input type="hidden" name="channel" value={filters.channel} />
 							<input type="hidden" name="sentiment" value={filters.sentiment} />
 							<input type="hidden" name="keyword_id" value={filters.keyword_id} />
-							<input type="hidden" name="political" value={filters.political} />
 							<input type="hidden" name="q" value={filters.q} />
 							<input type="hidden" name="since" value={filters.since} />
 							<input type="hidden" name="until" value={filters.until} />
@@ -230,7 +225,6 @@
 				<input type="hidden" name="q" value={filters.q} />
 				<input type="hidden" name="sentiment" value={filters.sentiment} />
 				<input type="hidden" name="keyword_id" value={filters.keyword_id} />
-				<input type="hidden" name="political" value={filters.political} />
 
 				<fieldset class="filter-group" aria-label="Filtrar por tipo de contenido">
 					<button
