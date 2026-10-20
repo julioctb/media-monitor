@@ -250,6 +250,20 @@ def persist_raw_mentions(
                             created.id,
                             exc,
                         )
+                if enrichment.political:
+                    try:
+                        queries.upsert_classifications(
+                            session,
+                            mention_id=created.id,
+                            classifier="political",
+                            results=[(enrichment.political, 1.0)],
+                        )
+                    except Exception as exc:  # noqa: BLE001 - political must not block
+                        log.warning(
+                            "political classification failed for mention %s: %s",
+                            created.id,
+                            exc,
+                        )
             if sentiment is not None:
                 # Canonical policy (app.sentiment.canonical): the enrichment
                 # verdict owns sentiment; on a fresh insert this is a plain

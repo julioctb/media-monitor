@@ -10,6 +10,8 @@ alternative multiplies cost and latency x4):
   - persons [{name, role, org, statement, stance}] — absorbs the future F3
     extractor; F2c carries the data, F3 persists it
   - topics (multi-label, stored through the existing classifications)
+  - political: v1 label (political/not_political/uncertain), stored as
+    classifier='political' — feeds the feed's «Política» chip
 
 Transport mirrors app.sentiment.api_analyzer: OpenAI-compatible chat
 completions, Bearer key, temperature 0, JSON mode, article truncated to
@@ -42,6 +44,9 @@ TIMEOUT_S = 20.0
 ATTEMPTS = 2
 BACKOFF_S = 0.5
 
+#: v1 political labels (former local classifier; now emitted by enrichment).
+POLITICAL_LABELS = ("political", "not_political", "uncertain")
+
 #: Article text handed to the model, truncated (plan: ~1500 chars).
 MAX_CONTENT_CHARS = 1500
 
@@ -52,7 +57,8 @@ SYSTEM_PROMPT = (
     "Eres el extractor estructural de un monitor de medios. Analiza la nota "
     "y responde EXCLUSIVAMENTE con un objeto JSON valido con exactamente "
     'estas claves: {"summary": str, "sentiment": "positive"|"neutral"|'
-    '"negative", "sentiment_score": float, "topic": str|null, "persons": '
+    '"negative", "sentiment_score": float, "topic": str|null, "political": '
+    '"political"|"not_political"|"uncertain", "persons": '
     'lista, "topics": lista}. '
     "Reglas: "
     "summary: maximo 2 lineas en espanol, fiel al texto, sin inventar datos. "
@@ -75,6 +81,12 @@ SYSTEM_PROMPT = (
     "government (funcionarios externos estatales/municipales/federales "
     "actuando alrededor de la institucion), "
     "health (medicina, enfermedades, hospitales, dispositivos medicos). "
+    "political: el tema principal es politica o gobierno? EXACTAMENTE una "
+    "de: political (decision de gobierno al centro o conflicto "
+    "gobierno-institucion: funcionarios, partidos, elecciones, presupuesto, "
+    "leyes, decretos, respaldo o ataque politico), not_political (deporte, "
+    "cultura, ciencia, vida academica o gestion interna sin decision de "
+    "gobierno), uncertain (dudoso). "
     "persons: SOLO personas centrales para la institucion monitoreada — "
     "la autoridad o protagonista de la nota, quien emite la postura, o "
     "quien actua en nombre de la institucion. Omiti menciones incidentales: "
@@ -111,6 +123,9 @@ class EnrichmentResult(BaseModel):
     # value outside the enum degrades to None (no row stored) instead of
     # failing the whole pass.
     topic: str | None = None
+    # v1 political label, same tolerance: absent or outside the enum -> None
+    # (the pipeline simply stores no political row).
+    political: str | None = None
     persons: list[EnrichedPerson] = []
     topics: list[str] = []
 
@@ -121,6 +136,14 @@ class EnrichmentResult(BaseModel):
             return None
         cleaned = value.strip().lower()
         return cleaned if cleaned in TOPIC_LABELS else None
+
+    @field_validator("political", mode="before")
+    @classmethod
+    def _normalize_political(cls, value: object) -> object:
+        if not isinstance(value, str):
+            return None
+        cleaned = value.strip().lower()
+        return cleaned if cleaned in POLITICAL_LABELS else None
 
     @field_validator("summary", mode="before")
     @classmethod

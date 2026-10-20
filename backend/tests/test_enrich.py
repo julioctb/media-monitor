@@ -32,6 +32,7 @@ GOOD_PAYLOAD = {
         }
     ],
     "topics": ["educacion", "infraestructura"],
+    "political": "political",
     "unexpected": "ignored",
 }
 
@@ -62,6 +63,22 @@ class TestEnrichmentResult:
         assert result.persons[0].name == "La rectora"
         assert result.persons[0].stance == "a favor"
         assert result.topics == ["educacion", "infraestructura"]
+        assert result.political == "political"
+
+    def test_political_absent_or_invalid_degrades_to_none(self) -> None:
+        absent = dict(GOOD_PAYLOAD)
+        absent.pop("political")
+        result = parse_enrichment(json.dumps(absent))
+        assert result.political is None
+
+        loose = dict(GOOD_PAYLOAD, political="  Not_Political ")
+        assert parse_enrichment(json.dumps(loose)).political == "not_political"
+
+        invalid = dict(GOOD_PAYLOAD, political="sortof")
+        assert parse_enrichment(json.dumps(invalid)).political is None
+
+        nonstr = dict(GOOD_PAYLOAD, political=1)
+        assert parse_enrichment(json.dumps(nonstr)).political is None
 
     def test_accepts_code_fenced_json(self) -> None:
         fenced = "```json\n" + json.dumps(GOOD_PAYLOAD) + "\n```"

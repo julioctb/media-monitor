@@ -312,6 +312,56 @@ class TestPersistRawMentions:
         )
         rows = session.query(MentionClassification).all()
         assert [(r.classifier, r.label) for r in rows] == [("topic", "infrastructure")]
+
+    def test_enrichment_persists_political_row(self, session) -> None:
+        """The v1 political chip is fed by enrichment from now on."""
+        from app.enrich.llm import EnrichmentResult
+
+        class FakeEnricher:
+            def enrich(self, text: str, lang: str = "es") -> EnrichmentResult:
+                return EnrichmentResult(
+                    summary="Nota.",
+                    sentiment=Sentiment.neutral,
+                    sentiment_score=0.5,
+                    political="not_political",
+                )
+
+        client, kws = _client_with_keywords(session)
+        persist_raw_mentions(
+            session,
+            client_id=client.id,
+            items=[_raw("https://example.com/5e")],
+            keyword_by_text={"buap": kws[0]},
+            all_keyword_texts=["BUAP"],
+            enricher=FakeEnricher(),
+        )
+        rows = session.query(MentionClassification).all()
+        assert [(r.classifier, r.label, r.score) for r in rows] == [
+            ("political", "not_political", 1.0)
+        ]
+
+    def test_enrichment_without_political_stores_no_row(self, session) -> None:
+        from app.enrich.llm import EnrichmentResult
+
+        class FakeEnricher:
+            def enrich(self, text: str, lang: str = "es") -> EnrichmentResult:
+                return EnrichmentResult(
+                    summary="Nota.",
+                    sentiment=Sentiment.neutral,
+                    sentiment_score=0.5,
+                )
+
+        client, kws = _client_with_keywords(session)
+        persist_raw_mentions(
+            session,
+            client_id=client.id,
+            items=[_raw("https://example.com/5f")],
+            keyword_by_text={"buap": kws[0]},
+            all_keyword_texts=["BUAP"],
+            enricher=FakeEnricher(),
+        )
+        assert session.query(MentionClassification).all() == []
+
     def test_sentiment_failure_does_not_block_insert(self, session) -> None:
         client, kws = _client_with_keywords(session)
 
