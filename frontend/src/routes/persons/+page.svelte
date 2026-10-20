@@ -83,12 +83,12 @@
 										class="underline decoration-line underline-offset-[3px] hover:decoration-ink"
 										href={`/persons/${person.id}`}>{person.name}</a
 									>
-									{#if person.aliases.length > 0}
-										<span class="text-xs font-normal text-meta">
-											también: {person.aliases.slice(0, 2).join(', ')}
-										</span>
-									{/if}
 								</div>
+								{#if person.aliases.length > 0}
+									<p class="mt-1 text-xs font-normal text-meta">
+										Términos de búsqueda: {person.aliases.slice(0, 3).join(', ')}
+									</p>
+								{/if}
 							</td>
 							<td data-label="Cargo">{person.role || '—'}</td>
 							<td data-label="Institución">{person.org || '—'}</td>
