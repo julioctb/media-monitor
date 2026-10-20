@@ -1956,6 +1956,9 @@ span.page-button {
 .sidebar .sidebar-section {
 	min-width: 0;
 }
+.sidebar .date-row {
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+}
 .sidebar .date-row input {
 	width: 100%;
 	min-width: 0;
