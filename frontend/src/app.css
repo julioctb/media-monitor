@@ -949,11 +949,16 @@ div.coverage {
 	list-style: none;
 }
 .news-item {
-	padding: 15px 0;
-	border-bottom: 1px solid var(--color-line-soft);
+	/* Digest news: boxed card per mockup daily-news rule (surface-warm,
+	   line-soft border, radius-md); feed-preview carries the 17/18 padding. */
+	padding: 0;
+	border: 1px solid var(--color-line-soft);
+	border-radius: 12px;
+	background: var(--color-surface-warm);
+	overflow: hidden;
 }
-.news-item:first-child {
-	border-top: 1px solid var(--color-line-soft);
+.news-item + .news-item {
+	margin-top: 12px;
 }
 .sentiment {
 	display: inline-flex;
@@ -975,9 +980,6 @@ div.coverage {
 .sentiment.neutral {
 	background: var(--color-surface);
 	color: var(--color-ink-2);
-}
-.news-item:last-child {
-	border-bottom: 0;
 }
 .feed-channel {
 	font-weight: 600;
