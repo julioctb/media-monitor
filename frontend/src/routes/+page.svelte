@@ -1,13 +1,12 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 
-	import { BTN_GHOST_CLS, BTN_PRIMARY_CLS, INPUT_CLS } from '$lib/ui';
 	import { formatDisplayDateTime, formatLongDate } from '$lib/format';
 	import { monogram } from '$lib/digest-stats';
 	import DigestSections from '$lib/components/DigestSections.svelte';
 	import type { PageProps } from './$types';
 
-	let { data, form }: PageProps = $props();
+	let { data }: PageProps = $props();
 
 	const summary = $derived(data.summary);
 	const day = $derived(data.day);
@@ -30,12 +29,6 @@
 	<title>Resumen diario | Media Monitor</title>
 </svelte:head>
 
-{#if form && !form.ok}
-	<div role="alert" class="empty mt-4 border-danger/40">
-		{form.message}
-	</div>
-{/if}
-
 <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-4">
 	<div class="min-w-0">
 		{#if summary}
@@ -46,19 +39,6 @@
 					<span class="mode">{modeLabel[summary.mode] ?? summary.mode}</span>
 					<span>actualizado {formatDisplayDateTime(summary.updated_at)}</span>
 				</div>
-				<form method="POST" action="?/view" class="mt-4 flex flex-wrap items-center gap-2">
-					<input
-						type="date"
-						name="date"
-						value={day}
-						aria-label="Fecha del digest"
-						class="max-w-45 {INPUT_CLS}"
-					/>
-					<button type="submit" class={BTN_GHOST_CLS}>Ver</button>
-					<button type="submit" formaction="?/generate" class={BTN_PRIMARY_CLS}>
-						Generar ahora
-					</button>
-				</form>
 			</section>
 
 			<section class="narrative" aria-labelledby="narrative-heading">
@@ -81,7 +61,7 @@
 		{:else}
 			<div class="empty mt-6" role="status">
 				<p>No hay digest guardado para <span class="font-medium text-ink">{day}</span>.</p>
-				<p class="mt-1 text-muted">Usá «Generar ahora» para construirlo.</p>
+				<p class="mt-1 text-muted">Se publica automáticamente en el horario configurado.</p>
 			</div>
 		{/if}
 	</div>
