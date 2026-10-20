@@ -1816,6 +1816,11 @@ table.coverage th {
 .feed-panel .feed-list {
 	gap: 12px;
 }
+/* Cards inside one event group: same 12px rhythm as the list (mockup). */
+.feed-group {
+	display: grid;
+	gap: 12px;
+}
 .error-state {
 	margin-top: 18px;
 	padding: 24px;

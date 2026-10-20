@@ -166,7 +166,7 @@
 			{:else}
 				<ol class="feed-list" aria-label="Publicaciones">
 					{#each groups as group (group.key)}
-						<li>
+						<li class="feed-group">
 							<EventGroup {group} keywordLabel={keywordLabelFor(group)} />
 						</li>
 					{/each}
