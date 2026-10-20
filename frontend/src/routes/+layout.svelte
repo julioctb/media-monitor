@@ -28,14 +28,7 @@
 		{ label: 'Actores', href: '/persons' },
 		{ label: 'Consultas', href: '/consultas' },
 		{ label: 'Estadísticas', href: '/stats' },
-		{
-			label: 'Alertas',
-			href: '/alerts',
-			children: [
-				{ href: '/alerts', label: 'Alertas' },
-				{ href: '/saved-searches', label: 'Búsquedas guardadas' }
-			]
-		},
+		{ label: 'Búsquedas', href: '/saved-searches' },
 		{
 			label: 'Configuración',
 			href: '/settings',

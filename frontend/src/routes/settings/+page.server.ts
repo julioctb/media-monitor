@@ -3,16 +3,10 @@ import {
 	ApiError,
 	getClientSettings,
 	listAvailableScrapers,
-	listKeywords,
 	testAi,
 	testFacebookPage,
 	updateClientSettings
 } from '$lib/api';
-import {
-	handleKeywordCreate,
-	handleKeywordDelete,
-	handleKeywordToggle
-} from '$lib/keyword-actions';
 import type { Actions, PageServerLoad } from './$types';
 
 /** Uniform action result: every branch carries the same keys for the view. */
@@ -105,8 +99,7 @@ export const load: PageServerLoad = async () => {
 		// card renders an empty state instead. Keywords feed the embedded
 		// panel; a failure there degrades to an empty table.
 		const scrapersAvailable = await listAvailableScrapers().catch(() => []);
-		const keywords = await listKeywords().catch(() => []);
-		return { settings: await getClientSettings(), scrapersAvailable, keywords };
+		return { settings: await getClientSettings(), scrapersAvailable };
 	} catch (cause) {
 		const status = cause instanceof ApiError && cause.status >= 400 ? cause.status : 503;
 		const detail = cause instanceof Error ? cause.message : 'error desconocido';
@@ -115,10 +108,6 @@ export const load: PageServerLoad = async () => {
 };
 
 export const actions: Actions = {
-	createKeyword: ({ request }) => handleKeywordCreate(request),
-	toggleKeyword: ({ request }) => handleKeywordToggle(request),
-	deleteKeyword: ({ request }) => handleKeywordDelete(request),
-
 	save: async ({ request }) => {
 		const form = await request.formData();
 

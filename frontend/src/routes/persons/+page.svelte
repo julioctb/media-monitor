@@ -39,22 +39,22 @@
 	<title>Personas | Media Monitor</title>
 </svelte:head>
 
-<header class="flex flex-wrap items-end justify-between gap-4">
+<header class="flex flex-col gap-3">
 	<div>
 		<h1 class="page-title">Personas</h1>
 		<p class="lead">
 			{data.persons.length}
 			protagonistas detectados en la cobertura, con su volumen de menciones.
 		</p>
+		<nav class="segmented mt-3" aria-label="Vista">
+			<a href={hrefWith({ view: 'cards' })} aria-current={view === 'cards' ? 'page' : undefined}>
+				Tarjetas
+			</a>
+			<a href={hrefWith({ view: 'table' })} aria-current={view === 'table' ? 'page' : undefined}>
+				Tabla
+			</a>
+		</nav>
 	</div>
-	<nav class="segmented" aria-label="Vista">
-		<a href={hrefWith({ view: 'cards' })} aria-current={view === 'cards' ? 'page' : undefined}>
-			Tarjetas
-		</a>
-		<a href={hrefWith({ view: 'table' })} aria-current={view === 'table' ? 'page' : undefined}>
-			Tabla
-		</a>
-	</nav>
 </header>
 
 <section class="filter-panel" aria-labelledby="persons-filter-title">

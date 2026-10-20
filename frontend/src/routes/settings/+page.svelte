@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 
-	import KeywordsPanel from '$lib/components/KeywordsPanel.svelte';
 	import { INPUT_CLS } from '$lib/ui';
 	import type { AvailableScraper, ClientSettings } from '$lib/api';
 	import type { PageProps, SubmitFunction } from './$types';
@@ -15,7 +14,7 @@
 
 	const TIMEZONES = ['America/Mexico_City', 'America/Monterrey', 'America/Tijuana', 'UTC'];
 
-	const KEYWORD_ACTIONS = { create: 'createKeyword', toggle: 'toggleKeyword', delete: 'deleteKeyword' };
+	// Keyword CRUD lives on /keywords; settings only renders global operation.
 
 	interface PageDraft {
 		page_id: string;
@@ -111,10 +110,6 @@
 			}
 		};
 	};
-
-	function isKeywordAction(action: unknown): boolean {
-		return action === 'createKeyword' || action === 'toggleKeyword' || action === 'deleteKeyword';
-	}
 </script>
 
 <svelte:head>
@@ -143,38 +138,12 @@
 
 <div class="layout">
 	<nav class="section-nav" aria-label="Secciones de configuración">
-		<a href="#palabras-clave">Palabras clave</a>
 		<a href="#operacion">Operación</a>
 		<a href="#fuentes">Fuentes</a>
 		<a href="#llm">LLM</a>
 	</nav>
 
 	<div class="settings-flow">
-		<section id="palabras-clave" class="panel" aria-labelledby="kw-title">
-			<div class="panel-head">
-				<h2 id="kw-title">Palabras clave</h2>
-				<p class="panel-note">Términos que activan el monitoreo, asociados a su idioma.</p>
-			</div>
-			{#if form && isKeywordAction(form.action)}
-				<p
-					role={form.ok ? 'status' : 'alert'}
-					class={`mb-3 rounded px-3 py-2 text-xs ring-1 ring-inset ${
-						form.ok
-							? 'bg-success/10 text-success ring-success/30'
-							: 'bg-danger/10 text-danger ring-danger/30'
-					}`}
-				>
-					{form.message}
-				</p>
-			{/if}
-			<KeywordsPanel
-				keywords={data.keywords}
-				actionBase=""
-				actions={KEYWORD_ACTIONS}
-				form={form}
-			/>
-		</section>
-
 		<form
 			method="POST"
 			action="?/save"
