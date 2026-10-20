@@ -136,7 +136,7 @@
 	</div>
 {/if}
 
-<div class="layout">
+<div class="settings-layout">
 	<nav class="section-nav" aria-label="Secciones de configuración">
 		<a href="#operacion">Operación</a>
 		<a href="#fuentes">Fuentes</a>

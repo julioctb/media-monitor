@@ -1468,7 +1468,7 @@
 }
 .layout {
 	display: grid;
-	grid-template-columns: minmax(0, 1fr) 300px;
+	grid-template-columns: minmax(0, 1fr) 252px;
 	gap: 20px;
 	align-items: start;
 	margin-top: 18px;
@@ -1575,9 +1575,9 @@ span.page-button {
 }
 .filter-group {
 	display: grid;
-	grid-template-columns: 1fr 1fr;
+	grid-template-columns: 1fr;
 	gap: 6px;
-	margin: 0;
+	margin-top: 16px;
 	padding: 0;
 	border: 0;
 }
@@ -1803,13 +1803,85 @@ span.page-button {
 }
 
 /* ============================================================
+   Feed: panel de filtros principal (columna izquierda) + chips.
+   ============================================================ */
+.feed-filter-panel {
+	margin-bottom: 16px;
+}
+.feed-filter-panel h2 {
+	margin: 0;
+	font-size: 15px;
+	font-weight: 600;
+	color: var(--color-ink);
+}
+.filter-bar {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto auto;
+	gap: 14px;
+	align-items: end;
+	margin-top: 16px;
+}
+.search-button {
+	min-height: 44px;
+	padding: 8px 20px;
+	border: 1px solid var(--color-accent);
+	border-radius: 999px;
+	background: var(--color-accent);
+	color: var(--color-accent-on);
+	font-size: 13px;
+	font-weight: 600;
+	cursor: pointer;
+	transition: background 0.15s ease, border-color 0.15s ease;
+}
+.search-button:hover {
+	border-color: var(--color-accent-hover);
+	background: var(--color-accent-hover);
+}
+.search-button:active {
+	border-color: var(--color-accent-active);
+	background: var(--color-accent-active);
+}
+.keyword-filter {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px;
+	margin-top: 14px;
+}
+.keyword-label {
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--color-muted);
+}
+.chip {
+	min-height: 36px;
+	padding: 6px 14px;
+	border: 1px solid var(--color-line);
+	border-radius: 999px;
+	background: var(--color-surface, #fff);
+	color: var(--color-ink);
+	font-size: 12px;
+	font-weight: 600;
+	cursor: pointer;
+}
+.chip[aria-pressed='true'] {
+	border-color: var(--color-ink);
+	background: var(--color-ink);
+	color: var(--color-bg, #fff);
+}
+.chip:hover {
+	border-color: var(--color-ink);
+}
+
+/* ============================================================
    Configuración: layout con nav de secciones, tabla de
    keywords, source-grid, radio cards y provider panel.
    ============================================================ */
 .page-head {
 	max-width: 75ch;
 }
-.layout {
+/* Scoped: settings only. The plain .layout (feed) puts the aside on the right. */
+.settings-layout {
 	display: grid;
 	grid-template-columns: 220px minmax(0, 1fr);
 	gap: 24px;
@@ -2027,7 +2099,7 @@ span.page-button {
 	color: var(--color-muted);
 }
 @media (max-width: 900px) {
-	.layout {
+	.settings-layout {
 		grid-template-columns: 1fr;
 	}
 	.section-nav {

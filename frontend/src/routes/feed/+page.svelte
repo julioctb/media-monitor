@@ -98,6 +98,63 @@
 
 <div class="layout">
 	<div class="feed-main">
+		<section class="panel feed-filter-panel" aria-labelledby="filter-panel-title">
+			<h2 id="filter-panel-title">Filtrar publicaciones</h2>
+			<form method="get" role="search" data-testid="feed-filter-main">
+				<input type="hidden" name="channel" value={filters.channel} />
+				<input type="hidden" name="since" value={filters.since} />
+				<input type="hidden" name="until" value={filters.until} />
+				<div class="filter-bar">
+					<div>
+						<label class="filter-label" for="f-q">Buscar en el feed</label>
+						<input
+							type="search"
+							id="f-q"
+							name="q"
+							value={filters.q}
+							placeholder="Buscar titular o medio"
+							class={INPUT_CLS}
+						/>
+					</div>
+					<div>
+						<label class="filter-label" for="f-sentiment">Tono</label>
+						<select id="f-sentiment" name="sentiment" class={INPUT_CLS}>
+							<option value="" selected={filters.sentiment === ''}>Todos los tonos</option>
+							<option value="positive" selected={filters.sentiment === 'positive'}>Positivo</option>
+							<option value="neutral" selected={filters.sentiment === 'neutral'}>Neutro</option>
+							<option value="negative" selected={filters.sentiment === 'negative'}>Negativo</option>
+							<option value="none" selected={filters.sentiment === 'none'}>Sin clasificar</option>
+						</select>
+					</div>
+					<button class="search-button" type="submit">Buscar</button>
+				</div>
+				<div class="keyword-filter" role="group" aria-label="Filtrar por palabra clave monitorizada">
+					<span class="keyword-label">Palabras clave</span>
+					<button type="submit" name="keyword_id" value="" class="chip" aria-pressed={filters.keyword_id === ''}>
+						Todas
+					</button>
+					{#each data.keywords as keyword (keyword.id)}
+						<button
+							type="submit"
+							name="keyword_id"
+							value={String(keyword.id)}
+							class="chip"
+							aria-pressed={filters.keyword_id === String(keyword.id)}
+						>
+							{keyword.text}
+						</button>
+					{/each}
+				</div>
+				<label class="check-row">
+					<input type="checkbox" name="political" value="1" checked={filters.political === '1'} />
+					Solo políticas
+				</label>
+				<div class="filter-actions">
+					<a href={page.url.pathname} class="clear-link">Limpiar filtros</a>
+				</div>
+			</form>
+		</section>
+
 		<section class="panel feed-panel" aria-labelledby="cobertura-title">
 			<div class="section-heading">
 				<h2 id="cobertura-title" class="panel-title">Cobertura reciente</h2>
@@ -171,20 +228,12 @@
 		<section class="sidebar-section" aria-labelledby="filtro-title">
 			<h2 id="filtro-title">Filtrar feed</h2>
 			<form method="get" class="filter-stack">
-				<div>
-					<label class="filter-label" for="f-q">Buscar</label>
-					<input
-						type="search"
-						id="f-q"
-						name="q"
-						value={filters.q}
-						placeholder="Buscar titular o medio"
-						class={INPUT_CLS}
-					/>
-				</div>
+				<input type="hidden" name="q" value={filters.q} />
+				<input type="hidden" name="sentiment" value={filters.sentiment} />
+				<input type="hidden" name="keyword_id" value={filters.keyword_id} />
+				<input type="hidden" name="political" value={filters.political} />
 
-				<fieldset class="filter-group">
-					<legend class="filter-label">Fuente</legend>
+				<fieldset class="filter-group" aria-label="Filtrar por tipo de contenido">
 					<button
 						type="submit"
 						name="channel"
@@ -223,42 +272,6 @@
 					</button>
 				</fieldset>
 
-				<div>
-					<label class="filter-label" for="f-sentiment">Tono</label>
-					<select id="f-sentiment" name="sentiment" class={INPUT_CLS}>
-						<option value="" selected={filters.sentiment === ''}>Todos los tonos</option>
-						<option value="positive" selected={filters.sentiment === 'positive'}>Positivo</option>
-						<option value="neutral" selected={filters.sentiment === 'neutral'}>Neutro</option>
-						<option value="negative" selected={filters.sentiment === 'negative'}>Negativo</option>
-						<option value="none" selected={filters.sentiment === 'none'}>Sin clasificar</option>
-					</select>
-				</div>
-
-				<div>
-					<label class="filter-label" for="f-keyword">Palabras clave</label>
-					<select id="f-keyword" name="keyword_id" class={INPUT_CLS}>
-						<option value="">Todas</option>
-						{#each data.keywords as keyword (keyword.id)}
-							<option
-								value={String(keyword.id)}
-								selected={filters.keyword_id === String(keyword.id)}
-							>
-								{keyword.text}{keyword.is_active ? '' : ' · inactiva'}
-							</option>
-						{/each}
-					</select>
-				</div>
-
-				<label class="check-row">
-					<input
-						type="checkbox"
-						name="political"
-						value="1"
-						checked={filters.political === '1'}
-					/>
-					Solo políticas
-				</label>
-
 				<div class="date-row">
 					<div>
 						<label class="filter-label" for="date-from">Desde</label>
@@ -268,6 +281,7 @@
 							name="since"
 							value={filters.since}
 							class={INPUT_CLS}
+							onchange={(event) => event.currentTarget.form?.requestSubmit()}
 						/>
 					</div>
 					<div>
@@ -278,6 +292,7 @@
 							name="until"
 							value={filters.until}
 							class={INPUT_CLS}
+							onchange={(event) => event.currentTarget.form?.requestSubmit()}
 						/>
 					</div>
 				</div>
@@ -285,10 +300,9 @@
 					<p class="date-error">{filters.dateError}</p>
 				{/if}
 
-				<div class="filter-actions">
-					<button type="submit" class="filter apply">Aplicar filtros</button>
-					<a href={page.url.pathname} class="clear-link">Limpiar filtros</a>
-				</div>
+				<noscript>
+					<button type="submit" class="filter">Aplicar</button>
+				</noscript>
 			</form>
 		</section>
 
