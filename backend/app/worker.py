@@ -19,9 +19,10 @@ read once at startup: changing it in /settings requires a worker reload.
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
+from apscheduler.jobstores.base import JobLookupError
 from apscheduler.schedulers.blocking import BlockingScheduler
 from sqlalchemy.orm import Session
 
@@ -40,10 +41,11 @@ from app.settings_runtime import (
     EffectiveSettings,
     get_effective_settings,
     load_cycle_settings,
+    parse_digest_hours,
     resolve_effective_settings,
 )
 from app import spike
-from app.summaries import build_daily_summary, today_in
+from app.summaries import build_daily_summary, resolve_digest_window, today_in
 
 log = logging.getLogger("worker")
 
@@ -57,6 +59,18 @@ RETENTION_PURGE_HOUR = 4
 #: Minute past the hour for the saved-search spike scan (evaluates the
 #: hour that just closed; see app.spike.scan.SCAN_LAG).
 SPIKE_SCAN_MINUTE = 9
+
+#: Id prefix of the per-hour digest cron jobs (``digest_summary_<H>``);
+#: the schedule resync only touches jobs carrying it.
+DIGEST_JOB_PREFIX = "digest_summary_"
+
+#: Minutes between digest-schedule resyncs (settings changes picked up
+#: without a worker reload).
+DIGEST_SYNC_INTERVAL_MIN = 15
+
+#: Scheduler built by :func:`build_scheduler`; the resync job needs the
+#: running instance to add/remove digest crons.
+_scheduler: BlockingScheduler | None = None
 
 #: Hour (local time) of the daily summary build (T11). 21:00 keeps the run
 #: clearly inside the day it describes while leaving the late evening for
@@ -89,6 +103,17 @@ def build_adapters(effective: EffectiveSettings) -> list:
         from app.ingest.feeds import FeedsAdapter
 
         adapters.append(FeedsAdapter(urls=list(effective.rss_feeds)))
+    if effective.scrapers:
+        # Imported lazily so the module (and its httpx client wiring) only
+        # loads when a scraper is actually configured.
+        from app.ingest.scrapers import SCRAPER_REGISTRY, ScrapersAdapter
+
+        known = [name for name in effective.scrapers if name in SCRAPER_REGISTRY]
+        unknown = sorted(set(effective.scrapers) - set(SCRAPER_REGISTRY))
+        if unknown:
+            log.warning("unknown scrapers ignored: %s", ", ".join(unknown))
+        if known:
+            adapters.append(ScrapersAdapter(names=known))
     if not settings.x_provider_api_key:
         log.info("X provider disabled: X_PROVIDER_API_KEY not set")
         return adapters
@@ -249,7 +274,9 @@ def daily_summary_job() -> int | None:
 
     Both the day and the mention window follow the settings timezone via
     app.summaries (today_in / day_window), matching what the API's
-    generate endpoint would build for the same instant. Returns the row id.
+    generate endpoint would build for the same instant. Returns the row id,
+    or None (no row written) when the day has no mentions yet: every cut
+    of the day would otherwise keep upserting an empty digest.
     """
     session: Session = SessionLocal()
     try:
@@ -257,6 +284,20 @@ def daily_summary_job() -> int | None:
             session, client_id=settings.default_client_id
         )
         day = today_in(effective.timezone)
+        start, end, _ = resolve_digest_window(
+            session, client_id=settings.default_client_id, day=day, tz_name=effective.timezone
+        )
+        # Same half-open window as the builder; until is inclusive in
+        # count_mentions, so shave one microsecond off the end.
+        mention_count = queries.count_mentions(
+            session,
+            settings.default_client_id,
+            since=start.astimezone(timezone.utc),
+            until=end.astimezone(timezone.utc) - timedelta(microseconds=1),
+        )
+        if mention_count == 0:
+            log.info("daily summary %s skipped: no mentions so far", day)
+            return None
         row = build_daily_summary(
             session, client_id=settings.default_client_id, day=day
         )
@@ -287,6 +328,90 @@ def _schedule_timezone() -> str:
     except Exception as exc:  # noqa: BLE001 - scheduling must survive a bad DB
         log.warning("could not resolve schedule timezone (%s); using %s", exc, DIGEST_TIMEZONE)
         return DIGEST_TIMEZONE
+
+
+def _digest_hours() -> list[int]:
+    """Digest cut hours from settings; legacy single-hour on any failure.
+
+    The stored ``digest_hours`` CSV is parsed leniently (see
+    ``app.settings_runtime.parse_digest_hours``); an empty/unparsable value
+    or a DB error falls back to the legacy ``digest_hour`` column and then
+    to the hardcoded default, so scheduling always yields >= 1 cut.
+    """
+    try:
+        session: Session = SessionLocal()
+        try:
+            row = queries.get_settings(session, settings.default_client_id)
+        finally:
+            session.close()
+        hours = parse_digest_hours(row.digest_hours)
+        if hours:
+            return hours
+    except Exception as exc:  # noqa: BLE001 - scheduling must survive a bad DB
+        log.warning("could not resolve digest hours (%s); using legacy hour", exc)
+    return [_digest_hour()]
+
+
+def _digest_hour() -> int:
+    """Legacy single digest hour from the column, 21 fallback when the DB is unhappy."""
+    try:
+        session: Session = SessionLocal()
+        try:
+            row = queries.get_settings(session, settings.default_client_id)
+        finally:
+            session.close()
+        return max(0, min(23, int(row.digest_hour)))
+    except Exception as exc:  # noqa: BLE001 - scheduling must survive a bad DB
+        log.warning("could not resolve legacy digest hour (%s); using %s", exc, DAILY_SUMMARY_HOUR)
+        return DAILY_SUMMARY_HOUR
+
+
+def _sync_digest_schedule(scheduler) -> None:
+    """Align the per-hour digest crons with the configured cut hours.
+
+    Adds a ``digest_summary_<H>`` cron for each desired hour missing and
+    removes the scheduled ones no longer configured. Every other job is
+    left untouched, so a settings change never resets the ingest loop.
+    """
+    desired = set(_digest_hours())
+    scheduled: set[int] = set()
+    for job in scheduler.get_jobs():
+        job_id = str(job.id)
+        if not job_id.startswith(DIGEST_JOB_PREFIX):
+            continue
+        try:
+            scheduled.add(int(job_id[len(DIGEST_JOB_PREFIX) :]))
+        except ValueError:
+            continue  # foreign job sharing the prefix: leave it alone
+    tz_name = _schedule_timezone()
+    for hour in sorted(desired - scheduled):
+        scheduler.add_job(
+            daily_summary_job,
+            "cron",
+            hour=hour,
+            minute=0,
+            timezone=tz_name,
+            id=f"{DIGEST_JOB_PREFIX}{hour}",
+            max_instances=1,
+            coalesce=True,
+        )
+        log.info("digest schedule: added %sh cut", f"{hour:02d}")
+    for hour in sorted(scheduled - desired):
+        try:
+            scheduler.remove_job(f"{DIGEST_JOB_PREFIX}{hour}")
+        except JobLookupError:
+            continue  # removed concurrently: nothing to do
+        log.info("digest schedule: removed %sh cut", f"{hour:02d}")
+
+
+def _sync_digest_schedule_job() -> None:
+    """15-min interval hook keeping the digest crons in sync (T2)."""
+    if _scheduler is None:  # pragma: no cover - only before build_scheduler
+        return
+    try:
+        _sync_digest_schedule(_scheduler)
+    except Exception:  # noqa: BLE001 - resync must never kill the loop
+        log.exception("digest schedule resync failed")
 
 
 def build_scheduler() -> BlockingScheduler:
@@ -342,16 +467,29 @@ def build_scheduler() -> BlockingScheduler:
         max_instances=1,
         coalesce=True,
     )
+    # One digest cron per configured cut; the resync job keeps them aligned
+    # with settings changes without ever touching the jobs above.
+    for hour in _digest_hours():
+        scheduler.add_job(
+            daily_summary_job,
+            "cron",
+            hour=hour,
+            minute=0,
+            timezone=tz_name,
+            id=f"{DIGEST_JOB_PREFIX}{hour}",
+            max_instances=1,
+            coalesce=True,
+        )
     scheduler.add_job(
-        daily_summary_job,
-        "cron",
-        hour=DAILY_SUMMARY_HOUR,
-        minute=0,
-        timezone=tz_name,
-        id="daily_summary",
+        _sync_digest_schedule_job,
+        "interval",
+        minutes=DIGEST_SYNC_INTERVAL_MIN,
+        id="digest_schedule_sync",
         max_instances=1,
         coalesce=True,
     )
+    global _scheduler  # noqa: PLW0603 - module-level handle for the resync
+    _scheduler = scheduler
     return scheduler
 
 

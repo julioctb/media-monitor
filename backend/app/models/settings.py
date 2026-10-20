@@ -67,6 +67,23 @@ class ClientSettings(IntPk, Base):
             server_default="365",
         )
     )
+    digest_hour: Mapped[int] = (
+        # Local hour (0..23) when the daily digest is built; validated in
+        # queries._validate_digest_hour, clamped again on read. Legacy
+        # single-cut column: kept as fallback for rows predating 0020.
+        mapped_column(Integer, nullable=False, default=21, server_default="21")
+    )
+    digest_hours: Mapped[str] = (
+        # Comma-separated cut hours (0..23, ascending, deduped) for the
+        # daily digest; validated by queries._validate_digest_hours and
+        # parsed on read by app.settings_runtime. Empty/invalid values
+        # fall back to digest_hour at read time.
+        mapped_column(String(50), nullable=False, default="21", server_default="21")
+    )
+    digest_focus_person_id: Mapped[int | None] = (
+        # The digest's RECTORA section tracks this person (nullable = none).
+        mapped_column(Integer, nullable=True)
+    )
     gdelt_enabled: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default="1"
     )
@@ -74,6 +91,8 @@ class ClientSettings(IntPk, Base):
         JsonType, nullable=False, default=list
     )
     rss_feeds: Mapped[list[str]] = mapped_column(JsonType, nullable=False, default=list)
+    # Scrapers for sites without RSS; keys of app.ingest.scrapers.SCRAPER_REGISTRY.
+    scrapers: Mapped[list[str]] = mapped_column(JsonType, nullable=False, default=list)
     ai_provider: Mapped[str] = (
         # Validated against AI_PROVIDERS; CHECK constraint backs it in DB.
         mapped_column(String(16), nullable=False, default="local", server_default="local")

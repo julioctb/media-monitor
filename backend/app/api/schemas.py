@@ -12,6 +12,7 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 from app.ingest.facebook_page import FacebookPageCredentials
 from app.models import AlertDigest, MentionSource, Sentiment
+from app.settings_runtime import parse_digest_hours
 
 
 def _clean_text(value: str | None) -> str | None:
@@ -64,6 +65,10 @@ class MentionOut(BaseModel):
     # F3: persons linked via mention_persons; attached batched by the list
     # endpoint (transient attr), never a lazy relationship per row.
     persons: list[PersonRefOut] = []
+    # Canonical event context, attached batched by the list endpoint
+    # (event_title is a transient attr; event_id comes from the column).
+    event_id: int | None = None
+    event_title: str | None = None
 
 
 class MentionPage(BaseModel):
@@ -151,9 +156,13 @@ class ClientSettingsOut(BaseModel):
     client_name: str
     timezone: str
     retention_days: int
+    digest_hour: int
+    digest_hours: list[int]
+    digest_focus_person_id: int | None
     gdelt_enabled: bool
     facebook_pages: list[FacebookPageCredentials]
     rss_feeds: list[str]
+    scrapers: list[str]
     ai_provider: str
     ai_api_key: str | None
     ai_base_url: str | None
@@ -163,6 +172,18 @@ class ClientSettingsOut(BaseModel):
     fetch_max_per_cycle: int
     updated_at: datetime
 
+    @field_validator("digest_hours", mode="before")
+    @classmethod
+    def _split_digest_hours_csv(cls, value: object) -> object:
+        """The column stores a CSV; parse it back to the public int list.
+
+        Already-list values pass through; junk tokens are dropped by the
+        shared runtime parser (same tolerance as the worker's read path).
+        """
+        if isinstance(value, str):
+            return parse_digest_hours(value)
+        return value
+
 
 class ClientSettingsUpdate(BaseModel):
     """Partial update; absent fields are kept, null clears optionals."""
@@ -170,9 +191,13 @@ class ClientSettingsUpdate(BaseModel):
     client_name: str | None = Field(default=None, max_length=200)
     timezone: str | None = None
     retention_days: int | None = Field(default=None, ge=0)
+    digest_hour: int | None = Field(default=None, ge=0, le=23)
+    digest_hours: list[int] | None = Field(default=None)
+    digest_focus_person_id: int | None = Field(default=None, ge=1)
     gdelt_enabled: bool | None = None
     facebook_pages: list[FacebookPageCredentials] | None = None
     rss_feeds: list[str] | None = None
+    scrapers: list[str] | None = None
     ai_provider: Literal["local", "openai"] | None = None
     ai_api_key: str | None = None
     ai_base_url: str | None = None
@@ -180,6 +205,19 @@ class ClientSettingsUpdate(BaseModel):
     ai_fallback_local: bool | None = None
     enrich_max_per_cycle: int | None = Field(default=None, ge=1, le=1000)
     fetch_max_per_cycle: int | None = Field(default=None, ge=1, le=1000)
+
+    @field_validator("digest_hours")
+    @classmethod
+    def _check_digest_hours(cls, value: list[int] | None) -> list[int] | None:
+        """1..8 hours in 0..23; storage normalizes to a sorted CSV."""
+        if value is None:
+            return None
+        if not 1 <= len(value) <= 8:
+            raise ValueError("digest_hours needs between 1 and 8 hours")
+        for hour in value:
+            if isinstance(hour, bool) or not isinstance(hour, int) or not 0 <= hour <= 23:
+                raise ValueError("digest_hours hours must be integers between 0 and 23")
+        return value
 
 
 class FacebookProbeRequest(BaseModel):

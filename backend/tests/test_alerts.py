@@ -241,7 +241,7 @@ def test_instant_without_smtp_host_logs_instead(session, client, caplog) -> None
 
 
 def test_digest_cycle_only_marks_pending(session, client) -> None:
-    cfg = make_settings(session, client.id, digest=AlertDigest.daily)
+    make_settings(session, client.id, digest=AlertDigest.daily)
     add_mention(session, client.id, "https://a/1", ingested=NOW - timedelta(minutes=1))
     transport = FakeTransport()
 
@@ -259,7 +259,7 @@ def test_digest_cycle_only_marks_pending(session, client) -> None:
 
 
 def test_daily_digest_sends_counts_and_advances_watermark(session, client) -> None:
-    cfg = make_settings(session, client.id, digest=AlertDigest.daily)
+    make_settings(session, client.id, digest=AlertDigest.daily)
     other = Client(name="other")
     session.add(other)
     session.commit()

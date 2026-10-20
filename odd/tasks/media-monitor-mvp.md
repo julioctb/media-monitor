@@ -106,7 +106,7 @@ Deploy: Docker Compose (api, worker, db, dashboard) on a VPS
       (commit c26b5f9; Graph v26.0; 132 tests; migration 0003 renders;
       gotcha: dot fields fail in Graph parser, braces from{name} parse)
 
-- [ ] T9: Settings panel — DB-backed settings (env fallback) exposed at
+- [x] T9: Settings panel — DB-backed settings (env fallback) exposed at
       /settings: Facebook pages (token validation via Graph), AI sentiment
       provider (local Laya or OpenAI-compatible API + fallback), custom RSS
       feeds, client name, timezone, retention days w/ purge job, GDELT
@@ -147,7 +147,7 @@ Deploy: Docker Compose (api, worker, db, dashboard) on a VPS
       Lilia Cedillo silent-correct, mode heuristic; endpoints under
       /api/clients/id/summaries)
 
-- [ ] T12: Topic classifier (multi-label) — categories sports/academic/
+- [x] T12: Topic classifier (multi-label) — categories sports/academic/
       culture/health/economy via Laya multi-question (one predict, N binary
       choices), registry + topics backfill. Political prompt: explicit
       non-political domains rule (sports/academic events at institutions)

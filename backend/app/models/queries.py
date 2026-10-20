@@ -606,6 +606,52 @@ def _validate_retention(value: object) -> int:
     return value
 
 
+def _validate_digest_hour(value: object) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError("digest_hour must be an integer")
+    if not 0 <= value <= 23:
+        raise ValueError("digest_hour must be between 0 and 23")
+    return value
+
+
+def _validate_digest_hours(value: object) -> str:
+    """Digest cut hours: 1..8 ints in 0..23, deduped, stored as sorted CSV."""
+    if isinstance(value, str):
+        # Tolerate hand-edited rows / CSV strings from tooling.
+        candidates: list[object] = []
+        for part in value.split(","):
+            stripped = part.strip()
+            if not stripped:
+                continue
+            try:
+                candidates.append(int(stripped))
+            except ValueError as exc:
+                raise ValueError("digest_hours must be integers between 0 and 23") from exc
+    elif isinstance(value, (list, tuple)):
+        candidates = list(value)
+    else:
+        raise ValueError("digest_hours must be a list of integers")
+    hours: list[int] = []
+    for entry in candidates:
+        if isinstance(entry, bool) or not isinstance(entry, int):
+            raise ValueError("digest_hours must be integers between 0 and 23")
+        if not 0 <= entry <= 23:
+            raise ValueError("digest_hours hours must be between 0 and 23")
+        if entry not in hours:
+            hours.append(entry)
+    if not 1 <= len(hours) <= 8:
+        raise ValueError("digest_hours needs between 1 and 8 hours")
+    return ",".join(str(h) for h in sorted(hours))
+
+
+def _validate_focus_person(value: object) -> int | None:
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+        raise ValueError("digest_focus_person_id must be a positive id or null")
+    return value
+
+
 def _validate_bool(value: object, field: str) -> bool:
     if not isinstance(value, bool):
         raise ValueError(f"{field} must be a boolean")
@@ -656,6 +702,22 @@ def _validate_rss_feeds(value: object) -> list[str]:
     return feeds
 
 
+def _validate_scrapers(value: object) -> list[str]:
+    if not isinstance(value, list):
+        raise ValueError("scrapers must be a list of scraper names")
+    names: list[str] = []
+    for entry in value:
+        if not isinstance(entry, str):
+            raise ValueError("each scraper must be a string name")
+        cleaned = entry.strip()
+        if not cleaned:
+            continue  # normalize: blank entries drop out silently
+        names.append(cleaned)
+    # Dedupe preserving order; unknown names are filtered by the worker
+    # against SCRAPER_REGISTRY (forward-compatible stored values).
+    return list(dict.fromkeys(names))
+
+
 def _validate_ai_provider(value: object) -> str:
     if not isinstance(value, str) or value not in AI_PROVIDERS:
         raise ValueError(f"ai_provider must be one of {', '.join(AI_PROVIDERS)}")
@@ -695,9 +757,13 @@ _VALIDATORS = {
     "client_name": _validate_client_name,
     "timezone": _validate_timezone,
     "retention_days": _validate_retention,
+    "digest_hour": _validate_digest_hour,
+    "digest_hours": _validate_digest_hours,
+    "digest_focus_person_id": _validate_focus_person,
     "gdelt_enabled": lambda v: _validate_bool(v, "gdelt_enabled"),
     "facebook_pages": _validate_facebook_pages,
     "rss_feeds": _validate_rss_feeds,
+    "scrapers": _validate_scrapers,
     "ai_provider": _validate_ai_provider,
     "ai_api_key": lambda v: _validate_optional_str(v, "ai_api_key"),
     "ai_base_url": lambda v: _validate_optional_str(v, "ai_base_url", is_url=True),
@@ -723,6 +789,12 @@ def upsert_settings(
         if validator is None:
             continue
         setattr(row, field, validator(value))
+    # Legacy single hour and the cut list mirror each other when only one
+    # of the two is updated, so either write path keeps a coherent row.
+    if "digest_hour" in changes and "digest_hours" not in changes:
+        row.digest_hours = _validate_digest_hours([row.digest_hour])
+    elif "digest_hours" in changes and "digest_hour" not in changes:
+        row.digest_hour = int(str(row.digest_hours).split(",")[0])
     row.updated_at = datetime.now(tz=timezone.utc)
     session.commit()
     return row

@@ -6,12 +6,12 @@ export const actions: Actions = {
 		const form = await request.formData();
 		const question = String(form.get('question') ?? '').trim();
 		if (question.length < 3) {
-			return { question, error: 'Escribe una pregunta de al menos 3 caracteres.' };
+			return { question, turn: Date.now(), error: 'Escribe una pregunta de al menos 3 caracteres.' };
 		}
 
 		try {
 			const result = await askCorpus(question);
-			return { question, ...result };
+			return { question, turn: Date.now(), ...result };
 		} catch (cause) {
 			const detail =
 				cause instanceof ApiError
@@ -20,7 +20,7 @@ export const actions: Actions = {
 						? cause.message
 						: 'error desconocido';
 			// Inline error: the question stays on screen, no hard redirect.
-			return { question, error: `No se pudo consultar: ${detail}` };
+			return { question, turn: Date.now(), error: `No se pudo consultar: ${detail}` };
 		}
 	}
 };

@@ -56,7 +56,7 @@ def env(session):
 
 
 def test_summary_stored_on_event(session, env):
-    client, saved, event = event_row = env
+    client, saved, event = env
     calls = []
 
     def fake_generate(prompt: str) -> str:

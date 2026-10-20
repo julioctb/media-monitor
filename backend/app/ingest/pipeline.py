@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.classifications.base import Classifier, classification_results
 from app.enrich.summary import maybe_summarize_event
+from app.ingest import article_fetch
 from app.ingest.article_fetch import fetcher_for
 from app.ingest.base import RawMention, SourceAdapter
 from app.ingest.events import assign_mention_to_event
@@ -133,6 +134,8 @@ def persist_raw_mentions(
         # sources with a registry fetcher, only rows without content, under
         # the per-cycle cap; any failure leaves content as-is.
         content = item.content
+        item_author = None
+        item_published = None
         fetcher = fetcher_for(item.source)
         if (
             fetcher is not None
@@ -146,8 +149,20 @@ def persist_raw_mentions(
             except Exception as exc:  # noqa: BLE001 - fetch must not break ingest
                 log.warning("content fetch failed for %s: %s", item.url, exc)
                 fetched = None
-            if fetched and fetched.strip():
-                content = fetched.strip()
+            # ArticleContent carries the byline; plain str keeps legacy
+            # fetchers (and test doubles) working.
+            if isinstance(fetched, article_fetch.ArticleContent):
+                fetched_author = fetched.author
+                fetched_text = fetched.text
+                fetched_published = fetched.published_at
+            else:
+                fetched_author = None
+                fetched_text = fetched
+                fetched_published = None
+            if fetched_text and fetched_text.strip():
+                content = fetched_text.strip()
+                item_author = fetched_author
+                item_published = fetched_published
                 text = "\n".join(p for p in [item.title or "", content] if p)
         # F2c enrichment first: it owns sentiment when it succeeds.
         enrichment = None
@@ -175,18 +190,27 @@ def persist_raw_mentions(
             except Exception as exc:  # noqa: BLE001 - sentiment must not break ingest
                 log.warning("sentiment analysis failed: %s", exc)
 
+        # Canonicalize Google News redirect links to the publisher URL so the
+        # same story arriving via news_rss and rss_custom dedupes to one row.
+        # Best-effort: resolution failure keeps the original URL.
+        try:
+            item_url = article_fetch.resolve_publisher_url(item.url)
+        except Exception as exc:  # noqa: BLE001 - dedupe must not break ingest
+            log.warning("url canonicalization failed for %s: %s", item.url, exc)
+            item_url = item.url
+
         created = queries.insert_mention(
             session,
             client_id=client_id,
             source=item.source,
-            url=item.url,
+            url=item_url,
             keyword_id=keyword.id if keyword else None,
             external_id=item.external_id,
             title=item.title,
             content=content,
-            author=item.author,
+            author=item.author or item_author,
             lang=item.lang,
-            published_at=item.published_at,
+            published_at=item.published_at or item_published,
             reach=item.reach,
             raw=item.raw,
         )

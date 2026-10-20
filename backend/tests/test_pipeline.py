@@ -38,14 +38,25 @@ class MockAnalyzer:
         return R(self.label, self.score)
 
 
-def _raw(url: str, keyword: str = "BUAP", title: str | None = "BUAP noticia") -> RawMention:
+_UNSET = object()
+
+
+def _raw(
+    url: str,
+    keyword: str = "BUAP",
+    title: str | None = "BUAP noticia",
+    source: MentionSource = MentionSource.news_rss,
+    published: object = _UNSET,
+) -> RawMention:
     return RawMention(
-        source=MentionSource.news_rss,
+        source=source,
         keyword=keyword,
         url=url,
         title=title,
         lang="es",
-        published_at=datetime(2026, 10, 8, tzinfo=timezone.utc),
+        published_at=datetime(2026, 10, 8, tzinfo=timezone.utc)
+        if published is _UNSET
+        else published,  # type: ignore[arg-type]
     )
 
 
@@ -123,6 +134,42 @@ class TestPersistRawMentions:
         )
         assert inserted == 0
         assert session.query(Mention).count() == 0
+
+    def test_google_news_url_canonicalizes_to_publisher_and_dedupes(
+        self, session, monkeypatch
+    ) -> None:
+        """A Google News link resolves to the publisher URL at ingest, so the
+        same story arriving via rss_custom dedupes to a single row."""
+
+        def fake_resolve(url: str, client: object = None) -> str:
+            if url.startswith("https://news.google.com/"):
+                return "https://hipocritalector.com/nota-final"
+            return url
+
+        monkeypatch.setattr(article_fetch, "resolve_publisher_url", fake_resolve)
+        client, kws = _client_with_keywords(session)
+        first = persist_raw_mentions(
+            session,
+            client_id=client.id,
+            items=[_raw("https://hipocritalector.com/nota-final", source=MentionSource.rss_custom)],
+            keyword_by_text={"buap": kws[0]},
+            all_keyword_texts=["BUAP"],
+        )
+        second = persist_raw_mentions(
+            session,
+            client_id=client.id,
+            items=[
+                _raw(
+                    "https://news.google.com/rss/articles/CBMiabc?oc=5",
+                    title="Titular distinto pero misma nota",
+                )
+            ],
+            keyword_by_text={"buap": kws[0]},
+            all_keyword_texts=["BUAP"],
+        )
+        assert (first, second) == (1, 0)
+        (mention,) = session.query(Mention).all()
+        assert mention.url == "https://hipocritalector.com/nota-final"
 
     def test_dedupes_same_url_across_cycles(self, session) -> None:
         client, kws = _client_with_keywords(session)
@@ -427,6 +474,43 @@ class TestArticleFetchWiring:
         assert inserted == 1
         (mention,) = session.query(Mention).all()
         assert mention.content is None
+
+    def test_fetch_fills_published_at_when_item_has_none(
+        self, session, monkeypatch
+    ) -> None:
+        # Scraper/Google News items carry no date; the article page does.
+        # Without it the row ranks last in every recency-ordered context.
+        from datetime import datetime, timezone as tz
+
+        published = datetime(2026, 10, 15, 18, 42, tzinfo=tz.utc)
+
+        def fake_fetcher(url: str) -> article_fetch.ArticleContent:
+            return article_fetch.ArticleContent(
+                text="Cuerpo suficiente para contar como articulo completo. " * 5,
+                published_at=published,
+            )
+
+        monkeypatch.setattr(pipeline, "fetcher_for", lambda source: fake_fetcher)
+        self._run(session, [_raw("https://example.com/p1", published=None)])
+        (mention,) = session.query(Mention).all()
+        assert mention.published_at == published
+
+    def test_item_published_at_wins_over_fetched(self, session, monkeypatch) -> None:
+        from datetime import datetime, timezone as tz
+
+        feed_date = datetime(2026, 10, 10, 9, 0, tzinfo=tz.utc)
+        page_date = datetime(2026, 10, 15, 18, 42, tzinfo=tz.utc)
+
+        def fake_fetcher(url: str) -> article_fetch.ArticleContent:
+            return article_fetch.ArticleContent(
+                text="Cuerpo suficiente para contar como articulo completo. " * 5,
+                published_at=page_date,
+            )
+
+        monkeypatch.setattr(pipeline, "fetcher_for", lambda source: fake_fetcher)
+        self._run(session, [_raw("https://example.com/p2", published=feed_date)])
+        (mention,) = session.query(Mention).all()
+        assert mention.published_at == feed_date
 
     def test_existing_content_is_not_refetched(self, session, monkeypatch) -> None:
         calls: list[str] = []

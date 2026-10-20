@@ -1,90 +1,179 @@
 <script lang="ts">
-	import { formatDisplayDateTime, sentimentLabel, sourceLabel } from '$lib/format';
-	import { INPUT_CLS } from '$lib/ui';
 	import type { PageProps } from './$types';
 
+	import { browser } from '$app/environment';
+
+	import {
+		appendTurn,
+		createThread,
+		loadThreads,
+		saveThreads,
+		threadTitle,
+		type ChatThread
+	} from '$lib/chat-history';
+	import { formatDisplayDateTime, sentimentLabel, sourceLabel } from '$lib/format';
+
 	let { form: result }: PageProps = $props();
+
+	let threads = $state<ChatThread[]>(browser ? loadThreads(localStorage) : []);
+	let activeId = $state<string | null>(null);
+	let processedTurn = $state(0);
+
+	const active = $derived(threads.find((thread) => thread.id === activeId) ?? null);
+
+	// Persist every finished server turn into the local history once.
+	$effect(() => {
+		const turn = result?.turn;
+		if (typeof turn !== 'number' || turn === processedTurn) return;
+		processedTurn = turn;
+		const question = String(result?.question ?? '').trim();
+		if (!question) return;
+		let thread = threads.find((candidate) => candidate.id === activeId);
+		if (!thread) {
+			thread = createThread();
+			threads = [thread, ...threads];
+			activeId = thread.id;
+		}
+		const updated = appendTurn(thread, {
+			question,
+			answer: result?.answer,
+			citations: result?.citations,
+			error: result?.error
+		});
+		threads = threads.map((candidate) => (candidate.id === updated.id ? updated : candidate));
+		saveThreads(localStorage, threads);
+	});
+
+	function startNewChat() {
+		activeId = null;
+	}
+
+	function deleteThread(id: string) {
+		threads = threads.filter((thread) => thread.id !== id);
+		if (activeId === id) activeId = null;
+		saveThreads(localStorage, threads);
+	}
 </script>
 
 <svelte:head>
 	<title>Consultas | Media Monitor</title>
 </svelte:head>
 
-<div class="max-w-3xl">
-	<h1 class="text-2xl font-semibold tracking-tight">Consultas</h1>
-	<p class="mt-1 text-sm text-slate-500">
-		Pregunta en lenguaje natural sobre la cobertura; la respuesta se apoya
-		exclusivamente en las notas ingestadas, con citas.
+<header class="intro">
+	<h1 class="page-title">Consultas</h1>
+	<p class="lead">
+		Pregunta en lenguaje natural sobre la cobertura. Las respuestas se apoyan exclusivamente en
+		notas ingestadas y muestran sus citas.
 	</p>
+</header>
 
-	<form method="POST" class="mt-6 flex flex-wrap items-start gap-2">
-		<input
-			type="text"
-			name="question"
-			value={result?.question ?? ''}
-			placeholder="¿Qué ha dicho Lilia Cedillo sobre las becas?"
-			aria-label="Pregunta"
-			class={`min-w-0 flex-1 ${INPUT_CLS}`}
-		/>
-		<button
-			type="submit"
-			class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
-		>
-			Consultar
-		</button>
-	</form>
-
-	{#if result?.error}
-		<div class="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-			{result.error}
+<div class="workspace">
+	<aside class="panel history" aria-labelledby="history-heading">
+		<div class="history-head">
+			<h2 id="history-heading">Historial</h2>
+			<button class="new-chat" type="button" onclick={startNewChat}>Nuevo chat</button>
 		</div>
-	{/if}
+		{#if threads.length === 0}
+			<p class="history-empty">Todavía no hay consultas guardadas.</p>
+		{:else}
+			<ul class="history-list">
+				{#each threads as thread (thread.id)}
+					<li class="history-item" class:active={thread.id === activeId}>
+						<button
+							class="history-open"
+							type="button"
+							aria-label="Abrir consulta: {threadTitle(thread)}"
+							onclick={() => (activeId = thread.id)}
+						>
+							<span class="history-title">{threadTitle(thread)}</span>
+							<span class="history-preview">{formatDisplayDateTime(thread.updatedAt)}</span>
+						</button>
+						<button
+							class="delete-chat"
+							type="button"
+							aria-label="Borrar consulta: {threadTitle(thread)}"
+							onclick={() => deleteThread(thread.id)}
+						>
+							×
+						</button>
+					</li>
+				{/each}
+			</ul>
+		{/if}
+		<p class="storage-note">El historial se guarda solo en este navegador.</p>
+	</aside>
 
-	{#if result?.answer}
-		<article class="mt-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-			<h2 class="text-xs font-semibold uppercase tracking-wide text-slate-400">Respuesta</h2>
-			<p class="mt-2 whitespace-pre-line text-sm leading-relaxed text-slate-800">
-				{result.answer}
+	<section class="panel chat" aria-labelledby="chat-heading">
+		<div class="chat-head">
+			<h2 id="chat-heading">{active ? threadTitle(active) : 'Nueva consulta'}</h2>
+			<p class="chat-subtitle">
+				Las respuestas se generan solo con notas ingestadas y muestran sus citas.
 			</p>
-			{#if result.matched_mentions}
-				<p class="mt-3 text-xs text-slate-400">
-					Contexto: {result.matched_mentions} notas
-				</p>
-			{/if}
-		</article>
-	{/if}
+		</div>
 
-	{#if result?.citations && result.citations.length > 0}
-		<h2 class="mt-6 text-xs font-semibold uppercase tracking-wide text-slate-400">Fuentes</h2>
-		<ul class="mt-2 grid gap-2" aria-label="Fuentes de la respuesta">
-			{#each result.citations as citation (citation.mention_id)}
-				<li>
-					<a
-						href={citation.url}
-						target="_blank"
-						rel="noopener noreferrer"
-						class="block rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm shadow-sm hover:border-slate-300"
-					>
-						<span class="font-medium text-slate-800">{citation.title ?? citation.url}</span>
-						<span class="ml-2 text-xs text-slate-400">
-							{sourceLabel(citation.source)} ·
-							{formatDisplayDateTime(citation.published_at)}
-							{#if citation.sentiment}
-								· {sentimentLabel(citation.sentiment)}
+		<div class="messages" aria-live="polite">
+			{#if !active || active.messages.length === 0}
+				<div class="welcome">
+					<strong>Explora la cobertura</strong>
+					Haz una pregunta sobre las notas registradas. La respuesta debe incluir citas
+					verificables.
+				</div>
+			{:else}
+					{#each active.messages as message, i (`${message.at}-${i}`)}
+						<article class="message {message.role}">
+							<span class="message-label">
+								{message.role === 'user'
+									? 'Tu pregunta'
+									: message.role === 'assistant'
+										? 'Respuesta con citas'
+										: 'Estado de la consulta'}
+							</span>
+							<p>{message.text}</p>
+							{#if message.role === 'assistant' && message.citations && message.citations.length > 0}
+								<ol class="citations">
+									{#each message.citations as citation (citation.mention_id)}
+										<li>
+											<a href={citation.url} target="_blank" rel="noopener noreferrer">
+												{citation.title ?? citation.url}
+											</a>
+											{#if citation.source}
+												<span class="citation-meta">
+													{sourceLabel(citation.source)} ·
+													{formatDisplayDateTime(citation.published_at)}{#if citation.sentiment}
+														· {sentimentLabel(citation.sentiment)}{/if}
+												</span>
+											{/if}
+										</li>
+									{/each}
+								</ol>
 							{/if}
-						</span>
-					</a>
-				</li>
-			{/each}
-		</ul>
-	{/if}
+						</article>
+					{/each}
+			{/if}
+		</div>
 
-	{#if result?.person}
-		<p class="mt-4 text-xs text-slate-400">
-			Pregunta vinculada a:
-			<a href={`/persons/${result.person.id}`} class="underline hover:text-slate-600">
-				{result.person.name}
-			</a>
-		</p>
-	{/if}
+		<form method="POST" class="composer">
+			<label for="question">Tu pregunta</label>
+			<textarea
+				id="question"
+				name="question"
+				maxlength="1000"
+				required
+				placeholder="Por ejemplo: ¿Qué se publicó sobre la BUAP esta semana?"
+			>{result?.question ?? ''}</textarea>
+			<div class="composer-actions">
+				<p class="composer-note">Cada respuesta cita las notas que la sustentan.</p>
+				<button class="send" type="submit">Enviar pregunta</button>
+			</div>
+		</form>
+	</section>
 </div>
+
+{#if result?.person}
+	<p class="footnote">
+		Pregunta vinculada a:
+		<a href={`/persons/${result.person.id}`} class="underline hover:text-ink">
+			{result.person.name}
+		</a>
+	</p>
+{/if}

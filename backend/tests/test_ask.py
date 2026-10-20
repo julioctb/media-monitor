@@ -109,6 +109,83 @@ def test_retrieve_ranks_token_hits_over_recency(db) -> None:
     assert old_hit.id != new_miss.id
 
 
+def test_retrieve_matches_morphological_variants(db) -> None:
+    # "becas" in the question must reach notes written with "beca" (and
+    # vice versa): exact-substring matching starved the context otherwise.
+    from app.ask import retrieve_mentions
+
+    client_id = db.scalar(select(Client.id).limit(1))
+    singular = seed_mention(
+        db,
+        client_id,
+        "https://x/singular",
+        title="Entrega de beca nueva",
+        published=now(),
+    )
+    found, _ = retrieve_mentions(
+        db, client_id=client_id, tokens=["becas"], person_ids=[]
+    )
+    assert singular.id in [m.id for m in found]
+
+
+def test_retrieve_sentiment_filter_with_person(db) -> None:
+    # "notas negativas hacia la rectora": person-linked slots must not be
+    # flooded by positive coverage — the sentiment word narrows the linked
+    # query itself.
+    from app.ask import retrieve_mentions
+
+    client_id = db.scalar(select(Client.id).limit(1))
+    person = Person(client_id=client_id, name="Margarito Rojas", name_key="margarito rojas")
+    db.add(person)
+    db.flush()
+    neg = seed_mention(
+        db, client_id, "https://x/neg", title="Gesto cuestionado", sentiment=Sentiment.negative
+    )
+    pos = seed_mention(
+        db, client_id, "https://x/pos", title="Gesto celebrado", sentiment=Sentiment.positive
+    )
+    for mention in (neg, pos):
+        db.add(MentionPerson(mention_id=mention.id, person_id=person.id))
+    db.commit()
+
+    found, _roles = retrieve_mentions(
+        db, client_id=client_id, tokens=["notas", "negativas"], person_ids=[person.id]
+    )
+    ids = [m.id for m in found]
+    assert neg.id in ids
+    assert pos.id not in ids
+
+
+def test_retrieve_sentiment_filter_without_person(db) -> None:
+    from app.ask import retrieve_mentions
+
+    client_id = db.scalar(select(Client.id).limit(1))
+    neg = seed_mention(
+        db,
+        client_id,
+        "https://x/neg-presupuesto",
+        title="Presupuesto criticado fuerte",
+        content="El presupuesto genera rechazo",
+        sentiment=Sentiment.negative,
+    )
+    pos = seed_mention(
+        db,
+        client_id,
+        "https://x/pos-presupuesto",
+        title="Presupuesto aprobado con aplausos",
+        content="El presupuesto satisface",
+        sentiment=Sentiment.positive,
+    )
+    db.commit()
+
+    found, _ = retrieve_mentions(
+        db, client_id=client_id, tokens=["presupuesto", "negativas"], person_ids=[]
+    )
+    ids = [m.id for m in found]
+    assert neg.id in ids
+    assert pos.id not in ids
+
+
 def test_retrieve_includes_person_links_without_token_hit(db) -> None:
     from app.ask import retrieve_mentions
 
@@ -186,6 +263,45 @@ def test_answer_happy_path_cites(db) -> None:
     assert result.citations[0]["url"] == "https://x/becas"
     # The context block carried the citation markers the answer references.
     assert "[1]" in fake.calls[0][1]
+
+    # Fuentes = solo lo que la respuesta cita: [1] filtra a una sola nota.
+    seed_mention(
+        db,
+        client_id,
+        "https://x/becas-2",
+        title="Otra nota de becas",
+        content="Mas contexto del programa.",
+    )
+
+    import re as _re
+
+    class CitedOnly(FakeEnricher):
+        def __init__(self, marker: str) -> None:
+            self.marker = marker
+            self.calls: list[tuple[str, str]] = []
+
+        def complete(self, system, user, **kwargs):
+            self.calls.append((system, user))
+            return f"Respuesta {self.marker}"
+
+    def cited_context_title(enricher) -> str:
+        user = enricher.calls[0][1]
+        return _re.search(r"\[1\] (.+?) —", user).group(1)
+
+    fake2 = CitedOnly("parcial [1].")
+    result = answer_question(db, client_id=client_id, question="becas?", enricher=fake2)
+    assert len(result.citations) == 1
+    title = cited_context_title(fake2)
+    expected_url = (
+        "https://x/becas" if title == "BUAP amplía becas" else "https://x/becas-2"
+    )
+    assert result.citations[0]["url"] == expected_url
+
+    # Sin marcadores (modelo desobediente): se conservan todas.
+    result = answer_question(
+        db, client_id=client_id, question="becas?", enricher=CitedOnly("sin marcas.")
+    )
+    assert len(result.citations) == 2
 
 
 def test_answer_llm_failure_raises_ask_error(db) -> None:
@@ -271,8 +387,8 @@ def test_retrieve_annotates_person_roles(db) -> None:
 
 
 def test_person_linked_mentions_survive_the_cap(db) -> None:
-    """12 token-hits must not starve the person's own coverage."""
-    from app.ask import retrieve_mentions
+    """A full page of token-hits must not starve the person's own coverage."""
+    from app.ask import MAX_CONTEXT_MENTIONS, retrieve_mentions
 
     client_id = db.scalar(select(Client.id).limit(1))
     person = Person(client_id=client_id, name="Margarito Rojas", name_key="margarito rojas")
@@ -280,7 +396,7 @@ def test_person_linked_mentions_survive_the_cap(db) -> None:
     db.flush()
     linked = seed_mention(db, client_id, "https://x/only-person", title="Gesto sin tokens")
     db.add(MentionPerson(mention_id=linked.id, person_id=person.id))
-    for index in range(14):
+    for index in range(MAX_CONTEXT_MENTIONS + 2):
         seed_mention(
             db, client_id, f"https://x/fill{index}", title=f"Becas y más becas {index}"
         )
@@ -291,4 +407,74 @@ def test_person_linked_mentions_survive_the_cap(db) -> None:
     )
     ids = [m.id for m in found]
     assert linked.id in ids
-    assert len(ids) == 12
+    assert len(ids) == MAX_CONTEXT_MENTIONS
+
+
+# ------------------------------------------------------------ digest grounding
+
+def test_answer_includes_recent_digest(db) -> None:
+    from datetime import date
+
+    from app.models import queries
+
+    client_id = db.scalar(select(Client.id).limit(1))
+    queries.upsert_daily_summary(
+        db,
+        client_id=client_id,
+        day=date.today(),
+        content={"schema": 2, "plain_text": "NOTICIAS\n- [alta] Titular del día"},
+        narrative="Titular del día.",
+        mode="heuristic",
+    )
+    seed_mention(
+        db,
+        client_id,
+        "https://x/digest",
+        title="BUAP ampliación",
+        content="Texto.",
+    )
+
+    class FakeEnricher:
+        def __init__(self) -> None:
+            self.calls: list[tuple[str, str]] = []
+
+        def complete(self, system, user, **kwargs):
+            self.calls.append((system, user))
+            return "Ok."
+
+    fake = FakeEnricher()
+    answer_question(db, client_id=client_id, question="BUAP", enricher=fake)
+
+    user_prompt = fake.calls[0][1]
+    assert "Digest editorial" in user_prompt
+    assert "Titular del día" in user_prompt
+
+
+def test_answer_skips_stale_digest(db) -> None:
+    from datetime import date, timedelta
+
+    from app.models import queries
+
+    client_id = db.scalar(select(Client.id).limit(1))
+    queries.upsert_daily_summary(
+        db,
+        client_id=client_id,
+        day=date.today() - timedelta(days=6),
+        content={"schema": 2, "plain_text": "NOTICIAS viejas"},
+        narrative="Viejo.",
+        mode="heuristic",
+    )
+    seed_mention(db, client_id, "https://x/stale", title="BUAP", content="x.")
+
+    class FakeEnricher:
+        def __init__(self) -> None:
+            self.calls: list[tuple[str, str]] = []
+
+        def complete(self, system, user, **kwargs):
+            self.calls.append((system, user))
+            return "Ok."
+
+    fake = FakeEnricher()
+    answer_question(db, client_id=client_id, question="BUAP", enricher=fake)
+
+    assert "Digest editorial" not in fake.calls[0][1]

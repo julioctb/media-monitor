@@ -37,7 +37,7 @@ describe('EventCard', () => {
 	it('links the title to the event detail page', () => {
 		const { card } = renderCard(eventFixture());
 
-		const link = card.querySelector('a[href="/events/5"]') as HTMLAnchorElement;
+		const link = card.querySelector('h2 a[href="/events/5"]') as HTMLAnchorElement;
 		expect(link).not.toBeNull();
 		expect(link.textContent).toContain('Anuncio de inversión');
 	});
@@ -65,7 +65,7 @@ describe('EventCard', () => {
 	it('omits the summary paragraph when absent', () => {
 		const { card } = renderCard(eventFixture({ summary: null }));
 
-		expect(card.querySelector('p.line-clamp-3')).toBeNull();
+		expect(card.querySelector('p.event-summary')).toBeNull();
 	});
 
 	it('timestamps first and last sight', () => {

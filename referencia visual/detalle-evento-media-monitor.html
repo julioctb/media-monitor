@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="es-ES"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Detalle de evento · Media Monitor</title><style>
+:root {
+  --bg: #ffffff;
+  --surface: #f5f5f7;
+  --surface-warm: #fbfbfd;
+  --fg: #1d1d1f;
+  --fg-2: #424245;
+  --muted: #6e6e73;
+  --meta: #86868b;
+  --border: #d2d2d7;
+  --border-soft: #e8e8ed;
+  --accent: #0071e3;
+  --accent-on: #ffffff;
+  --accent-hover: #0077ed;
+  --accent-active: #0066cc;
+  --success: #16a34a;
+  --warn: #eab308;
+  --danger: #dc2626;
+  --font-display: "SF Pro Display", "SF Pro Icons", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-body: "SF Pro Text", "SF Pro Icons", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: "SF Mono", ui-monospace, "JetBrains Mono", Menlo, Monaco, Consolas, monospace;
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-base: 17px;
+  --text-lg: 21px;
+  --text-xl: 28px;
+  --text-2xl: 40px;
+  --text-3xl: 56px;
+  --text-4xl: 80px;
+  --leading-body: 1.47;
+  --leading-tight: 1.05;
+  --tracking-display: -0.015em;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --section-y-desktop: 100px;
+  --section-y-tablet: 64px;
+  --section-y-phone: 40px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-pill: 980px;
+  --elev-flat: none;
+  --elev-ring: 0 0 0 1px var(--border);
+  --elev-raised: 0 12px 32px rgba(0, 0, 0, 0.08);
+  --focus-ring: 0 0 0 4px color-mix(in oklab, var(--accent), transparent 65%);
+  --motion-fast: 150ms;
+  --motion-base: 220ms;
+  --ease-standard: cubic-bezier(0.28, 0, 0.22, 1);
+  --container-max: 1024px;
+  --container-gutter-desktop: 22px;
+  --container-gutter-tablet: 18px;
+  --container-gutter-phone: 16px;
+}
+*{box-sizing:border-box}body{margin:0;background:var(--surface);color:var(--fg);font:var(--text-base)/var(--leading-body) var(--font-body)}a{color:inherit;text-decoration:none}:focus-visible{outline:2px solid var(--accent);outline-offset:3px}.topbar{background:var(--fg);color:var(--bg)}.topbar-inner{max-width:1280px;min-height:64px;margin:auto;padding:0 40px;display:flex;align-items:center;gap:28px}.brand{font-weight:700;letter-spacing:-.02em}.nav{margin-left:auto;display:flex;align-items:stretch;gap:22px;min-height:64px}.nav a{display:flex;align-items:center;position:relative;font-size:var(--text-sm);color:var(--surface);min-height:44px}.nav a:hover{color:var(--bg)}.nav a[aria-current="page"]{color:var(--bg);font-weight:700}.nav a[aria-current="page"]::after{content:"";position:absolute;bottom:0;left:0;right:0;height:3px;background:var(--accent)}.page{max-width:1280px;margin:auto;padding:34px 40px 72px}.back{display:inline-flex;min-height:44px;align-items:center;color:var(--fg-2);font-size:var(--text-sm);font-weight:600}.back:hover{color:var(--fg);text-decoration:underline;text-underline-offset:3px}h1{max-width:1000px;margin:14px 0 8px;font:600 clamp(32px,4vw,40px)/1.15 var(--font-display);letter-spacing:var(--tracking-display)}.meta{margin:0;color:var(--fg-2);font-size:var(--text-sm);font-variant-numeric:tabular-nums}.summary{margin-top:24px;padding:22px 26px;border:1px solid var(--border);border-radius:var(--radius-lg);background:var(--bg)}.eyebrow{margin:0 0 7px;color:var(--fg-2);font-size:var(--text-xs);font-weight:700;text-transform:uppercase;letter-spacing:.1em}.summary p:last-child{margin:0;color:var(--fg-2)}section.block{margin-top:38px}h2{margin:0 0 16px;font:600 var(--text-lg)/1.2 var(--font-display)}.list{list-style:none;margin:0;padding:0;display:grid;gap:8px}.mention{display:flex;align-items:center;gap:10px;min-width:0;padding:12px 16px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg)}.tag{flex:none;display:inline-flex;align-items:center;min-height:28px;padding:3px 10px;border:1px solid var(--border);border-radius:var(--radius-pill);background:var(--surface);color:var(--fg-2);font-size:var(--text-xs);font-weight:600}.tone{color:var(--success);background:color-mix(in oklch,var(--success) 9%,var(--bg));border-color:color-mix(in oklch,var(--success) 25%,var(--border))}.mention-title{min-width:0;flex:1;margin:0;font-size:var(--text-sm);font-weight:600;line-height:1.4}.mention time{flex:none;color:var(--muted);font-size:var(--text-xs);font-variant-numeric:tabular-nums}.support{margin:0 0 16px;color:var(--muted);font-size:var(--text-sm)}.coverage{width:100%;border-collapse:separate;border-spacing:0;overflow:hidden;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--bg);font-size:var(--text-sm)}.coverage th,.coverage td{text-align:left;padding:11px 16px;border-bottom:1px solid var(--border-soft)}.coverage tr:last-child td{border-bottom:0}.coverage th{background:var(--surface-warm);color:var(--fg-2);font-size:var(--text-xs);text-transform:uppercase;letter-spacing:.06em}.state{padding:20px;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--bg);color:var(--fg-2);font-size:var(--text-sm)}@media(max-width:800px){.topbar-inner{padding:0 20px}.page{padding:24px 20px 48px}.mention{flex-wrap:wrap}.mention-title{flex-basis:100%;order:2}.mention time{margin-left:auto}}@media(max-width:480px){.topbar-inner{padding:0 16px;gap:0;flex-wrap:wrap}.brand{display:flex;align-items:center;min-height:48px}.nav{width:100%;min-height:44px;margin-left:0;gap:16px;flex-wrap:wrap}.page{padding:20px 16px 40px}.summary{padding:18px}.mention{padding:12px}.mention time{margin-left:0;width:100%;order:3}}
+</style></head><body><header class="topbar" data-od-id="header"><div class="topbar-inner"><a class="brand" href="resumen-diario-media-monitor.html">Media Monitor</a><nav class="nav" aria-label="Navegación principal"><a href="resumen-diario-media-monitor.html">Resumen</a><a href="feed-media-monitor.html">Feed</a><a href="eventos-media-monitor.html" aria-current="page">Eventos</a><a href="actores-media-monitor.html">Actores</a><a href="consultas-media-monitor.html">Consultas</a><a href="configuracion-media-monitor.html">Configuración</a></nav></div></header><main class="page" data-od-id="event-detail"><a class="back" href="eventos-media-monitor.html" data-od-id="back-to-events">← Volver a eventos</a><h1 id="event-title" data-od-id="event-title">Detalle de evento</h1><p class="meta" id="event-meta" data-od-id="event-meta"></p><section class="summary" aria-labelledby="summary-heading" data-od-id="event-summary"><h2 class="eyebrow" id="summary-heading">Resumen del evento</h2><p id="summary-text"></p></section><section class="block" aria-labelledby="coverage-heading" data-od-id="event-coverage"><h2 id="coverage-heading">Cobertura</h2><p class="support" id="coverage-note"></p><table class="coverage" id="coverage-table"><thead><tr><th scope="col">Fuente de captura</th><th scope="col">Menciones</th><th scope="col">Medios</th></tr></thead><tbody id="coverage-body"></tbody></table><p class="state" id="coverage-empty" hidden>El desglose por fuente aún no está disponible en esta vista de ejemplo.</p></section><section class="block" aria-labelledby="mentions-heading" data-od-id="event-mentions"><h2 id="mentions-heading">Menciones</h2><p class="support" id="mentions-note"></p><ol class="list" id="mentions-list"></ol><p class="state" id="mentions-empty" hidden>El detalle de las menciones aún no está disponible en esta vista de ejemplo.</p></section></main><script>
+(() => {
+const mentions = [
+['News RSS','Positiva','Primera Plana Puebla','Posdoctorante BUAP gana Premio Dr. Orlando Zelaya a la Juventud Investigadora','2026-10-18T13:37'],
+['News RSS','Positiva','e-consulta.com','Posdoctorante BUAP gana Premio Dr. Orlando Zelaya a la Juventud Investigadora','2026-10-18T13:50'],
+['News RSS','Positiva','El Heraldo de Puebla','Posdoctorante de la BUAP gana premio nacional a la juventud investigadora','2026-10-18T14:31'],
+['News RSS','Positiva','elineanoticias.com','Posdoctorante BUAP logra Premio Dr. Orlando Zelaya a la Juventud Investigadora','2026-10-18T14:46'],
+['RSS propios','Positiva','BUAP','Posdoctorante BUAP gana Premio Dr. Orlando Zelaya a la Juventud Investigadora','2026-10-18T15:03'],
+['News RSS','Positiva','Periodismo Hoy','Posdoctorante BUAP gana Premio Dr. Orlando Zelaya a la Juventud Investigadora','2026-10-18T16:24'],
+['News RSS','Positiva','Parabólica','Posdoctorante BUAP gana Premio Dr. Orlando Zelaya a la Juventud Investigadora','2026-10-18T18:07'],
+['News RSS','Positiva','Urbano Puebla','Posdoctorante BUAP gana Premio Dr. Orlando Zelaya a la Juventud Investigadora','2026-10-18T19:17'],
+['News RSS','Positiva','Puebla Online','Posdoctorante de la BUAP gana premio Dr. Orlando Zelaya a la Juventud Investigadora','2026-10-18T20:24'],
+['News RSS','Positiva','Periódico Central','Posdoctorante BUAP gana Premio Dr. Orlando Zelaya a la Juventud Investigadora','2026-10-18T20:46'],
+['News RSS','Positiva','Revista Única','Posdoctorante BUAP gana Premio Dr. Orlando Zelaya a la Juventud Investigadora','2026-10-18T23:15'],
+['News RSS','Positiva','Almanaque Puebla','Posdoctorante BUAP gana Premio Dr. Orlando Zelaya a la Juventud Investigadora','2026-10-19T00:18']
+];
+const events = {
+'event-research-award': {title:'Posdoctorante de la BUAP recibe el Premio Dr. Orlando Zelaya', count:12, sources:2, last:'2026-10-19T00:18', summary:'Omar Soriano Romero, posdoctorante de la Facultad de Ciencias Físico Matemáticas de la BUAP, recibió el Premio Dr. Orlando Zelaya a la Juventud Investigadora por su trabajo en luminiscencia y dispositivos optoelectrónicos.', mentions, coverage:[['News RSS',11,11],['RSS propios',1,1]]},
+'event-book-presentation': {title:'Alejandro Rosas presenta «Érase una vez Tenochtitlán» en la Librería BUAP', count:11, sources:2, last:'2026-10-18T23:18', summary:'El escritor Alejandro Rosas presentó su libro en la Librería BUAP del Complejo Cultural Universitario, como parte de las actividades de fomento a la lectura.'},
+'event-art-exhibition': {title:'Alumnos de ARPA exponen en el Museo de la Memoria Histórica Universitaria', count:5, sources:2, last:'2026-10-18T19:37', summary:'La exposición colectiva «Ecos de una América Fantástica» reúne obras de estudiantes de la Facultad de Artes Plásticas y Audiovisuales.'},
+'event-retirement-benefits': {title:'Prestaciones para personal jubilado de la BUAP', count:2, sources:1, last:'2026-10-18T12:47', summary:'Una publicación repasa las prestaciones vigentes para el personal jubilado, incluidos apoyos médicos, aguinaldo y compensaciones por antigüedad.'}
+};
+const id = new URLSearchParams(location.search).get('id');
+const event = events[id];
+const fmt = iso => { const [date,time] = iso.split('T'); const [year,month,day] = date.split('-'); return `${day}/${month}/${year} a las ${time}`; };
+if (!event) {
+ document.querySelector('#event-title').textContent='Evento no encontrado';
+ document.querySelector('#summary-text').textContent='El evento solicitado no está disponible en esta vista.';
+ document.querySelector('#event-meta').textContent='Vuelve al listado para seleccionar otro evento.';
+ document.querySelector('#mentions-list').hidden=true;
+ document.querySelector('#mentions-empty').hidden=false;
+ document.querySelector('#coverage-table').hidden=true;
+ document.querySelector('#coverage-empty').hidden=false;
+ return;
+}
+document.title=`${event.title} · Media Monitor`;
+document.querySelector('#event-title').textContent=event.title;
+document.querySelector('#event-meta').textContent=`${event.count} menciones · ${event.sources} ${event.sources===1?'fuente':'fuentes'} de captura · Última detección: ${fmt(event.last)}`;
+document.querySelector('#summary-text').textContent=event.summary;
+const list=document.querySelector('#mentions-list');
+if (event.mentions?.length) {
+ document.querySelector('#mentions-note').textContent=`${event.mentions.length} menciones visibles en esta muestra`;
+ event.mentions.forEach(([source,tone,media,title,date])=>{
+  const li=document.createElement('li');li.className='mention';
+  const sourceEl=document.createElement('span');sourceEl.className='tag';sourceEl.textContent=source;
+  const toneEl=document.createElement('span');toneEl.className='tag tone';toneEl.textContent=tone;
+  const titleEl=document.createElement('p');titleEl.className='mention-title';titleEl.textContent=`${title} — ${media}`;
+  const time=document.createElement('time');time.dateTime=date;time.textContent=fmt(date);
+  li.append(sourceEl,toneEl,titleEl,time);list.append(li);
+ });
+} else { list.hidden=true;document.querySelector('#mentions-empty').hidden=false;document.querySelector('#mentions-note').textContent=`${event.count} menciones registradas en la referencia; detalle pendiente de integración.`; }
+if (event.coverage?.length) {
+ document.querySelector('#coverage-note').textContent='12 menciones en 12 medios; dos fuentes de captura.';
+ const body=document.querySelector('#coverage-body');
+ event.coverage.forEach(row=>{const tr=document.createElement('tr');row.forEach(value=>{const td=document.createElement('td');td.textContent=value;tr.append(td)});body.append(tr)});
+} else {document.querySelector('#coverage-table').hidden=true;document.querySelector('#coverage-empty').hidden=false;document.querySelector('#coverage-note').textContent='Desglose pendiente de integración.';}
+})();
+</script></body></html>

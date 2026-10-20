@@ -1,135 +1,148 @@
 <script lang="ts">
-	import { page } from '$app/state';
-	import MentionCard from '$lib/components/MentionCard.svelte';
-	import FeedFilterBar from '$lib/components/FeedFilterBar.svelte';
+	import { goto } from '$app/navigation';
+
+	import { formatDisplayDateTime, formatLongDate } from '$lib/format';
+	import { monogram } from '$lib/digest-stats';
+	import DigestSections from '$lib/components/DigestSections.svelte';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
 
-	const keywordNames = $derived(new Map(data.keywords.map((k) => [k.id, k.text])));
+	const summary = $derived(data.summary);
+	const day = $derived(data.day);
 
-	const activeKeywords = $derived(data.keywords.filter((k) => k.is_active));
-	const selectedKeywordId = $derived(data.filters.keyword_id ?? '');
+	const modeLabel: Record<string, string> = {
+		heuristic: 'Plantilla',
+		llm: 'IA'
+	};
 
-	function hrefWithKeyword(keywordId: string | null): string {
-		const params = new URLSearchParams(page.url.searchParams);
-		if (keywordId === null) params.delete('keyword_id');
-		else params.set('keyword_id', keywordId);
-		params.delete('offset'); // a new filter facet resets pagination
-		const qs = params.toString();
-		return `${page.url.pathname}${qs ? `?${qs}` : ''}`;
-	}
-
-	function hrefWithOffset(offset: number): string {
-		const params = new URLSearchParams(page.url.searchParams);
-		params.set('offset', String(offset));
-		return `${page.url.pathname}?${params.toString()}`;
-	}
-
-	const pagination = $derived.by(() => {
-		const { limit, offset } = data.filters;
-		const total = data.mentions.total;
-		return {
-			from: total === 0 ? 0 : offset + 1,
-			to: Math.min(offset + limit, total),
-			hasPrev: offset > 0,
-			hasNext: offset + limit < total,
-			prevHref: hrefWithOffset(Math.max(0, offset - limit)),
-			nextHref: hrefWithOffset(offset + limit)
-		};
+	const governmentCount = $derived.by(() => {
+		const byTopic = summary?.content.coverage?.by_topic;
+		if (byTopic && 'government' in byTopic) return byTopic.government;
+		return (
+			summary?.content.noticias?.filter((item) => item.topic === 'government').length ?? 0
+		);
 	});
 </script>
 
 <svelte:head>
-	<title>Feed | Media Monitor</title>
+	<title>Resumen diario | Media Monitor</title>
 </svelte:head>
 
-<div class="flex flex-wrap items-end justify-between gap-3">
-	<div>
-		<h1 class="text-2xl font-semibold tracking-tight">Feed de menciones</h1>
-		<p class="mt-1 text-sm text-slate-500">
-			{data.mentions.total}
-			{data.mentions.total === 1 ? 'mención' : 'menciones'} en total
-		</p>
+<div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-4">
+	<div class="min-w-0">
+		{#if summary}
+			<section class="digest-header" aria-labelledby="digest-date">
+				<div class="eyebrow">Resumen diario / BUAP</div>
+				<h1 id="digest-date">{formatLongDate(summary.summary_date)}</h1>
+				<div class="digest-meta">
+					<span class="mode">{modeLabel[summary.mode] ?? summary.mode}</span>
+					<span>actualizado {formatDisplayDateTime(summary.updated_at)}</span>
+				</div>
+			</section>
+
+			<section class="narrative" aria-labelledby="narrative-heading">
+				<div class="eyebrow" id="narrative-heading">Resumen del día</div>
+				<p>{summary.narrative}</p>
+			</section>
+
+			<DigestSections
+				content={summary.content}
+				tones={data.tones}
+				sentimentByEvent={data.eventSentiment}
+				fieldCount={data.fieldCount}
+				updatedAt={summary.updated_at}
+			/>
+
+			<details class="panel">
+				<summary class="cursor-pointer text-sm font-medium text-ink">
+					Texto plano (para el chat con RAG)
+				</summary>
+				<pre class="mt-3 whitespace-pre-wrap text-sm text-ink-2">{summary.content.plain_text}</pre>
+			</details>
+		{:else}
+			<div class="empty mt-6" role="status">
+				<p>Todavía no se genera el resumen del día.</p>
+				<p class="mt-1 text-muted">
+					Última actualización:
+					{data.latest_updated_at ? formatDisplayDateTime(data.latest_updated_at) : '—'}
+				</p>
+			</div>
+		{/if}
 	</div>
+
+	<aside class="sidebar digest-aside" aria-label="Seguimiento especial, archivo y actores">
+		<section class="sidebar-section" aria-labelledby="archivo-heading">
+			<h2 id="archivo-heading">Historial</h2>
+			{#if data.days.length === 0}
+				<p class="small-note">Todavía no hay resúmenes guardados.</p>
+			{:else}
+				<ul class="history-list">
+					{#each data.days as entry (entry.summary_date)}
+						<li>
+							<button
+								type="button"
+								aria-label="Consultar resumen del {formatLongDate(entry.summary_date)}"
+								aria-pressed={entry.summary_date === day}
+								onclick={() => goto(`?date=${entry.summary_date}`)}
+							>
+								<span>{formatLongDate(entry.summary_date)}</span>
+							</button>
+						</li>
+					{/each}
+				</ul>
+			{/if}
+			<p class="small-note">La consulta histórica requiere conexión al backend.</p>
+		</section>
+
+		<section class="sidebar-section" aria-labelledby="actores-heading">
+			<h2 id="actores-heading">Actores en seguimiento</h2>
+			{#if data.persons.length === 0}
+				<p class="small-note">Sin actores registrados todavía.</p>
+			{:else}
+				{#each data.persons as person (person.id)}
+					<div class="actor-entry">
+						<span class="actor-monogram" aria-hidden="true">{monogram(person.name)}</span>
+						<div>
+							<span class="actor-name">{person.name}</span>
+							<span class="actor-role">
+								{[person.role ?? person.org, `${person.mention_count} menciones`]
+									.filter(Boolean)
+									.join(' · ')}
+							</span>
+						</div>
+					</div>
+				{/each}
+				<a class="actor-link" href="/persons">Ver cobertura →</a>
+			{/if}
+		</section>
+
+		<section class="sidebar-section" aria-labelledby="especial-heading">
+			<h2 id="especial-heading">Categorías en seguimiento especial</h2>
+			<div class="special-topic">
+				<span class="special-topic-name">Gobierno</span>
+				<span class="special-topic-scope">Tema prioritario en noticias y redes sociales</span>
+				<p class="special-topic-status">
+					{governmentCount > 0
+						? `${governmentCount} ${governmentCount === 1 ? 'nota clasificada' : 'notas clasificadas'} hoy.`
+						: 'Sin notas clasificadas en esta categoría hoy.'}
+				</p>
+			</div>
+		</section>
+
+		<section class="sidebar-section" aria-labelledby="temas-heading">
+			<h2 id="temas-heading">Temas en seguimiento</h2>
+			{#if data.keywords.length === 0}
+				<p class="tracked-topics-empty" role="status">
+					Los temas definidos en Configuración aparecerán aquí.
+				</p>
+			{:else}
+				<ul class="tracked-list">
+					{#each data.keywords as keyword (keyword.id)}
+						<li>{keyword.text}</li>
+					{/each}
+				</ul>
+			{/if}
+		</section>
+	</aside>
 </div>
-
-<FeedFilterBar
-	sources={data.sources}
-	keywords={data.keywords}
-	filters={data.filters}
-	resetHref={page.url.pathname}
-/>
-
-<!-- Quick keyword pills: same keyword_id param as the form, one source of truth. -->
-{#if activeKeywords.length > 0}
-	<div class="mt-4 flex flex-wrap items-center gap-2" aria-label="Filtro rápido por palabra clave">
-		<span class="text-xs font-medium text-slate-500">Palabras clave:</span>
-		<a
-			href={hrefWithKeyword(null)}
-			class={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-				selectedKeywordId === ''
-					? 'bg-slate-900 text-white'
-					: 'border border-slate-300 bg-white text-slate-600 hover:border-slate-400 hover:text-slate-900'
-			}`}
-		>
-			Todas
-		</a>
-		{#each activeKeywords as keyword (keyword.id)}
-			<a
-				href={hrefWithKeyword(String(keyword.id))}
-				class={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-					selectedKeywordId === String(keyword.id)
-						? 'bg-slate-900 text-white'
-						: 'border border-slate-300 bg-white text-slate-600 hover:border-slate-400 hover:text-slate-900'
-				}`}
-			>
-				{keyword.text}
-			</a>
-		{/each}
-	</div>
-{/if}
-
-{#if data.mentions.items.length === 0}
-	<div class="mt-8 rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center">
-		<p class="text-sm font-medium text-slate-700">Sin menciones para los filtros aplicados.</p>
-		<p class="mt-1 text-sm text-slate-500">Ajusta los filtros o espera la próxima ingesta.</p>
-	</div>
-{:else}
-	<ul class="mt-6 grid gap-3" aria-label="Menciones">
-		{#each data.mentions.items as mention (mention.id)}
-			<li>
-				<MentionCard
-					{mention}
-					keywordLabel={
-						mention.keyword_id !== null ? (keywordNames.get(mention.keyword_id) ?? null) : null
-					}
-				/>
-			</li>
-		{/each}
-	</ul>
-
-	<nav class="mt-6 flex items-center justify-between" aria-label="Paginación">
-		<p class="text-xs text-slate-500">
-			Mostrando {pagination.from}–{pagination.to} de {data.mentions.total}
-		</p>
-		<div class="flex gap-2">
-			{#if pagination.hasPrev}
-				<a
-					href={pagination.prevHref}
-					class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
-				>
-					← Anterior
-				</a>
-			{/if}
-			{#if pagination.hasNext}
-				<a
-					href={pagination.nextHref}
-					class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
-				>
-					Siguiente →
-				</a>
-			{/if}
-		</div>
-	</nav>
-{/if}

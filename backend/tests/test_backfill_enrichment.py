@@ -1,10 +1,17 @@
 """Backfill enrichment tests (F2c TE4): candidates, projection, apply."""
 
-from sqlalchemy import text
-
 from app.enrich.llm import EnrichmentResult
-from app.models import Client, Mention, MentionSource, make_url_hash
+from app.models import (
+    Client,
+    Mention,
+    MentionPerson,
+    MentionSource,
+    Person,
+    make_url_hash,
+)
 from app.models.base import Sentiment
+from sqlalchemy import select, text
+
 
 class TestBackfillEnrichment:
     """TE4: candidate selection, cost projection, apply path."""
@@ -104,6 +111,7 @@ class TestBackfillEnrichment:
             "failed": 0,
             "skipped_empty": 0,
             "canonical_overrides": 1,
+            "persons_relinked": 1,
             "candidates": 1,
         }
         assert mention.summary == "Resumen."
@@ -205,3 +213,52 @@ class TestBackfillEnrichment:
             raw = rows[mention_id].raw_enrichment
             assert raw["summary"] == "Resumen."
             assert raw["persons"][0]["stance"] == "neutral"
+
+    def test_relink_replaces_stale_person_links(self, session) -> None:
+        from scripts.backfill_enrichment import backfill, candidate_ids
+
+        client = Client(name="c")
+        session.add(client)
+        session.commit()
+        url = "https://x.com/relink"
+        mention = Mention(
+            client_id=client.id,
+            source=MentionSource.news_rss,
+            url=url,
+            url_hash=make_url_hash(url),
+            title="titulo",
+            content="texto",
+        )
+        old_person = Person(
+            client_id=client.id, name="Viejo Incidental", name_key="viejo incidental"
+        )
+        session.add_all([mention, old_person])
+        session.flush()
+        session.add(
+            MentionPerson(mention_id=mention.id, person_id=old_person.id)
+        )
+        session.commit()
+
+        # --with-persons only candidates rows that already have a link.
+        assert candidate_ids(session, force=True, with_persons=True) == [mention.id]
+
+        class FakeEnricher:
+            def enrich(self, text, lang="es"):
+                return EnrichmentResult(
+                    summary="Resumen.",
+                    sentiment=Sentiment.neutral,
+                    sentiment_score=0.5,
+                    persons=[{"name": "Autoridad Central", "role": "Rectora"}],
+                )
+
+        stats = backfill(session, FakeEnricher(), force=True, with_persons=True)
+        assert stats["persons_relinked"] == 1
+        links = session.scalars(
+            select(MentionPerson.person_id).where(
+                MentionPerson.mention_id == mention.id
+            )
+        ).all()
+        (person_id,) = links
+        assert session.get(Person, person_id).name == "Autoridad Central"
+        # The stale link did not survive the re-enrichment.
+        assert old_person.id not in links

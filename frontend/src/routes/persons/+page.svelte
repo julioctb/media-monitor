@@ -1,101 +1,113 @@
 <script lang="ts">
-	import { page } from '$app/state';
-
-	import { INPUT_CLS } from '$lib/ui';
+	import { BTN_PRIMARY_CLS, INPUT_CLS } from '$lib/ui';
 	import { formatDisplayDateTime } from '$lib/format';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
 
 
-	let filterForm: HTMLFormElement | undefined = $state();
-	function submitFilters() {
-		filterForm?.requestSubmit();
-	}
-
-	function hrefWith(param: Record<string, string>): string {
-		const params = new URLSearchParams(page.url.searchParams);
-		for (const [key, value] of Object.entries(param)) {
-			if (value) params.set(key, value);
-			else params.delete(key);
-		}
-		const qs = params.toString();
-		return `${page.url.pathname}${qs ? `?${qs}` : ''}`;
+	function initials(name: string): string {
+		return name
+			.split(/\s+/)
+			.filter(Boolean)
+			.slice(0, 2)
+			.map((word) => word[0]?.toUpperCase() ?? '')
+			.join('');
 	}
 </script>
 
 <svelte:head>
-	<title>Personas | Media Monitor</title>
+	<title>Actores | Media Monitor</title>
 </svelte:head>
 
-<div class="flex flex-wrap items-end justify-between gap-3">
+<header class="flex flex-col gap-3">
 	<div>
-		<h1 class="text-2xl font-semibold tracking-tight">Personas</h1>
-		<p class="mt-1 text-sm text-slate-500">
+		<h1 class="page-title">Actores</h1>
+		<p class="lead">
 			{data.persons.length}
 			protagonistas detectados en la cobertura, con su volumen de menciones.
 		</p>
 	</div>
-</div>
+</header>
 
-<form bind:this={filterForm} method="get" class="mt-6 flex flex-wrap items-center gap-2">
-	<input
-		type="search"
-		name="q"
-		value={data.q}
-		placeholder="Buscar por nombre"
-		aria-label="Buscar persona"
-		class={`${INPUT_CLS} min-w-0 flex-1 basis-64`}
-	/>
-	<select name="sort" aria-label="Orden" class={INPUT_CLS} onchange={submitFilters}>
-		<option value="mentions" selected={data.sort === 'mentions'}>Más mencionadas</option>
-		<option value="recent" selected={data.sort === 'recent'}>Actividad reciente</option>
-	</select>
-	<button
-		type="submit"
-		class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
-	>
-		Buscar
-	</button>
-</form>
+<section class="filter-panel" aria-labelledby="persons-filter-title">
+	<h2 class="panel-title" id="persons-filter-title">Filtrar actores</h2>
+	<form method="get" class="filter-form mt-3">
+		<div class="min-w-0 flex-1">
+			<input
+				class={`${INPUT_CLS} min-w-0`}
+				id="q"
+				type="search"
+				name="q"
+				value={data.q}
+				placeholder="Buscar por nombre, cargo o institución"
+			/>
+		</div>
+		<button class={BTN_PRIMARY_CLS} type="submit">Buscar</button>
+	</form>
+</section>
 
-{#if data.persons.length === 0}
-	<div class="mt-8 rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center">
-		<p class="text-sm font-medium text-slate-700">Sin personas registradas todavía.</p>
-		<p class="mt-1 text-sm text-slate-500">
-			Las personas se detectan al enriquecer las menciones (protagonistas de cada nota).
+<section class="panel" aria-labelledby="persons-list-title">
+	<div class="panel-head">
+		<h2 class="panel-title" id="persons-list-title">Actores en seguimiento</h2>
+		<p class="panel-note" role="status" aria-live="polite">
+			{data.persons.length}
+			{data.persons.length === 1 ? 'persona' : 'personas'} con menciones registradas
 		</p>
 	</div>
-{:else}
-	<ul class="mt-6 grid gap-3 md:grid-cols-2" aria-label="Personas">
-		{#each data.persons as person (person.id)}
-			<li>
-				<a
-					href={`/persons/${person.id}`}
-					class="block rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-colors hover:border-slate-300"
-				>
-					<div class="flex items-baseline justify-between gap-2">
-						<h2 class="text-sm font-semibold text-slate-900">{person.name}</h2>
-						<span class="shrink-0 text-xs tabular-nums text-slate-500">
-							{person.mention_count}
-							{person.mention_count === 1 ? 'mención' : 'menciones'}
-						</span>
-					</div>
-					{#if person.role || person.org}
-						<p class="mt-1 text-xs text-slate-500">
-							{[person.role, person.org].filter(Boolean).join(' · ')}
-						</p>
-					{/if}
-					{#if person.aliases.length > 0}
-						<p class="mt-1 text-xs text-slate-400">
-							También: {person.aliases.slice(0, 3).join(', ')}
-						</p>
-					{/if}
-					<p class="mt-2 text-xs text-slate-400">
-						Ultima vez vista {formatDisplayDateTime(person.last_seen_at)}
-					</p>
-				</a>
-			</li>
-		{/each}
-	</ul>
-{/if}
+	{#if data.persons.length === 0}
+		<p class="empty mt-4">
+			Sin actores registrados todavía. Los actores se detectan al enriquecer las menciones
+			(protagonistas de cada nota).
+		</p>
+	{:else}
+		<div class="table-wrap mt-4">
+			<table class="data-table">
+				<thead>
+					<tr>
+						<th scope="col">Nombre</th>
+						<th scope="col">Cargo</th>
+						<th scope="col">Institución</th>
+						<th scope="col">Menciones</th>
+						<th scope="col">Última vez</th>
+					</tr>
+				</thead>
+				<tbody>
+					{#each data.persons as person (person.id)}
+						<tr>
+							<td data-label="Nombre">
+								<div class="flex items-center gap-3 font-semibold">
+									<span class="monogram" aria-hidden="true">{initials(person.name)}</span>
+									<a
+										class="underline decoration-line underline-offset-[3px] hover:decoration-ink"
+										href={`/persons/${person.id}`}>{person.name}</a
+									>
+								</div>
+								{#if person.aliases.length > 0}
+									<p class="mt-1.5 text-xs font-normal text-meta">
+										También mencionado como: {person.aliases.slice(0, 3).join(', ')}
+									</p>
+								{/if}
+							</td>
+							<td data-label="Cargo">{person.role || '—'}</td>
+							<td data-label="Institución">{person.org || '—'}</td>
+							<td data-label="Menciones"><span class="count">{person.mention_count}</span></td>
+							<td data-label="Última vez">
+								{#if person.last_seen_at}
+									{formatDisplayDateTime(person.last_seen_at)}
+								{:else}
+									<span class="missing">No disponible</span>
+								{/if}
+							</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
+		</div>
+	{/if}
+</section>
+
+<p class="footnote">
+	Los actores se detectan automáticamente en el enriquecimiento de las notas; la columna «última
+	vez» refleja la última mención registrada.
+</p>

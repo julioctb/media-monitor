@@ -68,37 +68,40 @@ describe('MentionCard', () => {
 		expect(link?.textContent?.trim()).toBe('https://example.com/nota');
 	});
 
-	it('shows the source and sentiment badges', () => {
+	it('shows channel, source detail and sentiment without prefixes', () => {
 		const { card } = renderCard({ mention: mentionFixture() });
 
-		expect(card.textContent).toContain('Fuente: News RSS');
-		expect(card.textContent).toContain('Sentimiento: Positivo');
-		expect(card.innerHTML).toContain('bg-green-50');
+		expect(card.textContent).toContain('Noticias');
+		expect(card.textContent).toContain('Noticias · example');
+		expect(card.textContent).not.toContain('Fuente:');
+		expect(card.querySelector('.item-top .sentiment')?.textContent).toContain('Positivo');
+		expect(card.querySelector('.sentiment.positive')).not.toBeNull();
 	});
 
 	it('labels unclassified sentiment explicitly', () => {
 		const { card } = renderCard({ mention: mentionFixture({ sentiment: null }) });
 
-		expect(card.textContent).toContain('Sentimiento: Sin clasificar');
+		expect(card.textContent).toContain('Sin clasificar');
 	});
 
-	it('omits the enrichment block when there is no summary', () => {
-		const { card } = renderCard({ mention: mentionFixture({ summary: null }) });
-
-		expect(card.querySelector('details')).toBeNull();
-	});
-
-	it('hides the enrichment summary behind an expandable details', () => {
+	it('renders the enrichment summary as visible body text', () => {
 		const { card } = renderCard({
 			mention: mentionFixture({ summary: 'La nota vincula al anuncio con la reforma.' })
 		});
 
-		const details = card.querySelector('details');
-		expect(details).not.toBeNull();
-		expect(details?.querySelector('summary')?.textContent).toContain('Resumen');
-		expect(details?.textContent).toContain('La nota vincula al anuncio con la reforma.');
-		// Collapsed by default: content is there, the disclosure is shut.
-		expect(details?.hasAttribute('open')).toBe(false);
+		const body = card.querySelector('.item-summary');
+		expect(body).not.toBeNull();
+		expect(body?.textContent).toContain('La nota vincula al anuncio con la reforma.');
+		// No collapsed disclosure: the summary is plain visible text.
+		expect(card.querySelector('details')).toBeNull();
+	});
+
+	it('falls back to the article excerpt without a summary', () => {
+		const { card } = renderCard({ mention: mentionFixture({ summary: null }) });
+
+		const body = card.querySelector('.item-summary');
+		expect(body).not.toBeNull();
+		expect(body?.classList.contains('clamped')).toBe(true);
 	});
 
 	it('renders the event chip as a link when the event is resolved', () => {
@@ -108,7 +111,8 @@ describe('MentionCard', () => {
 		});
 
 		const chip = card.querySelector('a[href="/events/3"]');
-		expect(chip?.textContent).toContain('Anuncio de reforma');
+		expect(chip?.textContent).toContain('Evento #3');
+		expect((chip?.textContent ?? '').replace(/\s+/g,' ')).toContain('1 cobertura del mismo evento');
 	});
 
 	it('renders no event chip without event context', () => {
@@ -127,7 +131,6 @@ describe('MentionCard', () => {
 			})
 		});
 
-		expect(card.textContent).toContain('Política');
 		expect(card.textContent).toContain('Economía');
 	});
 
@@ -169,12 +172,12 @@ describe('MentionCard', () => {
 		expect(card.querySelector('a[href^="/persons/"]')).toBeNull();
 	});
 
-	it('marks the ingest-date fallback with an asterisk', () => {
+	it('renders the ingest-date fallback without an asterisk', () => {
 		const { card } = renderCard({ mention: mentionFixture({ published_at: null }) });
 
-		const time = card.querySelector('time');
-		expect(time?.getAttribute('datetime')).toBe('2026-10-01T12:05:00Z');
-		expect(card.textContent).toMatch(/\*/);
+		const when = card.querySelector('.item-when');
+		expect(when?.textContent).toContain('2026');
+		expect(card.textContent).not.toMatch(/\*/);
 	});
 
 	it('shows the keyword label only when provided', () => {

@@ -22,7 +22,7 @@ export function sourceLabel(source: string): string {
 		.replace(/(^|\s)(\w)/g, (_match, separator: string, letter: string) => separator + letter.toUpperCase());
 }
 
-export const SENTIMENT_LABELS: Record<string, string> = {
+const SENTIMENT_LABELS: Record<string, string> = {
 	positive: 'Positivo',
 	negative: 'Negativo',
 	neutral: 'Neutro',
@@ -33,24 +33,11 @@ export function sentimentLabel(value: string | null): string {
 	return SENTIMENT_LABELS[String(value)] ?? String(value);
 }
 
-/** Badge palette: green positive, red negative, gray neutral, outline unclassified. */
-export function sentimentBadgeClass(value: string | null): string {
-	switch (value) {
-		case 'positive':
-			return 'bg-green-50 text-green-700 ring-green-600/20';
-		case 'negative':
-			return 'bg-red-50 text-red-700 ring-red-600/20';
-		case 'neutral':
-			return 'bg-slate-100 text-slate-600 ring-slate-500/20';
-		default:
-			return 'bg-white text-slate-500 ring-slate-300';
-	}
-}
-
 /** Classification labels (open set; unknown labels fall through). */
 const CLASSIFICATION_LABELS: Record<string, string> = {
 	political: 'Política',
-	not_political: 'No política'
+	not_political: 'No política',
+	uncertain: 'Sin clasificar'
 };
 
 export function classificationLabel(label: string): string {
@@ -95,14 +82,13 @@ export function topicBadgeClass(label: string): string {
 	return TOPIC_BADGE_CLASSES[label] ?? 'bg-slate-100 text-slate-500 ring-slate-400/20';
 }
 
-const PAD = (value: number) => String(value).padStart(2, '0');
 
 /**
  * Display timezone: client headquarters (America/Mexico_City, UTC-6 all
  * year — Mexico abolished DST in 2022). When multi-timezone clients land,
  * thread settings.timezone through the layout load instead.
  */
-export const DISPLAY_TIMEZONE = 'America/Mexico_City';
+const DISPLAY_TIMEZONE = 'America/Mexico_City';
 
 const mexicoFormatter = new Intl.DateTimeFormat('es-MX', {
 	timeZone: DISPLAY_TIMEZONE,
@@ -126,7 +112,36 @@ export function formatDisplayDateTime(value: string | null | undefined): string 
 	return `${parts.day}/${parts.month}/${parts.year} ${parts.hour}:${parts.minute}`;
 }
 
+/** `2026-10-20T14:03` → `20 de octubre de 2026 - 14:03` (24h, hora local). */
+export function formatDisplayDateTimeLong(value: string | null | undefined): string {
+	if (!value) return '—';
+	const date = new Date(value);
+	if (Number.isNaN(date.getTime())) return value;
+	const fmt = new Intl.DateTimeFormat('es-MX', {
+		timeZone: DISPLAY_TIMEZONE,
+		day: 'numeric',
+		month: 'long',
+		year: 'numeric',
+		hour: '2-digit',
+		minute: '2-digit',
+		hour12: false
+	});
+	const parts = fmt.formatToParts(date).reduce<Record<string, string>>((acc, p) => {
+		acc[p.type] = p.value;
+		return acc;
+	}, {});
+	return `${parts.day} de ${parts.month} de ${parts.year} - ${parts.hour}:${parts.minute}`;
+}
+
 const dayFormatter = new Intl.DateTimeFormat('es', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+
+/** `2026-10-19T06:24` → `19/10/2026 a las 06:24` (detalle-actor mockup). */
+export function formatDisplayDateTimeAt(value: string | null | undefined): string {
+	const base = formatDisplayDateTime(value);
+	if (!base || base === '—') return base;
+	const [date, time] = base.split(' ');
+	return time ? `${date} a las ${time}` : base;
+}
 
 /** `2026-10-08` → `8 oct`, for chart axes (UTC, never shifted a day). */
 export function formatDayLabel(isoDate: string): string {
@@ -134,3 +149,64 @@ export function formatDayLabel(isoDate: string): string {
 	return Number.isNaN(date.getTime()) ? isoDate : dayFormatter.format(date);
 }
 
+
+const MONTHS_ES = [
+	'enero',
+	'febrero',
+	'marzo',
+	'abril',
+	'mayo',
+	'junio',
+	'julio',
+	'agosto',
+	'septiembre',
+	'octubre',
+	'noviembre',
+	'diciembre'
+];
+
+const WEEKDAYS_ES = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+
+/**
+ * `2026-10-19` → `Domingo 19 de octubre, 2026` (digest h1, mockup wording).
+ * Non-date input falls through untouched. Computed in local time from the
+ * date-only components so no timezone can shift the weekday.
+ */
+export function formatLongDate(isoDate: string): string {
+	const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate);
+	if (!match) return isoDate;
+	const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+	if (Number.isNaN(date.getTime())) return isoDate;
+	const weekday = WEEKDAYS_ES[date.getDay()];
+	const capital = weekday.charAt(0).toUpperCase() + weekday.slice(1);
+	return `${capital} ${date.getDate()} de ${MONTHS_ES[date.getMonth()]}, ${date.getFullYear()}`;
+}
+
+/** Lowercase, de-accented, punctuation-free token set for fuzzy comparisons. */
+function contentTokens(text: string): Set<string> {
+	return new Set(
+		text
+			.toLowerCase()
+			.normalize('NFD')
+			.replace(/[\u0300-\u036f]/g, '')
+			.replace(/[^a-z0-9\s]/g, ' ')
+			.split(/\s+/)
+			.filter((t) => t.length > 2)
+	);
+}
+
+/**
+ * Chip label for the canonical-event link: the event title when it adds
+ * information, or a plain call-to-action when it would just repeat the mention
+ * title (the cluster title is inherited from its first mention, source
+ * suffix included, so the two usually near-duplicate).
+ */
+export function eventChipLabel(mentionTitle: string | null, eventTitle: string): string {
+	const mentionTokens = contentTokens(mentionTitle ?? '');
+	const eventTokens = contentTokens(eventTitle);
+	if (mentionTokens.size === 0 || eventTokens.size === 0) return `Evento: ${eventTitle}`;
+	const overlap = [...eventTokens].filter((t) => mentionTokens.has(t)).length;
+	const duplicated =
+		overlap / eventTokens.size >= 0.8 || overlap / mentionTokens.size >= 0.8;
+	return duplicated ? 'Ver evento' : `Evento: ${eventTitle}`;
+}

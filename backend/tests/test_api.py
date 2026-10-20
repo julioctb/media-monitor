@@ -214,6 +214,34 @@ def test_mentions_empty_state(api) -> None:
     assert response.json() == {"items": [], "total": 0}
 
 
+def test_mentions_include_canonical_event(api, db) -> None:
+    """Feed rows carry event_id/event_title so the UI can chip the cluster."""
+    client_id = first_client_id(db)
+    event = seed_event(
+        db,
+        client_id,
+        "Campaña Échale los kilos",
+        now_utc() - timedelta(hours=2),
+        now_utc(),
+        mention_count=1,
+    )
+    seed_mention(
+        db,
+        client_id,
+        "https://example.com/evented",
+        title="Con evento",
+        event_id=event.id,
+    )
+    seed_mention(db, client_id, "https://example.com/plain", title="Sin evento")
+
+    body = api.get("/api/mentions").json()
+    by_url = {item["url"]: item for item in body["items"]}
+    assert by_url["https://example.com/evented"]["event_id"] == event.id
+    assert by_url["https://example.com/evented"]["event_title"] == "Campaña Échale los kilos"
+    assert by_url["https://example.com/plain"]["event_id"] is None
+    assert by_url["https://example.com/plain"]["event_title"] is None
+
+
 @pytest.fixture()
 def mentions_seeded(db):
     """Three mentions: two classified, one with NULL sentiment."""
@@ -469,6 +497,7 @@ def test_stats_overview_shape(api, db) -> None:
         "x_twitter": 1,
         "facebook_page": 0,
         "rss_custom": 0,
+        "scraper": 0,
     }
     assert body["last_24h"] == 2
     assert body["last_7d"] == 3
@@ -493,6 +522,28 @@ def test_stats_overview_empty(api) -> None:
 
 
 # ---------------------------------------------------------------- alerts
+
+
+def test_settings_digest_hours_roundtrip(api) -> None:
+    """digest_hours persists as sorted CSV and reads back as a list."""
+    resp = api.put("/api/settings", json={"digest_hours": [21, 8, 8, 6]})
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["digest_hours"] == [6, 8, 21]  # sorted, deduped
+    assert body["digest_hour"] == 6  # compat mirror of the first cut
+    assert api.get("/api/settings").json()["digest_hours"] == [6, 8, 21]
+
+
+def test_settings_digest_hours_validation(api) -> None:
+    assert api.put("/api/settings", json={"digest_hours": []}).status_code == 422
+    assert (
+        api.put("/api/settings", json={"digest_hours": list(range(9))}).status_code
+        == 422
+    )
+    assert api.put("/api/settings", json={"digest_hours": [24]}).status_code == 422
+    # Legacy single-hour field keeps working beside the list.
+    assert api.put("/api/settings", json={"digest_hour": 5}).status_code == 200
+    assert api.get("/api/settings").json()["digest_hours"] == [5]
 
 
 def test_alert_settings_defaults_when_missing(api) -> None:

@@ -27,6 +27,8 @@ import json
 import logging
 import re
 from collections.abc import Callable
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from html import unescape as html_unescape
 from urllib.parse import quote, urlsplit
 
@@ -73,7 +75,7 @@ def _clean(text: str) -> str:
     return re.sub(r"\n{3,}", "\n\n", "\n".join(line for line in lines if line)).strip()
 
 
-def _paragraphs(node) -> list[str]:  # noqa: ANN001 - bs4 tag
+def _paragraphs(node) -> list[str]:
     return [
         p.get_text(" ", strip=True)
         for p in node.find_all("p")
@@ -83,7 +85,7 @@ def _paragraphs(node) -> list[str]:  # noqa: ANN001 - bs4 tag
 
 def _regex_fallback(html: str) -> str:
     """Last-resort tag strip for pages bs4 cannot structure."""
-    text = re.sub(r"<(script|style)[^>]*>.*?</\1>", " ", html, flags=re.DOTALL | re.I)
+    text = re.sub(r"<(script|style)[^>]*>.*?</\1>", " ", html, flags=re.DOTALL | re.IGNORECASE)
     text = re.sub(r"<[^>]+>", "\n", text)
     return _clean(html_unescape(text))
 
@@ -191,16 +193,142 @@ def _fetch_page(url: str, client: httpx.Client) -> str | None:
         return None
 
 
-def fetch_article(url: str, client: httpx.Client | None = None) -> str | None:
-    """Article body for a mention URL; None on ANY failure.
+def resolve_publisher_url(url: str, client: httpx.Client | None = None) -> str:
+    """Canonical publisher URL for dedupe; passthrough for non-Google-News.
+
+    Google News `/rss/articles/` links are per-reader redirect URLs: the same
+    article ingested via news_rss and rss_custom hashes differently and lands
+    twice. Resolving to the publisher URL (same batchexchange trick the content
+    fetch uses) makes both paths collide on one url_hash. Any failure returns
+    the input untouched — dedupe must never break ingest.
+    """
+    if not url or not _is_google_news(url):
+        return url
+    own_client = client is None
+    http = client or httpx.Client(timeout=FETCH_TIMEOUT_S, follow_redirects=True)
+    try:
+        return _resolve_google_news_redirect(url, http) or url
+    except Exception as exc:  # noqa: BLE001 - canonicalization is best-effort
+        log.debug("publisher url resolution failed for %s: %s", url, exc)
+        return url
+    finally:
+        if own_client:
+            http.close()
+
+
+#: Meta tags carrying the author byline, in preference order.
+_AUTHOR_META_SELECTORS = (
+    ("meta", {"name": "author"}),
+    ("meta", {"property": "article:author"}),
+    ("meta", {"name": "twitter:creator"}),
+)
+
+
+def extract_author(html: str) -> str | None:
+    """Byline from article HTML meta tags; None when the page has none.
+
+    Feed bylines are preferred upstream (curated); this covers Google News
+    and scraper paths where the RSS carries no author at all.
+    """
+    if not html or not html.strip():
+        return None
+    try:
+        soup = BeautifulSoup(html, "html.parser")
+    except Exception:  # noqa: BLE001 - malformed HTML must not raise
+        return None
+    for tag, attrs in _AUTHOR_META_SELECTORS:
+        node = soup.find(tag, attrs=attrs)
+        if node is None:
+            continue
+        value = (node.get("content") or "").strip()
+        if value and not value.startswith(("http", "www.")):
+            return _clean(value)[:120] or None
+    return None
+
+
+_PUBLISHED_META_SELECTORS = [
+    ("meta", {"property": "article:published_time"}),
+    ("meta", {"name": "published_time"}),
+    ("meta", {"itemprop": "datePublished"}),
+]
+
+_PUBLISHED_JSONLD_KEYS = ("datePublished", "dateCreated")
+
+
+def _parse_published(value: str | None) -> datetime | None:
+    """ISO-8601-ish timestamp -> tz-aware datetime; None when unparseable."""
+    if not value or not value.strip():
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=UTC)
+    return parsed
+
+
+def extract_published_at(html: str) -> datetime | None:
+    """Publish timestamp from meta / JSON-LD / <time>; None when absent.
+
+    Scraper and Google News paths carry no date in the listing page; the
+    article itself does. Without it those mentions rank last in every
+    recency-ordered context (ask retrieval, feeds) and effectively vanish.
+    """
+    if not html or not html.strip():
+        return None
+    try:
+        soup = BeautifulSoup(html, "html.parser")
+    except Exception:  # noqa: BLE001 - malformed HTML must not raise
+        return None
+    for tag, attrs in _PUBLISHED_META_SELECTORS:
+        node = soup.find(tag, attrs=attrs)
+        if node is not None:
+            parsed = _parse_published(node.get("content"))
+            if parsed is not None:
+                return parsed
+    for node in soup.find_all("time", attrs={"datetime": True}):
+        parsed = _parse_published(node.get("datetime"))
+        if parsed is not None:
+            return parsed
+    for script in soup.find_all("script", type="application/ld+json"):
+        try:
+            data = json.loads(script.string or "{}")
+        except (json.JSONDecodeError, TypeError, ValueError):
+            continue
+        candidates = data if isinstance(data, list) else [data]
+        for entry in candidates:
+            if not isinstance(entry, dict):
+                continue
+            for key in _PUBLISHED_JSONLD_KEYS:
+                parsed = _parse_published(entry.get(key))
+                if parsed is not None:
+                    return parsed
+    return None
+
+
+@dataclass
+class ArticleContent:
+    """Result of one article fetch: body, byline and publish time."""
+
+    text: str | None
+    author: str | None = None
+    published_at: datetime | None = None
+
+    def __bool__(self) -> bool:
+        return bool(self.text and self.text.strip())
+
+
+def fetch_article_content(url: str, client: httpx.Client | None = None) -> ArticleContent:
+    """Article body AND author for a mention URL; empty on ANY failure.
 
     Google News redirect links are resolved to the publisher URL first
     (batchexecute; a failed resolution just fetches the redirect page).
     Never raises: timeouts, non-200s and extraction misses all return
-    None so a fetch can never break an ingest cycle or backfill.
+    empty fields so a fetch can never break an ingest cycle or backfill.
     """
     if not url or not url.strip():
-        return None
+        return ArticleContent(None)
     own_client = client is None
     http = client or httpx.Client(timeout=FETCH_TIMEOUT_S, follow_redirects=True)
     try:
@@ -213,19 +341,30 @@ def fetch_article(url: str, client: httpx.Client | None = None) -> str | None:
         if html is None and target != url:
             # Resolver picked a dead mirror: one retry on the original.
             html = _fetch_page(url, http)
-        return extract_article_text(html) if html else None
+        if not html:
+            return ArticleContent(None)
+        return ArticleContent(
+            text=extract_article_text(html),
+            author=extract_author(html),
+            published_at=extract_published_at(html),
+        )
     except Exception as exc:  # noqa: BLE001 - a fetch must never raise
         log.warning("article fetch failed for %s: %s", url, exc)
-        return None
+        return ArticleContent(None)
     finally:
         if own_client:
             http.close()
 
 
-def _fetch_mention_content(url: str) -> str | None:
-    """Registry-shaped wrapper: content or None, exceptions contained."""
+def fetch_article(url: str, client: httpx.Client | None = None) -> str | None:
+    """Article body only; see fetch_article_content for the author too."""
+    return fetch_article_content(url, client).text
+
+
+def _fetch_mention_content(url: str) -> ArticleContent | None:
+    """Registry-shaped wrapper: ArticleContent, exceptions contained."""
     try:
-        return fetch_article(url)
+        return fetch_article_content(url)
     except Exception as exc:  # noqa: BLE001 - belt and braces for the registry
         log.warning("content fetch failed for %s: %s", url, exc)
         return None
@@ -235,16 +374,18 @@ def _fetch_mention_content(url: str) -> str | None:
 #: text inline (passthrough: no fetch); news sources get the article
 #: fetcher. This mapping IS the extension point for future fetchers
 #: (X threads, FB comments) — add an entry, no pipeline changes.
-CONTENT_FETCHERS: dict[MentionSource, Callable[[str], str | None] | None] = {
+CONTENT_FETCHERS: dict[MentionSource, Callable[[str], ArticleContent | None] | None] = {
     MentionSource.news_rss: _fetch_mention_content,
     MentionSource.gdelt: _fetch_mention_content,
     MentionSource.rss_custom: _fetch_mention_content,
+    # Scraper hits are article URLs: fetch their body like any news source.
+    MentionSource.scraper: _fetch_mention_content,
     MentionSource.x_twitter: None,
     MentionSource.facebook_page: None,
 }
 
 
-def fetcher_for(source: MentionSource) -> Callable[[str], str | None] | None:
+def fetcher_for(source: MentionSource) -> Callable[[str], ArticleContent | None] | None:
     """The content fetcher for a source, or None when inline/passthrough."""
     return CONTENT_FETCHERS.get(source)
 

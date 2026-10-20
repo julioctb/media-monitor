@@ -1,0 +1,327 @@
+<script lang="ts">
+	import { page } from '$app/state';
+
+	import EventGroup from '$lib/components/EventGroup.svelte';
+	import { groupByEvent } from '$lib/grouping';
+	import type { FeedGroup } from '$lib/grouping';
+	import { CHANNEL_LABELS, type FeedChannel } from '$lib/feed-filters';
+	import { INPUT_CLS } from '$lib/ui';
+	import type { PageProps } from './$types';
+
+	let { data }: PageProps = $props();
+
+	const filters = $derived(data.filters);
+
+	const keywordNames = $derived(new Map(data.keywords.map((k) => [k.id, k.text])));
+
+	/** Same event = same story: one card plus a collapsed coverage list. */
+	const groups = $derived(groupByEvent(data.mentions.items));
+
+	function keywordLabelFor(group: FeedGroup): string | null {
+		const keywordId = group.mentions[0]?.keyword_id ?? null;
+		return keywordId !== null ? (keywordNames.get(keywordId) ?? null) : null;
+	}
+
+	const activeKeywords = $derived(data.keywords.filter((k) => k.is_active));
+
+	function hrefWithKeyword(keywordId: string | null): string {
+		const params = new URLSearchParams(page.url.searchParams);
+		if (keywordId === null) params.delete('keyword_id');
+		else params.set('keyword_id', keywordId);
+		params.delete('offset'); // a new filter facet resets pagination
+		const qs = params.toString();
+		return `${page.url.pathname}${qs ? `?${qs}` : ''}`;
+	}
+
+	function hrefWithOffset(offset: number): string {
+		const params = new URLSearchParams(page.url.searchParams);
+		params.set('offset', String(offset));
+		return `${page.url.pathname}?${params.toString()}`;
+	}
+
+	/** Intro stat: news outlets with at least one mention. */
+	const newsOutlets = $derived(data.channelGroups.news.length);
+	const newsTotal = $derived(
+		data.channelGroups.news.reduce((sum, source) => sum + (data.sourceCounts[source] ?? 0), 0)
+	);
+	const socialTotal = $derived(
+		data.channelGroups.social.reduce((sum, source) => sum + (data.sourceCounts[source] ?? 0), 0)
+	);
+
+	const pagination = $derived.by(() => {
+		const { limit, offset } = filters;
+		const total = data.mentions.total;
+		const pages = Math.max(1, Math.ceil(total / limit));
+		const current = Math.floor(offset / limit) + 1;
+		return {
+			from: total === 0 ? 0 : offset + 1,
+			to: Math.min(offset + limit, total),
+			pages,
+			current,
+			hasPrev: offset > 0,
+			hasNext: offset + limit < total,
+			prevHref: hrefWithOffset(Math.max(0, offset - limit)),
+			nextHref: hrefWithOffset(offset + limit)
+		};
+	});
+
+	const limitOptions = [10, 25, 50, 100];
+</script>
+
+<svelte:head>
+	<title>Feed | Media Monitor</title>
+</svelte:head>
+
+<section class="intro" aria-labelledby="feed-title">
+	<div class="intro-content">
+		<div class="eyebrow">Monitor de medios · BUAP</div>
+		<h1 id="feed-title" class="page-title">Feed de noticias</h1>
+		<p class="intro-copy">
+			Noticias y publicaciones de redes sociales en una sola vista. Filtra por fuente, tono,
+			fecha o palabras del titular para revisar la cobertura.
+		</p>
+		<p class="footnote">El feed no se actualiza automáticamente todavía.</p>
+	</div>
+	<div class="intro-stats" aria-label="Números del feed">
+		<article class="intro-stat">
+			<p class="intro-stat-label">Medios con noticias</p>
+			<p class="intro-stat-value">{newsOutlets}</p>
+			<p class="intro-stat-note">Fuentes de noticias con registros.</p>
+		</article>
+		<article class="intro-stat">
+			<p class="intro-stat-label">Eventos</p>
+			<p class="intro-stat-value">{groups.length}</p>
+			<p class="intro-stat-note">Hechos agrupados en esta página.</p>
+		</article>
+	</div>
+</section>
+
+<div class="layout">
+	<div class="feed-main">
+		<section class="panel feed-filter-panel" aria-labelledby="filter-panel-title">
+			<h2 id="filter-panel-title">Filtrar publicaciones</h2>
+			<form method="get" role="search" data-testid="feed-filter-main">
+				<input type="hidden" name="channel" value={filters.channel} />
+				<input type="hidden" name="since" value={filters.since} />
+				<input type="hidden" name="until" value={filters.until} />
+				<div class="filter-bar">
+					<div>
+						<label class="filter-label" for="f-q">Buscar en el feed</label>
+						<input
+							type="search"
+							id="f-q"
+							name="q"
+							value={filters.q}
+							placeholder="Buscar titular o medio"
+							class={INPUT_CLS}
+						/>
+					</div>
+					<div>
+						<label class="filter-label" for="f-sentiment">Tono</label>
+						<select id="f-sentiment" name="sentiment" class={INPUT_CLS}>
+							<option value="" selected={filters.sentiment === ''}>Todos los tonos</option>
+							<option value="positive" selected={filters.sentiment === 'positive'}>Positivo</option>
+							<option value="neutral" selected={filters.sentiment === 'neutral'}>Neutro</option>
+							<option value="negative" selected={filters.sentiment === 'negative'}>Negativo</option>
+							<option value="none" selected={filters.sentiment === 'none'}>Sin clasificar</option>
+						</select>
+					</div>
+					<button class="search-button" type="submit">Buscar</button>
+				</div>
+				<div class="keyword-filter" role="group" aria-label="Filtrar por palabra clave monitorizada">
+					<span class="keyword-label">Palabras clave:</span>
+					<button type="submit" name="keyword_id" value="" class="chip" aria-pressed={filters.keyword_id === ''}>
+						Todas
+					</button>
+					{#each data.keywords as keyword (keyword.id)}
+						<button
+							type="submit"
+							name="keyword_id"
+							value={String(keyword.id)}
+							class="chip"
+							aria-pressed={filters.keyword_id === String(keyword.id)}
+						>
+							{keyword.text}
+						</button>
+					{/each}
+					<a href={page.url.pathname} class="clear-link keyword-clear">Limpiar filtros</a>
+				</div>
+			</form>
+		</section>
+
+		<section class="panel feed-panel" aria-labelledby="cobertura-title">
+			<div class="section-heading">
+				<h2 id="cobertura-title" class="panel-title">Cobertura reciente</h2>
+				<span class="section-note">Ordenada de más reciente a más antigua</span>
+			</div>
+			<p class="result-line">
+				<span>{data.mentions.total} publicaciones encontradas</span>
+			</p>
+
+			{#if data.mentions.items.length === 0}
+				<div class="error-state" role="status">
+					<strong>Sin resultados</strong>
+					<p>No hay publicaciones que coincidan con estos filtros.</p>
+				</div>
+			{:else}
+				<ol class="feed-list" aria-label="Publicaciones">
+					{#each groups as group (group.key)}
+						<li class="feed-group">
+							<EventGroup {group} keywordLabel={keywordLabelFor(group)} />
+						</li>
+					{/each}
+				</ol>
+
+				<nav class="pagination" aria-label="Paginación">
+					<p class="page-status">
+						Página {pagination.current} de {pagination.pages} ·
+						{pagination.from}–{pagination.to} de {data.mentions.total}
+					</p>
+					<div class="page-buttons">
+						<form method="get" class="per-page">
+							<!-- keep every active facet while changing the page size -->
+							<input type="hidden" name="channel" value={filters.channel} />
+							<input type="hidden" name="sentiment" value={filters.sentiment} />
+							<input type="hidden" name="keyword_id" value={filters.keyword_id} />
+							<input type="hidden" name="q" value={filters.q} />
+							<input type="hidden" name="since" value={filters.since} />
+							<input type="hidden" name="until" value={filters.until} />
+							<label class="sr-only" for="per-page">Por página</label>
+							<select
+								id="per-page"
+								name="limit"
+								class={`per-page-select ${INPUT_CLS}`}
+								onchange={(event) => event.currentTarget.form?.requestSubmit()}
+							>
+								{#each limitOptions as option (option)}
+									<option value={String(option)} selected={filters.limit === option}>
+										{option} publicaciones
+									</option>
+								{/each}
+							</select>
+							</form>
+							{#if pagination.hasPrev}
+								<a href={pagination.prevHref} class="page-button">Anterior</a>
+							{:else}
+								<span class="page-button" aria-disabled="true">Anterior</span>
+							{/if}
+							{#if pagination.hasNext}
+								<a href={pagination.nextHref} class="page-button">Siguiente</a>
+							{:else}
+								<span class="page-button" aria-disabled="true">Siguiente</span>
+							{/if}
+					</div>
+				</nav>
+			{/if}
+		</section>
+	</div>
+
+	<aside class="sidebar" aria-label="Filtros, histórico y estado">
+		<section class="sidebar-section" aria-labelledby="filtro-title">
+			<h2 id="filtro-title">Filtrar feed</h2>
+			<form method="get" class="filter-stack">
+				<input type="hidden" name="q" value={filters.q} />
+				<input type="hidden" name="sentiment" value={filters.sentiment} />
+				<input type="hidden" name="keyword_id" value={filters.keyword_id} />
+
+				<fieldset class="filter-group" aria-label="Filtrar por tipo de contenido">
+					<button
+						type="submit"
+						name="channel"
+						value=""
+						class="filter"
+						aria-pressed={filters.channel === ''}
+					>
+						{CHANNEL_LABELS.all}
+					</button>
+					<button
+						type="submit"
+						name="channel"
+						value="news"
+						class="filter"
+						aria-pressed={filters.channel === 'news'}
+					>
+						{CHANNEL_LABELS.news}
+					</button>
+					<button
+						type="submit"
+						name="channel"
+						value="social"
+						class="filter"
+						aria-pressed={filters.channel === 'social'}
+					>
+						{CHANNEL_LABELS.social}
+					</button>
+					<button
+						type="submit"
+						name="channel"
+						value="field"
+						class="filter"
+						aria-pressed={filters.channel === 'field'}
+					>
+						{CHANNEL_LABELS.field}
+					</button>
+				</fieldset>
+
+				<div class="date-row">
+					<div>
+						<label class="filter-label" for="date-from">Desde</label>
+						<input
+							type="date"
+							id="date-from"
+							name="since"
+							value={filters.since}
+							class={INPUT_CLS}
+							onchange={(event) => event.currentTarget.form?.requestSubmit()}
+						/>
+					</div>
+					<div>
+						<label class="filter-label" for="date-to">Hasta</label>
+						<input
+							type="date"
+							id="date-to"
+							name="until"
+							value={filters.until}
+							class={INPUT_CLS}
+							onchange={(event) => event.currentTarget.form?.requestSubmit()}
+						/>
+					</div>
+				</div>
+				{#if filters.dateError}
+					<p class="date-error">{filters.dateError}</p>
+				{/if}
+
+				<noscript>
+					<button type="submit" class="filter">Aplicar</button>
+				</noscript>
+			</form>
+		</section>
+
+		<section class="sidebar-section history-panel" aria-labelledby="historico-title">
+			<h2 id="historico-title">Histórico</h2>
+			<p class="side-note">Archivo de noticias y columnas</p>
+			<div class="history-empty">
+				<strong>Aún no hay registros históricos</strong>
+				<p>
+					Cuando se incorporen fuentes de archivo, sus resultados aparecerán en esta sección,
+					con su medio y fecha de publicación original.
+				</p>
+			</div>
+		</section>
+
+		<section class="sidebar-section" aria-labelledby="estado-title">
+			<h2 id="estado-title">Estado de las fuentes</h2>
+			<p><strong>Noticias:</strong> {newsTotal} registros.</p>
+			<p><strong>Redes sociales:</strong> {socialTotal} registros.</p>
+			<p><strong>Datos de campo:</strong> sin registros cargados.</p>
+		</section>
+
+		<section class="sidebar-section" aria-labelledby="seguimiento-title">
+			<h2 id="seguimiento-title">Seguimiento</h2>
+			<p class="side-note">
+				Los actores, categorías y temas prioritarios se resumen en la página principal.
+			</p>
+			<a class="back" href="/">Volver al resumen →</a>
+		</section>
+	</aside>
+</div>

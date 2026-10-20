@@ -20,7 +20,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.classifications.political import PoliticalClassifier  # noqa: E402
 
-DEFAULT_JSONL = Path(__file__).parent / "eval_classifications_political_es.jsonl"
+DEFAULT_JSONL = Path(__file__).parent.parent / "eval_political_gold_es.jsonl"
 LABELS = ("political", "not_political", "uncertain")
 
 

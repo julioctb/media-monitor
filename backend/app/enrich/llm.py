@@ -75,7 +75,11 @@ SYSTEM_PROMPT = (
     "government (funcionarios externos estatales/municipales/federales "
     "actuando alrededor de la institucion), "
     "health (medicina, enfermedades, hospitales, dispositivos medicos). "
-    "persons: personas nombradas en el texto, cada una "
+    "persons: SOLO personas centrales para la institucion monitoreada — "
+    "la autoridad o protagonista de la nota, quien emite la postura, o "
+    "quien actua en nombre de la institucion. Omiti menciones incidentales: "
+    "elenco secundario, rivales o participantes perifericos, y nombres "
+    'citados solo como referencia. Cada una '
     '{"name": str, "role": str|null, "org": str|null, "statement": str|null, '
     '"stance": str|null}; statement es cita textual solo si la nota la trae; '
     "stance es la postura que la persona expresa, null si no expresa ninguna. "
@@ -168,12 +172,17 @@ class EnrichmentResult(BaseModel):
         return [topic.strip() for topic in value if isinstance(topic, str) and topic.strip()]
 
 
-def _strip_code_fence(text: str) -> str:
+def strip_code_fence(text: str) -> str:
+    """Strip a leading ```json fence: models wrap payloads in markdown."""
+
     cleaned = text.strip()
     if cleaned.startswith("```"):
         cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
         cleaned = re.sub(r"\s*```$", "", cleaned)
     return cleaned.strip()
+
+
+_strip_code_fence = strip_code_fence  # legacy internal alias
 
 
 def parse_enrichment(content: str) -> EnrichmentResult:
@@ -242,7 +251,12 @@ class LLMEnricher:
             headers={"Authorization": f"Bearer {self._api_key}"},
         )
         resp.raise_for_status()
-        return str(resp.json()["choices"][0]["message"]["content"])
+        content = resp.json()["choices"][0]["message"]["content"]
+        if content is None or not str(content).strip():
+            # Local servers return content:null under load; str(None) would
+            # leak the literal "None" into answers/digests. Retry instead.
+            raise ValueError("empty completion content")
+        return str(content)
 
     def _with_retries(self, fn):  # type: ignore[no-untyped-def]
         """Run fn() with the attempt/backoff policy; None once exhausted."""

@@ -8,7 +8,7 @@ from sqlalchemy import select
 
 from app.api.deps import ClientIdDep, SessionDep
 from app.api.schemas import MentionPage, PersonRefOut
-from app.models import Mention, MentionPerson, Person, MentionSource, Sentiment, queries
+from app.models import Event, Mention, MentionPerson, Person, MentionSource, Sentiment, queries
 
 router = APIRouter(tags=["mentions"])
 
@@ -59,6 +59,7 @@ def list_mentions(
     items = queries.list_mentions(session, client_id, limit=limit, offset=offset, **common)
     total = queries.count_mentions(session, client_id, **common)
     _attach_persons(session, items)
+    _attach_event_titles(session, items)
     return MentionPage(items=items, total=total)
 
 
@@ -82,3 +83,21 @@ def _attach_persons(session: SessionDep, items: Sequence[Mention]) -> None:
         by_mention.setdefault(mention_id, []).append(PersonRefOut(id=person_id, name=name))
     for mention in items:
         mention.persons = by_mention.get(mention.id, [])
+
+
+def _attach_event_titles(session: SessionDep, items: Sequence[Mention]) -> None:
+    """One query for the page's canonical-event titles; transient attr.
+
+    Mirrors _attach_persons: event_id rides on the column, the title is
+    looked up in batch and set as a plain attribute for pydantic.
+    """
+    event_ids = {mention.event_id for mention in items if mention.event_id is not None}
+    if not event_ids:
+        for mention in items:
+            mention.event_title = None
+        return
+    titles: dict[int, str] = dict(
+        session.execute(select(Event.id, Event.title).where(Event.id.in_(event_ids))).all()
+    )
+    for mention in items:
+        mention.event_title = titles.get(mention.event_id) if mention.event_id else None

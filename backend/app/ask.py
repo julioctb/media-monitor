@@ -34,7 +34,7 @@ STOPWORDS = frozenset(
 )
 
 #: Mentions handed to the model: enough breadth, bounded tokens.
-MAX_CONTEXT_MENTIONS = 12
+MAX_CONTEXT_MENTIONS = 24
 #: Candidates fetched before the in-memory relevance cut.
 CANDIDATE_POOL = 80
 #: Content chars per context block (token budget guard).
@@ -76,6 +76,46 @@ def tokenize(question: str) -> list[str]:
     return seen
 
 
+def token_variants(token: str) -> list[str]:
+    """The token plus naive singular forms; substring match covers the rest.
+
+    "becas" must reach notes written "beca": exact matching starved the
+    context of morphological neighbours. Long es/s endings are stripped.
+    """
+    variants = [token]
+    if len(token) > 3 and token.endswith("es"):
+        variants.append(token[:-2])
+    if len(token) > 3 and token.endswith("s"):
+        variants.append(token[:-1])
+    return list(dict.fromkeys(variants))
+
+
+#: Question words that name a sentiment value; "notas negativas hacia X"
+#: must reach the negative linked coverage, not the latest (positive) page.
+SENTIMENT_WORDS = {
+    "positiva": "positive",
+    "positivo": "positive",
+    "positivas": "positive",
+    "positivos": "positive",
+    "negativa": "negative",
+    "negativo": "negative",
+    "negativas": "negative",
+    "negativos": "negative",
+    "neutral": "neutral",
+    "neutro": "neutral",
+    "neutra": "neutral",
+}
+
+
+def requested_sentiment(tokens: list[str]) -> str | None:
+    """The sentiment value named in the question, if any."""
+    for token in tokens:
+        for variant in token_variants(token):
+            if variant in SENTIMENT_WORDS:
+                return SENTIMENT_WORDS[variant]
+    return None
+
+
 def find_persons(session: Session, client_id: int, tokens: list[str]) -> list[Person]:
     """Persons whose name/alias tokens appear in the question."""
     if not tokens:
@@ -111,9 +151,10 @@ def retrieve_mentions(
     """
     conditions = []
     for token in tokens:
-        pattern = f"%{token}%"
-        conditions.append(Mention.title.ilike(pattern))
-        conditions.append(Mention.content.ilike(pattern))
+        for variant in token_variants(token):
+            pattern = f"%{variant}%"
+            conditions.append(Mention.title.ilike(pattern))
+            conditions.append(Mention.content.ilike(pattern))
     if person_ids:
         conditions.append(Mention.id.in_(
             select(MentionPerson.mention_id).where(
@@ -123,15 +164,24 @@ def retrieve_mentions(
     if not conditions:
         # Nothing to match on (e.g. question of only stopwords): the latest
         # coverage is the least-wrong context.
+        query = select(Mention).where(Mention.client_id == client_id)
+        sentiment = requested_sentiment(tokens)
+        if sentiment:
+            query = query.where(Mention.sentiment == sentiment)
         return session.scalars(
-            select(Mention)
-            .where(Mention.client_id == client_id)
-            .order_by(Mention.published_at.desc().nullslast(), Mention.id.desc())
-            .limit(limit)
+            query.order_by(
+                Mention.published_at.desc().nullslast(), Mention.id.desc()
+            ).limit(limit)
         ).all()
+    filters = [Mention.client_id == client_id, or_(*conditions)]
+    sentiment = requested_sentiment(tokens)
+    if sentiment:
+        # "notas negativas": token matches must carry that sentiment, or the
+        # latest positive page crowds the answer out.
+        filters.append(Mention.sentiment == sentiment)
     candidates = session.scalars(
         select(Mention)
-        .where(Mention.client_id == client_id, or_(*conditions))
+        .where(*filters)
         .order_by(Mention.published_at.desc().nullslast(), Mention.id.desc())
         .limit(CANDIDATE_POOL)
     ).all()
@@ -144,13 +194,16 @@ def retrieve_mentions(
     linked: list[Mention] = []
     linked_roles: dict[int, str] = {}
     if person_ids:
+        linked_filters = [
+            Mention.client_id == client_id,
+            MentionPerson.person_id.in_(person_ids),
+        ]
+        if sentiment:
+            linked_filters.append(Mention.sentiment == sentiment)
         rows = session.execute(
             select(Mention, MentionPerson.role)
             .join(MentionPerson, MentionPerson.mention_id == Mention.id)
-            .where(
-                Mention.client_id == client_id,
-                MentionPerson.person_id.in_(person_ids),
-            )
+            .where(*linked_filters)
             .order_by(Mention.published_at.desc().nullslast(), Mention.id.desc())
             .limit(limit)
         ).all()
@@ -162,9 +215,12 @@ def retrieve_mentions(
 
     def score(mention: Mention) -> tuple[int, object]:
         haystack = f"{mention.title or ''} {mention.content or ''}".lower()
-        token_hits = sum(1 for token in token_set if token in haystack)
-        person_bonus = 2 if mention.id in person_ids else 0
-        return (token_hits + person_bonus, mention.published_at or mention.ingested_at)
+        token_hits = sum(
+            1
+            for token in token_set
+            if any(variant in haystack for variant in token_variants(token))
+        )
+        return (token_hits, mention.published_at or mention.ingested_at)
 
     pool: dict[int, Mention] = {mention.id: mention for mention in linked}
     for mention in candidates:
@@ -221,6 +277,30 @@ def build_context(
     return "\n\n".join(blocks), citations
 
 
+def _recent_digest_block(session: Session, client_id: int) -> str:
+    """Plain text of the latest digest when it is fresh (<= 2 days).
+
+    Grounds the answers in the editorial layer: the digest already
+    synthesizes the day; stale digests are skipped, not trusted.
+    """
+    from datetime import date, timedelta
+
+    from app.models import DailySummary
+
+    row = session.scalar(
+        select(DailySummary)
+        .where(DailySummary.client_id == client_id)
+        .order_by(DailySummary.summary_date.desc())
+        .limit(1)
+    )
+    if row is None or row.summary_date < date.today() - timedelta(days=2):
+        return ""
+    plain = (row.content or {}).get("plain_text") if isinstance(row.content, dict) else None
+    if not plain:
+        return ""
+    return f"Digest editorial reciente ({row.summary_date}):\n{plain}"
+
+
 def answer_question(session: Session, *, client_id: int, question: str, enricher) -> AskResult:
     """One-shot ask: retrieve, ground, narrate. Empty question => recent feed."""
     tokens = tokenize(question)
@@ -252,18 +332,34 @@ def answer_question(session: Session, *, client_id: int, question: str, enricher
             + (f", quien acumula {mentions_n} menciones en el monitoreo." if mentions_n else ".")
             + " Las notas marcadas ROL tienen el cargo que detenta en esa cobertura."
         )
+    digest_block = _recent_digest_block(session, client_id)
     user = (
         f"Pregunta: {question.strip()}\n\n"
         f"Contexto ({len(mentions)} notas, más reciente primero):\n\n{context}"
+        + (f"\n\n{digest_block}" if digest_block else "")
         + person_hint
     )
     answer = enricher.complete(ASK_SYSTEM_PROMPT, user)
     if not answer:
         raise AskError("El modelo de consulta no respondió; intenta de nuevo.", status=503)
 
+    answer = str(answer).strip()
+    # Fuentes = solo las notas que la respuesta cita con [n]; el resto era
+    # contexto recuperado, no respaldo. Sin marcadores (modelo desobediente)
+    # se conservan todas: mejor ruido transparente que fuentes vacías.
+    cited = {
+        marker
+        for marker in (int(match) for match in re.findall(r"\[(\d{1,2})\]", answer))
+        if 1 <= marker <= len(citations)
+    }
+    if cited:
+        citations = [
+            citation for index, citation in enumerate(citations, start=1) if index in cited
+        ]
+
     matched = len(citations)
     return AskResult(
-        answer=str(answer).strip(),
+        answer=answer,
         citations=citations,
         person={"id": persons[0].id, "name": persons[0].name} if persons else None,
         matched_mentions=matched,

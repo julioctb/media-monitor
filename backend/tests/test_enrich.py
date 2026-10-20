@@ -155,6 +155,34 @@ class TestLLMEnricher:
         assert enricher.enrich("   ") is None
         assert calls == []
 
+    def test_complete_none_content_retried_then_value(self) -> None:
+        # Local servers return content:null under load; str(None) -> "None"
+        # used to leak as the answer/digest payload. Now retried like a 5xx.
+        calls: list[dict] = []
+        responses: list[str | None] = [None, json.dumps(GOOD_PAYLOAD)]
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            calls.append(json.loads(request.content))
+            return httpx.Response(
+                200,
+                json={"choices": [{"message": {"content": responses[len(calls) - 1]}}]},
+            )
+
+        enricher = _enricher(handler, attempts=2, backoff_s=0)
+        assert enricher.complete("s", "u", json_mode=True) == json.dumps(GOOD_PAYLOAD)
+        assert len(calls) == 2
+
+    def test_complete_all_none_content_returns_none(self) -> None:
+        calls: list[dict] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            calls.append({})
+            return httpx.Response(200, json={"choices": [{"message": {"content": None}}]})
+
+        enricher = _enricher(handler, attempts=2, backoff_s=0)
+        assert enricher.complete("s", "u") is None
+        assert len(calls) == 2
+
     def test_agreement_logged_on_success(self, caplog) -> None:
         @dataclass
         class FakeLaya:

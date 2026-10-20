@@ -48,7 +48,8 @@ class Person(IntPk, Base):
     name_key: Mapped[str] = mapped_column(String(500), nullable=False)
     # Raw alias variants (unfolded), for display and audit.
     aliases: Mapped[list[Any]] = mapped_column(JsonType, nullable=False, default=list)
-    # Space-joined fold_text of every alias: alias search via plain LIKE.
+    # Comma-joined fold_text of every alias: alias search via plain LIKE.
+    # Comma, not space: folded names contain spaces.
     alias_keys: Mapped[str] = mapped_column(Text, nullable=False, default="")
     # Latest known role/org; filled on first sight, kept afterwards.
     role: Mapped[str | None] = mapped_column(String(500), nullable=True)

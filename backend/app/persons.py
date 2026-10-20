@@ -100,7 +100,7 @@ def _match_person(
     for candidate in session.scalars(
         select(Person).where(Person.client_id == client_id).order_by(Person.id)
     ):
-        if key in candidate.alias_keys.split():
+        if key in _alias_keys_of(candidate):
             return candidate
         seen = _token_set(candidate.name)
         if tokens and (tokens <= seen or seen <= tokens):
@@ -108,12 +108,19 @@ def _match_person(
     return None
 
 
+def _alias_keys_of(person: Person) -> list[str]:
+    """Stored alias keys, comma-split: keys are folded NAMES, so they
+    contain spaces — space-splitting fragmented them and the membership
+    guard never hit, duplicating aliases on every enrichment pass."""
+    return [key for key in (person.alias_keys or "").split(",") if key]
+
+
 def _remember_alias(person: Person, variant: str) -> None:
     key = fold_text(variant)
-    if key == person.name_key or key in person.alias_keys.split():
+    if key == person.name_key or key in _alias_keys_of(person):
         return
     person.aliases = list(person.aliases) + [variant]
-    person.alias_keys = " ".join([*(person.alias_keys or "").split(), key])
+    person.alias_keys = ",".join([*_alias_keys_of(person), key])
 
 
 def persist_persons_from_enrichment(session: Session, mention: Mention) -> int:
