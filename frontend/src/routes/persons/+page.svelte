@@ -36,15 +36,15 @@
 </script>
 
 <svelte:head>
-	<title>Personas | Media Monitor</title>
+	<title>Actores | Media Monitor</title>
 </svelte:head>
 
 <header class="flex flex-col gap-3">
 	<div>
-		<h1 class="page-title">Personas</h1>
+		<h1 class="page-title">Actores</h1>
 		<p class="lead">
-			{data.persons.length}
-			protagonistas detectados en la cobertura, con su volumen de menciones.
+			Personas identificadas en la cobertura de medios y redes sociales. Consulta su cargo,
+			institución y frecuencia de aparición.
 		</p>
 		<nav class="segmented mt-3" aria-label="Vista">
 			<a href={hrefWith({ view: 'cards' })} aria-current={view === 'cards' ? 'page' : undefined}>
@@ -58,17 +58,17 @@
 </header>
 
 <section class="filter-panel" aria-labelledby="persons-filter-title">
-	<h2 class="panel-title" id="persons-filter-title">Filtrar personas</h2>
+	<h2 class="panel-title" id="persons-filter-title">Filtrar actores</h2>
 	<form bind:this={filterForm} method="get" class="filter-form mt-3">
 		<div class="min-w-0 flex-1">
-			<label class="mb-1.5 block text-xs font-semibold text-ink-2" for="q">Buscar persona</label>
+			<label class="mb-1.5 block text-xs font-semibold text-ink-2" for="q">Buscar actor</label>
 			<input
 				class={`${INPUT_CLS} min-w-0`}
 				id="q"
 				type="search"
 				name="q"
 				value={data.q}
-				placeholder="Buscar por nombre"
+				placeholder="Nombre, cargo o institución"
 			/>
 		</div>
 		<div>
@@ -84,7 +84,7 @@
 
 <section class="panel" aria-labelledby="persons-list-title">
 	<div class="panel-head">
-		<h2 class="panel-title" id="persons-list-title">Personas en seguimiento</h2>
+		<h2 class="panel-title" id="persons-list-title">Actores en seguimiento</h2>
 		<p class="panel-note" role="status" aria-live="polite">
 			{data.persons.length}
 			{data.persons.length === 1 ? 'persona' : 'personas'} con menciones registradas
@@ -92,7 +92,7 @@
 	</div>
 	{#if data.persons.length === 0}
 		<p class="empty mt-4">
-			Sin personas registradas todavía. Las personas se detectan al enriquecer las menciones
+			Sin actores registrados todavía. Los actores se detectan al enriquecer las menciones
 			(protagonistas de cada nota).
 		</p>
 	{:else if view === 'table'}
@@ -100,17 +100,17 @@
 			<table class="data-table">
 				<thead>
 					<tr>
-						<th scope="col">Persona</th>
+						<th scope="col">Nombre</th>
 						<th scope="col">Cargo</th>
-						<th scope="col">Medio</th>
+						<th scope="col">Institución</th>
 						<th scope="col">Menciones</th>
-						<th scope="col">Última vez vista</th>
+						<th scope="col">Última vez</th>
 					</tr>
 				</thead>
 				<tbody>
 					{#each data.persons as person (person.id)}
 						<tr>
-							<td data-label="Persona">
+							<td data-label="Nombre">
 								<div class="flex items-center gap-3 font-semibold">
 									<span class="monogram" aria-hidden="true">{initials(person.name)}</span>
 									<a
@@ -125,9 +125,9 @@
 								</div>
 							</td>
 							<td data-label="Cargo">{person.role || '—'}</td>
-							<td data-label="Medio">{person.org || '—'}</td>
+							<td data-label="Institución">{person.org || '—'}</td>
 							<td data-label="Menciones"><span class="count">{person.mention_count}</span></td>
-							<td data-label="Última vez vista">
+							<td data-label="Última vez">
 								{#if person.last_seen_at}
 									{formatDisplayDateTime(person.last_seen_at)}
 								{:else}
@@ -140,7 +140,7 @@
 			</table>
 		</div>
 	{:else}
-		<ul class="mt-4 grid gap-3 md:grid-cols-2" aria-label="Personas">
+		<ul class="mt-4 grid gap-3 md:grid-cols-2" aria-label="Actores">
 			{#each data.persons as person (person.id)}
 				<li>
 					<a
@@ -165,7 +165,7 @@
 							</p>
 						{/if}
 						<p class="mt-2 text-xs text-meta">
-							Ultima vez vista {formatDisplayDateTime(person.last_seen_at)}
+							Última vez {formatDisplayDateTime(person.last_seen_at)}
 						</p>
 					</a>
 				</li>
@@ -176,5 +176,5 @@
 
 <p class="footnote">
 	Los actores se detectan automáticamente en el enriquecimiento de las notas; la columna «última
-	vez vista» refleja la última mención registrada.
+	vez» refleja la última mención registrada.
 </p>
