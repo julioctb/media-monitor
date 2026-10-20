@@ -13,7 +13,7 @@ and never within a cycle.
 """
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
@@ -35,6 +35,9 @@ class EffectiveSettings:
     timezone: str = DEFAULT_TIMEZONE
     retention_days: int = 365
     digest_hour: int = 21
+    # Daily digest cut hours (0..23, ascending, deduped). Parsed from the
+    # stored CSV; digest_hour above mirrors the first cut for compat.
+    digest_hours: list[int] = field(default_factory=lambda: [21])
     digest_focus_person_id: int | None = None
     gdelt_enabled: bool = True
     facebook_pages: tuple[FacebookPageCredentials, ...] = ()
@@ -67,6 +70,37 @@ def _pages_from_row(row) -> tuple[FacebookPageCredentials, ...]:
     return tuple(pages)
 
 
+def parse_digest_hours(raw: object) -> list[int]:
+    """Parse the stored ``digest_hours`` CSV into safe cut hours.
+
+    Accepts the raw column value (str) or an iterable of ints: entries are
+    coerced per item, out-of-range and non-numeric tokens are dropped and
+    the rest is deduped and sorted. Empty/invalid input yields ``[]`` so
+    callers can apply their own fallback (legacy ``digest_hour``).
+    """
+    if isinstance(raw, str):
+        tokens: list[object] = []
+        for token in raw.split(","):
+            token = token.strip()
+            if not token:
+                continue
+            try:
+                tokens.append(int(token))
+            except ValueError:
+                continue  # hand-edited row: drop the junk, keep the rest
+    elif isinstance(raw, (list, tuple)):
+        tokens = list(raw)
+    else:
+        return []
+    hours: list[int] = []
+    for token in tokens:
+        if isinstance(token, bool) or not isinstance(token, int):
+            continue
+        if 0 <= token <= 23 and token not in hours:
+            hours.append(token)
+    return sorted(hours)
+
+
 def resolve_effective_settings(session: Session, client_id: int) -> EffectiveSettings:
     """DB row first; env only fills fields the row leaves empty."""
     row = queries.get_settings(session, client_id)
@@ -78,13 +112,18 @@ def resolve_effective_settings(session: Session, client_id: int) -> EffectiveSet
             len(env_settings.fb_pages),
         )
         pages = tuple(env_settings.fb_pages)
+    # Clamp on read too: a hand-edited row must not break scheduling. The
+    # cut list wins; legacy digest_hour is the fallback when the CSV is
+    # empty/unparsable, and mirrors the first cut otherwise.
+    legacy_hour = max(0, min(23, row.digest_hour))
+    digest_hours = parse_digest_hours(row.digest_hours) or [legacy_hour]
     return EffectiveSettings(
         client_id=client_id,
         client_name=row.client_name,
         timezone=row.timezone,
         retention_days=row.retention_days,
-        # Clamp on read too: a hand-edited row must not break scheduling.
-        digest_hour=max(0, min(23, row.digest_hour)),
+        digest_hour=digest_hours[0],
+        digest_hours=digest_hours,
         digest_focus_person_id=row.digest_focus_person_id,
         gdelt_enabled=row.gdelt_enabled,
         facebook_pages=pages,

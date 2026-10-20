@@ -524,6 +524,28 @@ def test_stats_overview_empty(api) -> None:
 # ---------------------------------------------------------------- alerts
 
 
+def test_settings_digest_hours_roundtrip(api) -> None:
+    """digest_hours persists as sorted CSV and reads back as a list."""
+    resp = api.put("/api/settings", json={"digest_hours": [21, 8, 8, 6]})
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["digest_hours"] == [6, 8, 21]  # sorted, deduped
+    assert body["digest_hour"] == 6  # compat mirror of the first cut
+    assert api.get("/api/settings").json()["digest_hours"] == [6, 8, 21]
+
+
+def test_settings_digest_hours_validation(api) -> None:
+    assert api.put("/api/settings", json={"digest_hours": []}).status_code == 422
+    assert (
+        api.put("/api/settings", json={"digest_hours": list(range(9))}).status_code
+        == 422
+    )
+    assert api.put("/api/settings", json={"digest_hours": [24]}).status_code == 422
+    # Legacy single-hour field keeps working beside the list.
+    assert api.put("/api/settings", json={"digest_hour": 5}).status_code == 200
+    assert api.get("/api/settings").json()["digest_hours"] == [5]
+
+
 def test_alert_settings_defaults_when_missing(api) -> None:
     body = api.get("/api/alerts/settings").json()
     assert body == {

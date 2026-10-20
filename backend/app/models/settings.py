@@ -69,8 +69,16 @@ class ClientSettings(IntPk, Base):
     )
     digest_hour: Mapped[int] = (
         # Local hour (0..23) when the daily digest is built; validated in
-        # queries._validate_digest_hour, clamped again on read.
+        # queries._validate_digest_hour, clamped again on read. Legacy
+        # single-cut column: kept as fallback for rows predating 0020.
         mapped_column(Integer, nullable=False, default=21, server_default="21")
+    )
+    digest_hours: Mapped[str] = (
+        # Comma-separated cut hours (0..23, ascending, deduped) for the
+        # daily digest; validated by queries._validate_digest_hours and
+        # parsed on read by app.settings_runtime. Empty/invalid values
+        # fall back to digest_hour at read time.
+        mapped_column(String(50), nullable=False, default="21", server_default="21")
     )
     digest_focus_person_id: Mapped[int | None] = (
         # The digest's RECTORA section tracks this person (nullable = none).

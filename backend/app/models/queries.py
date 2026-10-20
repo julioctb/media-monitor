@@ -614,6 +614,36 @@ def _validate_digest_hour(value: object) -> int:
     return value
 
 
+def _validate_digest_hours(value: object) -> str:
+    """Digest cut hours: 1..8 ints in 0..23, deduped, stored as sorted CSV."""
+    if isinstance(value, str):
+        # Tolerate hand-edited rows / CSV strings from tooling.
+        candidates: list[object] = []
+        for part in value.split(","):
+            stripped = part.strip()
+            if not stripped:
+                continue
+            try:
+                candidates.append(int(stripped))
+            except ValueError as exc:
+                raise ValueError("digest_hours must be integers between 0 and 23") from exc
+    elif isinstance(value, (list, tuple)):
+        candidates = list(value)
+    else:
+        raise ValueError("digest_hours must be a list of integers")
+    hours: list[int] = []
+    for entry in candidates:
+        if isinstance(entry, bool) or not isinstance(entry, int):
+            raise ValueError("digest_hours must be integers between 0 and 23")
+        if not 0 <= entry <= 23:
+            raise ValueError("digest_hours hours must be between 0 and 23")
+        if entry not in hours:
+            hours.append(entry)
+    if not 1 <= len(hours) <= 8:
+        raise ValueError("digest_hours needs between 1 and 8 hours")
+    return ",".join(str(h) for h in sorted(hours))
+
+
 def _validate_focus_person(value: object) -> int | None:
     if value is None:
         return None
@@ -728,6 +758,7 @@ _VALIDATORS = {
     "timezone": _validate_timezone,
     "retention_days": _validate_retention,
     "digest_hour": _validate_digest_hour,
+    "digest_hours": _validate_digest_hours,
     "digest_focus_person_id": _validate_focus_person,
     "gdelt_enabled": lambda v: _validate_bool(v, "gdelt_enabled"),
     "facebook_pages": _validate_facebook_pages,
@@ -758,6 +789,12 @@ def upsert_settings(
         if validator is None:
             continue
         setattr(row, field, validator(value))
+    # Legacy single hour and the cut list mirror each other when only one
+    # of the two is updated, so either write path keeps a coherent row.
+    if "digest_hour" in changes and "digest_hours" not in changes:
+        row.digest_hours = _validate_digest_hours([row.digest_hour])
+    elif "digest_hours" in changes and "digest_hour" not in changes:
+        row.digest_hour = int(str(row.digest_hours).split(",")[0])
     row.updated_at = datetime.now(tz=timezone.utc)
     session.commit()
     return row
