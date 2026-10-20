@@ -2347,6 +2347,27 @@ span.page-button {
 	color: var(--color-muted);
 	font-size: 12px;
 }
+.digest-hour-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 2px 4px 2px 8px;
+	border: 1px solid var(--color-line, #e2e2e2);
+	border-radius: 999px;
+	background: #fff;
+}
+.digest-hour-input {
+	width: 44px;
+	border: 0;
+	background: transparent;
+	text-align: center;
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--color-ink, #111);
+}
+.digest-hour-input:focus {
+	outline: none;
+}
 .field-grid {
 	display: grid;
 	grid-template-columns: repeat(2, minmax(0, 1fr));

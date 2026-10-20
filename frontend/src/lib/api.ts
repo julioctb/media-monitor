@@ -167,6 +167,8 @@ export interface ClientSettings {
 	client_name: string;
 	timezone: string;
 	retention_days: number;
+	/** Daily digest cut hours (0..23, ascending); legacy digest_hour = first. */
+	digest_hours: number[];
 	gdelt_enabled: boolean;
 	facebook_pages: FacebookPage[];
 	rss_feeds: string[];
@@ -186,6 +188,7 @@ export interface ClientSettingsInput {
 	client_name?: string;
 	timezone?: string;
 	retention_days?: number;
+	digest_hours?: number[];
 	gdelt_enabled?: boolean;
 	facebook_pages?: FacebookPage[];
 	rss_feeds?: string[];

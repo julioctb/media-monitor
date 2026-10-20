@@ -77,6 +77,26 @@ function optionalText(form: FormData, key: string): string | null {
 	return value === '' ? null : value;
 }
 
+const DIGEST_HOUR_RE = /^\d{1,2}$/;
+
+/**
+ * Digest cut hours from the repeated `digest_hour` inputs: parsed, clamped
+ * to 0..23, deduped. Returns null when the resulting list is empty or over
+ * the 8-cut cap so the caller can surface a friendly error.
+ */
+function readDigestHours(form: FormData): number[] | null {
+	const seen = new Set<number>();
+	for (const entry of form.getAll('digest_hour')) {
+		const raw = String(entry).trim();
+		if (!DIGEST_HOUR_RE.test(raw)) continue;
+		const hour = Number.parseInt(raw, 10);
+		if (hour < 0 || hour > 23) continue;
+		seen.add(hour);
+	}
+	const hours = [...seen].sort((a, b) => a - b);
+	return hours.length >= 1 && hours.length <= 8 ? hours : null;
+}
+
 /** Zip the repeated row inputs by DOM order; drop fully empty rows. */
 function readFacebookPages(form: FormData): { page_id: string; token: string; label: string }[] {
 	const pageIds = form.getAll('fb_page_id').map((value) => String(value));
@@ -117,6 +137,15 @@ export const actions: Actions = {
 			return failure('save', 400, 'Ingresa los días de retención: 0 desactiva el purge.');
 		}
 
+		const digest_hours = readDigestHours(form);
+		if (digest_hours === null) {
+			return failure(
+				'save',
+				400,
+				'Configura entre 1 y 8 horarios de resumen, cada uno entre 0 y 23.'
+			);
+		}
+
 		try {
 			// Full-object PUT: the API keeps server-side fields (id, client_id,
 			// updated_at) and validates the rest, mirroring the stored row.
@@ -124,6 +153,7 @@ export const actions: Actions = {
 				client_name: text(form, 'client_name'),
 				timezone: text(form, 'timezone'),
 				retention_days,
+				digest_hours,
 				gdelt_enabled: form.get('gdelt_enabled') === '1',
 				facebook_pages: readFacebookPages(form),
 				rss_feeds: text(form, 'rss_feeds')

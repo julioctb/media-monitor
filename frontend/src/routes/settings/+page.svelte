@@ -14,6 +14,9 @@
 
 	const TIMEZONES = ['America/Mexico_City', 'America/Monterrey', 'America/Tijuana', 'UTC'];
 
+	/** Upper bound of daily digest cuts; mirrors the backend validator. */
+	const MAX_DIGEST_HOURS = 8;
+
 	// Keyword CRUD lives on /keywords; settings only renders global operation.
 
 	interface PageDraft {
@@ -27,6 +30,8 @@
 		timezone: string;
 		/** Kept as text: the action parses it, '' surfaces a friendly error. */
 		retention_days: string;
+		/** Daily digest cut hours, 1..8 entries in 0..23. */
+		digest_hours: number[];
 		gdelt_enabled: boolean;
 		pages: PageDraft[];
 		/** One RSS URL per line, exactly as edited in the textarea. */
@@ -45,6 +50,7 @@
 			client_name: settings.client_name,
 			timezone: settings.timezone,
 			retention_days: String(settings.retention_days),
+			digest_hours: [...settings.digest_hours],
 			gdelt_enabled: settings.gdelt_enabled,
 			pages: settings.facebook_pages.map((page) => ({ ...page })),
 			rss: settings.rss_feeds.join('\n'),
@@ -73,6 +79,32 @@
 		draft.scrapers = checked
 			? [...draft.scrapers, name]
 			: draft.scrapers.filter((entry) => entry !== name);
+	}
+
+	/** Clamp 0..23 on input; '' keeps the old value until a digit lands. */
+	function setDigestHour(index: number, raw: string): void {
+		const value = Number.parseInt(raw, 10);
+		if (Number.isNaN(value)) return;
+		draft.digest_hours[index] = Math.max(0, Math.min(23, value));
+		dirty = true;
+	}
+
+	function addDigestHour(): void {
+		if (draft.digest_hours.length >= MAX_DIGEST_HOURS) return;
+		// First hour not configured yet, so duplicates never pile up.
+		for (let hour = 0; hour <= 23; hour += 1) {
+			if (!draft.digest_hours.includes(hour)) {
+				draft.digest_hours.push(hour);
+				break;
+			}
+		}
+		dirty = true;
+	}
+
+	function removeDigestHour(index: number): void {
+		if (draft.digest_hours.length <= 1) return; // always >= 1 cut
+		draft.digest_hours.splice(index, 1);
+		dirty = true;
 	}
 
 	function markDirty(): void {
@@ -203,6 +235,52 @@
 							class={INPUT_CLS}
 						/>
 						<p class="field-hint">0 desactiva la purga automática.</p>
+					</div>
+					<div class="sm:col-span-2 lg:col-span-3">
+						<span class={LABEL_CLS} id="digest-hours-label">Horarios del resumen diario</span>
+						<div
+							class="mt-1 flex flex-wrap items-center gap-2"
+							role="group"
+							aria-labelledby="digest-hours-label"
+						>
+							{#each draft.digest_hours as hour, index (index)}
+								<span class="digest-hour-chip">
+									<input
+										aria-label={`Hora del corte ${index + 1}`}
+										aria-describedby="digest-hours-hint"
+										name="digest_hour"
+										type="number"
+										min={0}
+										max={23}
+										step={1}
+										value={hour}
+										oninput={(e) => setDigestHour(index, e.currentTarget.value)}
+										disabled={submitting}
+										class="digest-hour-input"
+									/>
+									<button
+										type="button"
+										aria-label={`Quitar el corte de las ${hour}:00`}
+										onclick={() => removeDigestHour(index)}
+										disabled={submitting || draft.digest_hours.length <= 1}
+										class="text-muted transition-colors hover:text-danger disabled:opacity-40"
+									>
+										×
+									</button>
+								</span>
+							{/each}
+							<button
+								type="button"
+								onclick={addDigestHour}
+								disabled={submitting || draft.digest_hours.length >= MAX_DIGEST_HOURS}
+								class={PROBE_BTN_CLS}
+							>
+								+ Agregar hora
+							</button>
+						</div>
+						<p class="field-hint" id="digest-hours-hint">
+							Entre 1 y 8 cortes diarios (0&ndash;23). El resumen se regenera en cada corte.
+						</p>
 					</div>
 				</div>
 			</section>
