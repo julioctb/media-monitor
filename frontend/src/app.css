@@ -2199,13 +2199,6 @@ span.page-button {
 	border-bottom: 1px solid var(--color-line);
 	font: 600 21px / 1.2 var(--font-display);
 }
-/* Results heading: feed keeps the stronger line variant; divider comes
-   from the base .section-heading (single source of truth). */
-.feed-panel .section-heading {
-	margin-bottom: 0;
-	padding-bottom: 14px;
-	border-bottom-color: var(--color-line);
-}
 .feed-panel .section-note {
 	font-size: 12px;
 }
