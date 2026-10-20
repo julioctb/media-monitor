@@ -14,16 +14,17 @@ reporte, sin re-validación final).
   usuario). La auditoría corre sobre este checkout: es el código que va a main.
 
 ## Tareas
-- [ ] T1 `scripts/audit_coherence.py` — 5 checks read-only del plan
-      (routes↔nav, enums clasificación, contrato TS↔pydantic, labels DB,
-      env/config). Read-only; salida `OK`/`FINDINGS` por cheque.
-- [ ] T2 Correr script; clasificar hallazgos: objetivo-trivial → fix TDD +
-      commit `fix(<área>): ...`; juicio/diseño → sólo AUDIT.md.
-- [ ] T3 `AUDIT.md` raíz del repo: resultados por fase, hallazgos, 
-      `Pendientes de decisión`.
-- [ ] T4 Validación final del plan: pytest backend, svelte-check, vitest,
-      re-run audit script OK. (build si el tiempo lo permite)
-- [ ] T5 Commit work-unit: `chore(audit): coherence script + report`.
+- [x] T1 `scripts/audit_coherence.py` — 5 checks read-only del plan
+- [x] T2 Corrida: 1 hallazgo real (`uncertain` sin mapear) → fix TDD
+      `81d4aa4`; el resto OK (detalle: `AUDIT.md`).
+- [x] T3 `AUDIT.md` con resultados, fix y validación final.
+- [x] T4 pytest 427 / svelte-check 0 / vitest 61 / audit 5-5 OK.
+- [x] T5 `83c820e` chore(audit) en `feat/visual-refresh` (merge: decisión usuario).
+
+## Registro
+- 2026-10-19: fase 3 ejecutada + cierre fase 4. 2 commits en
+  `feat/visual-refresh` (81d4aa4 fix, 83c820e chore). Pendiente usuario:
+  merge de la branch (11 commits visual + 2 audit).
 
 ## Verificación
 - `.venv/bin/python -m pytest backend/tests -q` (esperado ≥370 passed)

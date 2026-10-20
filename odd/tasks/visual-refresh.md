@@ -14,6 +14,13 @@ el usuario reporta cambios visuales incompletos.
 - D configuracion: implementada (feat(settings); keywords unificadas via KeywordsPanel + acciones compartidas, /keywords queda como ruta con la misma tabla).
 - E shell+menores: implementada (nav con «Actores»; subnav solo para Alertas/Configuración; events 1 col + sample-note; events/[id] cardless; persons count/missing/footnote; persons/[id] profile-stat + hora «a las»).
 
+## Verificación observada (parent spot check, 19/oct)
+- `npm run check` → 0 errors, 0 warnings
+- `npx vitest run` → 86/86 passed, 10 files
+- `scripts/audit_coherence.py` → 5/5 OK
+- `npm run build` ✔ (reportado por writer)
+- Pendiente usuario: revisar UI y merge (branch con 17 commits).
+
 ## Verificación
 - `cd frontend && npm run check && npx vitest run`
 - `.venv/bin/python scripts/audit_coherence.py` (5/5 OK)
