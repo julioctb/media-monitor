@@ -8,7 +8,7 @@
  * — never border/radius/shadow/focus.
  */
 export const CONTROL_CLS =
-	'rounded-(--radius-control) border border-line bg-white text-sm text-ink placeholder:text-muted focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/25';
+	'rounded-(--radius-control) border border-line bg-white text-sm text-ink placeholder:text-muted hover:border-meta focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/25';
 
 /** Standard block field: full width, 44px touch target. */
 export const INPUT_CLS = `${CONTROL_CLS} w-full min-h-[44px] px-3 py-2`;

@@ -79,11 +79,15 @@
 	{/if}
 
 	{#if detailsText}
-		<details class="mt-2">
-			<summary class="cursor-pointer text-xs font-medium text-muted hover:text-ink">
+		<details class="mt-1">
+			<summary
+				class="inline-flex min-h-11 cursor-pointer items-center py-1.5 pr-2 text-sm font-semibold text-ink underline decoration-line underline-offset-4 hover:decoration-ink"
+			>
 				Resumen del análisis
 			</summary>
-			<div class="mt-1 border-l-2 border-line pl-3 text-sm text-ink-2">
+			<div
+				class="rounded-(--radius-control) border border-line-soft bg-surface-warm px-4 py-3.5 text-sm leading-[1.5] text-ink-2"
+			>
 				{detailsText}
 			</div>
 		</details>

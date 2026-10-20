@@ -167,7 +167,7 @@
 }
 .page-title {
 	margin: 0 0 10px;
-	font: 600 clamp(28px, 4vw, 40px) / 1.08 var(--font-display);
+	font: 600 clamp(32px, 4vw, 40px) / 1.08 var(--font-display);
 	letter-spacing: var(--tracking-display);
 }
 .lead {
@@ -1717,7 +1717,7 @@ table.coverage th {
    ============================================================ */
 .intro {
 	display: grid;
-	grid-template-columns: minmax(0, 1.2fr) minmax(300px, 0.9fr);
+	grid-template-columns: minmax(0, 1.2fr) minmax(360px, 0.9fr);
 	gap: 28px;
 	align-items: center;
 	padding: 30px 32px;
@@ -1730,6 +1730,20 @@ table.coverage th {
 	margin: 0;
 	color: var(--color-ink-2);
 	font-size: 14px;
+}
+/* Feed mockup eyebrow tracking (.13em); resumen keeps .15em. */
+.intro .eyebrow {
+	letter-spacing: 0.13em;
+}
+/* Feed intro renders the mockup's .source-note pill via .footnote. */
+.intro .footnote {
+	display: inline-flex;
+	margin-top: 18px;
+	padding: 6px 10px;
+	border: 1px solid var(--color-line);
+	border-radius: 999px;
+	color: var(--color-ink-2);
+	font-weight: 600;
 }
 .intro-stats {
 	display: grid;
@@ -1783,7 +1797,7 @@ table.coverage th {
 	justify-content: space-between;
 	align-items: center;
 	gap: 12px;
-	margin: 18px 0 0;
+	margin: 24px 0 0;
 	color: var(--color-muted);
 	font-size: 12px;
 }
@@ -1819,7 +1833,7 @@ table.coverage th {
 	align-items: center;
 	gap: 12px;
 	flex-wrap: wrap;
-	margin-top: 20px;
+	margin-top: 0;
 	padding-top: 16px;
 	border-top: 1px solid var(--color-line-soft);
 }
@@ -1931,17 +1945,22 @@ span.page-button {
 .filter-actions {
 	display: flex;
 	align-items: center;
-	justify-content: space-between;
+	justify-content: flex-end;
+	margin-top: 8px;
 	gap: 12px;
 }
 .clear-link {
-	color: var(--color-muted);
-	font-size: 13px;
+	display: inline-flex;
+	align-items: center;
+	min-height: 44px;
+	color: var(--color-ink);
+	font-size: 12px;
+	font-weight: 600;
 	text-decoration: underline;
 	text-underline-offset: 3px;
 }
 .clear-link:hover {
-	color: var(--color-ink);
+	text-decoration-thickness: 2px;
 }
 .sidebar {
 	min-width: 0;
@@ -1987,7 +2006,17 @@ span.page-button {
 	margin: 0;
 	padding-bottom: 12px;
 	border-bottom: 1px solid var(--color-line);
-	font: 600 17px/1.3 var(--font-display);
+	font: 600 17px / 1.3 var(--font-display);
+}
+/* Feed sidebar (mockup .side-panel): 21px section headings and 14px body
+   copy; the digest rail keeps its own densities via .digest-aside. */
+.sidebar:not(.digest-aside) .sidebar-section h2 {
+	padding-bottom: 15px;
+	font: 600 21px / 1.2 var(--font-display);
+}
+.sidebar:not(.digest-aside) .sidebar-section p {
+	margin-top: 14px;
+	font-size: 14px;
 }
 .side-note {
 	margin: 10px 0 0;
@@ -2047,6 +2076,10 @@ span.page-button {
 	border-radius: 12px;
 	background: var(--color-surface-warm);
 }
+/* Mockup .item-details[open] summary spacing. */
+.feed-card details[open] summary {
+	margin-bottom: 8px;
+}
 .item-top {
 	display: flex;
 	justify-content: space-between;
@@ -2055,7 +2088,7 @@ span.page-button {
 	gap: 8px 14px;
 }
 .item-channel {
-	font-size: 13px;
+	font-size: 12px;
 	font-weight: 600;
 	color: var(--color-ink-2);
 }
@@ -2065,17 +2098,20 @@ span.page-button {
 	font-size: 12px;
 }
 .item-title {
-	margin: 6px 0 0;
+	margin: 10px 0 0;
+	font-family: var(--font-display);
 	font-size: 18px;
 	font-weight: 600;
-	line-height: 1.3;
+	line-height: 1.36;
+	letter-spacing: -0.01em;
 }
 .item-title a {
 	color: var(--color-ink);
-	text-decoration: none;
+	text-decoration: underline;
+	text-decoration-color: var(--color-line);
+	text-underline-offset: 4px;
 }
 .item-title a:hover {
-	text-decoration: underline;
 	text-decoration-color: var(--color-ink);
 }
 .item-summary {
@@ -2096,7 +2132,7 @@ span.page-button {
 	justify-content: space-between;
 	flex-wrap: wrap;
 	gap: 8px 16px;
-	margin-top: 12px;
+	margin-top: 14px;
 	padding-top: 12px;
 	border-top: 1px solid var(--color-line-soft);
 }
@@ -2148,21 +2184,33 @@ span.page-button {
 /* ============================================================
    Feed: panel de filtros principal (columna izquierda) + chips.
    ============================================================ */
-.feed-filter-panel {
-	margin-bottom: 16px;
+/* Panels live in .feed-main's 16px grid gap: no extra margins, and the
+   mockup gives both feed panels a 28px bottom padding. */
+.feed-main .panel {
+	margin-top: 0;
+	padding-bottom: 28px;
 }
 .feed-filter-panel h2 {
 	margin: 0;
-	font-size: 15px;
-	font-weight: 600;
-	color: var(--color-ink);
+	padding-bottom: 14px;
+	border-bottom: 1px solid var(--color-line);
+	font: 600 21px / 1.2 var(--font-display);
+}
+/* Results heading = mockup .panel-heading: rule under title + note. */
+.feed-panel .section-heading {
+	margin-bottom: 0;
+	padding-bottom: 14px;
+	border-bottom: 1px solid var(--color-line);
+}
+.feed-panel .section-note {
+	font-size: 12px;
 }
 .filter-bar {
 	display: grid;
 	grid-template-columns: minmax(0, 1fr) auto auto;
 	gap: 14px;
 	align-items: end;
-	margin-top: 16px;
+	margin-top: 20px;
 }
 .search-button {
 	min-height: 44px;
@@ -2171,7 +2219,7 @@ span.page-button {
 	border-radius: 999px;
 	background: var(--color-accent);
 	color: var(--color-accent-on);
-	font-size: 13px;
+	font-size: 14px;
 	font-weight: 600;
 	cursor: pointer;
 	transition: background 0.15s ease, border-color 0.15s ease;
