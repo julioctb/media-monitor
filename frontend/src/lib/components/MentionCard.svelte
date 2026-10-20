@@ -53,11 +53,17 @@
 		return content ? { text: content, clamp: true } : { text: null, clamp: false };
 	});
 
+	/** Link shorteners: the root split would print garbage like "t". */
+	const SHORTENERS = new Set(['t.co', 'bit.ly', 'ow.ly', 'tinyurl.com', 'is.gd', 'buff.ly']);
+
 	/** Second chain link: domain root for news (e-consulta), platform for social. */
 	function outletFromUrl(url: string): string | null {
 		try {
 			const host = new URL(url).hostname.replace(/^www\./, '');
-			return host.split('.').shift() ?? null;
+			const root = host.split('.').shift() ?? '';
+			// Shorteners and 1-letter roots read broken; show the full host.
+			if (root.length < 3 || SHORTENERS.has(host)) return host;
+			return root;
 		} catch {
 			return null;
 		}
