@@ -34,14 +34,13 @@
 	<h2 class="panel-title" id="persons-filter-title">Filtrar actores</h2>
 	<form method="get" class="filter-form mt-3">
 		<div class="min-w-0 flex-1">
-			<label class="mb-1.5 block text-xs font-semibold text-ink-2" for="q">Buscar actor</label>
 			<input
 				class={`${INPUT_CLS} min-w-0`}
 				id="q"
 				type="search"
 				name="q"
 				value={data.q}
-				placeholder="Nombre, cargo o institución"
+				placeholder="Buscar por nombre, cargo o institución"
 			/>
 		</div>
 		<button class={BTN_PRIMARY_CLS} type="submit">Buscar</button>
@@ -85,8 +84,8 @@
 									>
 								</div>
 								{#if person.aliases.length > 0}
-									<p class="mt-1 text-xs font-normal text-meta">
-										Términos de búsqueda: {person.aliases.slice(0, 3).join(', ')}
+									<p class="mt-1.5 text-xs font-normal text-meta">
+										También mencionado como: {person.aliases.slice(0, 3).join(', ')}
 									</p>
 								{/if}
 							</td>
