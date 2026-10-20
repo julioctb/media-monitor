@@ -83,7 +83,6 @@
 								onclick={() => goto(`?date=${entry.summary_date}`)}
 							>
 								<span>{formatLongDate(entry.summary_date)}</span>
-								<span class="mode">{modeLabel[entry.mode] ?? entry.mode}</span>
 							</button>
 						</li>
 					{/each}
