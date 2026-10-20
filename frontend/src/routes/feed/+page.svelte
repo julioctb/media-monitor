@@ -129,7 +129,7 @@
 					<button class="search-button" type="submit">Buscar</button>
 				</div>
 				<div class="keyword-filter" role="group" aria-label="Filtrar por palabra clave monitorizada">
-					<span class="keyword-label">Palabras clave</span>
+					<span class="keyword-label">Palabras clave:</span>
 					<button type="submit" name="keyword_id" value="" class="chip" aria-pressed={filters.keyword_id === ''}>
 						Todas
 					</button>
@@ -144,9 +144,7 @@
 							{keyword.text}
 						</button>
 					{/each}
-				</div>
-				<div class="filter-actions">
-					<a href={page.url.pathname} class="clear-link">Limpiar filtros</a>
+					<a href={page.url.pathname} class="clear-link keyword-clear">Limpiar filtros</a>
 				</div>
 			</form>
 		</section>

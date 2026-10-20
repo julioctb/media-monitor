@@ -2241,6 +2241,9 @@ span.page-button {
 	font-weight: 600;
 	color: var(--color-muted);
 }
+.keyword-clear {
+	margin-left: auto;
+}
 .chip {
 	min-height: 36px;
 	padding: 6px 14px;
