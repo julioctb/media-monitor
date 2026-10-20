@@ -62,8 +62,11 @@
 			</details>
 		{:else}
 			<div class="empty mt-6" role="status">
-				<p>No hay digest guardado para <span class="font-medium text-ink">{day}</span>.</p>
-				<p class="mt-1 text-muted">Se publica automáticamente en el horario configurado.</p>
+				<p>Todavía no se genera el resumen del día.</p>
+				<p class="mt-1 text-muted">
+					Última actualización:
+					{data.latest_updated_at ? formatDisplayDateTime(data.latest_updated_at) : '—'}
+				</p>
 			</div>
 		{/if}
 	</div>
