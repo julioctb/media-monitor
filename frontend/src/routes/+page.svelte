@@ -66,7 +66,7 @@
 		{/if}
 	</div>
 
-	<aside class="sidebar" aria-label="Seguimiento especial, archivo y actores">
+	<aside class="sidebar digest-aside" aria-label="Seguimiento especial, archivo y actores">
 		<section class="sidebar-section" aria-labelledby="archivo-heading">
 			<h2 id="archivo-heading">Historial</h2>
 			{#if data.days.length === 0}

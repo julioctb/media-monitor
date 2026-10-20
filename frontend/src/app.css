@@ -1924,6 +1924,37 @@ span.page-button {
 	display: grid;
 	gap: 16px;
 }
+/* Digest home: flat aside per mockup — border-left rail, no cards.
+   Feed keeps its card panels; this only scopes the summary page. */
+.digest-aside {
+	display: block;
+	border-left: 1px solid var(--color-line-soft);
+	padding-left: 24px;
+	padding-top: 6px;
+}
+.digest-aside .sidebar-section {
+	margin: 32px 0 0;
+	padding: 0;
+	border: 0;
+	border-radius: 0;
+	background: transparent;
+}
+.digest-aside .sidebar-section:first-child {
+	margin-top: 0;
+}
+@media (max-width: 1023px) {
+	.digest-aside {
+		border-left: 0;
+		padding-left: 0;
+	}
+	.digest-aside .sidebar-section {
+		padding: 22px 20px;
+		border: 1px solid var(--color-line-soft);
+		border-radius: var(--radius-panel);
+		background: #fff;
+		margin-top: 16px;
+	}
+}
 .sidebar-section h2 {
 	margin: 0;
 	padding-bottom: 12px;
