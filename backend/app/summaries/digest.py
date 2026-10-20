@@ -327,7 +327,8 @@ def render_plain_text(content: dict, narrative: str) -> str:
     lines.append("NOTICIAS")
     for item in content.get("noticias") or []:
         confidence = item.get("confidence") or "?"
-        lines.append(f"- [{confidence}] {item.get('title') or '(sin título)'}")
+        repeat_tag = " (se repite nuevamente)" if item.get("repeat") else ""
+        lines.append(f"- [{confidence}]{repeat_tag} {item.get('title') or '(sin título)'}")
         if item.get("summary"):
             lines.append(f"  {item['summary']}")
         if item.get("why_it_matters"):

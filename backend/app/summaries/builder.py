@@ -170,8 +170,9 @@ def _digest_prompt(day: date, facts: dict) -> str:
     extra = (
         "\nLas notas con repeat=true ya fueron cubiertas en ediciones "
         "anteriores: trátalas como reiteración breve, destacando solo el "
-        "ángulo nuevo. Destaca explícitamente los cambios de tono negativos "
-        "del día."
+        "ángulo nuevo. En el summary de esas notas indica explícitamente que "
+        "la historia se repite nuevamente respecto a ediciones previas. "
+        "Destaca explícitamente los cambios de tono negativos del día."
         if repeats
         else ""
     )
