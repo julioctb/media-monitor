@@ -18,7 +18,7 @@ confidence_for). validate_digest gates the LLM output: any error falls back
 to the heuristic render, mirroring builder.py's mode contract.
 """
 
-from datetime import timezone
+from datetime import datetime, timezone
 
 DIGEST_SCHEMA_VERSION = 2
 
@@ -68,6 +68,7 @@ def build_digest_facts(
     tz: str,
     focus_person_id: int | None = None,
     mentions: list | None = None,
+    window_start: datetime | None = None,
 ) -> dict:
     """Deterministic facts for one client-day. No LLM, no prose.
 
@@ -78,13 +79,18 @@ def build_digest_facts(
     section layout is stable across engines.
     """
     from collections import Counter
+    from datetime import datetime
 
     from sqlalchemy import select
 
     from app.models import Event, Mention, Person
     from app.summaries.builder import day_window
 
-    start, end = day_window(day, tz)
+    if window_start is not None:
+        start = window_start
+        _, end = day_window(day, tz)
+    else:
+        start, end = day_window(day, tz)
     utc_start = start.astimezone(timezone.utc)
     utc_end = end.astimezone(timezone.utc)
     if mentions is None:

@@ -100,6 +100,43 @@ def day_window(day: date, tz_name: str) -> tuple[datetime, datetime]:
     return start, start + timedelta(days=1)
 
 
+#: Hours after midnight whose first cut reaches back into the previous
+#: evening, rescuing notes published after that day's last digest cut.
+MORNING_CUTOVER_HOUR = 12
+PREVIOUS_EVENING_HOURS = 3  # 21:00 the day before
+
+
+def resolve_digest_window(
+    session,
+    *,
+    client_id: int,
+    day: date,
+    tz_name: str,
+) -> tuple[datetime, datetime, bool]:
+    """Window for the day's digest, stable across the day's cuts.
+
+    First generation during the morning (before ``MORNING_CUTOVER_HOUR``)
+    extends three hours into the previous evening so notes published after
+    that day's last cut are not orphaned between digests. The choice is
+    persisted on the stored row (``content.window_start``) so later cuts
+    rebuild with the same bounds instead of dropping the tail.
+    """
+    start, end = day_window(day, tz_name)
+    existing = queries.get_daily_summary(session, client_id, day)
+    if existing is not None:
+        stored = (existing.content or {}).get("window_start")
+        if stored:
+            try:
+                return datetime.fromisoformat(stored), end, True
+            except ValueError:
+                pass
+        return start, end, False
+    now_hour = datetime.now(_zone(tz_name)).hour
+    if now_hour < MORNING_CUTOVER_HOUR:
+        return start - timedelta(hours=PREVIOUS_EVENING_HOURS), end, True
+    return start, end, False
+
+
 def _noun(count: int) -> str:
     return "mención" if count == 1 else "menciones"
 
@@ -220,7 +257,9 @@ def build_daily_summary(
     narrative pass applied cleanly.
     """
     effective = resolve_effective_settings(session, client_id)
-    start, end = day_window(day, effective.timezone)
+    start, end, window_extended = resolve_digest_window(
+        session, client_id=client_id, day=day, tz_name=effective.timezone
+    )
     # SQLite keeps datetimes as naive wall strings and compares them
     # lexically, so the bounds travel as UTC walls (the ingest pipeline
     # stores UTC); PostgreSQL compares true timestamps and reads the same
@@ -256,6 +295,7 @@ def build_daily_summary(
         tz=effective.timezone,
         focus_person_id=effective.digest_focus_person_id,
         mentions=mentions,
+        window_start=start if window_extended else None,
     )
     content = {
         **facts,
@@ -264,6 +304,10 @@ def build_daily_summary(
         "timezone": effective.timezone,
     }
     content["pendientes"] = [f"«{name}» sin menciones" for name in silent]
+    if window_extended:
+        # Persist the extended bounds: later cuts rebuild with the same
+        # window instead of dropping the rescued late-evening tail.
+        content["window_start"] = start.isoformat()
 
     narrative = _heuristic_headline(day, total, silent, content["coverage"]["by_source"])
     mode = "heuristic"

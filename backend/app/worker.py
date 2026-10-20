@@ -45,7 +45,7 @@ from app.settings_runtime import (
     resolve_effective_settings,
 )
 from app import spike
-from app.summaries import build_daily_summary, day_window, today_in
+from app.summaries import build_daily_summary, resolve_digest_window, today_in
 
 log = logging.getLogger("worker")
 
@@ -284,7 +284,9 @@ def daily_summary_job() -> int | None:
             session, client_id=settings.default_client_id
         )
         day = today_in(effective.timezone)
-        start, end = day_window(day, effective.timezone)
+        start, end, _ = resolve_digest_window(
+            session, client_id=settings.default_client_id, day=day, tz_name=effective.timezone
+        )
         # Same half-open window as the builder; until is inclusive in
         # count_mentions, so shave one microsecond off the end.
         mention_count = queries.count_mentions(
