@@ -62,7 +62,7 @@ def routes_check() -> tuple[str, list[str]]:
 # check 2 -----------------------------------------------------------------
 def enums_check() -> tuple[str, list[str]]:
     lines: list[str] = []
-    py = read(BACKEND / "app" / "classifications" / "topics.py") or ""
+    py = read(BACKEND / "app" / "enrich" / "llm.py") or ""
     m = re.search(r"TOPIC_LABELS\s*=?\s*\(([^)]*)\)", py, re.S)
     if not m:
         return "SKIP", ["backend TOPIC_LABELS tuple not found"]
