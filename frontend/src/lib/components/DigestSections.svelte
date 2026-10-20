@@ -321,7 +321,7 @@
 						<div class="feed-preview-top">
 							<span class="feed-channel">
 								{item.sources.length > 0
-									? item.sources.map((s) => sourceLabel(s.source)).join(' · ')
+									? [...new Set(item.sources.map((s) => sourceLabel(s.source)))].join(' · ')
 									: 'Fuente no registrada'}
 							</span>
 							{#if item.event_id && sentimentByEvent[String(item.event_id)]}
