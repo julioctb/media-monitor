@@ -89,10 +89,19 @@ export const load: PageServerLoad = async ({ url }) => {
 			getDailySummary(day),
 			listSummaryDays().catch(() => [])
 		]);
-		const side = summary
+		let visible = summary;
+		// No digest for the requested day (the worker builds it at 21:00):
+		// fall back to the latest published one so the home is never bare.
+		// An explicitly picked date keeps its empty state.
+		if (!visible && !requested && days.length > 0) {
+			const latest = days[0].summary_date;
+			visible = await getDailySummary(latest);
+			if (visible) day = latest;
+		}
+		const side = visible
 			? await loadSideData(day)
 			: { tones: null, eventSentiment: {}, persons: [], keywords: [] };
-		return { day, summary, days, ...side };
+		return { day, summary: visible, days, ...side };
 	} catch (cause) {
 		const status = cause instanceof ApiError && cause.status >= 400 ? cause.status : 503;
 		const detail = cause instanceof Error ? cause.message : 'error desconocido';
