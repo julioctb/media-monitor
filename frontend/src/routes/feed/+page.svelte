@@ -170,13 +170,13 @@
 					<p>No hay publicaciones que coincidan con estos filtros.</p>
 				</div>
 			{:else}
-				<ul class="feed-list" aria-label="Publicaciones">
+				<ol class="feed-list" aria-label="Publicaciones">
 					{#each groups as group (group.key)}
 						<li>
 							<EventGroup {group} keywordLabel={keywordLabelFor(group)} />
 						</li>
 					{/each}
-				</ul>
+				</ol>
 
 				<nav class="pagination" aria-label="Paginación">
 					<p class="page-status">
@@ -206,18 +206,17 @@
 									</option>
 								{/each}
 							</select>
-							<noscript><button type="submit">Aplicar</button></noscript>
-						</form>
-						{#if pagination.hasPrev}
-							<a href={pagination.prevHref} class="page-button">← Anterior</a>
-						{:else}
-							<span class="page-button" aria-disabled="true">← Anterior</span>
-						{/if}
-						{#if pagination.hasNext}
-							<a href={pagination.nextHref} class="page-button">Siguiente →</a>
-						{:else}
-							<span class="page-button" aria-disabled="true">Siguiente →</span>
-						{/if}
+							</form>
+							{#if pagination.hasPrev}
+								<a href={pagination.prevHref} class="page-button">Anterior</a>
+							{:else}
+								<span class="page-button" aria-disabled="true">Anterior</span>
+							{/if}
+							{#if pagination.hasNext}
+								<a href={pagination.nextHref} class="page-button">Siguiente</a>
+							{:else}
+								<span class="page-button" aria-disabled="true">Siguiente</span>
+							{/if}
 					</div>
 				</nav>
 			{/if}
