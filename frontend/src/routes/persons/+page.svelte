@@ -1,7 +1,5 @@
 <script lang="ts">
-	import { page } from '$app/state';
-
-	import { BTN_PRIMARY_CLS, COMPACT_CLS, CONTROL_CLS, INPUT_CLS } from '$lib/ui';
+	import { BTN_PRIMARY_CLS, COMPACT_CLS, INPUT_CLS } from '$lib/ui';
 	import { formatDisplayDateTime } from '$lib/format';
 	import type { PageProps } from './$types';
 
@@ -12,18 +10,6 @@
 	function submitFilters() {
 		filterForm?.requestSubmit();
 	}
-
-	function hrefWith(param: Record<string, string>): string {
-		const params = new URLSearchParams(page.url.searchParams);
-		for (const [key, value] of Object.entries(param)) {
-			if (value) params.set(key, value);
-			else params.delete(key);
-		}
-		const qs = params.toString();
-		return `${page.url.pathname}${qs ? `?${qs}` : ''}`;
-	}
-
-	const view = $derived(data.view === 'cards' ? 'cards' : 'table');
 
 	function initials(name: string): string {
 		return name
@@ -43,17 +29,9 @@
 	<div>
 		<h1 class="page-title">Actores</h1>
 		<p class="lead">
-			Personas identificadas en la cobertura de medios y redes sociales. Consulta su cargo,
-			institución y frecuencia de aparición.
+			{data.persons.length}
+			protagonistas detectados en la cobertura, con su volumen de menciones.
 		</p>
-		<nav class="segmented mt-3" aria-label="Vista">
-			<a href={hrefWith({ view: 'cards' })} aria-current={view === 'cards' ? 'page' : undefined}>
-				Tarjetas
-			</a>
-			<a href={hrefWith({ view: 'table' })} aria-current={view === 'table' ? 'page' : undefined}>
-				Tabla
-			</a>
-		</nav>
 	</div>
 </header>
 
@@ -95,7 +73,7 @@
 			Sin actores registrados todavía. Los actores se detectan al enriquecer las menciones
 			(protagonistas de cada nota).
 		</p>
-	{:else if view === 'table'}
+	{:else}
 		<div class="table-wrap mt-4">
 			<table class="data-table">
 				<thead>
@@ -139,38 +117,6 @@
 				</tbody>
 			</table>
 		</div>
-	{:else}
-		<ul class="mt-4 grid gap-3 md:grid-cols-2" aria-label="Actores">
-			{#each data.persons as person (person.id)}
-				<li>
-					<a
-						href={`/persons/${person.id}`}
-						class="block rounded-2xl border border-line-soft bg-white p-5 transition-colors hover:border-line"
-					>
-						<div class="flex items-baseline justify-between gap-2">
-							<h3 class="text-sm font-semibold text-ink">{person.name}</h3>
-							<span class="shrink-0 text-xs tabular-nums text-muted">
-								{person.mention_count}
-								{person.mention_count === 1 ? 'mención' : 'menciones'}
-							</span>
-						</div>
-						{#if person.role || person.org}
-							<p class="mt-1 text-xs text-muted">
-								{[person.role, person.org].filter(Boolean).join(' · ')}
-							</p>
-						{/if}
-						{#if person.aliases.length > 0}
-							<p class="mt-1 text-xs text-meta">
-								También: {person.aliases.slice(0, 3).join(', ')}
-							</p>
-						{/if}
-						<p class="mt-2 text-xs text-meta">
-							Última vez {formatDisplayDateTime(person.last_seen_at)}
-						</p>
-					</a>
-				</li>
-			{/each}
-		</ul>
 	{/if}
 </section>
 
