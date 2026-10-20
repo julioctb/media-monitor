@@ -202,8 +202,9 @@ def test_llm_mode_fields_applied_and_fallback(session):
         raise RuntimeError("provider down")
 
     row = build_daily_summary(session, client_id=client.id, day=DAY.date(), generate=boom)
-    assert row.mode == "heuristic"
-    assert "se registraron 1 mención" in row.narrative
+    # Failed regen of an llm digest inherits the previous narrative/mode.
+    assert row.mode == "llm"
+    assert "Titular del modelo." in row.narrative
 
 
 def test_llm_garbage_payload_falls_back(session):

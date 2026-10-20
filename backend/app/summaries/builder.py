@@ -342,6 +342,7 @@ def build_daily_summary(
 
     narrative = _heuristic_headline(day, total, silent, content["coverage"]["by_source"])
     mode = "heuristic"
+    llm_ok = False
     if generate is None:
         generate = summary_generator(effective)
     if generate is not None and total > 0:
@@ -353,9 +354,39 @@ def build_daily_summary(
             errors = apply_narrative(content, payload)
             headline = payload.get("headline") if isinstance(payload, dict) else None
             if not errors and isinstance(headline, str) and headline.strip():
-                narrative, mode = headline.strip(), "llm"
+                narrative, mode, llm_ok = headline.strip(), "llm", True
             else:
                 log.warning("digest llm payload rejected for %s: %s", day, errors)
+
+    if not llm_ok:
+        # Failed (or skipped) regen of a digest that was llm-authored: keep
+        # the previous narrative instead of downgrading a good digest to
+        # template prose. Facts stay fresh; only the prose is inherited.
+        previous = queries.get_daily_summary(session, client_id, day)
+        if previous is not None and previous.mode == "llm":
+            prev_content = previous.content or {}
+            prev_by_event = {
+                n.get("event_id"): n
+                for n in prev_content.get("noticias") or []
+                if n.get("event_id") is not None
+            }
+            for nota in content["noticias"]:
+                old = prev_by_event.get(nota.get("event_id"))
+                if old is None:
+                    continue
+                if not nota.get("summary") and old.get("summary"):
+                    nota["summary"] = old["summary"]
+                if not nota.get("why_it_matters") and old.get("why_it_matters"):
+                    nota["why_it_matters"] = old["why_it_matters"]
+            prev_rectora = prev_content.get("rectora") or {}
+            rectora = content.get("rectora") or {}
+            for key in ("tone", "watch"):
+                if not rectora.get(key) and prev_rectora.get(key):
+                    rectora[key] = prev_rectora[key]
+            prev_plain = (prev_content.get("plain_text") or "").split("\n", 1)[0]
+            if prev_plain:
+                narrative = prev_plain
+            mode = "llm"
 
     content["plain_text"] = render_plain_text(content, narrative)
     return queries.upsert_daily_summary(
