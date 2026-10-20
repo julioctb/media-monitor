@@ -1,4 +1,7 @@
 <script lang="ts">
+	import { invalidateAll } from '$app/navigation';
+	import { onMount } from 'svelte';
+
 	import { page } from '$app/state';
 
 	import EventGroup from '$lib/components/EventGroup.svelte';
@@ -9,6 +12,34 @@
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
+
+	const REFRESH_MS = 90_000;
+	/** Auto-refresh while visible; pauses when the tab is hidden. */
+	let refreshTimer: ReturnType<typeof setInterval> | undefined = $state();
+	let lastRefresh = $state<string | null>(null);
+
+	function startAutoRefresh() {
+		stopAutoRefresh();
+		refreshTimer = setInterval(() => {
+			if (document.visibilityState !== 'visible') return;
+			void invalidateAll().then(() => {
+				lastRefresh = new Date().toLocaleTimeString('es-MX', {
+					hour: '2-digit',
+					minute: '2-digit'
+				});
+			});
+		}, REFRESH_MS);
+	}
+
+	function stopAutoRefresh() {
+		if (refreshTimer) clearInterval(refreshTimer);
+		refreshTimer = undefined;
+	}
+
+	onMount(() => {
+		startAutoRefresh();
+		return stopAutoRefresh;
+	});
 
 	const filters = $derived(data.filters);
 
@@ -80,7 +111,10 @@
 			Noticias y publicaciones de redes sociales en una sola vista. Filtra por fuente, tono,
 			fecha o palabras del titular para revisar la cobertura.
 		</p>
-		<p class="footnote">El feed no se actualiza automáticamente todavía.</p>
+		<p class="footnote">
+			Se actualiza automáticamente cada 90 segundos mientras esta pestaña esté
+			abierta.{lastRefresh ? ` Última actualización: ${lastRefresh}.` : ''}
+		</p>
 	</div>
 	<div class="intro-stats" aria-label="Números del feed">
 		<article class="intro-stat">
