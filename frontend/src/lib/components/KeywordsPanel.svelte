@@ -12,33 +12,21 @@
 
 	interface Props {
 		keywords: Keyword[];
-		/** '' posts to the page's own actions; '/keywords' cross-posts. */
-		actionBase: string;
-		/** Action names on the target route (settings uses *Keyword suffixes). */
-		actions?: { create: string; toggle: string; delete: string };
+		/** Action result from the host page, used to restore the term input. */
 		form?: FormResult | null;
 	}
 
-	let {
-		keywords,
-		actionBase,
-		actions = { create: 'create', toggle: 'toggle', delete: 'delete' },
-		form = null
-	}: Props = $props();
-
-	function action(name: 'create' | 'toggle' | 'delete'): string {
-		return `${actionBase}?/${actions[name]}`;
-	}
+	let { keywords, form = null }: Props = $props();
 
 	const btn =
 		'inline-flex min-h-[44px] items-center justify-center rounded-full border px-3 text-xs font-semibold transition-colors disabled:opacity-60';
 </script>
 
-<form method="POST" action={action('create')} class="keyword-form">
+<form method="POST" action="?/create" class="keyword-form">
 	<div>
-		<label class="field-label" for="k-text-{actionBase || 'page'}">Nueva palabra clave</label>
+		<label class="field-label" for="k-text">Nueva palabra clave</label>
 		<input
-			id="k-text-{actionBase || 'page'}"
+			id="k-text"
 			name="text"
 			value={form?.action === 'create' ? form.text ?? '' : ''}
 			maxlength={500}
@@ -49,8 +37,8 @@
 		/>
 	</div>
 	<div>
-		<label class="field-label" for="k-lang-{actionBase || 'page'}">Idioma</label>
-		<select id="k-lang-{actionBase || 'page'}" name="language" class={INPUT_CLS}>
+		<label class="field-label" for="k-lang">Idioma</label>
+		<select id="k-lang" name="language" class={INPUT_CLS}>
 			<option value="es">Español</option>
 			<option value="en">English</option>
 		</select>
@@ -87,14 +75,14 @@
 						</td>
 						<td data-label="Acciones">
 							<div class="row-actions">
-								<form method="POST" action={action('toggle')}>
+								<form method="POST" action="?/toggle">
 									<input type="hidden" name="id" value={keyword.id} />
 									<input type="hidden" name="is_active" value={keyword.is_active ? '0' : '1'} />
 									<button type="submit" class={`${btn} btn-small border-line text-ink-2 hover:bg-surface-warm`}>
 										{keyword.is_active ? 'Desactivar' : 'Activar'}
 									</button>
 								</form>
-								<form method="POST" action={action('delete')}>
+								<form method="POST" action="?/delete">
 									<input type="hidden" name="id" value={keyword.id} />
 									<button
 										type="submit"

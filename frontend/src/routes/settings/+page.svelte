@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 
+	import KeywordsPanel from '$lib/components/KeywordsPanel.svelte';
 	import { INPUT_CLS } from '$lib/ui';
 	import type { AvailableScraper, ClientSettings } from '$lib/api';
 	import type { PageProps, SubmitFunction } from './$types';
@@ -17,7 +18,8 @@
 	/** Upper bound of daily digest cuts; mirrors the backend validator. */
 	const MAX_DIGEST_HOURS = 8;
 
-	// Keyword CRUD lives on /keywords; settings only renders global operation.
+	// Keyword CRUD is embedded below via KeywordsPanel; its actions live in
+	// this page's server module.
 
 	interface PageDraft {
 		page_id: string;
@@ -155,7 +157,7 @@
 	</p>
 </header>
 
-{#if form?.action === 'save'}
+{#if form && ['save', 'create', 'toggle', 'delete'].includes(form.action ?? '')}
 	<div
 		role={form.ok ? 'status' : 'alert'}
 		class={`mt-4 rounded-lg px-4 py-3 text-sm ring-1 ring-inset ${
@@ -170,12 +172,22 @@
 
 <div class="settings-layout">
 	<nav class="section-nav" aria-label="Secciones de configuración">
+		<a href="#palabras-clave">Palabras clave</a>
 		<a href="#operacion">Operación</a>
 		<a href="#fuentes">Fuentes</a>
 		<a href="#llm">LLM</a>
 	</nav>
 
 	<div class="settings-flow">
+		<!-- Keywords panel: own POST forms, so it lives outside the settings form. -->
+		<section id="palabras-clave" class="panel" aria-labelledby="palabras-clave-title">
+			<div class="panel-head">
+				<h2 id="palabras-clave-title">Palabras clave</h2>
+				<p class="panel-note">Términos que activan el monitoreo, asociados a su idioma.</p>
+			</div>
+			<KeywordsPanel keywords={data.keywords} form={form} />
+		</section>
+
 		<form
 			method="POST"
 			action="?/save"

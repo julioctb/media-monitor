@@ -3,10 +3,12 @@ import {
 	ApiError,
 	getClientSettings,
 	listAvailableScrapers,
+	listKeywords,
 	testAi,
 	testFacebookPage,
 	updateClientSettings
 } from '$lib/api';
+import { handleKeywordCreate, handleKeywordDelete, handleKeywordToggle } from '$lib/keyword-actions';
 import type { Actions, PageServerLoad } from './$types';
 
 /** Uniform action result: every branch carries the same keys for the view. */
@@ -124,8 +126,11 @@ export const load: PageServerLoad = async () => {
 		// Best-effort: an unavailable registry must not block the page; the
 		// card renders an empty state instead. Keywords feed the embedded
 		// panel; a failure there degrades to an empty table.
-		const scrapersAvailable = await listAvailableScrapers().catch(() => []);
-		return { settings: await getClientSettings(), scrapersAvailable };
+		const [scrapersAvailable, keywords] = await Promise.all([
+			listAvailableScrapers().catch(() => []),
+			listKeywords().catch(() => [])
+		]);
+		return { settings: await getClientSettings(), scrapersAvailable, keywords };
 	} catch (cause) {
 		const status = cause instanceof ApiError && cause.status >= 400 ? cause.status : 503;
 		const detail = cause instanceof Error ? cause.message : 'error desconocido';
@@ -232,5 +237,11 @@ export const actions: Actions = {
 		} catch (cause) {
 			return failureFrom(cause, 'test-ai', 'No se pudo contactar la prueba del proveedor.');
 		}
-	}
+	},
+
+	// Keyword CRUD for the embedded panel; shared handlers keep the semantics
+	// identical to the former /keywords page.
+	create: ({ request }) => handleKeywordCreate(request),
+	toggle: ({ request }) => handleKeywordToggle(request),
+	delete: ({ request }) => handleKeywordDelete(request)
 };

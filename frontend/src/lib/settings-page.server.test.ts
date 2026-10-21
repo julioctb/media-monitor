@@ -53,7 +53,7 @@ const SETTINGS_ROW = {
 	updated_at: '2026-10-19T03:00:00Z'
 };
 
-function saveForm(entries: Record<string, string | string[]>): Request {
+function formRequest(entries: Record<string, string | string[]>): Request {
 	const form = new FormData();
 	for (const [key, value] of Object.entries(entries)) {
 		for (const entry of Array.isArray(value) ? value : [value]) {
@@ -62,6 +62,8 @@ function saveForm(entries: Record<string, string | string[]>): Request {
 	}
 	return new Request('http://localhost/settings', { method: 'POST', body: form });
 }
+
+const saveForm = formRequest;
 
 async function save(entries: Record<string, string | string[]>) {
 	// ActionFailure carries {status, data}; success returns the plain result.
@@ -139,4 +141,90 @@ it('persists the facebook row kind, defaulting absent to page', async () => {
 		{ page_id: '1090003732034388', token: 't1', label: 'Grupo', kind: 'group' },
 		{ page_id: '1001', token: 't2', label: '', kind: 'page' }
 	]);
+});
+
+// -- Keyword actions served by the settings page (embedded panel) --
+
+const KEYWORD_ROW = {
+	id: 7,
+	text: 'BUAP',
+	language: 'es',
+	is_active: true,
+	created_at: '2026-10-20T00:00:00Z'
+};
+
+interface RecordedCall {
+	path: string;
+	method: string;
+	body?: unknown;
+}
+
+/** Stub fetch recording every call; replies KEYWORD_ROW for keyword routes. */
+function stubKeywordFetch() {
+	const calls: RecordedCall[] = [];
+	const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+		const url = new URL(String(input));
+		const method = init?.method ?? 'GET';
+		const call: RecordedCall = { path: url.pathname, method };
+		if (init?.body) call.body = JSON.parse(String(init.body));
+		calls.push(call);
+		return new Response(JSON.stringify(KEYWORD_ROW), {
+			status: 200,
+			headers: { 'content-type': 'application/json' }
+		});
+	});
+	vi.stubGlobal('fetch', fetchMock);
+	return calls;
+}
+
+async function runAction(
+	name: 'create' | 'toggle' | 'delete',
+	entries: Record<string, string | string[]>
+) {
+	return actions[name]({ request: formRequest(entries) } as never) as Promise<{
+		status?: number;
+		data?: Record<string, unknown>;
+		ok?: boolean;
+		message?: string;
+	}>;
+}
+
+it('creates a keyword through the page action', async () => {
+	const calls = stubKeywordFetch();
+
+	const result = await runAction('create', { text: 'BUAP', language: 'es' });
+
+	expect(result.ok).toBe(true);
+	const post = calls.find((call) => call.path === '/api/keywords' && call.method === 'POST');
+	expect(post?.body).toMatchObject({ text: 'BUAP', language: 'es' });
+});
+
+it('fails keyword create with 400 on blank text', async () => {
+	const calls = stubKeywordFetch();
+
+	const result = await runAction('create', { text: '   ' });
+
+	const failure = { status: result.status ?? -1, data: result.data ?? {} };
+	expect(failure.status).toBe(400);
+	expect(failure.data.ok).toBe(false);
+	expect(calls).toHaveLength(0); // never reached the API
+});
+
+it('toggles a keyword through the page action', async () => {
+	const calls = stubKeywordFetch();
+
+	const result = await runAction('toggle', { id: '7', is_active: '0' });
+
+	expect(result.ok).toBe(true);
+	const patch = calls.find((call) => call.path === '/api/keywords/7' && call.method === 'PATCH');
+	expect(patch?.body).toEqual({ is_active: false });
+});
+
+it('deletes a keyword through the page action', async () => {
+	const calls = stubKeywordFetch();
+
+	const result = await runAction('delete', { id: '7' });
+
+	expect(result.ok).toBe(true);
+	expect(calls).toContainEqual({ path: '/api/keywords/7', method: 'DELETE' });
 });

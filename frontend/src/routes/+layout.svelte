@@ -5,22 +5,13 @@
 
 	let { children }: LayoutProps = $props();
 
-	interface NavNode {
-		href: string;
-		label: string;
-	}
-
 	interface NavGroup {
-		/** Nav label; grouped entries link to their primary child. */
 		label: string;
 		href: string;
-		/** Present = grouped section: children render as the sub-tab strip. */
-		children?: NavNode[];
 	}
 
-	// Flat nav, mockup order. Estadísticas/Búsquedas are real pages and stay;
-	// Configuración keeps a sub-tab strip for its secondary page
-	// (saved-searches / keywords) instead of more top-level entries.
+	// Flat nav, mockup order. Configuración is a single page: its sections
+	// (keywords included) are anchors inside /settings, not sub-tabs.
 	const navGroups: NavGroup[] = [
 		{ label: 'Resumen', href: '/' },
 		{ label: 'Feed', href: '/feed' },
@@ -29,33 +20,14 @@
 		{ label: 'Consultas', href: '/consultas' },
 		{ label: 'Estadísticas', href: '/stats' },
 		{ label: 'Búsquedas', href: '/saved-searches' },
-		{
-			label: 'Configuración',
-			href: '/settings',
-			children: [
-				{ href: '/settings', label: 'General' },
-				{ href: '/keywords', label: 'Palabras clave' }
-			]
-		}
+		{ label: 'Configuración', href: '/settings' }
 	];
 
 	let menuOpen = $state(false);
-	const tabs = $derived(activeTabs());
 
 	function isActive(href: string): boolean {
 		const path = page.url.pathname;
 		return href === '/' ? path === '/' : path === href || path.startsWith(`${href}/`);
-	}
-
-	function groupActive(group: NavGroup): boolean {
-		return isActive(group.href) || (group.children ?? []).some((child) => isActive(child.href));
-	}
-
-	function activeTabs(): NavNode[] | null {
-		for (const group of navGroups) {
-			if (group.children && groupActive(group)) return group.children;
-		}
-		return null;
 	}
 
 	function closeMenu(): void {
@@ -83,7 +55,7 @@
 				{#each navGroups as group (group.href)}
 					<a
 						href={group.href}
-						aria-current={groupActive(group) ? 'page' : undefined}
+						aria-current={isActive(group.href) ? 'page' : undefined}
 						onclick={closeMenu}
 					>
 						{group.label}
@@ -91,19 +63,6 @@
 				{/each}
 			</nav>
 		</div>
-
-		{#if tabs && !menuOpen}
-			<!-- Sub-navigation for the active group, every breakpoint. -->
-			<nav aria-label="Sección" class="subnav">
-				<div class="subnav-inner">
-					{#each tabs as tab (tab.href)}
-						<a href={tab.href} aria-current={isActive(tab.href) ? 'page' : undefined}>
-							{tab.label}
-						</a>
-					{/each}
-				</div>
-			</nav>
-		{/if}
 	</header>
 
 	<main class="page flex-1">

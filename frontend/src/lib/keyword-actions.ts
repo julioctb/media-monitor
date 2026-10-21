@@ -3,9 +3,8 @@ import { fail } from '@sveltejs/kit';
 import { ApiError, createKeyword, deleteKeyword, updateKeyword } from '$lib/api';
 
 /**
- * Keyword form actions, shared by /keywords and the embedded panel in
- * /settings (Configuración). Both routes expose identical semantics; the
- * handlers only need the request to read the form fields.
+ * Keyword form actions for the embedded panel in /settings (Configuración).
+ * The handlers only need the request to read the form fields.
  */
 
 export const LANGUAGES = new Set(['es', 'en']);
