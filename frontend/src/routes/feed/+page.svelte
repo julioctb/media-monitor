@@ -64,6 +64,23 @@
 		return `${page.url.pathname}${qs ? `?${qs}` : ''}`;
 	}
 
+	/* Tono pills (server param `sentiment`): active pill navigates to its value,
+	   clicking it again clears the param. `none` stays valid in old URLs, no pill. */
+	const TONE_PILLS = [
+		{ key: 'positive', label: 'Positivo' },
+		{ key: 'neutral', label: 'Neutro' },
+		{ key: 'negative', label: 'Negativo' }
+	] as const;
+
+	function hrefWithSentiment(value: string | null): string {
+		const params = new URLSearchParams(page.url.searchParams);
+		if (value === null) params.delete('sentiment');
+		else params.set('sentiment', value);
+		params.delete('offset'); // a new filter facet resets pagination
+		const qs = params.toString();
+		return `${page.url.pathname}${qs ? `?${qs}` : ''}`;
+	}
+
 	function hrefWithOffset(offset: number): string {
 		const params = new URLSearchParams(page.url.searchParams);
 		params.set('offset', String(offset));
@@ -151,14 +168,21 @@
 						/>
 					</div>
 					<div>
-						<label class="filter-label" for="f-sentiment">Tono</label>
-						<select id="f-sentiment" name="sentiment" class={INPUT_CLS}>
-							<option value="" selected={filters.sentiment === ''}>Todos los tonos</option>
-							<option value="positive" selected={filters.sentiment === 'positive'}>Positivo</option>
-							<option value="neutral" selected={filters.sentiment === 'neutral'}>Neutro</option>
-							<option value="negative" selected={filters.sentiment === 'negative'}>Negativo</option>
-							<option value="none" selected={filters.sentiment === 'none'}>Sin clasificar</option>
-						</select>
+						<span class="filter-label" id="f-sentiment-label">Tono</span>
+						<div class="feed-filters" role="group" aria-labelledby="f-sentiment-label">
+							{#each TONE_PILLS as tone (tone.key)}
+								<a
+									class="feed-filter"
+									role="button"
+									href={filters.sentiment === tone.key
+										? hrefWithSentiment(null)
+										: hrefWithSentiment(tone.key)}
+									aria-pressed={filters.sentiment === tone.key}
+								>
+									{tone.label}
+								</a>
+							{/each}
+						</div>
 					</div>
 					<button class="search-button" type="submit">Buscar</button>
 				</div>

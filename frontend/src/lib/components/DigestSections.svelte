@@ -100,7 +100,27 @@
 		{ key: 'news', label: 'Noticias' },
 		{ key: 'social', label: 'Redes' }
 	] as const;
-	const visibleNews = $derived(feedFilter === 'social' ? [] : noticias);
+
+	/* Tono pills: majority sentiment per event (sentimentByEvent); single-select,
+	   active pill toggles off. Items without a resolvable tone only show unfiltered. */
+	const TONE_FILTERS = [
+		{ key: 'positive', label: 'Positivo' },
+		{ key: 'neutral', label: 'Neutro' },
+		{ key: 'negative', label: 'Negativo' }
+	] as const;
+	type ToneFilter = (typeof TONE_FILTERS)[number]['key'];
+	let toneFilter = $state<null | ToneFilter>(null);
+
+	const itemTone = (item: DigestNewsItem): string | null =>
+		item.event_id !== undefined && item.event_id !== null
+			? (sentimentByEvent[String(item.event_id)] ?? null)
+			: null;
+
+	const visibleNews = $derived.by(() => {
+		if (feedFilter === 'social') return [];
+		if (!toneFilter) return noticias;
+		return noticias.filter((item) => itemTone(item) === toneFilter);
+	});
 	const newsStamp = $derived.by(() => {
 		const raw = content.date ?? (updatedAt ? updatedAt.slice(0, 10) : null);
 		if (!raw) return null;
@@ -338,12 +358,34 @@
 				</button>
 			{/each}
 		</div>
+		<div class="feed-filters" role="group" aria-label="Filtrar el feed por tono">
+			{#each TONE_FILTERS as tone (tone.key)}
+				<button
+					class="feed-filter"
+					type="button"
+					data-tone={tone.key}
+					aria-pressed={toneFilter === tone.key}
+					onclick={() => (toneFilter = toneFilter === tone.key ? null : tone.key)}
+				>
+					{tone.label}
+				</button>
+			{/each}
+		</div>
 		<span class="feed-status">
 			{newsStamp ? `Muestra del ${newsStamp} · ` : ''}sin actualización automática
 		</span>
 	</div>
 	{#if noticias.length === 0}
 		<p class="breakdown-note">Sin noticias registradas ese día.</p>
+	{:else if visibleNews.length === 0}
+		{#if feedFilter === 'social'}
+			<p class="breakdown-note" role="status">
+				No hay publicaciones de redes cargadas en esta vista de ejemplo. Aparecerán aquí cuando
+				se conecte la fuente.
+			</p>
+		{:else}
+			<p class="breakdown-note" role="status">Ninguna nota coincide con los filtros activos.</p>
+		{/if}
 	{:else}
 		<ol class="editorial-list feed-list" aria-label="Feed de noticias del día">
 			{#each visibleNews as item, i (item.event_id ?? `i${i}`)}
@@ -380,10 +422,6 @@
 				</li>
 			{/each}
 		</ol>
-		<div class="feed-empty" role="status" aria-live="polite" hidden={visibleNews.length !== 0}>
-			No hay publicaciones de redes cargadas en esta vista de ejemplo. Aparecerán aquí cuando se
-			conecte la fuente.
-		</div>
 	{/if}
 </section>
 

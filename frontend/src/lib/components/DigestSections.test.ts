@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from 'vitest';
 import { mount, unmount } from 'svelte';
+import { tick } from 'svelte';
 
 import type { DailySummaryContent } from '$lib/api';
 import DigestSections from './DigestSections.svelte';
@@ -71,6 +72,94 @@ function renderCard(
 	instance = mount(DigestSections, { target, props: { content, tones, ...props } });
 	return target;
 }
+
+function withExtraNoticia(
+	third: NonNullable<DailySummaryContent['noticias']>[number]
+): DailySummaryContent {
+	const content = digestFixture();
+	content.noticias = [...(content.noticias ?? []), third];
+	return content;
+}
+
+const TONE_MAP = { 673: 'positive', 674: 'negative' };
+
+function toneButton(host: HTMLElement, tone: string): HTMLButtonElement {
+	const button = host.querySelector(`button[data-tone="${tone}"]`) as HTMLButtonElement | null;
+	if (!button) throw new Error(`missing tone pill: ${tone}`);
+	return button;
+}
+
+async function clickPill(host: HTMLElement, tone: string) {
+	toneButton(host, tone).click();
+	await tick();
+}
+
+describe('DigestSections tone pills', () => {
+	afterEach(() => {
+		if (instance) void unmount(instance as never);
+		instance = undefined;
+	});
+
+	it('renders three tone pills mirroring the feed-filter pattern', () => {
+		const host = renderCard(digestFixture(), null, { sentimentByEvent: TONE_MAP });
+		for (const tone of ['positive', 'neutral', 'negative']) {
+			const button = toneButton(host, tone);
+			expect(button.getAttribute('aria-pressed')).toBe('false');
+		}
+	});
+
+	it('filters news by tone and toggles the pill off', async () => {
+		const content = withExtraNoticia({
+			event_id: 674,
+			title: 'Nota tono negativo',
+			sources: [{ source: 'news_rss', url: 'https://n/3', title: 'N' }]
+		});
+		const host = renderCard(content, null, { sentimentByEvent: TONE_MAP });
+		expect(host.textContent).toContain('Nota tono negativo');
+
+		await clickPill(host, 'positive');
+		expect(host.textContent).toContain('BUAP inaugura edificio en Zacapoaxtla');
+		expect(host.textContent).not.toContain('Nota tono negativo');
+		expect(toneButton(host, 'positive').getAttribute('aria-pressed')).toBe('true');
+
+		await clickPill(host, 'positive');
+		expect(host.textContent).toContain('Nota tono negativo');
+		expect(toneButton(host, 'positive').getAttribute('aria-pressed')).toBe('false');
+	});
+
+	it('combines the tone filter with the source filter (AND)', async () => {
+		const host = renderCard(digestFixture(), null, { sentimentByEvent: TONE_MAP });
+		await clickPill(host, 'positive');
+		const social = host.querySelector('button[data-filter="social"]') as HTMLButtonElement;
+		social.click();
+		await tick();
+		expect(host.textContent).toContain('No hay publicaciones de redes');
+		expect(host.querySelector('.news-item')).toBeNull();
+	});
+
+	it('drops items without sentiment data while a tone pill is active', async () => {
+		const content = withExtraNoticia({
+			event_id: null,
+			title: 'Nota sin evento',
+			sources: [{ source: 'news_rss', url: 'https://n/4', title: 'N' }]
+		});
+		const host = renderCard(content, null, { sentimentByEvent: TONE_MAP });
+		expect(host.textContent).toContain('Nota sin evento');
+
+		await clickPill(host, 'positive');
+		expect(host.textContent).not.toContain('Nota sin evento');
+
+		await clickPill(host, 'positive');
+		expect(host.textContent).toContain('Nota sin evento');
+	});
+
+	it('shows the empty note instead of an empty list when no item matches', async () => {
+		const host = renderCard(digestFixture(), null, { sentimentByEvent: {} });
+		await clickPill(host, 'negative');
+		expect(host.textContent).toContain('Ninguna nota coincide');
+		expect(host.querySelector('.news-item')).toBeNull();
+	});
+});
 
 describe('DigestSections', () => {
 	afterEach(() => {
