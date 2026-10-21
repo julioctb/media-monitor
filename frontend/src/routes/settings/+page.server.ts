@@ -161,7 +161,6 @@ export const actions: Actions = {
 			// Full-object PUT: the API keeps server-side fields (id, client_id,
 			// updated_at) and validates the rest, mirroring the stored row.
 			await updateClientSettings({
-				client_name: text(form, 'client_name'),
 				timezone: text(form, 'timezone'),
 				retention_days,
 				digest_hours,

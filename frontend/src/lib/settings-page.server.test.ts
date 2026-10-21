@@ -82,7 +82,6 @@ it('serializes digest hours as a deduped sorted array', async () => {
 	stubFetch(SETTINGS_ROW);
 
 	const result = await save({
-		client_name: 'acme',
 		timezone: 'America/Mexico_City',
 		retention_days: '30',
 		digest_hour: ['21', '8', '8', '6']
@@ -125,7 +124,6 @@ it('persists the facebook row kind, defaulting absent to page', async () => {
 	stubFetch(SETTINGS_ROW);
 
 	const result = await save({
-		client_name: 'acme',
 		timezone: 'America/Mexico_City',
 		retention_days: '30',
 		digest_hour: ['21'],

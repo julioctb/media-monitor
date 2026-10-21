@@ -30,7 +30,6 @@
 	}
 
 	interface SettingsDraft {
-		client_name: string;
 		timezone: string;
 		/** Kept as text: the action parses it, '' surfaces a friendly error. */
 		retention_days: string;
@@ -50,7 +49,6 @@
 
 	function toDraft(settings: ClientSettings): SettingsDraft {
 		return {
-			client_name: settings.client_name,
 			timezone: settings.timezone,
 			retention_days: String(settings.retention_days),
 			digest_hours: [...settings.digest_hours],
@@ -203,21 +201,9 @@
 			<section id="operacion" class="panel" aria-labelledby="operacion-title">
 				<div class="panel-head">
 					<h2 id="operacion-title">Operación</h2>
-					<p class="panel-note">Ajustes generales de identidad, tiempo y conservación de datos.</p>
+					<p class="panel-note">Ajustes generales de tiempo y conservación de datos.</p>
 				</div>
 				<div class="field-grid">
-					<div>
-						<label for="set-name" class={LABEL_CLS}>Nombre del cliente</label>
-						<input
-							id="set-name"
-							name="client_name"
-							type="text"
-							maxlength={200}
-							bind:value={draft.client_name}
-							placeholder="Mi marca"
-							class={INPUT_CLS}
-						/>
-					</div>
 					<div>
 						<label for="set-timezone" class={LABEL_CLS}>Zona horaria</label>
 						<input
