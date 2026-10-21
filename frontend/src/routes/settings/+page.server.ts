@@ -98,17 +98,23 @@ function readDigestHours(form: FormData): number[] | null {
 }
 
 /** Zip the repeated row inputs by DOM order; drop fully empty rows. */
-function readFacebookPages(form: FormData): { page_id: string; token: string; label: string }[] {
+function readFacebookPages(
+	form: FormData
+): { page_id: string; token: string; label: string; kind: 'page' | 'group' }[] {
 	const pageIds = form.getAll('fb_page_id').map((value) => String(value));
 	const tokens = form.getAll('fb_token').map((value) => String(value));
 	const labels = form.getAll('fb_label').map((value) => String(value));
-	const pages: { page_id: string; token: string; label: string }[] = [];
+	const kinds = form.getAll('fb_kind').map((value) => String(value));
+	const pages: { page_id: string; token: string; label: string; kind: 'page' | 'group' }[] = [];
 	for (let index = 0; index < pageIds.length; index += 1) {
 		const page_id = (pageIds[index] ?? '').trim();
 		const token = (tokens[index] ?? '').trim();
 		const label = (labels[index] ?? '').trim();
+		// Absent select (legacy row or older client) behaves as page, the
+		// same default the backend credential applies.
+		const kind: 'page' | 'group' = kinds[index] === 'group' ? 'group' : 'page';
 		if (page_id === '' && token === '') continue;
-		pages.push({ page_id, token, label });
+		pages.push({ page_id, token, label, kind });
 	}
 	return pages;
 }

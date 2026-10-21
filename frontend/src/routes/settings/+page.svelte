@@ -23,6 +23,8 @@
 		page_id: string;
 		token: string;
 		label: string;
+		/** Normalized on load: legacy rows without kind read as page. */
+		kind: 'page' | 'group';
 	}
 
 	interface SettingsDraft {
@@ -51,7 +53,7 @@
 			retention_days: String(settings.retention_days),
 			digest_hours: [...settings.digest_hours],
 			gdelt_enabled: settings.gdelt_enabled,
-			pages: settings.facebook_pages.map((page) => ({ ...page })),
+			pages: settings.facebook_pages.map((page) => ({ ...page, kind: page.kind ?? 'page' })),
 			rss: settings.rss_feeds.join('\n'),
 			scrapers: [...settings.scrapers],
 			ai_provider: settings.ai_provider,
@@ -110,7 +112,7 @@
 	}
 
 	function addPage(): void {
-		draft.pages.push({ page_id: '', token: '', label: '' });
+		draft.pages.push({ page_id: '', token: '', label: '', kind: 'page' });
 		dirty = true;
 	}
 
@@ -347,14 +349,26 @@
 
 					<article class="source-card">
 						<h3>Redes sociales</h3>
-						<p>Páginas de Facebook con page_id y token de acceso.</p>
+						<p>Páginas y grupos de Facebook con su id y token de acceso.</p>
 						{#if draft.pages.length === 0}
-							<p class="field-hint">Sin páginas: agrega una con su page_id y token de lectura.</p>
+							<p class="field-hint">Sin páginas ni grupos: agrega uno con su id y token de lectura.</p>
 						{/if}
 						<div class="grid gap-3">
 							{#each draft.pages as page, index (page)}
 								<div class="rounded-xl border border-line-soft bg-white p-3">
-									<div class="grid gap-3 sm:grid-cols-3">
+									<div class="grid gap-3 sm:grid-cols-2">
+										<div>
+											<label for={`fb-kind-${index}`} class={LABEL_CLS}>Tipo</label>
+											<select
+												id={`fb-kind-${index}`}
+												name="fb_kind"
+												bind:value={page.kind}
+												class={INPUT_CLS}
+											>
+												<option value="page">Página</option>
+												<option value="group">Grupo</option>
+											</select>
+										</div>
 										<div>
 											<label for={`fb-page-${index}`} class={LABEL_CLS}>Page ID</label>
 											<input
@@ -426,7 +440,7 @@
 							disabled={submitting}
 							class="mt-3 rounded-full border border-dashed border-line px-3 py-1.5 text-xs font-medium text-muted transition-colors hover:bg-surface-warm disabled:opacity-60"
 						>
-							+ Agregar página
+							+ Agregar página o grupo
 						</button>
 					</article>
 

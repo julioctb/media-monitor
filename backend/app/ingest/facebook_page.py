@@ -9,6 +9,10 @@ adapter picks them up.
         ?fields=id,message,created_time,from{name},permalink_url
         &limit=100&access_token=<page token>
 
+Groups are the same call against /{version}/groups/{id}/feed with a user
+token that can read the group (kind="group" on the FB_PAGES entry); pages
+keep their own token and /posts path. Parsing is shared.
+
 Pages are polled sequentially with a single request per page per cycle.
 Graph caps feed reads at 100 posts per request and the worker polls every
 INGEST_INTERVAL_MIN minutes, so there is deliberately no client-side rate
@@ -23,6 +27,7 @@ match against the full active set and may reassign it, as for any source.
 import logging
 from collections.abc import Sequence
 from datetime import datetime, timezone
+from typing import Literal
 
 import httpx
 from pydantic import BaseModel
@@ -46,11 +51,15 @@ FB_GRAPH_API_VERSION = "v26.0"
 
 
 class FacebookPageCredentials(BaseModel):
-    """One monitored page: id, page access token, display label."""
+    """One monitored page or group: id, access token, display label."""
 
     page_id: str
     token: str
     label: str = ""
+    # Pages read /{id}/posts with the page token; groups read
+    # /groups/{id}/feed with a user token. An absent kind (legacy row)
+    # behaves exactly as "page".
+    kind: Literal["page", "group"] = "page"
 
 
 def _parse_created_time(value: object) -> datetime | None:
@@ -67,6 +76,17 @@ def _parse_created_time(value: object) -> datetime | None:
     return parsed
 
 
+def _fallback_url(credential: FacebookPageCredentials, post_id: str) -> str:
+    """Canonical status URL for when Graph omits permalink_url (best-effort)."""
+    if credential.kind == "group":
+        # Group post ids look like <group>_<post>: the canonical URL carries
+        # the suffix after the first underscore, else the bare id. Not a
+        # documented Graph guarantee; verify against a live token.
+        suffix = post_id.split("_", 1)[1] if "_" in post_id else post_id
+        return f"https://www.facebook.com/groups/{credential.page_id}/posts/{suffix}"
+    return f"https://www.facebook.com/{credential.page_id}/posts/{post_id}"
+
+
 def parse_page_posts(
     payload: dict,
     page: FacebookPageCredentials,
@@ -77,9 +97,7 @@ def parse_page_posts(
     for post in payload.get("data") or []:
         post_id = str(post.get("id") or "")
         url = post.get("permalink_url") or (
-            f"https://www.facebook.com/{page.page_id}/posts/{post_id}"
-            if post_id
-            else ""
+            _fallback_url(page, post_id) if post_id else ""
         )
         if not url:
             continue
@@ -108,7 +126,7 @@ def parse_page_posts(
 
 
 class FacebookPageAdapter(SourceAdapter):
-    """Polls /posts for every configured page, one request per page."""
+    """Polls the feed endpoint of every configured credential, one request each."""
 
     name = "facebook_page"
 
@@ -124,13 +142,16 @@ class FacebookPageAdapter(SourceAdapter):
         self._client = client or httpx.Client(timeout=_TIMEOUT_S)
         self._owns_client = client is None
 
-    def posts_url(self, page_id: str) -> str:
+    def posts_url(self, page_id: str, kind: str = "page") -> str:
+        """Feed endpoint for one credential: pages /posts, groups /groups/../feed."""
+        if kind == "group":
+            return f"{GRAPH_API_BASE_URL}/{self._graph_version}/groups/{page_id}/feed"
         return f"{GRAPH_API_BASE_URL}/{self._graph_version}/{page_id}/posts"
 
     def fetch_page_posts(self, page: FacebookPageCredentials) -> dict:
-        """One Graph call: the page's latest posts (first page only)."""
+        """One Graph call: the credential's latest posts (first page only)."""
         resp = self._client.get(
-            self.posts_url(page.page_id),
+            self.posts_url(page.page_id, page.kind),
             params={
                 "fields": POST_FIELDS,
                 "limit": PAGE_POSTS_LIMIT,

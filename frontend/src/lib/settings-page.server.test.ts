@@ -118,3 +118,25 @@ it('fails with 400 above the 8-cut cap', async () => {
 
 	expect(result.status).toBe(400);
 });
+
+it('persists the facebook row kind, defaulting absent to page', async () => {
+	stubFetch(SETTINGS_ROW);
+
+	const result = await save({
+		client_name: 'acme',
+		timezone: 'America/Mexico_City',
+		retention_days: '30',
+		digest_hour: ['21'],
+		fb_page_id: ['1090003732034388', '1001'],
+		fb_token: ['t1', 't2'],
+		fb_label: ['Grupo', ''],
+		fb_kind: ['group'] // second row omits the select: legacy/absent == page
+	});
+
+	expect(result['ok']).toBe(true);
+	const body = savedBodies[0] as { facebook_pages?: Record<string, string>[] };
+	expect(body['facebook_pages']).toEqual([
+		{ page_id: '1090003732034388', token: 't1', label: 'Grupo', kind: 'group' },
+		{ page_id: '1001', token: 't2', label: '', kind: 'page' }
+	]);
+});

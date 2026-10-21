@@ -22,6 +22,10 @@ FIXTURES = Path(__file__).parent / "fixtures"
 
 PAGE = FacebookPageCredentials(page_id="1001", token="page-token", label="BUAP Oficial")
 
+GROUP = FacebookPageCredentials(
+    page_id="1090003732034388", token="group-token", label="Grupo BUAP", kind="group"
+)
+
 
 def _payload() -> dict:
     return json.loads(
@@ -86,6 +90,36 @@ class TestParsePagePosts:
         assert mentions[0].published_at.tzinfo is not None  # naive read as UTC
         assert mentions[1].published_at is None
         assert mentions[2].published_at is None
+
+    # --- kind=group: parsing is shared, only the fallback URL branches ---
+
+    def test_group_payload_parses_with_page_rules(self) -> None:
+        payload = {
+            "data": [
+                {
+                    "id": "1090003732034388_77",
+                    "message": "primera\nsegunda",
+                    "from": {"name": "Miembro"},
+                }
+            ]
+        }
+        (mention,) = parse_page_posts(payload, GROUP, [])
+        assert mention.source.value == "facebook_page"  # enum reused for groups
+        assert mention.title == "primera"  # first line
+        assert mention.content == "primera\nsegunda"
+        assert mention.author == "Grupo BUAP"  # label wins over from
+        assert mention.external_id == "1090003732034388_77"
+        assert mention.url == "https://www.facebook.com/groups/1090003732034388/posts/77"
+
+    def test_group_fallback_url_suffix_after_first_underscore(self) -> None:
+        payload = {"data": [{"id": "1090003732034388_777", "message": "hola"}]}
+        (mention,) = parse_page_posts(payload, GROUP, [])
+        assert mention.url == "https://www.facebook.com/groups/1090003732034388/posts/777"
+
+    def test_group_fallback_url_without_underscore_keeps_full_id(self) -> None:
+        payload = {"data": [{"id": "987", "message": "hola"}]}
+        (mention,) = parse_page_posts(payload, GROUP, [])
+        assert mention.url == "https://www.facebook.com/groups/1090003732034388/posts/987"
 
 
 class TestFacebookPageAdapter:
@@ -153,6 +187,48 @@ class TestFacebookPageAdapter:
         adapter = self._adapter(lambda request: httpx.Response(200, json=[1, 2]))
         assert adapter.fetch(["BUAP"]) == []
 
+    def test_posts_url_group_branch(self) -> None:
+        adapter = self._adapter(lambda request: httpx.Response(200, json={"data": []}))
+        assert adapter.posts_url("1090003732034388", kind="group") == (
+            "https://graph.facebook.com/v26.0/groups/1090003732034388/feed"
+        )
+
+    def test_group_kind_fetches_groups_feed_endpoint(self) -> None:
+        captured = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            captured["url"] = str(request.url)
+            captured["params"] = dict(request.url.params)
+            return httpx.Response(200, json=_payload())
+
+        adapter = FacebookPageAdapter(
+            [GROUP], client=httpx.Client(transport=httpx.MockTransport(handler))
+        )
+        items = adapter.fetch(["BUAP"])
+        assert captured["url"].startswith(
+            "https://graph.facebook.com/v26.0/groups/1090003732034388/feed"
+        )
+        assert captured["params"]["fields"] == POST_FIELDS
+        assert captured["params"]["limit"] == "100"
+        assert captured["params"]["access_token"] == "group-token"
+        assert len(items) == 2  # same parse path as pages
+
+    def test_mixed_pages_and_groups_hit_their_own_endpoints(self) -> None:
+        paths = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            paths.append(request.url.path)
+            return httpx.Response(200, json={"data": []})
+
+        adapter = FacebookPageAdapter(
+            [PAGE, GROUP], client=httpx.Client(transport=httpx.MockTransport(handler))
+        )
+        assert adapter.fetch(["BUAP"]) == []
+        assert paths == [
+            "/v26.0/1001/posts",
+            "/v26.0/groups/1090003732034388/feed",
+        ]
+
 
 class TestFacebookPagesSettings:
     def test_unset_env_means_disabled(self, monkeypatch) -> None:
@@ -182,6 +258,18 @@ class TestFacebookPagesSettings:
     def test_graph_version_default_is_pinned(self, monkeypatch) -> None:
         monkeypatch.delenv("FB_GRAPH_API_VERSION", raising=False)
         assert Settings(_env_file=None).fb_graph_api_version == "v26.0"
+
+    def test_kind_absent_in_env_defaults_to_page(self, monkeypatch) -> None:
+        # Backward compat: stored rows without kind keep the page behavior.
+        monkeypatch.setenv("FB_PAGES", '[{"page_id": "1001", "token": "t"}]')
+        assert Settings(_env_file=None).fb_pages[0].kind == "page"
+
+    def test_kind_group_parsed_from_env(self, monkeypatch) -> None:
+        monkeypatch.setenv(
+            "FB_PAGES",
+            '[{"page_id": "1090003732034388", "token": "t", "kind": "group"}]',
+        )
+        assert Settings(_env_file=None).fb_pages[0].kind == "group"
 
 
 class TestPipelineIntegration:

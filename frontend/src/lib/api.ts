@@ -154,11 +154,13 @@ interface ClassifierBreakdown {
 
 type AiProvider = 'local' | 'openai';
 
-/** One monitored Facebook page (mirrors FacebookPageCredentials). */
+/** One monitored Facebook page or group (mirrors FacebookPageCredentials). */
 interface FacebookPage {
 	page_id: string;
 	token: string;
 	label: string;
+	/** 'group' polls /groups/{id}/feed; absent behaves as 'page'. */
+	kind?: 'page' | 'group';
 }
 
 export interface ClientSettings {
