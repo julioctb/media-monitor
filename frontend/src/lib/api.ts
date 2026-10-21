@@ -702,6 +702,10 @@ export interface DailySummaryContent {
 	noticias?: DigestNewsItem[];
 	rectora?: {
 		person_id?: number | null;
+		/** Identity stamp (rectora-identity-stamp): absent on pre-stamp digests. */
+		name?: string | null;
+		role?: string | null;
+		org?: string | null;
 		actions?: { title?: string; event_id?: number | null; sentiment?: string | null }[];
 		mention_count?: number;
 		tone?: string | null;

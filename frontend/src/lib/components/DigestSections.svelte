@@ -3,7 +3,7 @@
 	import { sourceLabel, sentimentLabel, topicLabel } from '$lib/format';
 
 	import { categoryRows, combineTones, toneRows, type ToneCounts } from '$lib/digest-stats';
-	import { formatDisplayDateTime } from '$lib/format';
+	import { formatDisplayDateTime, formatDisplayDateTimeAt } from '$lib/format';
 	import type { DailySummaryContent, DigestNewsItem } from '$lib/api';
 
 	let {
@@ -79,11 +79,18 @@
 			: 'Fuente sin conexión'
 	);
 
-	/** Rectora display name from the digest people section, when linked. */
+	/** Rectora display name: content stamp first, persona lookup for pre-stamp digests. */
 	const rectoraPersona = $derived(
 		rectora.person_id ? personas.find((person) => person.person_id === rectora.person_id) : undefined
 	);
-	const rectoraName = $derived(rectoraPersona?.name ?? 'Rectora');
+	const rectoraName = $derived(rectora.name ?? rectoraPersona?.name ?? 'Rectora');
+	/** Role · org note: content stamp wins, persona chain fallback, generic label last. */
+	const rectoraRoleOrg = $derived.by(() => {
+		const parts = [rectora.role ?? rectoraPersona?.role, rectora.org ?? rectoraPersona?.org].filter(
+			(part): part is string => Boolean(part)
+		);
+		return parts.length > 0 ? parts.join(' · ') : null;
+	});
 
 	/* Home feed filters (mockup: Todo / Noticias / Redes). Digest items are
 	   news-channel only, so the social filter renders the empty state. */
@@ -266,14 +273,12 @@
 <section id="rectora" class="section" aria-labelledby="rectora-heading">
 	<div class="section-heading">
 		<h2 id="rectora-heading">{rectoraName}</h2>
-		<span class="section-note">
-			{rectoraPersona
-				? [rectoraPersona.role, rectoraPersona.org].filter(Boolean).join(' · ')
-				: 'Persona focal del resumen'}
-		</span>
+		<span class="section-note">{rectoraRoleOrg ?? 'Persona focal del resumen'}</span>
 	</div>
 	{#if updatedAt}
-		<p class="rectora-update">Resumen actualizado {formatDisplayDateTime(updatedAt)}</p>
+		<p class="rectora-update">
+			Resumen actualizado el <time datetime={updatedAt}>{formatDisplayDateTimeAt(updatedAt)}</time>
+		</p>
 	{/if}
 	{#if rectora.mention_count}
 		<div class="rectora-summary" aria-label="Resumen de cobertura de la persona focal">

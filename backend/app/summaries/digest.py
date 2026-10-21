@@ -214,6 +214,16 @@ def build_digest_facts(
         rectora["tone"] = tones.most_common(1)[0][0] if tones else None
         if not focus_links:
             rectora["gaps"] = "sin menciones de la persona focal en la ventana"
+        # Identity stamp (rectora-identity-stamp T1): same source the
+        # personas entries use — link role/org as extracted on the mention,
+        # falling back to the aggregated Person row. Absent when the focus
+        # id has no person row (never invented).
+        focus_person = session.get(Person, focus_person_id)
+        if focus_person is not None:
+            link = next((link for _m, link in focus_links), None)
+            rectora["name"] = focus_person.name
+            rectora["role"] = (link.role if link and link.role else None) or focus_person.role
+            rectora["org"] = (link.org if link and link.org else None) or focus_person.org
 
     # --- personas: everyone linked to the day's mentions, by volume.
     person_counts: Counter[int] = Counter(

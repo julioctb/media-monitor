@@ -139,4 +139,31 @@ describe('DigestSections', () => {
 		expect(host.textContent).toContain('Sin noticias registradas');
 		expect(host.textContent).not.toContain('Aún no hay resultados de campo');
 	});
+
+	it('stamps the update as mockup copy inside <time>', () => {
+		const host = renderCard(digestFixture(), null, { updatedAt: '2026-10-19T06:24:00-06:00' });
+		const stamp = host.querySelector('.rectora-update time');
+		expect(stamp).not.toBeNull();
+		expect(stamp?.getAttribute('datetime')).toBe('2026-10-19T06:24:00-06:00');
+		expect(host.textContent).toContain('Resumen actualizado el 19/10/2026 a las 06:24');
+	});
+
+	it('prefers the rectora identity stamp over the persona lookup', () => {
+		const content = digestFixture();
+		content.rectora = { ...content.rectora, name: 'Nombre Estampado', role: 'Cargo', org: 'Org' };
+		const host = renderCard(content);
+		expect(host.querySelector('#rectora-heading')?.textContent).toContain('Nombre Estampado');
+		expect(host.textContent).toContain('Cargo · Org');
+	});
+
+	it('falls back to the persona chain on pre-stamp digests', () => {
+		const content = digestFixture();
+		const { name: _name, role: _role, org: _org, ...rectora } = content.rectora ?? {};
+		content.rectora = rectora;
+		const host = renderCard(content);
+		expect(host.querySelector('#rectora-heading')?.textContent).toContain(
+			'Lilia Cedillo Ramírez'
+		);
+		expect(host.textContent).toContain('Rectora · BUAP');
+	});
 });
