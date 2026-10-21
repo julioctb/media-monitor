@@ -38,6 +38,22 @@
 	--radius-panel: 18px;
 }
 
+/* Tono (sentiment) semantic colors — the ONLY place the tone mixes are
+   defined; .sentiment.* badges and the tone pills consume these via var().
+   Rest = tint, pressed = solid of the same hue. */
+:root {
+	--tone-positive-bg: color-mix(in oklch, var(--color-success) 22%, #fff);
+	--tone-positive-bg-hover: color-mix(in oklch, var(--color-success) 38%, #fff);
+	--tone-positive-solid: var(--color-success);
+	--tone-negative-bg: color-mix(in oklch, var(--color-danger) 20%, #fff);
+	--tone-negative-bg-hover: color-mix(in oklch, var(--color-danger) 36%, #fff);
+	--tone-negative-solid: var(--color-danger);
+	--tone-neutral-bg: var(--color-surface);
+	--tone-neutral-bg-hover: color-mix(in oklch, var(--color-ink) 6%, #fff);
+	--tone-neutral-solid: var(--color-ink-2);
+	--tone-on-solid: var(--color-accent-on);
+}
+
 @layer base {
 	body {
 		background: var(--color-surface);
@@ -940,15 +956,15 @@ div.coverage {
 	white-space: nowrap;
 }
 .sentiment.positive {
-	background: color-mix(in oklch, var(--color-success) 22%, #fff);
+	background: var(--tone-positive-bg);
 	color: var(--color-ink);
 }
 .sentiment.negative {
-	background: color-mix(in oklch, var(--color-danger) 20%, #fff);
+	background: var(--tone-negative-bg);
 	color: var(--color-ink);
 }
 .sentiment.neutral {
-	background: var(--color-surface);
+	background: var(--tone-neutral-bg);
 	color: var(--color-ink-2);
 }
 .feed-channel {
@@ -1001,6 +1017,44 @@ div.coverage {
 	background: var(--color-ink-2);
 	border-color: var(--color-ink-2);
 	color: #fff;
+}
+/* Tono pills (Positivo/Neutro/Negativo): tint at rest, solid same-hue when
+   pressed. Colors come from the --tone-* tokens (single mix definition above);
+   no per-component palette. Placed after the base .feed-filter rules so the
+   pressed tone (0,3,0) explicitly wins over base rest/hover/pressed, and the
+   tone hover sits before the pressed rule so pressed+hover stays solid. */
+.feed-filter.tone-positive {
+	background: var(--tone-positive-bg);
+}
+.feed-filter.tone-negative {
+	background: var(--tone-negative-bg);
+}
+.feed-filter.tone-neutral {
+	background: var(--tone-neutral-bg);
+}
+.feed-filter.tone-positive:hover {
+	background: var(--tone-positive-bg-hover);
+}
+.feed-filter.tone-negative:hover {
+	background: var(--tone-negative-bg-hover);
+}
+.feed-filter.tone-neutral:hover {
+	background: var(--tone-neutral-bg-hover);
+}
+.feed-filter.tone-positive[aria-pressed='true'] {
+	background: var(--tone-positive-solid);
+	border-color: var(--tone-positive-solid);
+	color: var(--tone-on-solid);
+}
+.feed-filter.tone-negative[aria-pressed='true'] {
+	background: var(--tone-negative-solid);
+	border-color: var(--tone-negative-solid);
+	color: var(--tone-on-solid);
+}
+.feed-filter.tone-neutral[aria-pressed='true'] {
+	background: var(--tone-neutral-solid);
+	border-color: var(--tone-neutral-solid);
+	color: var(--tone-on-solid);
 }
 .feed-status {
 	color: var(--color-muted);

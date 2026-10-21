@@ -172,7 +172,7 @@
 						<div class="feed-filters" role="group" aria-labelledby="f-sentiment-label">
 							{#each TONE_PILLS as tone (tone.key)}
 								<a
-									class="feed-filter"
+									class="feed-filter tone-{tone.key}"
 									role="button"
 									href={filters.sentiment === tone.key
 										? hrefWithSentiment(null)

@@ -361,7 +361,7 @@
 		<div class="feed-filters" role="group" aria-label="Filtrar el feed por tono">
 			{#each TONE_FILTERS as tone (tone.key)}
 				<button
-					class="feed-filter"
+					class="feed-filter tone-{tone.key}"
 					type="button"
 					data-tone={tone.key}
 					aria-pressed={toneFilter === tone.key}

@@ -15,4 +15,6 @@
 
 **Constraints:** no backend edits; `none`/server param untouched; mockup has no pills spec — visual language MUST reuse the existing `feed-filter` token styles, no new palette. Preserve dirty `docker-compose.yml` and the staged `referencia visual` rename.
 
+- [x] T5 (follow-up 21/oct, color semántico): las pills de tono llevan su color identidad — positivo verde, negativo rojo, neutro gris — SIEMPRE desde tokens, cero hex en componentes. Fuente de verdad: las reglas `.sentiment.*` de `app.css` (~:942, fórmulas color-mix sobre `--color-success/--color-danger/--color-surface`). Extraer la fórmula a tokens (`--tone-positive-bg`, `--tone-negative-bg`, etc.) en app.css, refactorizar `.sentiment.*` a consumirlos (una sola definición de la fórmula), y los pills las consumen: estado reposo = tinte, estado activo (`aria-pressed=true`) = versión sólida coherente del mismo tono. Ambas superficies (DigestSections + feed) con las MISMAS clases globales; prohibido duplicar la mezcla o hardcodear.
+
 **Route:** delegated writer; risk low-medium (UI filter, 2 surfaces) → writer self-verifies front triad; parent spot-checks, merges, rebuilds dashboard only.
