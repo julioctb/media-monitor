@@ -104,6 +104,20 @@
 		needsCollapse && !expanded ? noticias.slice(0, COLLAPSED_VISIBLE) : noticias
 	);
 
+	/* Puntos de atención: the day's negative-tone events, capped, editorially
+	   surfaced above the full list (the list itself keeps every item). */
+	const ATTENTION_MAX = 5;
+	const attentionItems = $derived(
+		noticias
+			.filter(
+				(item) =>
+					item.event_id !== undefined &&
+					item.event_id !== null &&
+					sentimentByEvent[String(item.event_id)] === 'negative'
+			)
+			.slice(0, ATTENTION_MAX)
+	);
+
 	const sentimentedActions = $derived((rectora.actions ?? []).filter((action) => action.sentiment));
 	const positiveShare = $derived.by(() => {
 		if (sentimentedActions.length === 0) return null;
@@ -309,6 +323,25 @@
 	{#if rectora.watch}<p class="breakdown-note">Vigilar: {rectora.watch}</p>{/if}
 	{#if rectora.gaps}<p class="breakdown-note">Gap: {rectora.gaps}</p>{/if}
 </section>
+
+{#if attentionItems.length > 0}
+	<section class="section" aria-labelledby="atencion-heading">
+		<div class="section-heading">
+			<h2 id="atencion-heading">Puntos de atención</h2>
+			<span class="section-note">Tono negativo · {attentionItems.length}</span>
+		</div>
+		<ul class="plain-list attention-list">
+			{#each attentionItems as item (item.event_id)}
+				<li>
+					<a href={`/events/${item.event_id}`}>{item.title ?? 'Sin título'}</a>
+					{#if item.why_it_matters}
+						<span class="attention-why"> — {item.why_it_matters}</span>
+					{/if}
+				</li>
+			{/each}
+		</ul>
+	</section>
+{/if}
 
 <section id="noticias" class="section" aria-labelledby="noticias-heading">
 	<div class="section-heading">

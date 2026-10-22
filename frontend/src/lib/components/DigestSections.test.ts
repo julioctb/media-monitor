@@ -218,3 +218,29 @@ describe('DigestSections long-day collapse', () => {
 		expect(host.querySelectorAll('.news-item').length).toBe(6);
 	});
 });
+
+describe('DigestSections negative focus', () => {
+	afterEach(() => {
+		if (instance) void unmount(instance as never);
+		instance = undefined;
+	});
+
+	it('renders the attention block with negative events only', () => {
+		const host = renderCard(digestFixture(), null, { sentimentByEvent: { 673: 'negative' } });
+		const section = host.querySelector('[aria-labelledby="atencion-heading"]');
+		expect(section).not.toBeNull();
+		expect(section?.textContent).toContain('Puntos de atención');
+		expect(section?.textContent).toContain('Tono negativo · 1');
+		expect(section?.querySelector('a')?.getAttribute('href')).toBe('/events/673');
+	});
+
+	it('hides the attention block when nothing is negative', () => {
+		const host = renderCard(digestFixture(), null, { sentimentByEvent: { 673: 'positive' } });
+		expect(host.querySelector('[aria-labelledby="atencion-heading"]')).toBeNull();
+	});
+
+	it('marks negative cards with the accent class', () => {
+		const host = renderCard(digestFixture(), null, { sentimentByEvent: { 673: 'negative' } });
+		expect(host.querySelector('.news-item .accent-negative')).not.toBeNull();
+	});
+});

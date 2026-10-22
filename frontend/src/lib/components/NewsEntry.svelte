@@ -39,7 +39,11 @@
 	} = $props();
 </script>
 
-<article class={variant === 'card' ? 'feed-card' : 'feed-preview'} aria-labelledby={titleId}>
+<article
+	class="{variant === 'card' ? 'feed-card' : 'feed-preview'}"
+	class:accent-negative={sentimentClass === 'negative'}
+	aria-labelledby={titleId}
+>
 	<div class="item-top">
 		<span class="item-channel">{channel}</span>
 		{#if sentimentClass && sentimentText}
