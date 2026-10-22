@@ -207,7 +207,7 @@
 			</form>
 		</section>
 
-		<section class="panel feed-panel" aria-labelledby="cobertura-title">
+		<section class="panel feed-panel" id="feed" aria-labelledby="cobertura-title">
 			<div class="section-heading">
 				<h2 id="cobertura-title" class="panel-title">Cobertura reciente</h2>
 				<span class="section-note">Ordenada de más reciente a más antigua</span>

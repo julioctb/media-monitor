@@ -1879,6 +1879,10 @@ table.coverage th {
 	display: grid;
 }
 /* Card gap only on the feed page; the digest list is border-separated. */
+/* Anchor target for the digest day cross-link; clears the sticky topbar. */
+.feed-panel {
+	scroll-margin-top: 80px;
+}
 .feed-panel .feed-list {
 	gap: 12px;
 }

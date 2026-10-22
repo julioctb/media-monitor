@@ -101,7 +101,7 @@
 
 			<!-- Day cross-link: right under the narrative, before the digest
 				sections - the live feed filtered to this exact day. -->
-			<a class="digest-feed-link" href={`/feed?since=${day}&until=${day}`}>
+			<a class="digest-feed-link" href={`/feed?since=${day}&until=${day}#feed`}>
 				Ver todas las noticias del día en el Feed →
 			</a>
 
