@@ -92,42 +92,9 @@
 		return parts.length > 0 ? parts.join(' · ') : null;
 	});
 
-	/* Home feed filters (mockup: Todo / Noticias / Redes). Digest items are
-	   news-channel only, so the social filter renders the empty state. */
-	let feedFilter = $state<'all' | 'news' | 'social'>('all');
-	const FEED_FILTERS = [
-		{ key: 'all', label: 'Todo' },
-		{ key: 'news', label: 'Noticias' },
-		{ key: 'social', label: 'Redes' }
-	] as const;
-
-	/* Tono pills: majority sentiment per event (sentimentByEvent); single-select,
-	   active pill toggles off. Items without a resolvable tone only show unfiltered. */
-	const TONE_FILTERS = [
-		{ key: 'positive', label: 'Positivo' },
-		{ key: 'neutral', label: 'Neutro' },
-		{ key: 'negative', label: 'Negativo' }
-	] as const;
-	type ToneFilter = (typeof TONE_FILTERS)[number]['key'];
-	let toneFilter = $state<null | ToneFilter>(null);
-
-	const itemTone = (item: DigestNewsItem): string | null =>
-		item.event_id !== undefined && item.event_id !== null
-			? (sentimentByEvent[String(item.event_id)] ?? null)
-			: null;
-
-	const visibleNews = $derived.by(() => {
-		if (feedFilter === 'social') return [];
-		if (!toneFilter) return noticias;
-		return noticias.filter((item) => itemTone(item) === toneFilter);
-	});
-	const newsStamp = $derived.by(() => {
-		const raw = content.date ?? (updatedAt ? updatedAt.slice(0, 10) : null);
-		if (!raw) return null;
-		const date = new Date(`${raw}T00:00:00`);
-		if (Number.isNaN(date.getTime())) return null;
-		return date.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
-	});
+	/* Editorial evidence layer: no feed chrome. The digest list is frozen per
+	   cut by design; the live stream lives in /feed (and the feed page's own
+	   sentiment pills reuse .feed-filter styles). */
 
 	const sentimentedActions = $derived((rectora.actions ?? []).filter((action) => action.sentiment));
 	const positiveShare = $derived.by(() => {
@@ -337,58 +304,14 @@
 
 <section id="noticias" class="section" aria-labelledby="noticias-heading">
 	<div class="section-heading">
-		<h2 id="noticias-heading">Feed de noticias</h2>
+		<h2 id="noticias-heading">Noticias del día</h2>
 		<a class="feed-full-link" href="/feed">Ver feed completo →</a>
-	</div>
-	<p class="feed-intro">
-		Noticias y publicaciones ordenadas por hora de llegada. Esta vista de ejemplo aún no recibe
-		actualizaciones en tiempo real.
-	</p>
-	<div class="feed-toolbar">
-		<div class="feed-filters" role="group" aria-label="Filtrar el feed por fuente">
-			{#each FEED_FILTERS as filter (filter.key)}
-				<button
-					class="feed-filter"
-					type="button"
-					data-filter={filter.key}
-					aria-pressed={feedFilter === filter.key}
-					onclick={() => (feedFilter = filter.key)}
-				>
-					{filter.label}
-				</button>
-			{/each}
-		</div>
-		<div class="feed-filters" role="group" aria-label="Filtrar el feed por tono">
-			{#each TONE_FILTERS as tone (tone.key)}
-				<button
-					class="feed-filter tone-{tone.key}"
-					type="button"
-					data-tone={tone.key}
-					aria-pressed={toneFilter === tone.key}
-					onclick={() => (toneFilter = toneFilter === tone.key ? null : tone.key)}
-				>
-					{tone.label}
-				</button>
-			{/each}
-		</div>
-		<span class="feed-status">
-			{newsStamp ? `Muestra del ${newsStamp} · ` : ''}sin actualización automática
-		</span>
 	</div>
 	{#if noticias.length === 0}
 		<p class="breakdown-note">Sin noticias registradas ese día.</p>
-	{:else if visibleNews.length === 0}
-		{#if feedFilter === 'social'}
-			<p class="breakdown-note" role="status">
-				No hay publicaciones de redes cargadas en esta vista de ejemplo. Aparecerán aquí cuando
-				se conecte la fuente.
-			</p>
-		{:else}
-			<p class="breakdown-note" role="status">Ninguna nota coincide con los filtros activos.</p>
-		{/if}
 	{:else}
-		<ol class="editorial-list feed-list" aria-label="Feed de noticias del día">
-			{#each visibleNews as item, i (item.event_id ?? `i${i}`)}
+		<ol class="editorial-list feed-list" aria-label="Noticias del día">
+			{#each noticias as item, i (item.event_id ?? `i${i}`)}
 				<li class="news-item" data-channel="news">
 					<NewsEntry
 						variant="card"
