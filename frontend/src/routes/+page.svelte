@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
+	import { onMount } from 'svelte';
 
 	import { formatDisplayDateTime, formatLongDate } from '$lib/format';
 	import { monogram } from '$lib/digest-stats';
@@ -23,6 +24,37 @@
 			summary?.content.noticias?.filter((item) => item.topic === 'government').length ?? 0
 		);
 	});
+
+	// Auto-refresh while visible (same contract as the feed): picks up new
+	// digest cuts and live counts without a manual reload. The digest's news
+	// list itself is frozen per cut; the day link below hands off to the
+	// live feed for anything newer.
+	const REFRESH_MS = 90_000;
+	let refreshTimer: ReturnType<typeof setInterval> | undefined = $state();
+	let lastRefresh = $state<string | null>(null);
+
+	function startAutoRefresh() {
+		stopAutoRefresh();
+		refreshTimer = setInterval(() => {
+			if (document.visibilityState !== 'visible') return;
+			void invalidateAll().then(() => {
+				lastRefresh = new Date().toLocaleTimeString('es-MX', {
+					hour: '2-digit',
+					minute: '2-digit'
+				});
+			});
+		}, REFRESH_MS);
+	}
+
+	function stopAutoRefresh() {
+		if (refreshTimer) clearInterval(refreshTimer);
+		refreshTimer = undefined;
+	}
+
+	onMount(() => {
+		startAutoRefresh();
+		return stopAutoRefresh;
+	});
 </script>
 
 <svelte:head>
@@ -38,6 +70,9 @@
 				<div class="digest-meta">
 					<span class="mode">{modeLabel[summary.mode] ?? summary.mode}</span>
 					<span>actualizado {formatDisplayDateTime(summary.updated_at)}</span>
+					{#if lastRefresh}
+						<span>refrescado {lastRefresh}</span>
+					{/if}
 				</div>
 				{#if data.days.length > 1}
 					<!-- Mobile date jump: the sidebar Historial sits below the whole

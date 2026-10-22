@@ -210,3 +210,43 @@ export function eventChipLabel(mentionTitle: string | null, eventTitle: string):
 		overlap / eventTokens.size >= 0.8 || overlap / mentionTokens.size >= 0.8;
 	return duplicated ? 'Ver evento' : `Evento: ${eventTitle}`;
 }
+
+/**
+ * ISO date -> the day's [since, until] instants bounded in the display
+ * timezone, as ISO strings with numeric offsets (the API compares
+ * timestamptz, so the day edges must carry the zone, not Z).
+ * The offset is sampled at local noon of the day: DST-safe by construction.
+ */
+export function zonedDayBounds(
+	dayIso: string,
+	timeZone: string = DISPLAY_TIMEZONE
+): { since: string; until: string } {
+	const noon = new Date(`${dayIso}T12:00:00Z`);
+	const parts = new Intl.DateTimeFormat('en-US', {
+		timeZone,
+		hour12: false,
+		year: 'numeric',
+		month: '2-digit',
+		day: '2-digit',
+		hour: '2-digit',
+		minute: '2-digit'
+	})
+		.formatToParts(noon)
+		.reduce<Record<string, string>>((acc, part) => {
+			acc[part.type] = part.value;
+			return acc;
+		}, {});
+	const hour = parts.hour === '24' ? 0 : Number(parts.hour);
+	const asUTC = Date.UTC(
+		Number(parts.year),
+		Number(parts.month) - 1,
+		Number(parts.day),
+		hour,
+		Number(parts.minute)
+	);
+	const offsetMin = Math.round((asUTC - noon.getTime()) / 60000);
+	const sign = offsetMin < 0 ? '-' : '+';
+	const abs = Math.abs(offsetMin);
+	const offset = `${sign}${String(Math.floor(abs / 60)).padStart(2, '0')}:${String(abs % 60).padStart(2, '0')}`;
+	return { since: `${dayIso}T00:00:00${offset}`, until: `${dayIso}T23:59:59${offset}` };
+}

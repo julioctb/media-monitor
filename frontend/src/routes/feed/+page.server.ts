@@ -10,6 +10,7 @@ import {
 	type SentimentFilter
 } from '$lib/api';
 import { channelSources, isFeedChannel, dateRangeError, splitSources, type FeedChannel } from '$lib/feed-filters';
+import { zonedDayBounds } from '$lib/format';
 import type { PageServerLoad } from './$types';
 
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
@@ -70,8 +71,9 @@ async function loadChannelPage(
 export const load: PageServerLoad = async ({ url }) => {
 	const params = url.searchParams;
 
-	// Echo raw values for the form; expand date-only bounds to UTC day edges
-	// (the API compares with >= since and <= until).
+	// Echo raw values for the form; expand date-only bounds to full local
+	// days in the display timezone (the API compares with >= since and
+	// <= until; UTC days would skew the local evening into the next day).
 	const rawSource = params.get('source')?.trim() || undefined;
 	const rawChannel = params.get('channel')?.trim() ?? '';
 	const channel: FeedChannel = isFeedChannel(rawChannel) ? rawChannel : '';
@@ -85,8 +87,8 @@ export const load: PageServerLoad = async ({ url }) => {
 
 	const sinceRaw = params.get('since')?.trim() || '';
 	const untilRaw = params.get('until')?.trim() || '';
-	const since = sinceRaw && DATE_ONLY.test(sinceRaw) ? `${sinceRaw}T00:00:00Z` : sinceRaw || undefined;
-	const until = untilRaw && DATE_ONLY.test(untilRaw) ? `${untilRaw}T23:59:59Z` : untilRaw || undefined;
+	const since = DATE_ONLY.test(sinceRaw) ? zonedDayBounds(sinceRaw).since : sinceRaw || undefined;
+	const until = DATE_ONLY.test(untilRaw) ? zonedDayBounds(untilRaw).until : untilRaw || undefined;
 
 	const limit = intParam(params, 'limit', DEFAULT_LIMIT, 1, MAX_LIMIT);
 	const offset = intParam(params, 'offset', 0, 0, Number.MAX_SAFE_INTEGER);

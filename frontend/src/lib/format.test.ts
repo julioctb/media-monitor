@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { eventChipLabel, classificationLabel, formatLongDate } from './format';
+import {
+	eventChipLabel,
+	classificationLabel,
+	formatLongDate,
+	zonedDayBounds
+} from './format';
 
 describe('eventChipLabel', () => {
 	it('returns a plain CTA when the event title near-duplicates the mention title', () => {
@@ -46,5 +51,23 @@ describe('formatLongDate', () => {
 
 	it('falls through for non-ISO input', () => {
 		expect(formatLongDate('19/10/2026')).toBe('19/10/2026');
+	});
+});
+
+describe('zonedDayBounds', () => {
+	it('bounds the day in Mexico City (-06:00, no DST)', () => {
+		expect(zonedDayBounds('2026-10-22')).toEqual({
+			since: '2026-10-22T00:00:00-06:00',
+			until: '2026-10-22T23:59:59-06:00'
+		});
+	});
+
+	it('samples the offset per date, DST zones included', () => {
+		expect(zonedDayBounds('2026-01-15', 'America/New_York').since).toBe(
+			'2026-01-15T00:00:00-05:00'
+		);
+		expect(zonedDayBounds('2026-07-15', 'America/New_York').since).toBe(
+			'2026-07-15T00:00:00-04:00'
+		);
 	});
 });
