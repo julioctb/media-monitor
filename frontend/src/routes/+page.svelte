@@ -39,6 +39,24 @@
 					<span class="mode">{modeLabel[summary.mode] ?? summary.mode}</span>
 					<span>actualizado {formatDisplayDateTime(summary.updated_at)}</span>
 				</div>
+				{#if data.days.length > 1}
+					<!-- Mobile date jump: the sidebar Historial sits below the whole
+						digest on narrow viewports; this keeps day switching at hand. -->
+					<div class="day-jump">
+						<label class="day-jump-label" for="day-jump">Consultar otro día</label>
+						<select
+							id="day-jump"
+							value={day}
+							onchange={(event) => goto(`?date=${event.currentTarget.value}`)}
+						>
+							{#each data.days as entry (entry.summary_date)}
+								<option value={entry.summary_date}>
+									{formatLongDate(entry.summary_date)}
+								</option>
+							{/each}
+						</select>
+					</div>
+				{/if}
 			</section>
 
 			<section class="narrative" aria-labelledby="narrative-heading">
