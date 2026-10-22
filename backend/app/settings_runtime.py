@@ -40,6 +40,10 @@ class EffectiveSettings:
     digest_hours: list[int] = field(default_factory=lambda: [21])
     digest_focus_person_id: int | None = None
     gdelt_enabled: bool = True
+    # X source mode + paid-mode key (see models.settings.X_MODES); free
+    # mode ignores the key, paid without key falls back to the index.
+    x_mode: str = "free"
+    x_api_key: str | None = None
     facebook_pages: tuple[FacebookPageTarget, ...] = ()
     rss_feeds: tuple[str, ...] = ()
     scrapers: tuple[str, ...] = ()
@@ -126,6 +130,8 @@ def resolve_effective_settings(session: Session, client_id: int) -> EffectiveSet
         digest_hours=digest_hours,
         digest_focus_person_id=row.digest_focus_person_id,
         gdelt_enabled=row.gdelt_enabled,
+        x_mode=row.x_mode,
+        x_api_key=row.x_api_key,
         facebook_pages=pages,
         rss_feeds=tuple(row.rss_feeds or []),
         scrapers=tuple(row.scrapers or []),

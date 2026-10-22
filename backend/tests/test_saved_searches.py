@@ -146,11 +146,8 @@ def test_unknown_client_404_on_create_and_list(api, db) -> None:
     assert db.scalar(select(func.count()).select_from(SavedSearch)) == 0
 
 
-def test_source_readiness_defaults_unconfigured(api, monkeypatch) -> None:
-    """Empty env key / no FB pages / no feeds => only news_rss ready."""
-    from app.config import settings as env_settings
-
-    monkeypatch.setattr(env_settings, "x_provider_api_key", "")
+def test_source_readiness_defaults_unconfigured(api) -> None:
+    """Free mode / no FB pages / no feeds => only news_rss ready."""
     resp = api.get("/api/clients/1/source-readiness")
     assert resp.status_code == 200
     body = resp.json()
@@ -160,10 +157,11 @@ def test_source_readiness_defaults_unconfigured(api, monkeypatch) -> None:
     assert body["rss_custom"] is False
 
 
-def test_source_readiness_x_token_and_unknown_client(api, monkeypatch) -> None:
-    from app.config import settings as env_settings
-
-    monkeypatch.setattr(env_settings, "x_provider_api_key", "k")
+def test_source_readiness_x_from_settings_and_unknown_client(api) -> None:
+    """x_twitter is ready only in paid mode with a stored key."""
+    assert api.put(
+        "/api/settings", json={"x_mode": "paid", "x_api_key": "k"}
+    ).status_code == 200
     body = api.get("/api/clients/1/source-readiness").json()
     assert body["x_twitter"] is True
     assert api.get("/api/clients/999/source-readiness").status_code == 404

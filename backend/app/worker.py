@@ -13,7 +13,9 @@ Every INGEST_INTERVAL_MIN minutes, for the configured client:
   5. hook the alert engine (best-effort), plus the daily retention purge
      and the digest jobs scheduled in the configured timezone.
 
-The X provider stays env-keyed (X_PROVIDER_*); the settings-managed
+The X source is settings-driven: free mode rides the x_index adapter,
+paid mode uses the twitterapi.io-compatible provider with the key
+stored in settings (x_api_key; never serialized). The settings-managed
 secrets live plaintext in the DB (v1 scope). The schedule timezone is
 read once at startup: changing it in /settings requires a worker reload.
 """
@@ -82,10 +84,31 @@ DAILY_SUMMARY_HOUR = 21
 def build_adapters(effective: EffectiveSettings) -> list:
     """Enabled source adapters from this cycle's effective settings.
 
-    x_index rides along google_news unconditionally: same free RSS
-    endpoint (query scoped to site:x.com), no key, no settings flag.
+    X modes are exclusive: free rides x_index (Google News RSS scoped to
+    site:x.com, no key); paid replaces it with the twitterapi.io provider
+    keyed from settings. Paid without a stored key NEVER drops coverage —
+    one warning, then the free index fallback.
     """
-    adapters: list = [GoogleNewsAdapter(), XIndexAdapter()]
+    adapters: list = [GoogleNewsAdapter()]
+    if effective.x_mode == "paid" and effective.x_api_key:
+        # Imported lazily so the module (and httpx client wiring) only
+        # loads when the provider is actually configured.
+        from app.ingest.twitter_x import TwitterApiIoProvider
+
+        adapters.append(
+            TwitterApiIoProvider(
+                api_key=effective.x_api_key,
+                base_url=settings.x_provider_base_url,
+                rate_per_minute=settings.x_provider_rate_per_min,
+            )
+        )
+    else:
+        if effective.x_mode == "paid":
+            log.warning(
+                "X paid mode enabled but x_api_key is empty; "
+                "falling back to the free index adapter (x_index)"
+            )
+        adapters.append(XIndexAdapter())
     if effective.gdelt_enabled:
         adapters.append(GdeltAdapter())
     else:
@@ -113,20 +136,6 @@ def build_adapters(effective: EffectiveSettings) -> list:
             log.warning("unknown scrapers ignored: %s", ", ".join(unknown))
         if known:
             adapters.append(ScrapersAdapter(names=known))
-    if not settings.x_provider_api_key:
-        log.info("X provider disabled: X_PROVIDER_API_KEY not set")
-        return adapters
-    # Imported lazily so the module (and httpx client wiring) only loads
-    # when the provider is actually configured.
-    from app.ingest.twitter_x import TwitterApiIoProvider
-
-    adapters.append(
-        TwitterApiIoProvider(
-            api_key=settings.x_provider_api_key,
-            base_url=settings.x_provider_base_url,
-            rate_per_minute=settings.x_provider_rate_per_min,
-        )
-    )
     return adapters
 
 

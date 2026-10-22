@@ -36,7 +36,7 @@ from app.models import (
 )
 from app.models.mention import make_url_hash
 from app.ingest.matching import fold_text
-from app.models.settings import AI_PROVIDERS
+from app.models.settings import AI_PROVIDERS, X_MODES
 
 
 def list_ingest_runs(
@@ -720,6 +720,26 @@ def _validate_ai_provider(value: object) -> str:
     return value
 
 
+def _validate_x_mode(value: object) -> str:
+    if not isinstance(value, str) or value not in X_MODES:
+        raise ValueError(f"x_mode must be one of {', '.join(X_MODES)}")
+    return value
+
+
+def _validate_x_api_key(value: object) -> str | None:
+    """Non-empty strings store (stripped); None means "keep the stored key".
+
+    The API never returns the key (only x_api_key_set), so the masked UI
+    submits '' to leave it untouched — there is no clear path by design.
+    """
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ValueError("x_api_key must be a string or null")
+    cleaned = value.strip()
+    return cleaned or None
+
+
 def _validate_enrich_max(value: object) -> int:
     if isinstance(value, bool) or not isinstance(value, int):
         raise ValueError("enrich_max_per_cycle must be an integer")
@@ -757,6 +777,8 @@ _VALIDATORS = {
     "digest_hours": _validate_digest_hours,
     "digest_focus_person_id": _validate_focus_person,
     "gdelt_enabled": lambda v: _validate_bool(v, "gdelt_enabled"),
+    "x_mode": _validate_x_mode,
+    "x_api_key": _validate_x_api_key,
     "facebook_pages": _validate_facebook_pages,
     "rss_feeds": _validate_rss_feeds,
     "scrapers": _validate_scrapers,
@@ -783,7 +805,11 @@ def upsert_settings(
         validator = _VALIDATORS.get(field)
         if validator is None:
             continue
-        setattr(row, field, validator(value))
+        new_value = validator(value)
+        if field == "x_api_key" and new_value is None:
+            # Masked-key semantics: ''/null keeps the stored key.
+            continue
+        setattr(row, field, new_value)
     # Legacy single hour and the cut list mirror each other when only one
     # of the two is updated, so either write path keeps a coherent row.
     if "digest_hour" in changes and "digest_hours" not in changes:

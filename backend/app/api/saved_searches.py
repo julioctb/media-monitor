@@ -13,7 +13,6 @@ from fastapi import APIRouter, HTTPException
 from app.api.schemas import SavedSearchCreate, SavedSearchOut, SavedSearchPatch
 from app.models import Client, SavedSearch, queries
 from app.api.deps import SessionDep
-from app.config import settings as env_settings
 from app.settings_runtime import resolve_effective_settings
 
 router = APIRouter(prefix="/clients/{client_id}", tags=["saved-searches"])
@@ -123,8 +122,8 @@ def source_readiness(client_id: int, session: SessionDep) -> dict[str, bool]:
     """Per-source ingest readiness for the saved-search form.
 
     A source is "ready" when an ingest cycle would actually build its
-    adapter: credential present (X: env provider key; FB: pages in
-    settings), feeds configured, enabled, or always-on (news_rss).
+    adapter: X paid mode with a stored key (settings), FB pages in
+    settings, feeds configured, enabled, or always-on (news_rss).
     Mirrors the conditions in worker.build_adapters — that remains the
     single source of truth; this endpoint only reads the same inputs.
     """
@@ -133,7 +132,7 @@ def source_readiness(client_id: int, session: SessionDep) -> dict[str, bool]:
     return {
         "news_rss": True,
         "gdelt": eff.gdelt_enabled,
-        "x_twitter": bool(env_settings.x_provider_api_key),
+        "x_twitter": eff.x_mode == "paid" and bool(eff.x_api_key),
         "facebook_page": bool(eff.facebook_pages),
         "rss_custom": bool(eff.rss_feeds),
     }

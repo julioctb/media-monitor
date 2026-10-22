@@ -28,8 +28,9 @@ class Settings(BaseSettings):
     # migration seeds client id=1 'default')
     default_client_id: int = 1
 
-    # X/Twitter third-party provider (twitterapi.io-compatible)
-    x_provider_api_key: str = ""
+    # X/Twitter paid provider defaults (twitterapi.io-compatible): the API
+    # key is NOT env-driven anymore — it lives in settings (x_api_key) and
+    # the worker wires the provider from there (x_mode='paid').
     x_provider_base_url: str = "https://api.twitterapi.io"
     # Client-side rate limit for the X provider (requests per minute)
     x_provider_rate_per_min: float = 10.0

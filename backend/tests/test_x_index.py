@@ -97,14 +97,13 @@ class TestXIndexAdapter:
 
 
 class TestXIndexWiring:
-    def test_build_adapters_includes_x_index_without_any_key(self, monkeypatch) -> None:
+    def test_build_adapters_includes_x_index_in_free_mode(self) -> None:
         from app import worker
         from app.settings_runtime import EffectiveSettings
 
-        monkeypatch.setattr(worker.settings, "x_provider_api_key", "")
         adapters = worker.build_adapters(EffectiveSettings(client_id=1))
         names = [a.name for a in adapters]
 
-        # always-on free source next to google_news: no key, no flag
+        # free mode (default): the index adapter rides next to google_news
         assert names[:2] == ["google_news", "x_index"]
         assert isinstance(adapters[1], XIndexAdapter)
