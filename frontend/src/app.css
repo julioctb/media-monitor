@@ -918,6 +918,26 @@ html {
 #noticias {
 	scroll-margin-top: 80px;
 }
+/* Long-day expander under the digest news list. */
+.news-expand {
+	display: inline-flex;
+	align-items: center;
+	min-height: 44px;
+	margin-top: 4px;
+	padding: 4px 8px 4px 0;
+	border: 0;
+	background: transparent;
+	color: var(--color-ink);
+	font-size: 14px;
+	font-weight: 600;
+	text-decoration: underline;
+	text-decoration-color: var(--color-line);
+	text-underline-offset: 4px;
+	cursor: pointer;
+}
+.news-expand:hover {
+	text-decoration-color: var(--color-ink);
+}
 .actor-link:hover {
 	background: var(--color-surface);
 	text-decoration-color: var(--color-ink);

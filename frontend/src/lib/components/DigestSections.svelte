@@ -96,6 +96,14 @@
 	   cut by design; the live stream lives in /feed (and the feed page's own
 	   sentiment pills reuse .feed-filter styles). */
 
+	/* Long days collapse to the first slice; one click reveals the rest. */
+	const COLLAPSED_VISIBLE = 6;
+	let expanded = $state(false);
+	const needsCollapse = $derived(noticias.length > COLLAPSED_VISIBLE);
+	const visibleNews = $derived(
+		needsCollapse && !expanded ? noticias.slice(0, COLLAPSED_VISIBLE) : noticias
+	);
+
 	const sentimentedActions = $derived((rectora.actions ?? []).filter((action) => action.sentiment));
 	const positiveShare = $derived.by(() => {
 		if (sentimentedActions.length === 0) return null;
@@ -311,7 +319,7 @@
 		<p class="breakdown-note">Sin noticias registradas ese día.</p>
 	{:else}
 		<ol class="editorial-list feed-list" aria-label="Noticias del día">
-			{#each noticias as item, i (item.event_id ?? `i${i}`)}
+			{#each visibleNews as item, i (item.event_id ?? `i${i}`)}
 				<li class="news-item" data-channel="news">
 					<NewsEntry
 						variant="card"
@@ -345,6 +353,18 @@
 				</li>
 			{/each}
 		</ol>
+	{/if}
+	{#if needsCollapse}
+		<button
+			class="news-expand"
+			type="button"
+			aria-expanded={expanded}
+			onclick={() => (expanded = !expanded)}
+		>
+			{expanded
+				? 'Mostrar menos'
+				: `Ver las ${noticias.length - COLLAPSED_VISIBLE} noticias restantes`}
+		</button>
 	{/if}
 </section>
 

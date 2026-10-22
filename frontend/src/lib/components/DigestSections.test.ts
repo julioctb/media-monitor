@@ -167,3 +167,54 @@ describe('DigestSections', () => {
 		expect(host.textContent).toContain('Rectora · BUAP');
 	});
 });
+
+describe('DigestSections long-day collapse', () => {
+	afterEach(() => {
+		if (instance) void unmount(instance as never);
+		instance = undefined;
+	});
+
+	function longDay(n: number): DailySummaryContent {
+		const content = digestFixture();
+		const base = content.noticias ?? [];
+		const extra = Array.from({ length: n }, (_, i) => ({
+			event_id: 900 + i,
+			title: `Extra ${i}`,
+			summary: `Resumen extra ${i}.`,
+			sources: [{ source: 'news_rss', url: `https://x/${i}`, title: 'X' }]
+		}));
+		content.noticias = [...base, ...extra];
+		return content;
+	}
+
+	function expander(host: HTMLElement): HTMLButtonElement {
+		const button = host.querySelector('.news-expand') as HTMLButtonElement | null;
+		if (!button) throw new Error('missing expander');
+		return button;
+	}
+
+	it('hides the expander on short days', () => {
+		const host = renderCard(digestFixture(), null, {});
+		expect(host.querySelector('.news-expand')).toBeNull();
+		expect(host.querySelectorAll('.news-item').length).toBe(
+			(digestFixture().noticias ?? []).length
+		);
+	});
+
+	it('collapses long days and expands on click', async () => {
+		const host = renderCard(longDay(8), null, {});
+		expect(host.querySelectorAll('.news-item').length).toBe(6);
+		const button = expander(host);
+		expect(button.getAttribute('aria-expanded')).toBe('false');
+		expect(button.textContent).toContain('3 noticias restantes');
+
+		button.click();
+		await new Promise((r) => setTimeout(r, 10));
+		expect(host.querySelectorAll('.news-item').length).toBe(9);
+		expect(expander(host).getAttribute('aria-expanded')).toBe('true');
+
+		expander(host).click();
+		await new Promise((r) => setTimeout(r, 10));
+		expect(host.querySelectorAll('.news-item').length).toBe(6);
+	});
+});
