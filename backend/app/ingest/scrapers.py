@@ -142,8 +142,49 @@ def parse_e_consulta(html: str) -> list[tuple[str, str]]:
     return article_links(html, "https://www.e-consulta.com/")
 
 
+def parse_elpopular(html: str) -> list[tuple[str, str]]:
+    """elpopular.mx: no feed; articles are /<taxo>[/<sub>]/YYYY/MM/DD/<slug>.
+
+    The date triple is the only reliable article/nav discriminator here:
+    nav includes /reporteros/<slug> (author pages) and /secciones/<slug>
+    (category indexes), while real stories always carry the date path.
+    """
+    soup = BeautifulSoup(html, "html.parser")
+    base_url = "https://elpopular.mx/"
+    base_host = urlsplit(base_url).netloc
+    links: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    for anchor in soup.find_all("a", href=True):
+        href = anchor["href"].strip()
+        if not href or href.startswith(("#", "mailto:", "tel:", "javascript:")):
+            continue
+        absolute = urljoin(base_url, href)
+        parts = urlsplit(absolute)
+        if parts.scheme not in ("http", "https") or parts.netloc != base_host:
+            continue
+        segments = [seg for seg in parts.path.split("/") if seg]
+        dated = any(
+            re.fullmatch(r"\d{4}", segments[i])
+            and re.fullmatch(r"\d{2}", segments[i + 1])
+            and re.fullmatch(r"\d{2}", segments[i + 2])
+            for i in range(len(segments) - 3)
+        )
+        if not dated:
+            continue
+        title = _anchor_title(anchor)
+        if not title:
+            continue
+        url = absolute.split("#", 1)[0]
+        if url in seen:
+            continue
+        seen.add(url)
+        links.append((url, title))
+    return links
+
+
 _LAREDACCION_BASE_URL = "https://diariolaredaccion.mx"
 _E_CONSULTA_BASE_URL = "https://www.e-consulta.com"
+_ELPOPULAR_BASE_URL = "https://elpopular.mx"
 
 
 @dataclass(frozen=True)
@@ -165,6 +206,14 @@ SCRAPER_REGISTRY: dict[str, ScraperSpec] = {
         base_url=_E_CONSULTA_BASE_URL,
         list_urls=(f"{_E_CONSULTA_BASE_URL}/",),
         parse=parse_e_consulta,
+    ),
+    "elpopular": ScraperSpec(
+        base_url=_ELPOPULAR_BASE_URL,
+        list_urls=(
+            f"{_ELPOPULAR_BASE_URL}/",
+            f"{_ELPOPULAR_BASE_URL}/secciones/puebla",
+        ),
+        parse=parse_elpopular,
     ),
 }
 

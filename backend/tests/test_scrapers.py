@@ -5,6 +5,7 @@ tests/fixtures/); httpx.MockTransport injects them, so no test touches the
 network. The settings roundtrip mirrors test_api.py's dependency overrides.
 """
 
+import re
 from pathlib import Path
 
 import httpx
@@ -18,6 +19,7 @@ from app.ingest.scrapers import (
     ScrapersAdapter,
     parse_diario_laredaccion,
     parse_e_consulta,
+    parse_elpopular,
 )
 from app.models import Base, Client
 from app.models.base import MentionSource
@@ -85,6 +87,56 @@ class TestEConsultaParser:
             assert len(segments) >= 2
             assert segments[0] not in {"secciones", "fonts", "images", "directorio"}
             assert title.strip()
+
+
+ELPOPULAR_BASE = "https://elpopular.mx"
+
+
+class TestElPopularParser:
+    def test_extracts_dated_articles_with_titles(self) -> None:
+        # elpopular.mx: no feed; articles are /<taxo>[/<sub>]/YYYY/MM/DD/<slug>.
+        links = parse_elpopular(_fixture("elpopular_home.html"))
+        expected = (
+            f"{ELPOPULAR_BASE}/gobierno/2026/10/22/gobierno-de-puebla-busca-financiar-mas-de-500-viviendas-para-sus-policias",
+            "Gobierno de Puebla busca financiar más de 500 viviendas para sus policías",
+        )
+        assert expected in links
+        assert len(links) >= 10
+        for url, title in links:
+            assert url.startswith(f"{ELPOPULAR_BASE}/")
+            assert title.strip()
+
+    def test_keeps_only_date_shaped_paths(self) -> None:
+        links = parse_elpopular(_fixture("elpopular_home.html"))
+        urls = [url for url, _ in links]
+        assert len(urls) == len(set(urls))  # deduplicated
+        for url in urls:
+            segments = _path_segments(url)
+            dated = any(
+                re.fullmatch(r"\d{4}", segments[i])
+                and re.fullmatch(r"\d{2}", segments[i + 1])
+                and re.fullmatch(r"\d{2}", segments[i + 2])
+                for i in range(len(segments) - 3)
+            )
+            assert dated, f"undated link leaked: {url}"
+
+    def test_excludes_nav_reporteros_and_category_links(self) -> None:
+        links = parse_elpopular(_fixture("elpopular_home.html"))
+        urls = [url for url, _ in links]
+        assert not any("/reporteros/" in url for url in urls)
+        assert not any(url == f"{ELPOPULAR_BASE}/secciones/puebla" for url in urls)
+        assert not any(
+            re.fullmatch(rf"{re.escape(ELPOPULAR_BASE)}/[a-z-]+/?", url) for url in urls
+        )
+
+    def test_registry_entry_lists_home_and_puebla_section(self) -> None:
+        spec = SCRAPER_REGISTRY["elpopular"]
+        assert spec.base_url == ELPOPULAR_BASE
+        assert spec.list_urls == (
+            f"{ELPOPULAR_BASE}/",
+            f"{ELPOPULAR_BASE}/secciones/puebla",
+        )
+        assert callable(spec.parse)
 
 
 class TestScrapersAdapter:
