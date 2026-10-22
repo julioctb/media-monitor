@@ -11,6 +11,9 @@ COPY backend ./backend
 
 RUN pip install --no-cache-dir .
 
+# Headless Chromium for the Facebook public-page adapter (no tokens).
+RUN python -m playwright install --with-deps chromium
+
 # Keep the working directory on backend/ so `app`, `alembic.ini`
 # and `migrations/` resolve without extra path configuration.
 WORKDIR /srv/backend
