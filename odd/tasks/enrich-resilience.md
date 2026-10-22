@@ -38,24 +38,29 @@ stale unclassified rows every cycle until the backlog drains.
 ## Tasks
 
 - [x] T1 tests RED: missing-score derivation + sweep behavior (old rows
-  enriched, recent skipped, cap, failure counted) — commit `1d8f7d7b`
-- [x] T2 `EnrichmentResult` optional score + derive validator — commit `e01b4dcd`
-- [x] T3 `candidate_ids(before)` + `sweep_backlog` — commit `e01b4dcd`
-- [x] T4 worker sweep hook in `ingest_job` — commit `e01b4dcd`
-- [x] T5 backend tests green (185 passed) + deploy worker + verify sweep
-  log line and NULL backlog drain
+  enriched, recent skipped, cap, failure counted)
+- [x] T2 `EnrichmentResult` optional score + derive validator
+- [x] T3 `candidate_ids(before)` + `sweep_backlog`
+- [x] T4 worker sweep hook in `ingest_job`
+
+One work-unit commit: `2b155144` (feat(worker): self-heal enrichment
+sweep and tolerant sentiment score).
 
 ## Verification
 
-- `.venv/bin/python -m pytest backend/tests -q` → 185 passed
+- `.venv/bin/python -m pytest backend/tests -q` → 436 passed
 - Worker logs: `enrich sweep: {...}` with enriched>=16 over the first
   cycles; `SELECT count(*) FROM mentions WHERE sentiment IS NULL AND
   ingested_at < now() - interval '2 hours'` → 0.
 
 ## Progress
 
-2026-10-22: implemented, tested, deployed (worker image rebuild), sweep
-verified draining the 16-row backlog in its first pass.
+2026-10-22: DONE. Committed `2b155144`, worker deployed, first sweep
+observed: `enrich sweep: {'enriched': 16, 'failed': 0, 'skipped_empty':
+0, 'canonical_overrides': 16, 'persons_relinked': 16, 'candidates': 16}`
+— the whole stale backlog drained in one pass. Post-sweep SQL: 0 rows
+with NULL sentiment (0 stale). No follow-up needed; sweep self-heals
+from here.
 
 ## Route
 
