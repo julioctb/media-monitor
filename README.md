@@ -1,7 +1,8 @@
 # media-monitor
 
 Brand media-monitoring (Mention-style) MVP: ingests brand mentions from Google
-News RSS, GDELT, X/Twitter (via a third-party provider) and Facebook Pages,
+News RSS, GDELT, X/Twitter (via a third-party provider) and public Facebook
+pages (headless scraping, no tokens),
 scores their Spanish/English sentiment locally, stores them client-scoped in
 Postgres, and serves them through a FastAPI API and a SvelteKit dashboard with
 email alerting (instant or digest). Single-tenant by configuration, but every
@@ -39,8 +40,9 @@ row carries a `client_id`, so it can grow into a multi-tenant SaaS.
     └──────────────────────────┘
 ```
 
-- Google News RSS and GDELT need no credentials. The X provider and Facebook
-  Pages adapters are skipped with one log line each when their keys are unset.
+- Google News RSS, GDELT and Facebook (public-wall scraping) need no
+  credentials. The X provider adapter is skipped with one log line when its
+  key is unset; Facebook when no page is configured.
 - The API has no CORS surface: the dashboard talks to it server-side only.
 - Migrations (`alembic upgrade head`) run automatically on API container start.
 
@@ -128,22 +130,22 @@ your own env).
 3. With the key unset the adapter is skipped and the rest of the pipeline
    keeps running.
 
-### Facebook Pages (client-owned pages)
+### Facebook public pages (tokenless scraping)
 
-1. Create an app on [developers.facebook.com](https://developers.facebook.com)
-   (Business type) and connect it to the Page.
-2. Grant the app `pages_show_list` and **`pages_read_engagement`** for the
-   Page.
-3. Exchange a short-lived user token for a long-lived **page token** (`GET
-   /me/accounts` with `pages_show_list`, or the `fb_exchange_token` grant);
-   page tokens do not expire with the user session.
-4. Put `page_id` + token into `FB_PAGES`:
-   `FB_PAGES=[{"page_id":"123","token":"EAAG...","label":"Client Page"}]`.
+Facebook is ingested by scraping each configured page's **public wall with a
+headless Chromium** (Playwright, one browser per cycle) — no tokens, no Graph
+app, and **groups are not supported** (login-walled; revisit if a real
+use-case appears).
 
-**Third-party pages** (the client does not administer them) work through the
-same adapter but require Meta's one-time **Page Public Content Access** app
-review plus business verification — an ops/app-review task, no code change.
-A scraper fallback (e.g. Apify) remains a phase-2 option.
+1. Settings → Redes sociales (or `PUT /api/settings`): add
+   `{"page_id": "...", "label": "..."}` rows — numeric id **or slug**.
+   Legacy rows carrying `token`/`kind` keep working (the extras are ignored).
+2. The adapter reads the first screenful of rendered posts per cycle
+   (`div[role="article"]` → permalink/text): enough for the 15-minute
+   incremental cadence, not for backfill. The parser is fixture-tested
+   (`backend/tests/test_facebook_public.py` against a committed capture).
+3. `FB_PAGES` env (`[{"page_id": "...", "label": "..."}]`) remains a
+   bootstrap fallback when the settings row is empty.
 
 ## Alerts
 
