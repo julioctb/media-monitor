@@ -30,7 +30,11 @@ Motivación verificada: el token de Graph solo lee páginas propias (`pages_read
 
 ## Evidencia / notas de ejecución
 
-(registradas al avanzar)
+- T2 (fixture): captura estable de `https://www.facebook.com/105335348671635/` (`Despierta BUAP`, sin login-wall). Hallazgos del DOM real 2026-10-22:
+  - Los permalinks vienen como `permalink.php?story_fbid=pfbid...&id=...` — NO existe `/posts/|/permalink/|/videos/` en el HTML público (0 ocurrencias).
+  - Sin `data-utime`, sin `<time>`, sin `data-testid`. Timestamp solo como `aria-label` de fecha en el anchor del permalink («8 de septiembre de 2025», sin hora) → `created_at` queda `None` salvo utime/relativo (R3 asumido).
+  - El muro logged-out renderiza 1 post real (4 divs `role="article"` anidados: post + comentarios); estable tras scrolls/networkidle.
+
 
 ## Lecciones
 
