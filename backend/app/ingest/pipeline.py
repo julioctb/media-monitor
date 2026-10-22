@@ -44,6 +44,7 @@ def persist_raw_mentions(
     enricher=None,
     enrich_limit: int | None = None,
     fetch_limit: int | None = None,
+    captured_at: datetime | None = None,
 ) -> int:
     """Validate, score and insert raw mentions; returns inserted count.
 
@@ -72,6 +73,7 @@ def persist_raw_mentions(
     """
     inserted = 0
     enrich_calls = 0
+    captured_at = captured_at or datetime.now(tz=timezone.utc)
     fetch_calls = 0
     active_texts = set(all_keyword_texts)
     for item in items:
@@ -167,7 +169,10 @@ def persist_raw_mentions(
             content=content,
             author=item.author or item_author,
             lang=item.lang,
-            published_at=item.published_at or item_published,
+            # Ingest-instant fallback: a row without a date vanishes from every
+            # published_at-bounded window (feed filters, tone aggregates).
+            # The capture instant is the best proxy when the source gives none.
+            published_at=item.published_at or item_published or captured_at,
             reach=item.reach,
             raw=item.raw,
         )
@@ -311,6 +316,7 @@ def run_ingest_cycle(
                 inserted = persist_raw_mentions(
                     session,
                     client_id=client_id,
+                    captured_at=cycle_started,
                     items=items,
                     keyword_by_text=keyword_by_text,
                     all_keyword_texts=texts,

@@ -536,6 +536,22 @@ class TestArticleFetchWiring:
         (mention,) = session.query(Mention).all()
         assert mention.published_at == published
 
+    def test_published_at_falls_back_to_ingest_now(self, session, monkeypatch) -> None:
+        # No fetcher and no item date: the row must still carry the ingest
+        # instant, or it vanishes from every date-bounded window.
+        from datetime import datetime, timezone as tz
+
+        monkeypatch.setattr(pipeline, "fetcher_for", lambda source: None)
+        before = datetime.now(tz.utc)
+        self._run(session, [_raw("https://example.com/p3", published=None)])
+        (mention,) = session.query(Mention).all()
+
+        def aware(value):
+            return value if value.tzinfo else value.replace(tzinfo=tz.utc)
+
+        assert mention.published_at is not None
+        assert before <= aware(mention.published_at) <= datetime.now(tz.utc)
+
     def test_item_published_at_wins_over_fetched(self, session, monkeypatch) -> None:
         from datetime import datetime, timezone as tz
 
