@@ -32,6 +32,7 @@ from app.db import SessionLocal
 from app.enrich.llm import LLMEnricher
 from app.ingest.gdelt import GdeltAdapter
 from app.ingest.google_news import GoogleNewsAdapter
+from app.ingest.x_index import XIndexAdapter
 from app.ingest.pipeline import run_ingest_cycle
 from app.models import AlertDigest, queries
 from app.models.settings import DEFAULT_TIMEZONE
@@ -79,8 +80,12 @@ DAILY_SUMMARY_HOUR = 21
 
 
 def build_adapters(effective: EffectiveSettings) -> list:
-    """Enabled source adapters from this cycle's effective settings."""
-    adapters: list = [GoogleNewsAdapter()]
+    """Enabled source adapters from this cycle's effective settings.
+
+    x_index rides along google_news unconditionally: same free RSS
+    endpoint (query scoped to site:x.com), no key, no settings flag.
+    """
+    adapters: list = [GoogleNewsAdapter(), XIndexAdapter()]
     if effective.gdelt_enabled:
         adapters.append(GdeltAdapter())
     else:

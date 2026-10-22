@@ -94,3 +94,17 @@ class TestXIndexAdapter:
             client=httpx.Client(transport=httpx.MockTransport(handler)), max_items=2
         )
         assert len(adapter.fetch(["BUAP"])) == 2
+
+
+class TestXIndexWiring:
+    def test_build_adapters_includes_x_index_without_any_key(self, monkeypatch) -> None:
+        from app import worker
+        from app.settings_runtime import EffectiveSettings
+
+        monkeypatch.setattr(worker.settings, "x_provider_api_key", "")
+        adapters = worker.build_adapters(EffectiveSettings(client_id=1))
+        names = [a.name for a in adapters]
+
+        # always-on free source next to google_news: no key, no flag
+        assert names[:2] == ["google_news", "x_index"]
+        assert isinstance(adapters[1], XIndexAdapter)
