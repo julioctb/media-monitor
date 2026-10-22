@@ -154,13 +154,11 @@ interface ClassifierBreakdown {
 
 type AiProvider = 'local' | 'openai';
 
-/** One monitored Facebook page or group (mirrors FacebookPageCredentials). */
+/** One monitored public Facebook page (mirrors FacebookPageTarget). */
 interface FacebookPage {
+	/** Numeric id or slug; the public wall is scraped, no tokens. */
 	page_id: string;
-	token: string;
 	label: string;
-	/** 'group' polls /groups/{id}/feed; absent behaves as 'page'. */
-	kind?: 'page' | 'group';
 }
 
 export interface ClientSettings {
@@ -200,14 +198,6 @@ export interface ClientSettingsInput {
 	ai_model?: string | null;
 }
 
-/** Result of POST /api/settings/test-facebook (always answers, ok flags success). */
-export interface FacebookProbeResult {
-	ok: boolean;
-	error: string | null;
-	name: string | null;
-	link: string | null;
-}
-
 /** Result of POST /api/settings/test-ai (always answers, ok flags success). */
 export interface AiProbeResult {
 	ok: boolean;
@@ -216,11 +206,6 @@ export interface AiProbeResult {
 	latency_ms: number | null;
 	label: string | null;
 	error: string | null;
-}
-
-export interface FacebookProbeInput {
-	page_id: string;
-	token: string;
 }
 
 export interface AiProbeInput {
@@ -385,13 +370,6 @@ export function listAvailableScrapers(options: RequestOptions = {}): Promise<
 		{ method: 'GET' },
 		options
 	);
-}
-
-export function testFacebookPage(
-	input: FacebookProbeInput,
-	options: RequestOptions = {}
-): Promise<FacebookProbeResult> {
-	return request<FacebookProbeResult>('/api/settings/test-facebook', jsonInit('POST', input), options);
 }
 
 export function testAi(input: AiProbeInput, options: RequestOptions = {}): Promise<AiProbeResult> {

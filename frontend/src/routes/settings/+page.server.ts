@@ -5,7 +5,6 @@ import {
 	listAvailableScrapers,
 	listKeywords,
 	testAi,
-	testFacebookPage,
 	updateClientSettings
 } from '$lib/api';
 import { handleKeywordCreate, handleKeywordDelete, handleKeywordToggle } from '$lib/keyword-actions';
@@ -13,14 +12,10 @@ import type { Actions, PageServerLoad } from './$types';
 
 /** Uniform action result: every branch carries the same keys for the view. */
 interface SettingsActionResult {
-	action: 'save' | 'test-facebook' | 'test-ai';
+	action: 'save' | 'test-ai';
 	ok: boolean;
-	/** Banner text on save; probe outcome/error on the test actions. */
+	/** Banner text on save; probe outcome/error on the test action. */
 	message: string;
-	/** Row index for test-facebook; -1 otherwise. */
-	index: number;
-	page_name: string | null;
-	page_link: string | null;
 	engine: string | null;
 	model: string | null;
 	latency_ms: number | null;
@@ -28,10 +23,7 @@ interface SettingsActionResult {
 }
 
 type ActionResultExtras = Partial<
-	Pick<
-		SettingsActionResult,
-		'index' | 'page_name' | 'page_link' | 'engine' | 'model' | 'latency_ms' | 'label'
-	>
+	Pick<SettingsActionResult, 'engine' | 'model' | 'latency_ms' | 'label'>
 >;
 
 /** Probe-shaped defaults so callers only pass the fields they know. */
@@ -42,9 +34,6 @@ function actionResult(
 	extras: ActionResultExtras = {}
 ): SettingsActionResult {
 	return {
-		index: -1,
-		page_name: null,
-		page_link: null,
 		engine: null,
 		model: null,
 		latency_ms: null,
@@ -100,23 +89,15 @@ function readDigestHours(form: FormData): number[] | null {
 }
 
 /** Zip the repeated row inputs by DOM order; drop fully empty rows. */
-function readFacebookPages(
-	form: FormData
-): { page_id: string; token: string; label: string; kind: 'page' | 'group' }[] {
+function readFacebookPages(form: FormData): { page_id: string; label: string }[] {
 	const pageIds = form.getAll('fb_page_id').map((value) => String(value));
-	const tokens = form.getAll('fb_token').map((value) => String(value));
 	const labels = form.getAll('fb_label').map((value) => String(value));
-	const kinds = form.getAll('fb_kind').map((value) => String(value));
-	const pages: { page_id: string; token: string; label: string; kind: 'page' | 'group' }[] = [];
+	const pages: { page_id: string; label: string }[] = [];
 	for (let index = 0; index < pageIds.length; index += 1) {
 		const page_id = (pageIds[index] ?? '').trim();
-		const token = (tokens[index] ?? '').trim();
 		const label = (labels[index] ?? '').trim();
-		// Absent select (legacy row or older client) behaves as page, the
-		// same default the backend credential applies.
-		const kind: 'page' | 'group' = kinds[index] === 'group' ? 'group' : 'page';
-		if (page_id === '' && token === '') continue;
-		pages.push({ page_id, token, label, kind });
+		if (page_id === '' && label === '') continue;
+		pages.push({ page_id, label });
 	}
 	return pages;
 }
@@ -179,35 +160,6 @@ export const actions: Actions = {
 			return actionResult('save', true, SAVE_OK_MESSAGE);
 		} catch (cause) {
 			return failureFrom(cause, 'save', 'No se pudo guardar la configuración.');
-		}
-	},
-
-	'test-facebook': async ({ request }) => {
-		const form = await request.formData();
-		// The probing button carries its row index; rows and inputs share one
-		// DOM order, so the same index addresses every getAll() list.
-		const index = Number.parseInt(text(form, 'probe_row') || '-1', 10);
-		const row = index >= 0 ? readFacebookPages(form)[index] : undefined;
-
-		if (!row || row.page_id === '' || row.token === '') {
-			return actionResult(
-				'test-facebook',
-				false,
-				'La fila necesita un page_id y un token para probarse.',
-				{ index }
-			);
-		}
-
-		try {
-			const probe = await testFacebookPage({ page_id: row.page_id, token: row.token });
-			return actionResult(
-				'test-facebook',
-				probe.ok,
-				probe.ok ? 'Token verificado.' : String(probe.error ?? 'Error desconocido'),
-				{ index, page_name: probe.name, page_link: probe.link }
-			);
-		} catch (cause) {
-			return failureFrom(cause, 'test-facebook', 'No se pudo contactar la prueba de Facebook.');
 		}
 	},
 

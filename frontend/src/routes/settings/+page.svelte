@@ -23,10 +23,7 @@
 
 	interface PageDraft {
 		page_id: string;
-		token: string;
 		label: string;
-		/** Normalized on load: legacy rows without kind read as page. */
-		kind: 'page' | 'group';
 	}
 
 	interface SettingsDraft {
@@ -53,7 +50,7 @@
 			retention_days: String(settings.retention_days),
 			digest_hours: [...settings.digest_hours],
 			gdelt_enabled: settings.gdelt_enabled,
-			pages: settings.facebook_pages.map((page) => ({ ...page, kind: page.kind ?? 'page' })),
+			pages: settings.facebook_pages.map((page) => ({ ...page })),
 			rss: settings.rss_feeds.join('\n'),
 			scrapers: [...settings.scrapers],
 			ai_provider: settings.ai_provider,
@@ -112,7 +109,7 @@
 	}
 
 	function addPage(): void {
-		draft.pages.push({ page_id: '', token: '', label: '', kind: 'page' });
+		draft.pages.push({ page_id: '', label: '' });
 		dirty = true;
 	}
 
@@ -347,26 +344,14 @@
 
 					<article class="source-card">
 						<h3>Redes sociales</h3>
-						<p>Páginas y grupos de Facebook con su id y token de acceso.</p>
+						<p>Páginas de Facebook públicas (id o slug). Sin tokens: se leen del HTML público.</p>
 						{#if draft.pages.length === 0}
-							<p class="field-hint">Sin páginas ni grupos: agrega uno con su id y token de lectura.</p>
+							<p class="field-hint">Sin páginas: agrega una con su id o slug.</p>
 						{/if}
 						<div class="grid gap-3">
 							{#each draft.pages as page, index (page)}
 								<div class="rounded-xl border border-line-soft bg-white p-3">
 									<div class="grid gap-3 sm:grid-cols-2">
-										<div>
-											<label for={`fb-kind-${index}`} class={LABEL_CLS}>Tipo</label>
-											<select
-												id={`fb-kind-${index}`}
-												name="fb_kind"
-												bind:value={page.kind}
-												class={INPUT_CLS}
-											>
-												<option value="page">Página</option>
-												<option value="group">Grupo</option>
-											</select>
-										</div>
 										<div>
 											<label for={`fb-page-${index}`} class={LABEL_CLS}>Page ID</label>
 											<input
@@ -374,17 +359,7 @@
 												name="fb_page_id"
 												type="text"
 												bind:value={page.page_id}
-												placeholder="1234567890"
-												class={INPUT_CLS}
-											/>
-										</div>
-										<div>
-											<label for={`fb-token-${index}`} class={LABEL_CLS}>Token de acceso</label>
-											<input
-												id={`fb-token-${index}`}
-												name="fb_token"
-												type="text"
-												bind:value={page.token}
+												placeholder="1234567890 o slug"
 												class={INPUT_CLS}
 											/>
 										</div>
@@ -402,16 +377,6 @@
 									</div>
 									<div class="mt-3 flex gap-2">
 										<button
-											type="submit"
-											formaction="?/test-facebook"
-											name="probe_row"
-											value={index}
-											disabled={submitting}
-											class={PROBE_BTN_CLS}
-										>
-											Probar
-										</button>
-										<button
 											type="button"
 											onclick={() => removePage(index)}
 											disabled={submitting}
@@ -420,15 +385,6 @@
 											Eliminar
 										</button>
 									</div>
-									{#if form?.action === 'test-facebook' && form.index === index}
-										{#if form.ok}
-											<p class="mt-2 text-xs text-success">
-												Página verificada{form.page_name ? `: ${form.page_name}` : ''}
-											</p>
-										{:else}
-											<p class="mt-2 text-xs text-danger">Error: {form.message}</p>
-										{/if}
-									{/if}
 								</div>
 							{/each}
 						</div>
@@ -438,7 +394,7 @@
 							disabled={submitting}
 							class="mt-3 rounded-full border border-dashed border-line px-3 py-1.5 text-xs font-medium text-muted transition-colors hover:bg-surface-warm disabled:opacity-60"
 						>
-							+ Agregar página o grupo
+							+ Agregar página
 						</button>
 					</article>
 

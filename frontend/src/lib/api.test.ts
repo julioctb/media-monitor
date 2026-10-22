@@ -9,7 +9,6 @@ import {
 	listEvents,
 	listMentions,
 	testAi,
-	testFacebookPage,
 	updateClientSettings
 } from './api';
 
@@ -216,21 +215,6 @@ describe('api client', () => {
 			ai_base_url: 'https://api.openai.com/v1',
 			ai_model: 'gpt-4o-mini'
 		});
-	});
-
-	it('probes a facebook page token via the settings endpoint', async () => {
-		const fetchMock = stubFetch(async () =>
-			jsonResponse(200, { ok: true, error: null, name: 'Mi página', link: 'https://fb/mi-pagina' })
-		);
-
-		const probe = await testFacebookPage({ page_id: '123', token: 'EAAG...' });
-
-		expect(probe.ok).toBe(true);
-		expect(probe.name).toBe('Mi página');
-		const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
-		expect(url).toBe('http://localhost:8000/api/settings/test-facebook');
-		expect(init?.method).toBe('POST');
-		expect(JSON.parse(String(init?.body))).toEqual({ page_id: '123', token: 'EAAG...' });
 	});
 
 	it('probes the ai provider with the selected engine', async () => {

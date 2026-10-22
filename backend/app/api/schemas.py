@@ -218,11 +218,6 @@ class ClientSettingsUpdate(BaseModel):
         return value
 
 
-class FacebookProbeRequest(BaseModel):
-    page_id: str = Field(min_length=1)
-    token: str = Field(min_length=1)
-
-
 class AiProbeRequest(BaseModel):
     provider: Literal["local", "openai"] = "local"
     api_key: str | None = None
