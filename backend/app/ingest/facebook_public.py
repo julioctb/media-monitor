@@ -33,6 +33,11 @@ from app.models.base import MentionSource
 log = logging.getLogger("ingest.facebook_public")
 
 FB_PAGE_URL = "https://www.facebook.com/{page_id}/"
+# Anchors that only exist once a real post rendered. The generic article div
+# appears before the data does, so waiting on it races FB's hydration.
+POST_READY_SELECTOR = (
+    'a[href*="story_fbid"], a[href*="/posts/"], a[href*="/permalink/"], a[href*="/videos/"]'
+)
 MAX_POSTS_PER_PAGE = 15  # first screenful is enough for an incremental cycle
 
 
@@ -220,7 +225,11 @@ class FacebookPublicAdapter(SourceAdapter):
                             wait_until="domcontentloaded",
                             timeout=25000,
                         )
-                        page.wait_for_selector('div[role="article"]', timeout=15000)
+                        # Wait for a post anchor, not any article shell: FB
+                        # renders empty div[role=article] placeholders before
+                        # the data hydrates, which caused intermittent
+                        # 0-post cycles (the old selector raced the payload).
+                        page.wait_for_selector(POST_READY_SELECTOR, timeout=15000)
                         posts = extract_posts(page.content())
                     except PWTimeout as exc:
                         log.warning("facebook public %s: timeout/sin articles: %s", page_id, exc)
@@ -228,6 +237,19 @@ class FacebookPublicAdapter(SourceAdapter):
                     except Exception as exc:  # noqa: BLE001 — una página muerta no frena el ciclo
                         log.warning("facebook public %s fetch failed: %s", page_id, exc)
                         continue
+                    if not posts:
+                        # One clean retry: a rare FB variant serves the shell
+                        # with no anchors at all; the reload usually fixes it.
+                        try:
+                            page.goto(
+                                FB_PAGE_URL.format(page_id=page_id),
+                                wait_until="domcontentloaded",
+                                timeout=25000,
+                            )
+                            page.wait_for_selector(POST_READY_SELECTOR, timeout=15000)
+                            posts = extract_posts(page.content())
+                        except Exception as exc:  # noqa: BLE001
+                            log.warning("facebook public %s: retry failed: %s", page_id, exc)
                     if not posts:
                         log.warning("facebook public %s: 0 articles (login wall?)", page_id)
                     out.extend(to_raw_mentions(posts, page_id, label, [str(k) for k in keywords]))
