@@ -1,7 +1,8 @@
 <script lang="ts">
-	import type { PageProps } from './$types';
+	import type { PageProps, SubmitFunction } from './$types';
 
 	import { browser } from '$app/environment';
+	import { enhance } from '$app/forms';
 
 	import {
 		appendTurn,
@@ -18,6 +19,21 @@
 	let threads = $state<ChatThread[]>(browser ? loadThreads(localStorage) : []);
 	let activeId = $state<string | null>(null);
 	let processedTurn = $state(0);
+	// The draft lives client-side: cleared on success, kept on error. The
+	// server-echoed question (result.question) feeds the history, not the input.
+	let draft = $state('');
+	let pending = $state(false);
+
+	const submitEnhance: SubmitFunction = () => {
+		pending = true;
+		return async ({ result, update }) => {
+			pending = false;
+			// Keep our own reset semantics: the effect above persists the turn
+			// from `form`, and the draft is cleared only on a real answer.
+			await update({ reset: false });
+			if (result.type === 'success' && !result.data?.error) draft = '';
+		};
+	};
 
 	const active = $derived(threads.find((thread) => thread.id === activeId) ?? null);
 
@@ -152,18 +168,21 @@
 			{/if}
 		</div>
 
-		<form method="POST" class="composer">
+		<form method="POST" class="composer" use:enhance={submitEnhance}>
 			<label for="question">Tu pregunta</label>
 			<textarea
 				id="question"
 				name="question"
 				maxlength="1000"
 				required
+				bind:value={draft}
 				placeholder="Por ejemplo: ¿Qué se publicó sobre la BUAP esta semana?"
-			>{result?.question ?? ''}</textarea>
+			></textarea>
 			<div class="composer-actions">
 				<p class="composer-note">Cada respuesta cita las notas que la sustentan.</p>
-				<button class="send" type="submit">Enviar pregunta</button>
+				<button class="send" type="submit" disabled={pending}>
+					{pending ? 'Consultando…' : 'Enviar pregunta'}
+				</button>
 			</div>
 		</form>
 	</section>
