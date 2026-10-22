@@ -16,13 +16,16 @@ from datetime import datetime, timezone
 import feedparser
 import httpx
 
+from app.ingest.article_fetch import BROWSER_HEADERS
 from app.ingest.base import RawMention, SourceAdapter
 from app.ingest.matching import find_matching_keyword
 from app.models.base import MentionSource
 
 log = logging.getLogger("ingest.feeds")
 
-_USER_AGENT = "media-monitor/0.1"
+#: Browser-ish headers (shared with article_fetch): some feed hosts —
+#: e.g. contraparte.mx's WAF — 403 the bare media-monitor User-Agent.
+_BROWSER_HEADERS = BROWSER_HEADERS
 _TIMEOUT_S = 20.0
 _MAX_PER_FEED = 100
 
@@ -100,7 +103,7 @@ class FeedsAdapter(SourceAdapter):
     ) -> None:
         self._urls = [url for url in (u.strip() for u in urls) if url]
         self._client = client or httpx.Client(
-            headers={"User-Agent": _USER_AGENT},
+            headers=_BROWSER_HEADERS,
             timeout=_TIMEOUT_S,
             follow_redirects=True,
         )

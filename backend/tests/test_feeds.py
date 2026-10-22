@@ -2,9 +2,20 @@
 
 from pathlib import Path
 
-from app.ingest.feeds import parse_feed
+from app.ingest.feeds import FeedsAdapter, parse_feed
 
 FIXTURES = Path(__file__).parent / "fixtures"
+
+
+def test_default_client_sends_browser_user_agent() -> None:
+    """Feed hosts like contraparte.mx 403 the bare media-monitor UA."""
+    adapter = FeedsAdapter(["https://example.com/feed"])
+    try:
+        ua = adapter._client.headers["User-Agent"]
+        assert ua.startswith("Mozilla/5.0")
+        assert "media-monitor" not in ua
+    finally:
+        adapter._client.close()
 
 
 def _rss_xml(description: str) -> str:
