@@ -99,6 +99,12 @@
 				<p>{summary.narrative}</p>
 			</section>
 
+			<!-- Day cross-link: right under the narrative, before the digest
+				sections - the live feed filtered to this exact day. -->
+			<a class="digest-feed-link" href={`/feed?since=${day}&until=${day}`}>
+				Ver todas las noticias del día en el Feed →
+			</a>
+
 			<DigestSections
 				content={summary.content}
 				tones={data.tones}
@@ -113,12 +119,6 @@
 				</summary>
 				<pre class="mt-3 whitespace-pre-wrap text-sm text-ink-2">{summary.content.plain_text}</pre>
 			</details>
-
-			<!-- Day cross-link: after the digest, the whole day's coverage is
-				one click away in the feed (the feed's own day filter). -->
-			<a class="digest-feed-link" href={`/feed?since=${day}&until=${day}`}>
-				Ver todas las noticias del día en el Feed →
-			</a>
 		{:else}
 			<div class="empty mt-6" role="status">
 				<p>Todavía no se genera el resumen del día.</p>
