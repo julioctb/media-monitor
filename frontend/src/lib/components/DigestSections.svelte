@@ -217,13 +217,15 @@
 <section id="desglose-cobertura" class="section" aria-labelledby="cobertura-dia">
 	<div class="section-heading">
 		<h2 id="cobertura-dia">Cobertura del día</h2>
-		<span class="section-note">Noticias · {total} {total === 1 ? 'nota' : 'notas'}</span>
+		<span class="section-note">{total} mención{total === 1 ? '' : 'nes'} en la jornada</span>
 	</div>
 	<div class="coverage">
 		<div class="metric">
-			<span class="metric-label">Notas registradas</span>
+			<span class="metric-label">Cobertura de la jornada</span>
 			<strong class="metric-big">{total}</strong>
-			<span class="metric-detail">en la jornada</span>
+			<span class="metric-detail">
+				menciones · agrupadas en {noticias.length} noticia{noticias.length === 1 ? '' : 's'}
+			</span>
 		</div>
 		<div class="metric">
 			<span class="metric-label">Categorías activas</span>
@@ -251,11 +253,11 @@
 	{#each gaps as gap (gap)}
 		<p class="breakdown-note">{gap}</p>
 	{/each}
-	<h3 class="breakdown-heading">Notas por categoría</h3>
+	<h3 class="breakdown-heading">Menciones por categoría</h3>
 	{#if categories.length === 0}
 		<p class="breakdown-note">Sin categorías clasificadas para este día.</p>
 	{:else}
-		<ul class="category-breakdown" aria-label="Notas por categoría; una categoría por nota">
+		<ul class="category-breakdown" aria-label="Menciones por categoría; una categoría por mención">
 			{#each categories as row (row.key)}
 				<li class="category-row">
 					<span class="category-name">{topicLabel(row.key)}</span>
