@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from 'vitest';
 
-import { actions } from '../routes/settings/+page.server';
+import { actions, normalizeFacebookPageRef } from '../routes/settings/+page.server';
 
 /**
  * Settings save (digest-multi-cut): the digest-hours chips serialize to a
@@ -220,4 +220,33 @@ it('deletes a keyword through the page action', async () => {
 
 	expect(result.ok).toBe(true);
 	expect(calls).toContainEqual({ path: '/api/keywords/7', method: 'DELETE' });
+});
+
+// -- Facebook page-ref normalizer (tokenless source entry) --
+
+it('normalizes a full page url to its slug', () => {
+	expect(normalizeFacebookPageRef('https://www.facebook.com/econsulta')).toBe('econsulta');
+});
+
+it('strips permalink paths and querystrings down to the slug', () => {
+	expect(normalizeFacebookPageRef('facebook.com/econsulta/posts/123?ref=page')).toBe('econsulta');
+});
+
+it('resolves profile.php to the numeric id', () => {
+	expect(normalizeFacebookPageRef('https://www.facebook.com/profile.php?id=987')).toBe('987');
+});
+
+it('keeps group refs intact', () => {
+	expect(normalizeFacebookPageRef('https://www.facebook.com/groups/555/')).toBe('groups/555');
+});
+
+it('passes bare slugs and numeric ids through', () => {
+	expect(normalizeFacebookPageRef('econsulta')).toBe('econsulta');
+	expect(normalizeFacebookPageRef(' 105335348671635 ')).toBe('105335348671635');
+});
+
+it('rejects foreign domains and empty input', () => {
+	expect(normalizeFacebookPageRef('https://ejemplo.com/econsulta')).toBeNull();
+	expect(normalizeFacebookPageRef('')).toBeNull();
+	expect(normalizeFacebookPageRef('   ')).toBeNull();
 });
