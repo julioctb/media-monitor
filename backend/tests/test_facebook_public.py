@@ -66,5 +66,27 @@ def test_relative_label_fallback(monkeypatch):
     now = datetime(2026, 10, 22, 15, 0, tzinfo=timezone.utc)
     assert _parse_relative("hace 2 horas", now) == datetime(2026, 10, 22, 13, 0, tzinfo=timezone.utc)
     assert _parse_relative("hace 30 min", now) == datetime(2026, 10, 22, 14, 30, tzinfo=timezone.utc)
-    assert _parse_relative("hace 3 días", now).day == 19
+    relative = _parse_relative("hace 3 días", now)
+    assert relative is not None and relative.day == 19
     assert _parse_relative("mañana", now) is None
+
+
+def test_to_raw_mentions_maps_fields():
+    from app.ingest.facebook_public import to_raw_mentions
+
+    posts = [
+        {
+            "url": "https://www.facebook.com/foo/posts/123",
+            "external_id": "123",
+            "text": "La BUAP anuncio algo",
+            "created_at": None,
+        }
+    ]
+    rows = to_raw_mentions(posts, "42", "Pagina X", ["BUAP"])
+    assert rows[0].source.value == "facebook_page"
+    assert rows[0].keyword == "BUAP"
+    assert rows[0].author == "Pagina X"
+    assert rows[0].url.endswith("/posts/123")
+    assert rows[0].external_id == "123"
+    assert rows[0].title == "La BUAP anuncio algo"
+    assert rows[0].raw == {"page_id": "42", "src": "public_html"}

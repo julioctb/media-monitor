@@ -18,13 +18,14 @@ and neither ``data-utime`` nor ``<time>`` elements exist.
 
 import logging
 import re
+from collections.abc import Sequence
 from datetime import datetime, timedelta, timezone
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 from bs4 import BeautifulSoup
 
-from app.ingest.base import RawMention
+from app.ingest.base import RawMention, SourceAdapter
 from app.ingest.matching import find_matching_keyword
 from app.models.base import MentionSource
 
@@ -140,3 +141,88 @@ def extract_posts(html: str) -> list[dict[str, Any]]:
             }
         )
     return posts[:MAX_POSTS_PER_PAGE]
+
+
+def to_raw_mentions(
+    posts: list[dict[str, Any]],
+    page_id: str,
+    label: str,
+    keywords: Sequence[str],
+) -> list[RawMention]:
+    """Map parsed post dicts to RawMention (same shape as the Graph adapter)."""
+    mentions: list[RawMention] = []
+    for post in posts:
+        text = post.get("text") or ""
+        title = text.split("\n", 1)[0].strip() or None
+        mentions.append(
+            RawMention(
+                source=MentionSource.facebook_page,
+                keyword=find_matching_keyword(text, [str(k) for k in keywords]) or "",
+                url=post["url"],
+                external_id=post.get("external_id"),
+                title=title,
+                content=text or None,
+                # The configured label is the author: the public wall does
+                # not always expose the page name per post.
+                author=label or None,
+                published_at=post.get("created_at"),
+                raw={"page_id": page_id, "src": "public_html"},
+            )
+        )
+    return mentions
+
+
+class FacebookPublicAdapter(SourceAdapter):
+    """Scrapes each configured public page's wall with one shared browser."""
+
+    name = "facebook_page"  # logs; the MentionSource enum is already facebook_page
+
+    def __init__(self, pages: Sequence[Any]) -> None:
+        # pages: FacebookPageTarget-like objects (page_id + label); kept
+        # duck-typed so tests can pass simple stand-ins.
+        self._pages = [(getattr(p, "page_id", ""), getattr(p, "label", "")) for p in pages]
+
+    def fetch(
+        self, keywords: Sequence[str], since: datetime | None = None
+    ) -> list[RawMention]:
+        # Imported here so the module (and every test importing it) works
+        # without the browsers installed.
+        from playwright.sync_api import sync_playwright
+        from playwright.sync_api import TimeoutError as PWTimeout
+
+        out: list[RawMention] = []
+        with sync_playwright() as pw:
+            browser = pw.chromium.launch(
+                headless=True, args=["--no-sandbox", "--disable-dev-shm-usage"]
+            )
+            page = browser.new_page(
+                user_agent=(
+                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36"
+                ),
+                locale="es-MX",
+            )
+            try:
+                for page_id, label in self._pages:
+                    if not page_id:
+                        continue
+                    try:
+                        page.goto(
+                            FB_PAGE_URL.format(page_id=page_id),
+                            wait_until="domcontentloaded",
+                            timeout=25000,
+                        )
+                        page.wait_for_selector('div[role="article"]', timeout=15000)
+                        posts = extract_posts(page.content())
+                    except PWTimeout as exc:
+                        log.warning("facebook public %s: timeout/sin articles: %s", page_id, exc)
+                        continue
+                    except Exception as exc:  # noqa: BLE001 — una página muerta no frena el ciclo
+                        log.warning("facebook public %s fetch failed: %s", page_id, exc)
+                        continue
+                    if not posts:
+                        log.warning("facebook public %s: 0 articles (login wall?)", page_id)
+                    out.extend(to_raw_mentions(posts, page_id, label, [str(k) for k in keywords]))
+            finally:
+                browser.close()
+        return out
