@@ -11,6 +11,7 @@
 		tones = null,
 		sentimentByEvent = {},
 		fieldCount = 0,
+		coverageLive = null,
 		updatedAt = null
 	}: {
 		content: DailySummaryContent;
@@ -20,6 +21,9 @@
 		sentimentByEvent?: Record<string, string>;
 		/** Field-data mentions for the day; the section hides at zero. */
 		fieldCount?: number;
+		/** Live day coverage (mentions/events/topics) — single source of truth
+		    for the Cobertura numbers; the digest's frozen block stays archival. */
+		coverageLive?: { total: number; byTopic: Record<string, number>; events: number } | null;
 		/** Summary last update, rendered in the rectora stamp. */
 		updatedAt?: string | null;
 	} = $props();
@@ -50,18 +54,20 @@
 	const personas = $derived(content.personas ?? []);
 	const pendientes = $derived(content.pendientes ?? []);
 	const gaps = $derived(content.coverage?.gaps ?? []);
-	const total = $derived(content.coverage?.total ?? noticias.length);
 
 	/** Topic taxonomy v2 size (classification-v2); legacy keys excluded. */
 	const TOPIC_TOTAL = 9;
 
 	const byTopic = $derived.by(() => {
+		if (coverageLive) return coverageLive.byTopic;
 		if (content.coverage?.by_topic) return content.coverage.by_topic;
 		const counts: Record<string, number> = {};
 		for (const item of noticias) if (item.topic) counts[item.topic] = (counts[item.topic] ?? 0) + 1;
 		return Object.keys(counts).length > 0 ? counts : undefined;
 	});
-	const categories = $derived(categoryRows(byTopic, content.coverage?.total));
+	const total = $derived(coverageLive?.total ?? content.coverage?.total ?? noticias.length);
+	const liveEvents = $derived(coverageLive?.events ?? null);
+	const categories = $derived(categoryRows(byTopic, total));
 	const activeTopics = $derived(byTopic ? Object.keys(byTopic).length : 0);
 
 	const mediaToneRows = $derived(toneRows(tones?.media, 'Sin calcular'));
@@ -119,23 +125,6 @@
 
 	const sentimentedActions = $derived((rectora.actions ?? []).filter((action) => action.sentiment));
 
-	/* Cobertura habla EVENTOS: majority sentiment per digest note, so these
-	   numbers reconcile with the notas count. Raw-mention tone (the volume
-	   view) lives in Resumen general, labeled there. */
-	const eventTones = $derived.by(() => {
-		const tally = { positive: 0, negative: 0, neutral: 0 };
-		for (const item of noticias) {
-			if (item.event_id === undefined || item.event_id === null) continue;
-			const sentiment = sentimentByEvent[String(item.event_id)];
-			if (sentiment === 'positive' || sentiment === 'negative' || sentiment === 'neutral') {
-				tally[sentiment] += 1;
-			}
-		}
-		return tally;
-	});
-	const eventToneTotal = $derived(
-		eventTones.positive + eventTones.negative + eventTones.neutral
-	);
 	const positiveShare = $derived.by(() => {
 		if (sentimentedActions.length === 0) return null;
 		const positive = sentimentedActions.filter((action) => action.sentiment === 'positive').length;
@@ -171,7 +160,7 @@
 	<div class="summary-grid">
 		<article class="summary-box" aria-labelledby="media-tone">
 			<h3 id="media-tone">Tendencia en medios</h3>
-			<p class="summary-meta">{total} {total === 1 ? 'nota registrada' : 'notas registradas'}</p>
+			<p class="summary-meta">{total} mención{total === 1 ? '' : 'es'} en la jornada</p>
 			<dl class="tone-list" aria-label="Distribución de tono en medios">
 				{#each mediaToneRows as row (row.key)}
 					<div><dt>{row.label}</dt><dd>{row.value}</dd></div>
@@ -223,31 +212,22 @@
 		<div class="metric">
 			<span class="metric-label">Cobertura de la jornada</span>
 			<strong class="metric-big">{total}</strong>
-			<span class="metric-detail">
-				menciones · agrupadas en {noticias.length} noticia{noticias.length === 1 ? '' : 's'}
-			</span>
+			<span class="metric-detail">menciones publicadas en la jornada</span>
+		</div>
+		<div class="metric">
+			<span class="metric-label">Eventos detectados</span>
+			{#if liveEvents !== null}
+				<strong class="metric-big">{liveEvents}</strong>
+				<span class="metric-detail">agrupan menciones sobre un mismo hecho</span>
+			{:else}
+				<strong class="metric-big">–</strong>
+				<span class="metric-detail">eventos no disponibles</span>
+			{/if}
 		</div>
 		<div class="metric">
 			<span class="metric-label">Categorías activas</span>
 			<strong class="metric-big">{activeTopics}</strong>
 			<span class="metric-detail">de {TOPIC_TOTAL} categorías posibles</span>
-		</div>
-		<div class="metric">
-			<span class="metric-label">Tono de las notas</span>
-			{#if eventToneTotal > 0}
-				<strong class="metric-big">
-					{eventTones.positive}
-					<span class="metric-unit">positiva{eventTones.positive === 1 ? '' : 's'}</span>
-				</strong>
-				<span class="metric-detail">
-					<span>{eventTones.negative} negativa{eventTones.negative === 1 ? '' : 's'}</span>
-					<span>{eventTones.neutral} neutra{eventTones.neutral === 1 ? 'l' : 'les'}</span>
-					<span>mayoría de tono por evento</span>
-				</span>
-			{:else}
-				<strong class="metric-big">–</strong>
-				<span class="metric-detail">sin clasificación por evento</span>
-			{/if}
 		</div>
 	</div>
 	{#each gaps as gap (gap)}

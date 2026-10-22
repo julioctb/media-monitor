@@ -131,6 +131,7 @@
 				content={summary.content}
 				tones={data.tones}
 				sentimentByEvent={data.eventSentiment}
+				coverageLive={data.liveCoverage}
 				fieldCount={data.fieldCount}
 				updatedAt={summary.updated_at}
 			/>

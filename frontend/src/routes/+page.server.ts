@@ -58,6 +58,7 @@ async function loadSideData(day: string) {
 	const [mentionsResult, persons, keywords, settings] = await Promise.all([
 		listMentions({ since: bounds.since, until: bounds.until, limit: 500 })
 			.then((page) => ({
+				items: page.items,
 				tones: splitTones(page.items),
 				eventSentiment: majoritySentimentByEvent(page.items),
 				fieldCount: page.items.filter((m) => m.source === 'field').length
@@ -74,9 +75,28 @@ async function loadSideData(day: string) {
 	const eventSentiment = mentionsResult?.eventSentiment ?? {};
 	const fieldCount = mentionsResult?.fieldCount ?? 0;
 	const digestHours = settings?.digest_hours ?? [];
+	// Live coverage: same mention set as the tone boxes, so every number on
+	// the page shares one basis (the digest's frozen coverage stays in the
+	// content for the archive, never rendered as current).
+	const liveItems = mentionsResult?.items ?? [];
+	const liveByTopic: Record<string, number> = {};
+	const seenEvents = new Set<number>();
+	for (const item of liveItems) {
+		for (const classification of item.classifications ?? []) {
+			if (classification.classifier === 'topic') {
+				liveByTopic[classification.label] = (liveByTopic[classification.label] ?? 0) + 1;
+			}
+		}
+		if (item.event_id !== undefined && item.event_id !== null) {
+			seenEvents.add(item.event_id);
+		}
+	}
+	const liveCoverage = mentionsResult
+		? { total: liveItems.length, byTopic: liveByTopic, events: seenEvents.size }
+		: null;
 	// Field-data ingest does not exist yet; count for the day drives the
 	// conditional "Datos de campo" section (hidden while zero).
-	return { tones, eventSentiment, fieldCount, persons, keywords, digestHours };
+	return { tones, eventSentiment, fieldCount, persons, keywords, digestHours, liveCoverage, liveCount: liveItems.length };
 }
 
 export const load: PageServerLoad = async ({ url }) => {
@@ -104,7 +124,16 @@ export const load: PageServerLoad = async ({ url }) => {
 		}
 		const side = summary
 			? await loadSideData(day)
-			: { tones: null, eventSentiment: {}, fieldCount: 0, persons: [], keywords: [], digestHours: [] };
+			: {
+					tones: null,
+					eventSentiment: {},
+					fieldCount: 0,
+					persons: [],
+					keywords: [],
+					digestHours: [],
+					liveCoverage: null,
+					liveCount: 0
+				};
 		return { day, summary, latest_updated_at: latestUpdatedAt, days, ...side };
 	} catch (cause) {
 		const status = cause instanceof ApiError && cause.status >= 400 ? cause.status : 503;
