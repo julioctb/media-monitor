@@ -891,7 +891,8 @@ div.coverage {
 	font-size: 12px;
 	line-height: 1.45;
 }
-.actor-link {
+.actor-link,
+.digest-feed-link {
 	display: inline-flex;
 	align-items: center;
 	min-height: 44px;
@@ -903,6 +904,11 @@ div.coverage {
 	text-decoration: underline;
 	text-decoration-color: var(--color-line);
 	text-underline-offset: 4px;
+}
+/* Digest CTA sits alone at the end of the content column: more air. */
+.digest-feed-link {
+	margin: 24px 0 0;
+	font-size: 15px;
 }
 .actor-link:hover {
 	background: var(--color-surface);

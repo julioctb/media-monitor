@@ -78,6 +78,12 @@
 				</summary>
 				<pre class="mt-3 whitespace-pre-wrap text-sm text-ink-2">{summary.content.plain_text}</pre>
 			</details>
+
+			<!-- Day cross-link: after the digest, the whole day's coverage is
+				one click away in the feed (the feed's own day filter). -->
+			<a class="digest-feed-link" href={`/feed?since=${day}&until=${day}`}>
+				Ver todas las noticias del día en el Feed →
+			</a>
 		{:else}
 			<div class="empty mt-6" role="status">
 				<p>Todavía no se genera el resumen del día.</p>
