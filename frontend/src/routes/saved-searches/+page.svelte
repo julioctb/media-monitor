@@ -10,7 +10,7 @@
 	const BTN_CLS = 'rounded-full border px-3 py-1.5 text-xs font-medium transition-colors';
 
 	const UNREADY_HINTS: Record<string, string> = {
-		x_twitter: 'falta el token del provider (env X_PROVIDER_API_KEY)',
+		x_twitter: 'falta el token del proveedor (env X_PROVIDER_API_KEY)',
 		facebook_page: 'no hay páginas FB en Ajustes',
 		rss_custom: 'no hay feeds RSS en Ajustes',
 		gdelt: 'GDELT desactivado en Ajustes',
@@ -100,8 +100,7 @@
 		</div>
 		{#if unreadySources.length > 0}
 			<p class="mt-2 text-xs text-muted"><span class="font-semibold text-ink-2">Sin ingesta activa:</span>
-				Sin ingesta activa:
-				{unreadySources.map((source) => `${sourceLabel(source)} (${UNREADY_HINTS[source]})`).join(' ·')}.
+				{unreadySources.map((source) => `${sourceLabel(source)} (${UNREADY_HINTS[source]})`).join(' · ')}.
 				Configura la fuente en Ajustes para poder seleccionarla.
 			</p>
 		{/if}

@@ -27,7 +27,7 @@
 		<h1 class="page-title">Eventos</h1>
 		<p class="lead">
 			Cada evento agrupa las notas que cubren el mismo hecho, aunque sea en distintos medios. El
-			<span class="font-medium">feed</span>, muestra cada nota individual tal como entró. La vista
+			<span class="font-medium">feed</span> muestra cada nota individual tal como entró. La vista
 			<span class="font-medium">Con eco de medios</span> muestra solo los hechos que dos o más
 			medios cubrieron — la cobertura merece seguimiento; los eventos con una sola nota, que son
 			repetidos del feed, quedan disponibles en <span class="font-medium">Todas</span>.

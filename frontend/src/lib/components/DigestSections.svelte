@@ -160,7 +160,7 @@
 	<div class="summary-grid">
 		<article class="summary-box" aria-labelledby="media-tone">
 			<h3 id="media-tone">Tendencia en medios</h3>
-			<p class="summary-meta">{total} mención{total === 1 ? '' : 'es'} en la jornada</p>
+			<p class="summary-meta">{total} {total === 1 ? 'mención' : 'menciones'} en la jornada</p>
 			<dl class="tone-list" aria-label="Distribución de tono en medios">
 				{#each mediaToneRows as row (row.key)}
 					<div><dt>{row.label}</dt><dd>{row.value}</dd></div>
@@ -206,7 +206,7 @@
 <section id="desglose-cobertura" class="section" aria-labelledby="cobertura-dia">
 	<div class="section-heading">
 		<h2 id="cobertura-dia">Cobertura del día</h2>
-		<span class="section-note">{total} mención{total === 1 ? '' : 'nes'} en la jornada</span>
+		<span class="section-note">{total} {total === 1 ? 'mención' : 'menciones'} en la jornada</span>
 	</div>
 	<div class="coverage">
 		<div class="metric">
