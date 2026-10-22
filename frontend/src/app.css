@@ -891,6 +891,10 @@ div.coverage {
 	font-size: 12px;
 	line-height: 1.45;
 }
+html {
+	scroll-behavior: smooth;
+}
+
 .actor-link,
 .digest-feed-link {
 	display: inline-flex;
@@ -909,6 +913,10 @@ div.coverage {
 .digest-feed-link {
 	margin: 24px 0 0;
 	font-size: 15px;
+}
+/* Anchor target: clear the sticky topbar when jumping to the digest feed. */
+#noticias {
+	scroll-margin-top: 80px;
 }
 .actor-link:hover {
 	background: var(--color-surface);

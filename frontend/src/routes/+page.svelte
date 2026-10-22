@@ -99,10 +99,10 @@
 				<p>{summary.narrative}</p>
 			</section>
 
-			<!-- Day cross-link: right under the narrative, before the digest
-				sections - the live feed filtered to this exact day. -->
-			<a class="digest-feed-link" href={`/feed?since=${day}&until=${day}#feed`}>
-				Ver todas las noticias del día en el Feed →
+			<!-- Day cross-link: the digest has its own feed section; this
+				anchor just scrolls down to it. -->
+			<a class="digest-feed-link" href="#noticias">
+				Ver el feed de noticias ↓
 			</a>
 
 			<DigestSections
