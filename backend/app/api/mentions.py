@@ -29,7 +29,7 @@ def list_mentions(
     q: str | None = None,
     classifier: str | None = None,
     label: str | None = None,
-    limit: int = Query(default=50, ge=1, le=200),
+    limit: int = Query(default=50, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
 ) -> MentionPage:
     """Mention feed, newest first.

@@ -99,7 +99,7 @@ describe('DigestSections', () => {
 		const text = host.textContent ?? '';
 		expect(text).toContain('Institucional');
 		expect(text).toContain('Noticias · a · b');
-		expect(text).toContain('Tonos de la selección');
+		expect(text).toContain('Tono de las notas');
 		expect(text).toContain('La rectora encabezó la inauguración.');
 		expect(text).toContain('Por qué importa: Obra regional emblemática.');
 		expect(text).toContain('Vigilar: reacciones post-votación');
@@ -113,7 +113,7 @@ describe('DigestSections', () => {
 		expect(text).toContain('Sin datos');
 		expect(text).toContain('X: sin menciones');
 		expect(text).toContain('Facebook sin cobertura en la ventana');
-		expect(text).toContain('distribución no disponible');
+		expect(text).toContain('sin clasificación por evento');
 	});
 
 	it('renders day tone split, category bars and rectora quotes', () => {

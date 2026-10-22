@@ -58,8 +58,8 @@ function majoritySentimentByEvent(items: MentionLike[]): Record<string, string> 
 }
 
 async function loadSideData(day: string) {
-	const [mentionsResult, persons, keywords] = await Promise.all([
-		listMentions({ since: day, until: nextDay(day), limit: 200 })
+	const [mentionsResult, persons, keywords, settings] = await Promise.all([
+		listMentions({ since: day, until: nextDay(day), limit: 500 })
 			.then((page) => ({
 				tones: splitTones(page.items),
 				eventSentiment: majoritySentimentByEvent(page.items),
@@ -69,14 +69,17 @@ async function loadSideData(day: string) {
 		listPersons({ sort: 'mentions', limit: 3 }).catch(() => []),
 		listKeywords()
 			.then((rows) => rows.filter((keyword) => keyword.is_active))
-			.catch(() => [])
+			.catch(() => []),
+		// Digest cut hours drive the "siguiente actualización" stamp.
+		getClientSettings().catch(() => null)
 	]);
 	const tones = mentionsResult?.tones ?? null;
 	const eventSentiment = mentionsResult?.eventSentiment ?? {};
 	const fieldCount = mentionsResult?.fieldCount ?? 0;
+	const digestHours = settings?.digest_hours ?? [];
 	// Field-data ingest does not exist yet; count for the day drives the
 	// conditional "Datos de campo" section (hidden while zero).
-	return { tones, eventSentiment, fieldCount, persons, keywords };
+	return { tones, eventSentiment, fieldCount, persons, keywords, digestHours };
 }
 
 export const load: PageServerLoad = async ({ url }) => {
@@ -104,7 +107,7 @@ export const load: PageServerLoad = async ({ url }) => {
 		}
 		const side = summary
 			? await loadSideData(day)
-			: { tones: null, eventSentiment: {}, fieldCount: 0, persons: [], keywords: [] };
+			: { tones: null, eventSentiment: {}, fieldCount: 0, persons: [], keywords: [], digestHours: [] };
 		return { day, summary, latest_updated_at: latestUpdatedAt, days, ...side };
 	} catch (cause) {
 		const status = cause instanceof ApiError && cause.status >= 400 ? cause.status : 503;

@@ -250,3 +250,34 @@ export function zonedDayBounds(
 	const offset = `${sign}${String(Math.floor(abs / 60)).padStart(2, '0')}:${String(abs % 60).padStart(2, '0')}`;
 	return { since: `${dayIso}T00:00:00${offset}`, until: `${dayIso}T23:59:59${offset}` };
 }
+
+/** HH:MM in the display timezone; raw string when unparseable, '—' when absent. */
+export function formatDisplayTime(value: string | null | undefined): string {
+	if (!value) return '—';
+	const date = new Date(value);
+	if (Number.isNaN(date.getTime())) return value;
+	const parts = mexicoFormatter.formatToParts(date).reduce<Record<string, string>>((acc, part) => {
+		acc[part.type] = part.value;
+		return acc;
+	}, {});
+	return `${parts.hour}:${parts.minute}`;
+}
+
+/**
+ * Next digest cut label («HH:00») after now, in the display timezone.
+ * Cuts sit on the hour; past the last one the answer is tomorrow's first
+ * (the stamp shows no date by design). null when the schedule is unknown.
+ */
+export function nextCutLabel(hours: number[] | undefined, now: Date): string | null {
+	if (!hours || hours.length === 0) return null;
+	const parts = new Intl.DateTimeFormat('en-US', {
+		timeZone: DISPLAY_TIMEZONE,
+		hour12: false,
+		hour: '2-digit'
+	}).formatToParts(now);
+	const raw = parts.find((part) => part.type === 'hour')?.value ?? '0';
+	const nowHour = Number(raw) % 24;
+	const sorted = [...hours].sort((a, b) => a - b);
+	const next = sorted.find((hour) => hour > nowHour) ?? sorted[0];
+	return `${next}:00`;
+}

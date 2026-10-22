@@ -392,9 +392,9 @@ def test_mentions_pagination_and_limit_bounds(api, db) -> None:
     assert len(page["items"]) == 5
     assert page["total"] == 60
 
-    assert api.get("/api/mentions", params={"limit": 200}).status_code == 200
+    assert api.get("/api/mentions", params={"limit": 500}).status_code == 200
     assert api.get("/api/mentions", params={"limit": 0}).status_code == 422
-    assert api.get("/api/mentions", params={"limit": 201}).status_code == 422
+    assert api.get("/api/mentions", params={"limit": 501}).status_code == 422
 
 
 # ---------------------------------------------------------------- keywords

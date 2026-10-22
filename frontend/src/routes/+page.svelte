@@ -2,7 +2,12 @@
 	import { goto, invalidateAll } from '$app/navigation';
 	import { onMount } from 'svelte';
 
-	import { formatDisplayDateTime, formatLongDate } from '$lib/format';
+	import {
+		formatDisplayDateTime,
+		formatDisplayTime,
+		formatLongDate,
+		nextCutLabel
+	} from '$lib/format';
 	import { monogram } from '$lib/digest-stats';
 	import DigestSections from '$lib/components/DigestSections.svelte';
 	import type { PageProps } from './$types';
@@ -37,12 +42,7 @@
 		stopAutoRefresh();
 		refreshTimer = setInterval(() => {
 			if (document.visibilityState !== 'visible') return;
-			void invalidateAll().then(() => {
-				lastRefresh = new Date().toLocaleTimeString('es-MX', {
-					hour: '2-digit',
-					minute: '2-digit'
-				});
-			});
+			void refreshNow();
 		}, REFRESH_MS);
 	}
 
@@ -51,10 +51,30 @@
 		refreshTimer = undefined;
 	}
 
+	/** Hidden tabs skip the timer; the moment the tab is back, refresh. */
+	function onVisibilityChange() {
+		if (document.visibilityState === 'visible') void refreshNow();
+	}
+
+	async function refreshNow() {
+		await invalidateAll();
+		lastRefresh = new Date().toLocaleTimeString('es-MX', {
+			hour: '2-digit',
+			minute: '2-digit'
+		});
+	}
+
 	onMount(() => {
 		startAutoRefresh();
-		return stopAutoRefresh;
+		document.addEventListener('visibilitychange', onVisibilityChange);
+		return () => {
+			stopAutoRefresh();
+			document.removeEventListener('visibilitychange', onVisibilityChange);
+		};
 	});
+
+	const updatedLabel = $derived(summary ? formatDisplayTime(summary.updated_at) : null);
+	const nextCut = $derived(nextCutLabel(data.digestHours, new Date()));
 </script>
 
 <svelte:head>
@@ -69,7 +89,9 @@
 				<h1 id="digest-date">{formatLongDate(summary.summary_date)}</h1>
 				<div class="digest-meta">
 					<span class="mode">{modeLabel[summary.mode] ?? summary.mode}</span>
-					<span>actualizado {formatDisplayDateTime(summary.updated_at)}</span>
+					<span>
+						Resumen actualizado a las {updatedLabel}{nextCut ? ` · siguiente actualización a las ${nextCut}` : ''}
+					</span>
 					{#if lastRefresh}
 						<span>refrescado {lastRefresh}</span>
 					{/if}

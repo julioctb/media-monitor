@@ -2,7 +2,7 @@
 	import NewsEntry from '$lib/components/NewsEntry.svelte';
 	import { sourceLabel, sentimentLabel, topicLabel } from '$lib/format';
 
-	import { categoryRows, combineTones, toneRows, type ToneCounts } from '$lib/digest-stats';
+	import { categoryRows, toneRows, type ToneCounts } from '$lib/digest-stats';
 	import { formatDisplayDateTime, formatDisplayDateTimeAt } from '$lib/format';
 	import type { DailySummaryContent, DigestNewsItem } from '$lib/api';
 
@@ -66,7 +66,6 @@
 
 	const mediaToneRows = $derived(toneRows(tones?.media, 'Sin calcular'));
 	const socialToneRows = $derived(toneRows(tones?.social, 'Sin datos'));
-	const overallTones = $derived(tones ? combineTones(tones.media, tones.social) : null);
 
 	const redesMeta = $derived(
 		redes.length > 0
@@ -119,6 +118,24 @@
 	);
 
 	const sentimentedActions = $derived((rectora.actions ?? []).filter((action) => action.sentiment));
+
+	/* Cobertura habla EVENTOS: majority sentiment per digest note, so these
+	   numbers reconcile with the notas count. Raw-mention tone (the volume
+	   view) lives in Resumen general, labeled there. */
+	const eventTones = $derived.by(() => {
+		const tally = { positive: 0, negative: 0, neutral: 0 };
+		for (const item of noticias) {
+			if (item.event_id === undefined || item.event_id === null) continue;
+			const sentiment = sentimentByEvent[String(item.event_id)];
+			if (sentiment === 'positive' || sentiment === 'negative' || sentiment === 'neutral') {
+				tally[sentiment] += 1;
+			}
+		}
+		return tally;
+	});
+	const eventToneTotal = $derived(
+		eventTones.positive + eventTones.negative + eventTones.neutral
+	);
 	const positiveShare = $derived.by(() => {
 		if (sentimentedActions.length === 0) return null;
 		const positive = sentimentedActions.filter((action) => action.sentiment === 'positive').length;
@@ -214,19 +231,20 @@
 			<span class="metric-detail">de {TOPIC_TOTAL} categorías posibles</span>
 		</div>
 		<div class="metric">
-			<span class="metric-label">Tonos de la selección</span>
-			{#if overallTones && overallTones.total > 0 && overallTones.positive > 0}
+			<span class="metric-label">Tono de las notas</span>
+			{#if eventToneTotal > 0}
 				<strong class="metric-big">
-					{overallTones.positive}
-					<span class="metric-unit">positivas</span>
+					{eventTones.positive}
+					<span class="metric-unit">positiva{eventTones.positive === 1 ? '' : 's'}</span>
 				</strong>
 				<span class="metric-detail">
-					<span>{overallTones.negative} negativa{overallTones.negative === 1 ? '' : 's'}</span>
-					<span>{overallTones.neutral} neutra{overallTones.neutral === 1 ? 'l' : 'les'}</span>
+					<span>{eventTones.negative} negativa{eventTones.negative === 1 ? '' : 's'}</span>
+					<span>{eventTones.neutral} neutra{eventTones.neutral === 1 ? 'l' : 'les'}</span>
+					<span>mayoría de tono por evento</span>
 				</span>
 			{:else}
 				<strong class="metric-big">–</strong>
-				<span class="metric-detail">distribución no disponible</span>
+				<span class="metric-detail">sin clasificación por evento</span>
 			{/if}
 		</div>
 	</div>
