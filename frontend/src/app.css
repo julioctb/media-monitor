@@ -824,12 +824,14 @@ div.coverage {
 	font-size: 12px;
 	line-height: 1.45;
 }
-.history-list {
+/* Home digest sidebar history. Scoped to .sidebar: the consultas workspace
+   has its own .history-list card layout (see Consultas section). */
+.sidebar .history-list {
 	margin: 12px 0 0;
 	padding: 0;
 	list-style: none;
 }
-.history-list button {
+.sidebar .history-list button {
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
@@ -845,10 +847,10 @@ div.coverage {
 	font-size: 14px;
 	cursor: pointer;
 }
-.history-list button:hover {
+.sidebar .history-list button:hover {
 	background: var(--color-surface);
 }
-.history-list button[aria-pressed='true'] {
+.sidebar .history-list button[aria-pressed='true'] {
 	font-weight: 600;
 	background: var(--color-surface);
 	padding-left: 10px;
@@ -1543,6 +1545,9 @@ table.coverage th {
 	margin: 0;
 	padding: 0;
 	display: grid;
+	/* Constrain the track: nowrap titles otherwise force the column to
+	   their full min-content width and overflow the 280px panel. */
+	grid-template-columns: minmax(0, 1fr);
 	gap: 8px;
 	max-height: 320px;
 	overflow: auto;
