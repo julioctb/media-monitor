@@ -7,6 +7,7 @@ import {
 	testAi,
 	updateClientSettings
 } from '$lib/api';
+import { normalizeFacebookPageRef } from '$lib/facebook-page';
 import { handleKeywordCreate, handleKeywordDelete, handleKeywordToggle } from '$lib/keyword-actions';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -70,45 +71,6 @@ function optionalText(form: FormData, key: string): string | null {
 
 const DIGEST_HOUR_RE = /^\d{1,2}$/;
 
-/** Hosts whose URLs normalize to a page ref (tokenless FB ingest). */
-const FB_HOST_RE = /^(?:(?:www|m|mbasic|web)\.)?facebook\.com$/;
-
-const NUMERIC_RE = /^\d+$/;
-
-/**
- * Reduce a pasted Facebook URL — or bare slug/id — to the page ref the
- * tokenless ingest adapter builds `facebook.com/<ref>` from: public slug,
- * numeric id or `groups/<id>`. Accepts permalink paths (`/posts/..`),
- * querystrings, trailing slashes and `profile.php?id=`; foreign domains
- * and empty input return null.
- */
-export function normalizeFacebookPageRef(raw: string): string | null {
-	const value = raw.trim();
-	if (value === '') return null;
-
-	let path = value;
-	const withHost = /^(?:https?:\/\/)?([^/?#]+\.[^/?#]+)(\/[^#]*)?$/.exec(value);
-	if (withHost) {
-		if (!FB_HOST_RE.test(withHost[1].toLowerCase())) return null;
-		path = withHost[2] ?? '';
-	}
-
-	const [pathPart, query = ''] = path.split('#')[0].split('?');
-	const segments = pathPart.split('/').filter(Boolean);
-	const head = segments[0]?.toLowerCase();
-
-	if (head === 'profile.php') {
-		const id = new URLSearchParams(query).get('id');
-		return id !== null && NUMERIC_RE.test(id) ? id : null;
-	}
-	if (head === 'groups') {
-		return segments[1] !== undefined && NUMERIC_RE.test(segments[1])
-			? `groups/${segments[1]}`
-			: null;
-	}
-	return segments.length > 0 ? segments[0] : null;
-}
-
 /**
  * Digest cut hours from the repeated `digest_hour` inputs: parsed, clamped
  * to 0..23, deduped. Returns null when the resulting list is empty or over
@@ -127,16 +89,19 @@ function readDigestHours(form: FormData): number[] | null {
 	return hours.length >= 1 && hours.length <= 8 ? hours : null;
 }
 
-/** Zip the repeated row inputs by DOM order; drop fully empty rows. */
+/** Zip the repeated row inputs by DOM order; normalize, dedupe, drop junk. */
 function readFacebookPages(form: FormData): { page_id: string; label: string }[] {
-	const pageIds = form.getAll('fb_page_id').map((value) => String(value));
+	const urls = form.getAll('fb_url').map((value) => String(value));
 	const labels = form.getAll('fb_label').map((value) => String(value));
 	const pages: { page_id: string; label: string }[] = [];
-	for (let index = 0; index < pageIds.length; index += 1) {
-		const page_id = (pageIds[index] ?? '').trim();
-		const label = (labels[index] ?? '').trim();
-		if (page_id === '' && label === '') continue;
-		pages.push({ page_id, label });
+	const seen = new Set<string>();
+	for (let index = 0; index < urls.length; index += 1) {
+		const page_id = normalizeFacebookPageRef(urls[index] ?? '');
+		// Empty and unparseable rows drop silently; a repeated ref keeps its
+		// first label.
+		if (page_id === null || seen.has(page_id)) continue;
+		seen.add(page_id);
+		pages.push({ page_id, label: (labels[index] ?? '').trim() });
 	}
 	return pages;
 }

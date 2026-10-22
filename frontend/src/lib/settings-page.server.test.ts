@@ -1,6 +1,7 @@
 import { afterEach, expect, it, vi } from 'vitest';
 
-import { actions, normalizeFacebookPageRef } from '../routes/settings/+page.server';
+import { actions } from '../routes/settings/+page.server';
+import { normalizeFacebookPageRef } from '$lib/facebook-page';
 
 /**
  * Settings save (digest-multi-cut): the digest-hours chips serialize to a
@@ -120,20 +121,43 @@ it('fails with 400 above the 8-cut cap', async () => {
 	expect(result.status).toBe(400);
 });
 
-it('persists the facebook rows tokenless, dropping empty rows', async () => {
+it('persists facebook rows from urls, normalized tokenless', async () => {
 	stubFetch(SETTINGS_ROW);
 
 	const result = await save({
 		timezone: 'America/Mexico_City',
 		retention_days: '30',
 		digest_hour: ['21'],
-		fb_page_id: ['105335348671635', ''],
+		fb_url: ['https://www.facebook.com/105335348671635/posts/1?ref=page', ''],
 		fb_label: ['Despierta BUAP', '']
 	});
 
 	expect(result['ok']).toBe(true);
 	const body = savedBodies[0] as { facebook_pages?: Record<string, string>[] };
 	expect(body['facebook_pages']).toEqual([{ page_id: '105335348671635', label: 'Despierta BUAP' }]);
+});
+
+it('dedupes facebook refs keeping the first label, dropping invalid rows', async () => {
+	stubFetch(SETTINGS_ROW);
+
+	await save({
+		timezone: 'America/Mexico_City',
+		retention_days: '30',
+		digest_hour: ['21'],
+		fb_url: [
+			'facebook.com/econsulta',
+			'https://www.facebook.com/econsulta?sk=wall', // same ref: dropped
+			'https://ejemplo.com/nope', // foreign domain: dropped
+			'https://www.facebook.com/profile.php?id=987'
+		],
+		fb_label: ['Primera', 'Segunda', 'Otro', 'Perfil']
+	});
+
+	const body = savedBodies[0] as { facebook_pages?: Record<string, string>[] };
+	expect(body['facebook_pages']).toEqual([
+		{ page_id: 'econsulta', label: 'Primera' },
+		{ page_id: '987', label: 'Perfil' }
+	]);
 });
 
 // -- Keyword actions served by the settings page (embedded panel) --

@@ -4,6 +4,7 @@
 	import KeywordsPanel from '$lib/components/KeywordsPanel.svelte';
 	import { INPUT_CLS } from '$lib/ui';
 	import type { AvailableScraper, ClientSettings } from '$lib/api';
+	import { normalizeFacebookPageRef } from '$lib/facebook-page';
 	import type { PageProps, SubmitFunction } from './$types';
 
 	let { data, form }: PageProps = $props();
@@ -21,8 +22,9 @@
 	// Keyword CRUD is embedded below via KeywordsPanel; its actions live in
 	// this page's server module.
 
+	/** One ingest source: the Facebook URL as typed, plus its optional label. */
 	interface PageDraft {
-		page_id: string;
+		url: string;
 		label: string;
 	}
 
@@ -50,7 +52,10 @@
 			retention_days: String(settings.retention_days),
 			digest_hours: [...settings.digest_hours],
 			gdelt_enabled: settings.gdelt_enabled,
-			pages: settings.facebook_pages.map((page) => ({ ...page })),
+			pages: settings.facebook_pages.map((page) => ({
+				url: `facebook.com/${page.page_id}`,
+				label: page.label
+			})),
 			rss: settings.rss_feeds.join('\n'),
 			scrapers: [...settings.scrapers],
 			ai_provider: settings.ai_provider,
@@ -66,6 +71,8 @@
 	let draft = $state<SettingsDraft>(toDraft(data.settings));
 	let dirty = $state(false);
 	let submitting = $state(false);
+	/** Inline per-row URL hints appear once a save persisted (or dropped) rows. */
+	let showRowHints = $state(false);
 
 	// Registry snapshot from the load: toggles write to `draft`, never to
 	// page data. Intentional snapshot, like `draft` above.
@@ -109,13 +116,18 @@
 	}
 
 	function addPage(): void {
-		draft.pages.push({ page_id: '', label: '' });
+		draft.pages.push({ url: '', label: '' });
 		dirty = true;
 	}
 
 	function removePage(index: number): void {
 		draft.pages.splice(index, 1);
 		dirty = true;
+	}
+
+	/** Unparseable non-empty URL: the server would drop this row on save. */
+	function rowInvalid(url: string): boolean {
+		return url.trim() !== '' && normalizeFacebookPageRef(url) === null;
 	}
 
 	/**
@@ -134,6 +146,12 @@
 			if (result.type === 'success') {
 				const payload = result.data;
 				if (payload?.action === 'save' && payload.ok) {
+					// Mirror the server: blank rows never persist; invalid ones stay
+					// flagged by the inline hint until fixed or removed.
+					draft.pages = draft.pages.filter(
+						(page) => page.url.trim() !== '' || page.label.trim() !== ''
+					);
+					showRowHints = true;
 					dirty = false;
 				}
 			}
@@ -344,57 +362,71 @@
 
 					<article class="source-card">
 						<h3>Redes sociales</h3>
-						<p>Páginas de Facebook públicas (id o slug). Sin tokens: se leen del HTML público.</p>
+						<p>Páginas o grupos públicos de Facebook, por URL. Sin tokens: se lee el HTML público.</p>
 						{#if draft.pages.length === 0}
-							<p class="field-hint">Sin páginas: agrega una con su id o slug.</p>
+							<p class="keywords-empty">Sin páginas: agrega la URL de la primera.</p>
+						{:else}
+							<div class="table-wrap">
+								<table class="data-table">
+									<thead>
+										<tr>
+											<th scope="col" class="w-[45%]">URL</th>
+											<th scope="col" class="w-[35%]">Etiqueta</th>
+											<th scope="col">Acciones</th>
+										</tr>
+									</thead>
+									<tbody>
+										{#each draft.pages as page, index (page)}
+											<tr>
+												<td data-label="URL">
+													<input
+														id={`fb-url-${index}`}
+														name="fb_url"
+														type="text"
+														bind:value={page.url}
+														placeholder="facebook.com/pagina"
+														class={INPUT_CLS}
+													/>
+													{#if showRowHints && rowInvalid(page.url)}
+														<p class="mt-1 text-xs text-danger">
+															URL no válida: usa facebook.com/pagina, el id numérico o groups/123.
+														</p>
+													{/if}
+												</td>
+												<td data-label="Etiqueta">
+													<input
+														id={`fb-label-${index}`}
+														name="fb_label"
+														type="text"
+														bind:value={page.label}
+														placeholder="Opcional"
+														class={INPUT_CLS}
+													/>
+												</td>
+												<td data-label="Acciones">
+													<button
+														type="button"
+														aria-label={`Quitar la fuente ${page.label || page.url || index + 1}`}
+														onclick={() => removePage(index)}
+														disabled={submitting}
+														class="text-muted transition-colors hover:text-danger disabled:opacity-40"
+													>
+														×
+													</button>
+												</td>
+											</tr>
+										{/each}
+									</tbody>
+								</table>
+							</div>
 						{/if}
-						<div class="grid gap-3">
-							{#each draft.pages as page, index (page)}
-								<div class="rounded-xl border border-line-soft bg-white p-3">
-									<div class="grid gap-3 sm:grid-cols-2">
-										<div>
-											<label for={`fb-page-${index}`} class={LABEL_CLS}>Page ID</label>
-											<input
-												id={`fb-page-${index}`}
-												name="fb_page_id"
-												type="text"
-												bind:value={page.page_id}
-												placeholder="1234567890 o slug"
-												class={INPUT_CLS}
-											/>
-										</div>
-										<div>
-											<label for={`fb-label-${index}`} class={LABEL_CLS}>Etiqueta</label>
-											<input
-												id={`fb-label-${index}`}
-												name="fb_label"
-												type="text"
-												bind:value={page.label}
-												placeholder="Opcional"
-												class={INPUT_CLS}
-											/>
-										</div>
-									</div>
-									<div class="mt-3 flex gap-2">
-										<button
-											type="button"
-											onclick={() => removePage(index)}
-											disabled={submitting}
-											class="btn-small btn-delete rounded-full border border-line px-3 py-1.5 text-xs font-medium text-muted transition-colors hover:bg-surface-warm hover:text-danger disabled:opacity-60"
-										>
-											Eliminar
-										</button>
-									</div>
-								</div>
-							{/each}
-						</div>
 						<button
 							type="button"
 							onclick={addPage}
 							disabled={submitting}
 							class="mt-3 rounded-full border border-dashed border-line px-3 py-1.5 text-xs font-medium text-muted transition-colors hover:bg-surface-warm disabled:opacity-60"
 						>
-							+ Agregar página
+							+ Agregar fuente
 						</button>
 					</article>
 

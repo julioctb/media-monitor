@@ -43,6 +43,18 @@ Motivación verificada: el token de Graph solo lee páginas propias (`pages_read
   - DB: `SELECT ... WHERE source='facebook_page'` → 2 filas con autor correcto; API `/api/mentions` las sirve.
 - T8: `grep` final limpio — solo quedan `MentionSource.facebook_page` (enum, valor en DB), el string `"facebook_page"` (logs) y el fallback env `FB_PAGES` vivo en `settings_runtime`. Sin `FB_PAGES` en compose/.env.
 
+## UI: alta de fuentes por URL (settings)
+
+- La tarjeta «Redes sociales» es una tabla (URL / Etiqueta / Acciones): «+ Agregar fuente» appenda una fila vacía sin guardar; la X de fila la quita del draft (sin submit). Las filas guardadas se precargan como `facebook.com/<page_id>`; al guardar, el draft refleja lo persistido (filas vacías fuera) y las filas con URL inválida muestran hint inline en la fila.
+- Normalizador `normalizeFacebookPageRef` (`frontend/src/lib/facebook-page.ts`; SvelteKit solo permite exportar `load`/`actions`/config desde `+page.server.ts`, por eso el helper vive en `$lib`): acepta URL completa con permalink/querystring/slash final, `profile.php?id=`, `groups/<id>/`, o slug/id pelado; devuelve el ref con el que el adapter arma `facebook.com/<ref>`, o `null`. Casos:
+  - `https://www.facebook.com/econsulta` → `econsulta`
+  - `facebook.com/econsulta/posts/123?ref=x` → `econsulta`
+  - `https://www.facebook.com/profile.php?id=987` → `987`
+  - `https://www.facebook.com/groups/555/` → `groups/555`
+  - `econsulta` / `105335348671635` pelados → ídem
+  - dominio no-FB / vacío → `null`
+- `readFacebookPages` lee `fb_url`, normaliza, dedupea por ref quedando la primera etiqueta y descarta vacías/inválidas; el payload hacia la API sigue siendo `facebook_pages: {page_id, label}` (el backend no cambia).
+
 ## Lecciones
 
 - El HTML público logged-out de Facebook (2026-10-22) no tiene `data-utime`, `<time>` ni `data-testid`: el timestamp hay que tomarlo de `aria-label` de fecha o entrar sin él; los permalinks vienen como `permalink.php?story_fbid=...`, no `/posts/`.
