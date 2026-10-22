@@ -26,7 +26,7 @@ import re
 import time
 
 import httpx
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.models.base import Sentiment
 
@@ -127,7 +127,10 @@ class EnrichmentResult(BaseModel):
 
     summary: str
     sentiment: Sentiment
-    sentiment_score: float = Field(ge=0.0, le=1.0)
+    # Resilience: models occasionally omit the score; it is derived from
+    # the label instead of discarding the whole pass (summary, topics and
+    # political label included). Explicit values keep the range check.
+    sentiment_score: float | None = Field(default=None, ge=0.0, le=1.0)
     # Classification v2: the enrichment verdict is the canonical topic. Any
     # value outside the enum degrades to None (no row stored) instead of
     # failing the whole pass.
@@ -177,6 +180,22 @@ class EnrichmentResult(BaseModel):
         if isinstance(value, str):
             return float(value)
         return value
+
+    # Heuristic strength for a label-only verdict; keeps the column
+    # complete for stats/sorting without inventing engine confidence.
+    _DERIVED_SCORES = {
+        Sentiment.positive: 0.75,
+        Sentiment.negative: 0.25,
+        Sentiment.neutral: 0.5,
+    }
+
+    @model_validator(mode="after")
+    def _derive_missing_score(self) -> "EnrichmentResult":
+        if self.sentiment_score is None:
+            object.__setattr__(
+                self, "sentiment_score", self._DERIVED_SCORES[self.sentiment]
+            )
+        return self
 
     @field_validator("persons", mode="before")
     @classmethod

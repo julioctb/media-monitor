@@ -262,3 +262,115 @@ class TestBackfillEnrichment:
         assert session.get(Person, person_id).name == "Autoridad Central"
         # The stale link did not survive the re-enrichment.
         assert old_person.id not in links
+
+
+class TestSweepBacklog:
+    """Self-heal: the worker sweep drains stale unclassified mentions."""
+
+    @staticmethod
+    def _client(session):
+        client = Client(name="sweep")
+        session.add(client)
+        session.commit()
+        return client
+
+    @staticmethod
+    def _mention(client, n, *, ingested_at):
+        url = f"https://sweep.com/{n}"
+        return Mention(
+            client_id=client.id,
+            source=MentionSource.news_rss,
+            url=url,
+            url_hash=make_url_hash(url),
+            title=f"sweep {n}",
+            content="texto para clasificar",
+            ingested_at=ingested_at,
+        )
+
+    def _ok_result(self):
+        return EnrichmentResult(
+            summary="Resumen del sweep.",
+            sentiment=Sentiment.positive,
+            sentiment_score=0.8,
+        )
+
+    def test_sweep_enriches_stale_skips_recent(self, session) -> None:
+        from datetime import datetime, timedelta, timezone
+
+        from scripts.backfill_enrichment import sweep_backlog
+
+        client = self._client(session)
+        now = datetime.now(tz=timezone.utc)
+        old = self._mention(client, 1, ingested_at=now - timedelta(hours=6))
+        fresh = self._mention(client, 2, ingested_at=now - timedelta(minutes=30))
+        session.add_all([old, fresh])
+        session.commit()
+
+        class FakeEnricher:
+            def __init__(self):
+                self.calls = 0
+
+            def enrich(self, text, lang="es"):
+                self.calls += 1
+                return self._result
+
+        enricher = FakeEnricher()
+        enricher._result = self._ok_result()
+        stats = sweep_backlog(session, enricher, client_id=client.id, now=now)
+
+        assert stats["candidates"] == 1
+        assert stats["enriched"] == 1
+        assert enricher.calls == 1
+        assert old.summary == "Resumen del sweep."
+        assert old.sentiment is Sentiment.positive
+        # The fresh row belongs to the ingest cycle, not the sweep.
+        assert fresh.summary is None
+
+    def test_sweep_respects_cap_and_counts_failures(self, session) -> None:
+        from datetime import datetime, timedelta, timezone
+
+        from scripts.backfill_enrichment import sweep_backlog
+
+        client = self._client(session)
+        now = datetime.now(tz=timezone.utc)
+        old = [
+            self._mention(client, n, ingested_at=now - timedelta(hours=9 - n))
+            for n in range(3)
+        ]
+        session.add_all(old)
+        session.commit()
+
+        class CapEnricher:
+            def __init__(self):
+                self.calls = 0
+                self._result: EnrichmentResult | None = None
+
+            def enrich(self, text, lang="es"):
+                self.calls += 1
+                return self._result
+
+        # Cap: 3 stale candidates, limit 2 -> exactly 2 enriched.
+        cap_enricher = CapEnricher()
+        cap_enricher._result = self._ok_result()
+        stats = sweep_backlog(
+            session, cap_enricher, client_id=client.id, now=now, limit=2
+        )
+        assert stats["enriched"] == 2
+        assert cap_enricher.calls == 2
+
+        # Failure: a broken enricher counts failures, rows stay untouched.
+        session.expire_all()
+        pending = [m for m in old if m.summary is None]
+        assert len(pending) == 1
+
+        class BrokenEnricher:
+            def enrich(self, text, lang="es"):
+                raise RuntimeError("provider down")
+
+        stats = sweep_backlog(
+            session, BrokenEnricher(), client_id=client.id, now=now
+        )
+        assert stats["failed"] == 1
+        assert stats["enriched"] == 0
+        session.expire_all()
+        assert pending[0].summary is None

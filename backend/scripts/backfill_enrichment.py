@@ -68,6 +68,7 @@ def candidate_ids(
     client_id: int | None = None,
     force: bool = False,
     since: datetime | None = None,
+    before: datetime | None = None,
     ids: list[int] | None = None,
     with_persons: bool = False,
 ) -> list[int]:
@@ -77,6 +78,8 @@ def candidate_ids(
     (still intersected with client/since filters). ``with_persons`` keeps
     only rows with at least one person link — the re-enrichment scope when
     the goal is repairing the persons graph without touching the rest.
+    ``before`` bounds ingested_at from above (sweep: only rows older than
+    the ingest window, which owns fresh rows).
     """
     stmt = select(Mention.id).order_by(Mention.id)
     if not force:
@@ -87,6 +90,8 @@ def candidate_ids(
         stmt = stmt.where(Mention.client_id == client_id)
     if since is not None:
         stmt = stmt.where(Mention.ingested_at >= since)
+    if before is not None:
+        stmt = stmt.where(Mention.ingested_at < before)
     if with_persons:
         stmt = stmt.where(
             Mention.id.in_(select(MentionPerson.mention_id).distinct())
@@ -236,6 +241,44 @@ def build_enricher_from_settings(session: Session, client_id: int):
 
     enricher, _ = cycle_enricher(client_id)
     return enricher
+
+
+#: Worker sweep defaults: rows per cycle and minimum age before the sweep
+#: touches a row (the ingest cycle owns fresh mentions and their cap).
+SWEEP_LIMIT = 25
+SWEEP_MIN_AGE_H = 2
+
+
+def sweep_backlog(
+    session: Session,
+    enricher,
+    *,
+    client_id: int,
+    now: datetime,
+    limit: int = SWEEP_LIMIT,
+    min_age_h: int = SWEEP_MIN_AGE_H,
+) -> dict[str, int]:
+    """Self-heal pass: re-enrich the stale unclassified backlog.
+
+    Picks the OLDEST summary-NULL mentions older than ``min_age_h`` —
+    rows the ingest cycle's per-cycle cap, a provider outage or a
+    settings window left behind — and runs the normal ``backfill`` on
+    them (canonical sentiment, persons relink, classifications). Called
+    once per ingest cycle by the worker; failures leave rows touchable
+    again next cycle, so the backlog drains without manual backfills.
+    """
+    cutoff = now - timedelta(hours=min_age_h)
+    stale = candidate_ids(session, client_id=client_id, before=cutoff)
+    if not stale:
+        return {
+            "enriched": 0,
+            "failed": 0,
+            "skipped_empty": 0,
+            "canonical_overrides": 0,
+            "persons_relinked": 0,
+            "candidates": 0,
+        }
+    return backfill(session, enricher, client_id=client_id, ids=stale[:limit])
 
 
 def main() -> None:  # pragma: no cover - CLI wiring

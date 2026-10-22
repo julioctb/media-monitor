@@ -296,3 +296,26 @@ class TestLLMEventSummarizer:
 
         enricher = _enricher(handler, attempts=1)
         assert enricher.summarize(["a", "b"]) is None
+
+
+class TestDerivedSentimentScore:
+    """Resilience: a missing sentiment_score must not discard the pass."""
+
+    def test_missing_score_derives_from_label(self) -> None:
+        payload = {k: v for k, v in GOOD_PAYLOAD.items() if k != "sentiment_score"}
+        result = parse_enrichment(json.dumps(payload))
+        assert result.sentiment is Sentiment.positive
+        assert result.sentiment_score == 0.75
+
+    def test_missing_score_neutral_and_negative(self) -> None:
+        base = {k: v for k, v in GOOD_PAYLOAD.items() if k != "sentiment_score"}
+        assert parse_enrichment(
+            json.dumps(dict(base, sentiment="neutral"))
+        ).sentiment_score == 0.5
+        assert parse_enrichment(
+            json.dumps(dict(base, sentiment="negative"))
+        ).sentiment_score == 0.25
+
+    def test_explicit_score_still_validated(self) -> None:
+        with pytest.raises(Exception):  # noqa: B017 - pydantic ValidationError
+            parse_enrichment(json.dumps(dict(GOOD_PAYLOAD, sentiment_score=7)))

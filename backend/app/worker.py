@@ -208,6 +208,21 @@ def ingest_job() -> dict[str, int]:
             check_sentiment_shift(session, client_id=client.id, now=cycle_started)
         except Exception:  # noqa: BLE001 - best-effort by design
             log.exception("sentiment shift check failed")
+        if enricher is not None:
+            try:
+                # Self-heal (enrich-resilience): drain the stale unclassified
+                # backlog — per-cycle caps, provider outages and settings
+                # windows leave rows NULL; this sweep re-enriches the oldest
+                # every cycle. Never fails the cycle.
+                from scripts.backfill_enrichment import sweep_backlog
+
+                sweep = sweep_backlog(
+                    session, enricher, client_id=client.id, now=cycle_started
+                )
+                if sweep["candidates"]:
+                    log.info("enrich sweep: %s", sweep)
+            except Exception:  # noqa: BLE001 - best-effort by design
+                log.exception("enrichment sweep failed")
         return counts
     finally:
         session.close()
