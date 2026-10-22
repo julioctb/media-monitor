@@ -24,6 +24,7 @@ from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 from bs4 import BeautifulSoup
+from pydantic import BaseModel
 
 from app.ingest.base import RawMention, SourceAdapter
 from app.ingest.matching import find_matching_keyword
@@ -33,6 +34,13 @@ log = logging.getLogger("ingest.facebook_public")
 
 FB_PAGE_URL = "https://www.facebook.com/{page_id}/"
 MAX_POSTS_PER_PAGE = 15  # first screenful is enough for an incremental cycle
+
+
+class FacebookPageTarget(BaseModel):
+    """One monitored public page: id (numeric or slug) + display label."""
+
+    page_id: str
+    label: str = ""
 
 _RELATIVE = re.compile(
     r"hace\s+(\d+)\s*(minutos?|min|horas?|h|d[ií]as?|d|semanas?|s)\b", re.I

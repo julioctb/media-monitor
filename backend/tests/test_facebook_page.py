@@ -9,8 +9,9 @@ import pytest
 
 from pydantic import ValidationError
 
-from app.config import FacebookPageCredentials, Settings
+from app.config import Settings
 from app.ingest.facebook_page import (
+    FacebookPageCredentials,
     POST_FIELDS,
     FacebookPageAdapter,
     parse_page_posts,
@@ -239,13 +240,13 @@ class TestFacebookPagesSettings:
         monkeypatch.setenv("FB_PAGES", "")
         assert Settings(_env_file=None).fb_pages == []
 
-    def test_json_env_parsed_into_credentials(self, monkeypatch) -> None:
+    def test_json_env_parsed_into_targets(self, monkeypatch) -> None:
+        # Legacy rows carry token/kind extras: pydantic ignores them.
         monkeypatch.setenv(
             "FB_PAGES", '[{"page_id": "1001", "token": "t", "label": "L"}]'
         )
         pages = Settings(_env_file=None).fb_pages
         assert pages[0].page_id == "1001"
-        assert pages[0].token == "t"
         assert pages[0].label == "L"
 
     def test_label_optional_and_bad_json_raises(self, monkeypatch) -> None:
@@ -254,22 +255,6 @@ class TestFacebookPagesSettings:
         monkeypatch.setenv("FB_PAGES", "nope")
         with pytest.raises(ValidationError):
             Settings(_env_file=None)
-
-    def test_graph_version_default_is_pinned(self, monkeypatch) -> None:
-        monkeypatch.delenv("FB_GRAPH_API_VERSION", raising=False)
-        assert Settings(_env_file=None).fb_graph_api_version == "v26.0"
-
-    def test_kind_absent_in_env_defaults_to_page(self, monkeypatch) -> None:
-        # Backward compat: stored rows without kind keep the page behavior.
-        monkeypatch.setenv("FB_PAGES", '[{"page_id": "1001", "token": "t"}]')
-        assert Settings(_env_file=None).fb_pages[0].kind == "page"
-
-    def test_kind_group_parsed_from_env(self, monkeypatch) -> None:
-        monkeypatch.setenv(
-            "FB_PAGES",
-            '[{"page_id": "1090003732034388", "token": "t", "kind": "group"}]',
-        )
-        assert Settings(_env_file=None).fb_pages[0].kind == "group"
 
 
 class TestPipelineIntegration:

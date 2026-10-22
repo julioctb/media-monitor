@@ -10,7 +10,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
-from app.ingest.facebook_page import FacebookPageCredentials
+from app.ingest.facebook_public import FacebookPageTarget
 from app.models import AlertDigest, MentionSource, Sentiment
 from app.settings_runtime import parse_digest_hours
 
@@ -160,7 +160,7 @@ class ClientSettingsOut(BaseModel):
     digest_hours: list[int]
     digest_focus_person_id: int | None
     gdelt_enabled: bool
-    facebook_pages: list[FacebookPageCredentials]
+    facebook_pages: list[FacebookPageTarget]
     rss_feeds: list[str]
     scrapers: list[str]
     ai_provider: str
@@ -194,7 +194,7 @@ class ClientSettingsUpdate(BaseModel):
     digest_hours: list[int] | None = Field(default=None)
     digest_focus_person_id: int | None = Field(default=None, ge=1)
     gdelt_enabled: bool | None = None
-    facebook_pages: list[FacebookPageCredentials] | None = None
+    facebook_pages: list[FacebookPageTarget] | None = None
     rss_feeds: list[str] | None = None
     scrapers: list[str] | None = None
     ai_provider: Literal["local", "openai"] | None = None

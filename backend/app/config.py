@@ -7,7 +7,7 @@ from typing import Annotated
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
-from app.ingest.facebook_page import FB_GRAPH_API_VERSION, FacebookPageCredentials
+from app.ingest.facebook_public import FacebookPageTarget
 
 
 class Settings(BaseSettings):
@@ -34,14 +34,12 @@ class Settings(BaseSettings):
     # Client-side rate limit for the X provider (requests per minute)
     x_provider_rate_per_min: float = 10.0
 
-    # Facebook Pages via Graph API: JSON list of {"page_id", "token",
-    # "label"} with one page access token per page. Empty/unset disables
-    # the adapter.
-    fb_pages: Annotated[list[FacebookPageCredentials], NoDecode] = Field(
+    # Public Facebook pages: JSON list of {"page_id", "label"} (id numeric
+    # or slug). Empty/unset disables the adapter; no tokens — the public
+    # HTML is scraped headless.
+    fb_pages: Annotated[list[FacebookPageTarget], NoDecode] = Field(
         default_factory=list
     )
-    # Pinned latest stable Graph API version (see app.ingest.facebook_page).
-    fb_graph_api_version: str = FB_GRAPH_API_VERSION
 
     # SMTP for alert emails
     smtp_host: str = ""

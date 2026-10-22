@@ -86,16 +86,11 @@ def build_adapters(effective: EffectiveSettings) -> list:
     else:
         log.info("GDELT disabled by settings (gdelt_enabled=false)")
     if effective.facebook_pages:
-        # Imported lazily so the module (and its httpx client wiring) only
+        # Imported lazily so the module (and its browser wiring) only
         # loads when a page is actually configured.
-        from app.ingest.facebook_page import FacebookPageAdapter
+        from app.ingest.facebook_public import FacebookPublicAdapter
 
-        adapters.append(
-            FacebookPageAdapter(
-                pages=list(effective.facebook_pages),
-                graph_version=settings.fb_graph_api_version,
-            )
-        )
+        adapters.append(FacebookPublicAdapter(pages=list(effective.facebook_pages)))
     else:
         log.info("Facebook Pages disabled: none in settings and FB_PAGES unset")
     if effective.rss_feeds:

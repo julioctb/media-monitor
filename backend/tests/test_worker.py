@@ -3,7 +3,7 @@
 from datetime import datetime, timedelta, timezone
 
 from app import worker
-from app.ingest.facebook_page import FacebookPageCredentials
+from app.ingest.facebook_public import FacebookPageTarget
 from app.models import Mention, MentionSource, queries
 from app.settings_runtime import EffectiveSettings
 
@@ -47,14 +47,12 @@ def test_facebook_pages_disabled_without_config(monkeypatch) -> None:
 
 def test_facebook_pages_enabled_from_settings(monkeypatch) -> None:
     monkeypatch.setattr(worker.settings, "x_provider_api_key", "")
-    pages = (FacebookPageCredentials(page_id="1001", token="t", label="L"),)
+    pages = (FacebookPageTarget(page_id="1001", label="L"),)
     adapters = worker.build_adapters(_effective(facebook_pages=pages))
     assert [a.name for a in adapters] == ["google_news", "gdelt", "facebook_page"]
-    # Construction must not open connections; the URL carries the pin.
-    assert (
-        adapters[2].posts_url("1001")
-        == "https://graph.facebook.com/v26.0/1001/posts"
-    )
+    # Construction must not open connections; the public scraper carries
+    # the (page_id, label) pairs verbatim.
+    assert adapters[2]._pages == [("1001", "L")]
 
 
 def test_rss_feeds_enabled_from_settings(monkeypatch) -> None:

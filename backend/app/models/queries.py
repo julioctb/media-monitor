@@ -663,23 +663,19 @@ def _validate_facebook_pages(value: object) -> list[dict]:
         raise ValueError("facebook_pages must be a list")
     pages: list[dict] = []
     for entry in value:
-        if hasattr(entry, "model_dump"):  # accept pydantic credentials objects
+        if hasattr(entry, "model_dump"):  # accept pydantic target objects
             entry = entry.model_dump()
         if not isinstance(entry, dict):
-            raise ValueError("each facebook page must be an object with page_id and token")
+            raise ValueError("each facebook page must be an object with page_id and label")
         page_id = entry.get("page_id")
-        token = entry.get("token")
         label = entry.get("label") or ""
         if not isinstance(page_id, str) or not page_id.strip():
             raise ValueError("each facebook page needs a non-empty page_id")
-        if not isinstance(token, str) or not token.strip():
-            raise ValueError("each facebook page needs a non-empty token")
         if not isinstance(label, str):
             raise ValueError("facebook page label must be a string")
         pages.append(
             {
                 "page_id": page_id.strip(),
-                "token": token.strip(),
                 "label": label.strip(),
             }
         )

@@ -19,7 +19,7 @@ from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 from app.config import settings as env_settings
-from app.ingest.facebook_page import FacebookPageCredentials
+from app.ingest.facebook_public import FacebookPageTarget
 from app.models import queries
 from app.models.settings import DEFAULT_TIMEZONE
 
@@ -40,7 +40,7 @@ class EffectiveSettings:
     digest_hours: list[int] = field(default_factory=lambda: [21])
     digest_focus_person_id: int | None = None
     gdelt_enabled: bool = True
-    facebook_pages: tuple[FacebookPageCredentials, ...] = ()
+    facebook_pages: tuple[FacebookPageTarget, ...] = ()
     rss_feeds: tuple[str, ...] = ()
     scrapers: tuple[str, ...] = ()
     ai_provider: str = "local"
@@ -56,14 +56,15 @@ class EffectiveSettings:
 _cycle_cache: dict[int, EffectiveSettings] = {}
 
 
-def _pages_from_row(row) -> tuple[FacebookPageCredentials, ...]:
-    pages: list[FacebookPageCredentials] = []
+def _pages_from_row(row) -> tuple[FacebookPageTarget, ...]:
+    pages: list[FacebookPageTarget] = []
     for entry in row.facebook_pages or []:
-        if isinstance(entry, FacebookPageCredentials):
+        if isinstance(entry, FacebookPageTarget):
             pages.append(entry)
             continue
         try:
-            pages.append(FacebookPageCredentials(**entry))
+            # Legacy rows carry token/kind extras: pydantic ignores them.
+            pages.append(FacebookPageTarget(**entry))
         except (TypeError, ValidationError) as exc:
             log.warning("settings: skipping malformed facebook page %s: %s", entry, exc)
     return tuple(pages)
