@@ -9,6 +9,7 @@ import {
 	listKeywords
 } from '$lib/api';
 import { splitTones } from '$lib/digest-stats';
+import { zonedDayBounds } from '$lib/format';
 import type { PageServerLoad } from './$types';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -22,13 +23,6 @@ function todayIn(tz: string): string {
 		month: '2-digit',
 		day: '2-digit'
 	}).format(new Date());
-}
-
-/** The UTC-day bounds the API expands date-only `since/until` to. */
-function nextDay(day: string): string {
-	const date = new Date(`${day}T12:00:00Z`);
-	date.setUTCDate(date.getUTCDate() + 1);
-	return date.toISOString().slice(0, 10);
 }
 
 /**
@@ -58,8 +52,11 @@ function majoritySentimentByEvent(items: MentionLike[]): Record<string, string> 
 }
 
 async function loadSideData(day: string) {
+	// Local-day bounds (same expansion the feed applies): raw date strings
+	// become UTC midnights in PG and skew the evening into the next day.
+	const bounds = zonedDayBounds(day);
 	const [mentionsResult, persons, keywords, settings] = await Promise.all([
-		listMentions({ since: day, until: nextDay(day), limit: 500 })
+		listMentions({ since: bounds.since, until: bounds.until, limit: 500 })
 			.then((page) => ({
 				tones: splitTones(page.items),
 				eventSentiment: majoritySentimentByEvent(page.items),
