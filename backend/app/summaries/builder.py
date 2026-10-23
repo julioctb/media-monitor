@@ -451,6 +451,30 @@ def build_daily_summary(
         narrative=narrative,
         mode=mode,
     )
+    # Narrative revisions (summary-revisions): EVERY build appends an
+    # immutable copy, so no prose is ever lost to the next cut. Best-effort:
+    # a logging failure must not fail the digest (agenda-hook contract).
+    try:
+        from app.models import DailySummaryRevision
+
+        last_seq = session.scalar(
+            select(func.max(DailySummaryRevision.seq)).where(
+                DailySummaryRevision.client_id == client_id,
+                DailySummaryRevision.summary_date == day,
+            )
+        )
+        session.add(
+            DailySummaryRevision(
+                client_id=client_id,
+                summary_date=day,
+                seq=(last_seq or 0) + 1,
+                narrative=narrative,
+                mode=mode,
+            )
+        )
+        session.commit()
+    except Exception as exc:  # noqa: BLE001 - history is best-effort
+        log.warning("summary revision log failed for %s (%s)", day, exc)
     # Agenda auto-detect (agenda-detect): promote the digest's agenda
     # entries to real rows on EVERY build path (worker cut + API regen).
     # Idempotent by normalized title; failures never fail the digest.
