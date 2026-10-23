@@ -24,8 +24,8 @@ from app.models import (
 )
 from app.settings_runtime import EffectiveSettings
 from app.summaries import build_daily_summary
-from app.summaries.builder import day_window, summary_generator
-from app.summaries.digest import validate_digest
+from app.summaries.builder import SYSTEM_PROMPT, day_window, summary_generator
+from app.summaries.digest import apply_narrative, validate_digest
 
 DAY = datetime(2026, 10, 9, 18, 0, tzinfo=timezone.utc)  # 12:00 in Mexico City
 
@@ -176,15 +176,68 @@ def _digest_payload() -> str:
     )
 
 
+# home-digest-v2 narrative blocks (T1): the LLM-owned v2 content keys.
+_V2_AGENDA = [
+    {
+        "when": "27 oct. · 13:00",
+        "status": "Nueva, sin nota aún",
+        "title": "Plática «Conectados pero solos»",
+        "source": "X, @BUAPoficial",
+    },
+    {"when": "Hasta el 15 nov.", "title": "Exposición «Bestias Eternas»"},
+]
+
+_V2_ACTIVITY = [
+    {
+        "when": "22 oct.",
+        "text": "Inauguración de la ofrenda en la Casa de la Bóveda.",
+        "channel": "Acto público",
+    },
+    {"text": "Sin publicaciones fechables en la ventana.", "channel": "X propio"},
+]
+
+_V2_REDES_NOTE = "Sin novedades fechables en la ventana."
+
+
+def _digest_payload_v2() -> str:
+    return json.dumps(
+        {
+            "headline": "Titular del modelo.",
+            "items": [
+                {"index": 0, "summary": "Síntesis del modelo.", "why_it_matters": "Porque sí."}
+            ],
+            "rectora": {
+                "tone": "neutral",
+                "watch": "votación del 28",
+                "activity": _V2_ACTIVITY,
+            },
+            "agenda": _V2_AGENDA,
+            "redes": {"x": {"note": _V2_REDES_NOTE}},
+        }
+    )
+
+
 def test_llm_mode_fields_applied_and_fallback(session):
     client = add_client(session)
-    add_mention(session, client.id, "BUAP publica", DAY)
+    # An event-backed mention: inheritance matches noticias by event_id.
+    event = Event(
+        client_id=client.id,
+        title="BUAP publica",
+        title_tokens="buap publica",
+        mention_count=1,
+        source_count=1,
+        first_seen_at=DAY,
+        last_seen_at=DAY,
+    )
+    session.add(event)
+    session.flush()
+    add_mention(session, client.id, "BUAP publica", DAY, event_id=event.id)
 
     captured: dict[str, str] = {}
 
     def good(prompt: str) -> str:
         captured["prompt"] = prompt
-        return _digest_payload()
+        return _digest_payload_v2()
 
     row = build_daily_summary(session, client_id=client.id, day=DAY.date(), generate=good)
     assert row.mode == "llm"
@@ -192,6 +245,21 @@ def test_llm_mode_fields_applied_and_fallback(session):
     assert row.content["noticias"][0]["summary"] == "Síntesis del modelo."
     assert row.content["noticias"][0]["why_it_matters"] == "Porque sí."
     assert row.content["rectora"]["tone"] == "neutral"
+    assert row.content["rectora"]["watch"] == "votación del 28"
+    # v2 blocks: agenda, rectora activity and per-network note.
+    assert row.content["agenda"] == _V2_AGENDA
+    assert row.content["rectora"]["activity"] == _V2_ACTIVITY
+    assert row.content["redes"]["x"]["note"] == _V2_REDES_NOTE
+    assert validate_digest(row.content) == []
+    # The v2 blocks render into the plain text (RAG) as their own sections.
+    plain = row.content["plain_text"]
+    assert "AGENDA" in plain
+    assert "Plática «Conectados pero solos»" in plain
+    assert "Inauguración de la ofrenda" in plain
+    assert "Acto público" in plain
+    assert _V2_REDES_NOTE in plain
+    # The prompt asks for the v2 narrative blocks by name.
+    assert "agenda" in SYSTEM_PROMPT
     # The prompt carries the verified facts only.
     assert '"noticias"' in captured["prompt"]
     assert "2026-10-09" in captured["prompt"]
@@ -202,9 +270,14 @@ def test_llm_mode_fields_applied_and_fallback(session):
         raise RuntimeError("provider down")
 
     row = build_daily_summary(session, client_id=client.id, day=DAY.date(), generate=boom)
-    # Failed regen of an llm digest inherits the previous narrative/mode.
+    # Failed regen of an llm digest inherits the previous narrative/mode —
+    # the v2 blocks travel with the prose; facts stay fresh.
     assert row.mode == "llm"
     assert "Titular del modelo." in row.narrative
+    assert row.content["noticias"][0]["summary"] == "Síntesis del modelo."
+    assert row.content["agenda"] == _V2_AGENDA
+    assert row.content["rectora"]["activity"] == _V2_ACTIVITY
+    assert row.content["redes"]["x"]["note"] == _V2_REDES_NOTE
 
 
 def test_llm_garbage_payload_falls_back(session):
@@ -219,6 +292,61 @@ def test_llm_garbage_payload_falls_back(session):
     )
     assert row.mode == "heuristic"
     assert validate_digest(row.content) == []
+
+
+def test_llm_v2_malformed_blocks_tolerated(session):
+    client = add_client(session)
+    add_mention(session, client.id, "BUAP publica", DAY)
+    payload = json.dumps(
+        {
+            "headline": "Titular.",
+            "items": [],
+            "agenda": [{"title": "sin when, se descarta"}, "ruido", 42],
+            "rectora": {"tone": "neutral", "activity": {"not": "a list"}},
+            "redes": {"x": {"note": 123}, "desconocida": {"note": "fuera de contrato"}},
+        }
+    )
+
+    def partial(prompt: str) -> str:
+        return payload
+
+    row = build_daily_summary(session, client_id=client.id, day=DAY.date(), generate=partial)
+    assert row.mode == "llm"
+    content = row.content
+    # Malformed entries drop silently; the seeded defaults remain.
+    assert content["agenda"] == []
+    assert content["rectora"]["activity"] == []
+    assert content["redes"]["x"]["note"] == ""
+    assert "desconocida" not in content["redes"]
+    assert validate_digest(content) == []
+
+
+def test_apply_narrative_v2_blocks_tolerate_legacy_content():
+    # A pre-v2 row carries none of the new keys; the narrative merge must
+    # neither fabricate containers nor break on their absence.
+    content = {
+        "schema": 2,
+        "coverage": {},
+        "noticias": [],
+        "rectora": {"tone": None},
+        "redes": {"x": {"count": 0, "note": ""}},
+        "personas": [],
+        "pendientes": [],
+    }
+    errors = apply_narrative(
+        content,
+        {
+            "headline": "h",
+            "agenda": [{"when": "27 oct.", "title": "Taller"}],
+            "rectora": {"activity": [{"text": "nota"}], "tone": "neutral"},
+            "redes": {"x": {"note": "n"}},
+        },
+    )
+    assert errors == []
+    assert content["rectora"]["tone"] == "neutral"
+    assert content["redes"]["x"]["note"] == "n"
+    assert "agenda" not in content  # legacy shape untouched
+    assert "activity" not in content["rectora"]
 
 
 def test_empty_day_stays_heuristic_and_lists_pending(session):

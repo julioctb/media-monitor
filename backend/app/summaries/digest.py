@@ -7,15 +7,20 @@
     coverage    {"total", "by_source", "by_topic", "gaps"} - deterministic
     noticias    [{topic, event_id, title, sources[{source,url,title}],
                   summary, why_it_matters, confidence, person_ids}]
-    rectora     {actions[], tone, watch, gaps} - focus-person section
-    redes       {<source>: {count, note}} - social sources incl. gaps
+    agenda      [{when, status?, title, source?}] - LLM narrative
+    rectora     {actions[], activity[], tone, watch, gaps} - focus person;
+                activity [{when?, status?, text, channel?}] is LLM narrative
+    redes       {<source>: {count, note}} - social sources; note carries the
+                LLM narrative when the day has data
     personas    [{person_id, name, role, fact}]
     pendientes  [str] - silent keywords / uncovered events
 
-Only the narrative fields (summary, why_it_matters, tone, watch) are
-LL-authored; everything else is deterministic (see build_digest_facts and
-confidence_for). validate_digest gates the LLM output: any error falls back
-to the heuristic render, mirroring builder.py's mode contract.
+Only the narrative fields (summary, why_it_matters, tone, watch, activity,
+agenda, redes note) are LLM-authored; everything else is deterministic (see
+build_digest_facts and confidence_for). validate_digest gates the LLM output:
+any error falls back to the heuristic render, mirroring builder.py's mode
+contract. Every v2 key is optional: rows authored before home-digest-v2 lack
+them and must read back unchanged.
 """
 
 from datetime import datetime, timezone
@@ -187,7 +192,12 @@ def build_digest_facts(
     )
 
     # --- rectora: focus person slice.
-    rectora: dict = {"person_id": focus_person_id, "actions": [], "mention_count": 0}
+    rectora: dict = {
+        "person_id": focus_person_id,
+        "actions": [],
+        "activity": [],  # narrative follow-up, LLM-authored (home-digest-v2)
+        "mention_count": 0,
+    }
     if focus_person_id is not None:
         focus_links = [
             (m, link)
@@ -285,11 +295,19 @@ def build_digest_facts(
         "window": {"from": start.isoformat(), "to": end.isoformat()},
         "coverage": coverage,
         "noticias": noticias,
+        "agenda": [],  # narrative, LLM-authored (home-digest-v2)
         "rectora": rectora,
         "redes": redes,
         "personas": personas,
         "pendientes": [],  # composed at T5: silent keywords + coverage gaps
     }
+
+
+def _clean_str(value: object) -> str | None:
+    """Stripped non-empty string, else None (the tolerant-entry filter)."""
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    return None
 
 
 def apply_narrative(content: dict, payload: object) -> list[str]:
@@ -300,7 +318,10 @@ def apply_narrative(content: dict, payload: object) -> list[str]:
 
         {"headline": str,
          "items": [{"index": int, "summary": str, "why_it_matters": str}],
-         "rectora": {"tone": str, "watch": str}}
+         "rectora": {"tone": str, "watch": str,
+                     "activity": [{"when?, status?, text, channel?}]},
+         "agenda": [{"when, status?, title, source?}],
+         "redes": {<source>: {"note": str} | str}}
     """
     if not isinstance(content, dict) or not isinstance(payload, dict):
         return ["payload must be an object"]
@@ -328,6 +349,61 @@ def apply_narrative(content: dict, payload: object) -> list[str]:
             value = rectora.get(key)
             if isinstance(value, str) and value.strip():
                 content["rectora"][key] = value.strip()
+        # home-digest-v2 follow-up entries; only into a seeded container so
+        # pre-v2 rows keep their shape.
+        activity = rectora.get("activity")
+        if isinstance(activity, list) and isinstance(
+            content["rectora"].get("activity"), list
+        ):
+            entries = []
+            for entry in activity:
+                if not isinstance(entry, dict):
+                    continue
+                text = _clean_str(entry.get("text"))
+                if not text:
+                    continue
+                item: dict[str, str] = {"text": text}
+                for optional in ("when", "status", "channel"):
+                    value = _clean_str(entry.get(optional))
+                    if value:
+                        item[optional] = value
+                entries.append(item)
+            if entries:
+                content["rectora"]["activity"] = entries
+    # agenda: upcoming items gleaned from the day's facts; when+title
+    # required (the mockup's strong-led fields), status/source optional.
+    agenda = payload.get("agenda")
+    if isinstance(agenda, list) and isinstance(content.get("agenda"), list):
+        entries = []
+        for entry in agenda:
+            if not isinstance(entry, dict):
+                continue
+            when = _clean_str(entry.get("when"))
+            title = _clean_str(entry.get("title"))
+            if not when or not title:
+                continue
+            item = {"when": when, "title": title}
+            for optional in ("status", "source"):
+                value = _clean_str(entry.get(optional))
+                if value:
+                    item[optional] = value
+            entries.append(item)
+        if entries:
+            content["agenda"] = entries
+    # redes narrative note; only for sources the digest tracks, bare
+    # strings tolerated.
+    redes_payload = payload.get("redes")
+    if isinstance(redes_payload, dict) and isinstance(content.get("redes"), dict):
+        for source, note_payload in redes_payload.items():
+            target = content["redes"].get(source)
+            if not isinstance(target, dict):
+                continue
+            note = note_payload
+            if isinstance(note_payload, dict):
+                note = note_payload.get("note")
+            note = _clean_str(note)
+            if note:
+                target["note"] = note
     return validate_digest(content)
 
 
@@ -348,6 +424,18 @@ def render_plain_text(content: dict, narrative: str) -> str:
         )
         if sources:
             lines.append(f"  Fuentes: {sources}")
+    agenda = content.get("agenda") or []
+    if agenda:
+        lines.append("")
+        lines.append("AGENDA")
+        for item in agenda:
+            if not isinstance(item, dict):
+                continue
+            head = " · ".join(p for p in (item.get("when"), item.get("status")) if p)
+            line = f"- {head}: {item.get('title')}" if head else f"- {item.get('title')}"
+            if item.get("source"):
+                line += f" Fuente: {item['source']}"
+            lines.append(line)
     lines.append("")
     lines.append("RECTORA")
     rectora = content.get("rectora") or {}
@@ -360,6 +448,14 @@ def render_plain_text(content: dict, narrative: str) -> str:
             lines.append(f"  Vigilar: {rectora['watch']}")
     else:
         lines.append("- Sin menciones de la persona focal en la ventana.")
+    for entry in rectora.get("activity") or []:
+        if not isinstance(entry, dict) or not entry.get("text"):
+            continue
+        head = " · ".join(p for p in (entry.get("when"), entry.get("status")) if p)
+        line = f"- {head}: {entry['text']}" if head else f"- {entry['text']}"
+        if entry.get("channel"):
+            line += f" ({entry['channel']})"
+        lines.append(line)
     if rectora.get("gaps"):
         lines.append(f"  Gap: {rectora['gaps']}")
     lines.append("")
