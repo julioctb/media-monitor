@@ -795,12 +795,6 @@ html {
 	text-decoration-color: var(--color-line);
 	text-underline-offset: 4px;
 }
-/* Mockup's disabled state: visible but inert when every summary is in the
-   visible month (no older month to reach). */
-.month-link[aria-disabled='true'] {
-	color: var(--color-muted);
-	text-decoration-color: var(--color-line-soft);
-}
 .month-link:hover {
 	color: var(--color-ink);
 	text-decoration-color: var(--color-ink);
