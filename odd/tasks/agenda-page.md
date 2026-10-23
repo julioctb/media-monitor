@@ -53,6 +53,10 @@ y la detección queda fuera de este feature).
   Fallas del sync nunca fallan el digest (try/except + log warning).
 - Pendiente explícito: matching contra events, propagación de edits humanos, borrado cuando
   el item sale del digest — el sync solo agrega lo que falta.
+- Eliminar actividad (781ef7ec): DELETE endpoint + acción `?/remove` + botón por card; las
+  cards viven en un único snippet `activityCard` (day-detail, lista y undated) — el botón
+  Eliminar aparece en las tres vistas. Verificado E2E en browser (click → invalidate →
+  status «Actividad eliminada.»).
 
 ## Verificación
 
