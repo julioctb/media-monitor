@@ -6,10 +6,24 @@ from datetime import date, datetime, time, timedelta, timezone
 from fastapi import APIRouter
 
 from app.api.deps import ClientIdDep, SessionDep
-from app.api.schemas import ClassifierBreakdown, DailyVolume, StatsOverview
+from app.api.schemas import (
+    ClassifierBreakdown,
+    DailyVolume,
+    KeywordDayCount,
+    StatsDayOut,
+    StatsOverview,
+    ToneSplit,
+)
 from app.models import queries
+from app.settings_runtime import resolve_effective_settings
+from app.summaries.builder import day_window, today_in
 
 router = APIRouter(tags=["stats"])
+
+# ``date`` as a parameter name shadows the datetime type inside the
+# signature (same reason schemas.py prebuilds SummaryDate); the optional
+# union is built once here instead of inline.
+OptionalDay = date | None
 
 VOLUME_DAYS = 30
 
@@ -71,4 +85,39 @@ def stats_overview(session: SessionDep, client_id: ClientIdDep) -> StatsOverview
         last_7d=queries.count_mentions(session, client_id, since=now - timedelta(days=7)),
         daily_volume=daily_volume,
         classifications=_classification_block(),
+    )
+
+
+@router.get("/stats/day", response_model=StatsDayOut)
+def stats_day(
+    session: SessionDep,
+    client_id: ClientIdDep,
+    date: OptionalDay = None,
+) -> StatsDayOut:
+    """Home-page aggregates for one day (home-digest-v2 T2).
+
+    The window is the LOCAL day in the settings timezone — the backend
+    mirror of the front's ``zonedDayBounds``; UTC-midnight bounds silently
+    push the local evening into the next day. ``date`` defaults to today
+    in that timezone. Exposed as a new endpoint so the existing contracts
+    (mention page, stored summary, stats overview) stay untouched; the
+    tone split and keyword counts are additive reads.
+    """
+    effective = resolve_effective_settings(session, client_id)
+    day = date if date is not None else today_in(effective.timezone)
+    start, end = day_window(day, effective.timezone)
+    utc_start = start.astimezone(timezone.utc)
+    utc_end = end.astimezone(timezone.utc)
+    return StatsDayOut(
+        date=day,
+        timezone=effective.timezone,
+        tones=ToneSplit.model_validate(
+            queries.tone_split(session, client_id, since=utc_start, until=utc_end)
+        ),
+        keywords=[
+            KeywordDayCount.model_validate(row)
+            for row in queries.keyword_day_counts(
+                session, client_id, since=utc_start, until=utc_end
+            )
+        ],
     )

@@ -13,7 +13,7 @@ from urllib.parse import urlsplit
 from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import delete, func, or_, select
+from sqlalchemy import and_, delete, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
@@ -295,6 +295,96 @@ def source_breakdown(session: Session, client_id: int) -> dict[str, int]:
     for value, count in session.execute(stmt).all():
         counts[value.value] = count
     return counts
+
+
+# --- home day aggregates (home-digest-v2 T2) -------------------------------
+
+#: Source tags counted as social networks; everything else is news media.
+SOCIAL_SOURCES = frozenset({"x_twitter", "facebook_page"})
+
+#: Home tone buckets, stable output order.
+TONE_BUCKETS = ("media", "social", "field")
+
+
+def tone_bucket(source: str) -> str:
+    """Home tone-box bucket for a source tag.
+
+    Field data rides field-prefixed tags (the convention the card markup
+    already applies; MentionSource grows members when that ingest lands),
+    social is the tracked-network set, the rest is news media.
+    """
+    if source.startswith("field"):
+        return "field"
+    if source in SOCIAL_SOURCES:
+        return "social"
+    return "media"
+
+
+def _empty_tone_counts() -> dict[str, int]:
+    """Zeroed ToneCounts: the front's positive/negative/neutral plus
+    unclassified (NULL sentiment) and total."""
+    counts = {s.value: 0 for s in Sentiment}
+    counts["unclassified"] = 0
+    counts["total"] = 0
+    return counts
+
+
+def tone_split(
+    session: Session, client_id: int, *, since: datetime, until: datetime
+) -> dict[str, dict[str, int]]:
+    """Per-bucket sentiment counts over a published-at window.
+
+    Buckets per :func:`tone_bucket`; NULL sentiment counts as
+    ``unclassified`` (never dropped from the day).
+    """
+    counts: dict[str, dict[str, int]] = {
+        name: _empty_tone_counts() for name in TONE_BUCKETS
+    }
+    stmt = (
+        select(Mention.source, Mention.sentiment, func.count())
+        .where(
+            Mention.client_id == client_id,
+            Mention.published_at >= since,
+            Mention.published_at < until,
+        )
+        .group_by(Mention.source, Mention.sentiment)
+    )
+    for source, sentiment, count in session.execute(stmt).all():
+        bucket = counts[tone_bucket(source.value)]
+        key = sentiment.value if sentiment is not None else "unclassified"
+        bucket[key] += count
+        bucket["total"] += count
+    return counts
+
+
+def keyword_day_counts(
+    session: Session, client_id: int, *, since: datetime, until: datetime
+) -> list[dict[str, object]]:
+    """Mentions per keyword inside the window; every client keyword listed.
+
+    Zero-filled and NOT filtered by is_active: the count is the contract,
+    the home page curates what it renders. Ordered by count desc, then
+    text, so the ranking is stable for equal counts.
+    """
+    stmt = (
+        select(Keyword.id, Keyword.text, func.count(Mention.id))
+        .outerjoin(
+            Mention,
+            and_(
+                Mention.keyword_id == Keyword.id,
+                Mention.client_id == client_id,
+                Mention.published_at >= since,
+                Mention.published_at < until,
+            ),
+        )
+        .where(Keyword.client_id == client_id)
+        .group_by(Keyword.id, Keyword.text)
+        .order_by(func.count(Mention.id).desc(), Keyword.text.asc())
+    )
+    return [
+        {"id": keyword_id, "text": text, "count": count}
+        for keyword_id, text, count in session.execute(stmt).all()
+    ]
 
 
 def published_dates(

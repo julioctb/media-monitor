@@ -5,7 +5,7 @@ per-test SQLite database (Base.metadata.create_all + seed rows). Fully
 offline: no Postgres, no SMTP, no provider calls.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
 from fastapi.testclient import TestClient
@@ -24,6 +24,7 @@ from app.models import (
     MentionSource,
     Sentiment,
     make_url_hash,
+    queries,
 )
 
 
@@ -791,3 +792,136 @@ class TestPersonsAPI:
         db.commit()
         assert api.get(f"/api/clients/{other.id}/persons/{person.id}").status_code == 404
         assert api.get(f"/api/clients/{client_id}/persons/999999").status_code == 404
+
+
+# ------------------------------------------------- stats day (home-digest-v2 T2)
+
+
+def test_tone_bucket_rules() -> None:
+    assert queries.tone_bucket("news_rss") == "media"
+    assert queries.tone_bucket("gdelt") == "media"
+    assert queries.tone_bucket("rss_custom") == "media"
+    assert queries.tone_bucket("scraper") == "media"
+    assert queries.tone_bucket("x_twitter") == "social"
+    assert queries.tone_bucket("facebook_page") == "social"
+    # Field data rides field-prefixed source tags (the card markup's
+    # convention); the enum grows members when that ingest lands.
+    assert queries.tone_bucket("field") == "field"
+    assert queries.tone_bucket("field_whatsapp") == "field"
+
+
+def test_stats_day_tones_split_by_source_kind(api, db) -> None:
+    client_id = first_client_id(db)
+    cst = timezone(timedelta(hours=-6))
+    seed_mention(
+        db, client_id, "https://e.test/1",
+        sentiment=Sentiment.positive,
+        published=datetime(2026, 10, 22, 12, 0, tzinfo=cst),
+    )
+    seed_mention(
+        db, client_id, "https://e.test/2",
+        sentiment=None,  # unclassified bucket
+        published=datetime(2026, 10, 22, 13, 0, tzinfo=cst),
+    )
+    seed_mention(
+        db, client_id, "https://e.test/3",
+        source=MentionSource.x_twitter,
+        sentiment=Sentiment.negative,
+        published=datetime(2026, 10, 22, 14, 0, tzinfo=cst),
+    )
+    seed_mention(
+        db, client_id, "https://e.test/4",
+        source=MentionSource.scraper,  # neither social nor field: media
+        sentiment=Sentiment.neutral,
+        published=datetime(2026, 10, 22, 15, 0, tzinfo=cst),
+    )
+    seed_mention(
+        db, client_id, "https://e.test/5",
+        sentiment=Sentiment.positive,
+        published=datetime(2026, 10, 21, 12, 0, tzinfo=cst),  # other day
+    )
+
+    resp = api.get("/api/stats/day", params={"date": "2026-10-22"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["date"] == "2026-10-22"
+    assert body["timezone"] == "America/Mexico_City"
+    assert body["tones"]["media"] == {
+        "positive": 1,
+        "negative": 0,
+        "neutral": 1,
+        "unclassified": 1,
+        "total": 3,
+    }
+    assert body["tones"]["social"] == {
+        "positive": 0,
+        "negative": 1,
+        "neutral": 0,
+        "unclassified": 0,
+        "total": 1,
+    }
+    # No field ingest exists yet: the bucket stays zero-filled.
+    assert body["tones"]["field"] == {
+        "positive": 0,
+        "negative": 0,
+        "neutral": 0,
+        "unclassified": 0,
+        "total": 0,
+    }
+
+
+def test_stats_day_keyword_counts(api, db) -> None:
+    client_id = first_client_id(db)
+    cst = timezone(timedelta(hours=-6))
+    buap = Keyword(client_id=client_id, text="BUAP", language="es")
+    lilia = Keyword(client_id=client_id, text="lilia cedillo", language="es")
+    quiet = Keyword(client_id=client_id, text="zar, la mención", language="es")
+    db.add_all([buap, lilia, quiet])
+    db.commit()
+    seed_mention(
+        db, client_id, "https://k.test/1",
+        keyword_id=buap.id,
+        published=datetime(2026, 10, 22, 9, 0, tzinfo=cst),
+    )
+    seed_mention(
+        db, client_id, "https://k.test/2",
+        keyword_id=buap.id,
+        published=datetime(2026, 10, 22, 10, 0, tzinfo=cst),
+    )
+    seed_mention(
+        db, client_id, "https://k.test/3",
+        keyword_id=lilia.id,
+        published=datetime(2026, 10, 22, 11, 0, tzinfo=cst),
+    )
+    seed_mention(
+        db, client_id, "https://k.test/4",
+        keyword_id=buap.id,
+        published=datetime(2026, 10, 21, 12, 0, tzinfo=cst),  # outside the day
+    )
+
+    resp = api.get("/api/stats/day", params={"date": "2026-10-22"})
+    assert resp.status_code == 200
+    # Every client keyword, count desc; zeroes included, the home page curates.
+    assert resp.json()["keywords"] == [
+        {"id": buap.id, "text": "BUAP", "count": 2},
+        {"id": lilia.id, "text": "lilia cedillo", "count": 1},
+        {"id": quiet.id, "text": "zar, la mención", "count": 0},
+    ]
+
+
+def test_stats_day_uses_local_day_bounds(api, db) -> None:
+    # 22 oct 23:00 CST == 23 oct 05:00Z: inside the LOCAL day, outside the
+    # UTC one; 23 oct 00:30 CST == 23 oct 06:30Z falls in the next day.
+    client_id = first_client_id(db)
+    seed_mention(
+        db, client_id, "https://b.test/1",
+        published=datetime(2026, 10, 23, 5, 0, tzinfo=timezone.utc),
+    )
+    seed_mention(
+        db, client_id, "https://b.test/2",
+        published=datetime(2026, 10, 23, 6, 30, tzinfo=timezone.utc),
+    )
+
+    resp = api.get("/api/stats/day", params={"date": "2026-10-22"})
+    assert resp.status_code == 200
+    assert resp.json()["tones"]["media"]["total"] == 1

@@ -143,6 +143,41 @@ class StatsOverview(BaseModel):
     classifications: list[ClassifierBreakdown] = []
 
 
+class ToneBucket(BaseModel):
+    """Sentiment counts for one home tone-box (the front's ToneCounts)."""
+
+    positive: int = 0
+    negative: int = 0
+    neutral: int = 0
+    unclassified: int = 0
+    total: int = 0
+
+
+class ToneSplit(BaseModel):
+    """Home tone boxes per source kind: media / social / field."""
+
+    media: ToneBucket = Field(default_factory=ToneBucket)
+    social: ToneBucket = Field(default_factory=ToneBucket)
+    field: ToneBucket = Field(default_factory=ToneBucket)
+
+
+class KeywordDayCount(BaseModel):
+    """Mentions of one keyword inside the home-day window."""
+
+    id: int
+    text: str
+    count: int
+
+
+class StatsDayOut(BaseModel):
+    """GET /stats/day: home-page aggregates for one local day."""
+
+    date: date
+    timezone: str
+    tones: ToneSplit
+    keywords: list[KeywordDayCount]
+
+
 # ---------------------------------------------------------------- settings
 
 
