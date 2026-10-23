@@ -69,9 +69,31 @@ export function categoryRows(
 			key,
 			count,
 			pct: Math.round((count / sum) * 100),
-			label: key
+			label: categoryLabel(key)
 		}))
 		.sort((a, b) => b.count - a.count || a.key.localeCompare(b.key));
+}
+
+/**
+ * Classifier topic labels are English kebab tokens; the UI speaks Spanish.
+ * Known topics map to their display name; unknown ones get title-cased so a
+ * future classifier label never leaks raw into the sidebar.
+ */
+const CATEGORY_ES: Record<string, string> = {
+	institutional: 'Institucional',
+	academic: 'Académica',
+	culture: 'Cultura',
+	infrastructure: 'Infraestructura',
+	students: 'Estudiantes',
+	health: 'Salud',
+	sports: 'Deportes',
+	finance: 'Finanzas'
+};
+
+export function categoryLabel(key: string): string {
+	const known = CATEGORY_ES[key];
+	if (known) return known;
+	return key.charAt(0).toUpperCase() + key.slice(1).toLowerCase();
 }
 
 /** Up to two-letter monogram for the actor list («Lilia Cedillo» → LC). */

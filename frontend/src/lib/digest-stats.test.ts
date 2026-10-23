@@ -23,11 +23,39 @@ describe('toneRows', () => {
 describe('categoryRows', () => {
 	it('computes percentages over the explicit total', () => {
 		const rows = categoryRows({ institutional: 1, culture: 1 }, 4);
-		// Equal counts fall back to alphabetical order.
+		// Equal counts fall back to alphabetical order; labels localized.
 		expect(rows).toEqual([
-			{ key: 'culture', label: 'culture', count: 1, pct: 25 },
-			{ key: 'institutional', label: 'institutional', count: 1, pct: 25 }
+			{ key: 'culture', label: 'Cultura', count: 1, pct: 25 },
+			{ key: 'institutional', label: 'Institucional', count: 1, pct: 25 }
 		]);
+	});
+
+	it('localizes the known classifier topics to Spanish', () => {
+		const rows = categoryRows({
+			institutional: 2,
+			academic: 1,
+			culture: 1,
+			infrastructure: 1,
+			students: 1,
+			health: 1,
+			sports: 1,
+			finance: 1
+		});
+		expect(rows.map((row) => [row.key, row.label])).toEqual([
+			['institutional', 'Institucional'],
+			['academic', 'Académica'],
+			['culture', 'Cultura'],
+			['finance', 'Finanzas'],
+			['health', 'Salud'],
+			['infrastructure', 'Infraestructura'],
+			['sports', 'Deportes'],
+			['students', 'Estudiantes']
+		]);
+	});
+
+	it('title-cases unknown topics instead of leaking raw keys', () => {
+		const rows = categoryRows({ prensa: 1, opiniOn: 1 });
+		expect(rows.map((row) => row.label)).toEqual(['Opinion', 'Prensa']);
 	});
 
 	it('drops empty topics and sorts by count', () => {
