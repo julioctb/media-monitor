@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+	cleanDigestText,
 	eventChipLabel,
 	classificationLabel,
 	formatLongDate,
@@ -69,5 +70,20 @@ describe('zonedDayBounds', () => {
 		expect(zonedDayBounds('2026-07-15', 'America/New_York').since).toBe(
 			'2026-07-15T00:00:00-04:00'
 		);
+	});
+});
+
+describe('cleanDigestText', () => {
+	it('strips urls, handles, emoji noise and collapses spaces', () => {
+		const raw =
+			'¡Feliz viernes! ☀️ Esta es la PORTADA de @MTPNoticias 🧑‍🏫 Lilia Cedillo busca subir sueldo 💵 📲 @url:`https://t.co/On3PmrGeE9` 🔴';
+		expect(cleanDigestText(raw)).toBe(
+			'¡Feliz viernes! Esta es la PORTADA de Lilia Cedillo busca subir sueldo'
+		);
+	});
+
+	it('leaves clean prose untouched', () => {
+		const prose = 'La rectora encabezó la inauguración del recinto.';
+		expect(cleanDigestText(prose)).toBe(prose);
 	});
 });

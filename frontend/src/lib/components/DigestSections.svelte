@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { sourceLabel, topicLabel } from '$lib/format';
+	import { sourceLabel, topicLabel, cleanDigestText } from '$lib/format';
 
 	import { focusPersonLabel, toneRows, type ToneCounts } from '$lib/digest-stats';
 	import type { DailySummaryContent, DigestNewsItem } from '$lib/api';
@@ -231,8 +231,8 @@
 									</p>
 								{/if}
 								{#if item.summary || item.title}
-									<p>{entryPrefix(item)}{item.summary ?? item.title}</p>
-								{/if}
+										<p>{entryPrefix(item)}{cleanDigestText(item.summary ?? item.title ?? '')}</p>
+									{/if}
 								{#if sourceLine(item)}<p class="daily-detail-source">{sourceLine(item)}</p>{/if}
 							</div>
 						{/each}

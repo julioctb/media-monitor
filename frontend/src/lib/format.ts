@@ -296,3 +296,24 @@ export function nextCutLabel(hours: number[] | undefined, now: Date): string | n
 	const next = sorted.find((hour) => hour > nowHour) ?? sorted[0];
 	return `${next}:00`;
 }
+
+/**
+ * Digest prose cleaner: syndicated text (X posts above all) carries emojis,
+ `t.co` links, `@url:` artifacts and @handles; the editorial detail renders
+ paraphrase-friendly prose, never the raw post.
+ */
+const URL_RE = /(https?:\/\/|www\.)\S+/g;
+const HANDLE_RE = /@[a-zA-Z0-9_.]+/g;
+const EMOJI_RE =
+	/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}\u{200D}]/gu;
+
+export function cleanDigestText(text: string): string {
+	return text
+		.replace(URL_RE, '')
+		.replace(/@url\s*:\s*/gi, '')
+		.replace(HANDLE_RE, '')
+		.replace(EMOJI_RE, '')
+		.replace(/`/g, '')
+		.replace(/\s{2,}/g, ' ')
+		.trim();
+}
