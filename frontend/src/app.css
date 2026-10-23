@@ -718,6 +718,12 @@ html {
 	padding: 0;
 	list-style: none;
 }
+/* Historial compacto: 5 fechas visibles (5 × 48px), el resto scroll;
+   «ver mes anterior» sigue como acceso al archivo por mes. */
+.digest-aside .history-list {
+	max-height: 240px;
+	overflow-y: auto;
+}
 .sidebar .history-list button {
 	display: flex;
 	justify-content: space-between;
