@@ -58,11 +58,6 @@
 
 	const negativeIds = $derived(new Set(negativeEvents.map((event) => event.event_id)));
 
-	/** Reason line for a negative entry: the situation summary, why fallback. */
-	function negativeReason(item: DigestNewsItem): string | null {
-		return item.summary ?? item.why_it_matters ?? null;
-	}
-
 	/** «Fuente: … Confianza: …» line; null when the item carries neither. */
 	function sourceLine(item: DigestNewsItem): string | null {
 		const parts: string[] = [];
@@ -208,13 +203,14 @@
 						<h4>{group.topic ? topicLabel(group.topic) : 'Sin categoría'}</h4>
 						{#each group.items as item, ii (item.event_id ?? `item-${gi}-${ii}`)}
 							<div class="daily-detail-entry">
-								{#if item.title}<p class="daily-detail-title">{item.title}</p>
-								{:else if item.summary}<p>{item.summary}</p>{/if}
-								{#if negativeIds.has(item.event_id ?? -1) && negativeReason(item)}
+								{#if negativeIds.has(item.event_id ?? -1)}
 									<p class="daily-detail-negative">
-										<strong>Nota negativa:</strong> {negativeReason(item)}
+										<strong>Nota negativa</strong>{item.why_it_matters
+											? ` — ${item.why_it_matters}`
+											: ''}
 									</p>
 								{/if}
+								{#if item.summary || item.title}<p>{item.summary ?? item.title}</p>{/if}
 								{#if sourceLine(item)}<p class="daily-detail-source">{sourceLine(item)}</p>{/if}
 							</div>
 						{/each}

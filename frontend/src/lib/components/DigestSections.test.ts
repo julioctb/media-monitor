@@ -19,6 +19,7 @@ function digestFixture(): DailySummaryContent {
 				event_id: 673,
 				title: 'BUAP inaugura edificio en Zacapoaxtla',
 				summary: 'La rectora encabezó la inauguración.',
+				why_it_matters: 'El ajuste recorta recursos.',
 				topic: 'institutional',
 				confidence: 'media',
 				sources: [{ source: 'news_rss', url: 'https://a/1' }]
@@ -116,20 +117,24 @@ describe('DigestSections v2', () => {
 		expect(news!.textContent).toContain('Fuente: RSS propios · News RSS. Confianza: alta.');
 	});
 
-	it('keeps entries compact: title first, summary only as the negative reason', () => {
+	it('shows the review, never the headline, and flags negatives with reason', () => {
 		const host = renderSection(digestFixture(), null, {
 			negativeEvents: [{ event_id: 673, title: 'x', source: 'news_rss', published_at: null }]
 		});
 		const entries = [...host.querySelectorAll('.daily-detail-entry')];
-		const negative = entries.find((entry) => entry.textContent.includes('Zacapoaxtla'));
-		const plain = entries.find((entry) => entry.textContent.includes('ofrenda'));
-		// The negative entry names itself and carries the reason (its summary).
+		const negative = entries.find((entry) => entry.textContent.includes('encabezó'));
+		const plain = entries.find((entry) => entry.textContent.includes('obra fue elaborada'));
+		// The review is the body; the headline never renders (it lives in the feed).
+		expect(negative!.textContent).toContain('La rectora encabezó la inauguración.');
+		expect(negative!.textContent).not.toContain('Zacapoaxtla');
+		// Negative entries carry the call with its reason when the digest has one.
 		expect(negative!.querySelector('.daily-detail-negative')?.textContent).toContain(
-			'La rectora encabezó la inauguración.'
+			'Nota negativa'
 		);
-		// Non-negative entries stay compact: no summary paragraph.
-	expect(plain!.querySelector('.daily-detail-negative')).toBeNull();
-		expect(plain!.textContent).not.toContain('La obra fue elaborada');
+		expect(negative!.querySelector('.daily-detail-negative')?.textContent).toContain(
+			'El ajuste recorta recursos.'
+		);
+		expect(plain!.querySelector('.daily-detail-negative')).toBeNull();
 	});
 
 	it('renders agenda, rectora activity and limitations', () => {

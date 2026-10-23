@@ -688,13 +688,10 @@ html {
 .daily-detail-entry + .daily-detail-entry {
 	margin-top: 14px;
 }
-/* Compact entries lead with the headline; the summary survives only as the
-   negative call's reason. */
-.daily-detail-entry .daily-detail-title {
-	font-weight: 600;
-}
+/* Entries lead with the review (the headline lives in the feed); negative
+   entries open with the call and its reason when the digest stamps one. */
 .daily-detail-negative {
-	margin-top: 4px;
+	margin: 0 0 2px;
 	font-size: 13px;
 	color: var(--color-ink-2);
 }
