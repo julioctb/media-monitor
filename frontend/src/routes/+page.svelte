@@ -169,6 +169,10 @@
 					<p class="small-note">
 						<a class="month-link" href={olderHref}>ver mes anterior -&gt;</a>
 					</p>
+				{:else}
+					<p class="small-note">
+						<span class="month-link" aria-disabled="true">ver mes anterior -&gt;</span>
+					</p>
 				{/if}
 			{/if}
 		</section>

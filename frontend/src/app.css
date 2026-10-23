@@ -713,6 +713,12 @@ html {
 	display: block;
 	min-width: 0;
 }
+/* The aside is a grid item stretched to the main column's height; without
+   this the inner grid rows absorb the surplus and every card grows a void
+   (mockup cards hug their content). */
+.sidebar.digest-aside {
+	align-content: start;
+}
 /* Sidebar section card: shared by every rail (home digest v2, feed,
    consultas). The mockup cards .sidebar-section at every width; density
    overrides live under .digest-aside media queries. */
@@ -788,6 +794,12 @@ html {
 	text-decoration: underline;
 	text-decoration-color: var(--color-line);
 	text-underline-offset: 4px;
+}
+/* Mockup's disabled state: visible but inert when every summary is in the
+   visible month (no older month to reach). */
+.month-link[aria-disabled='true'] {
+	color: var(--color-muted);
+	text-decoration-color: var(--color-line-soft);
 }
 .month-link:hover {
 	color: var(--color-ink);
