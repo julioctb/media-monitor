@@ -8,7 +8,9 @@
 		content,
 		tones = null,
 		sourcesCount = null,
-		socialLabels = {}
+		socialLabels = {},
+		/** Home-computed negative events; their entries carry the reason. */
+		negativeEvents = []
 	}: {
 		content: DailySummaryContent;
 		/** Day tone split media/social/field; null when /stats/day failed. */
@@ -17,6 +19,8 @@
 		sourcesCount?: number | null;
 		 /** Label overrides for the redes block, built from settings. */
 		socialLabels?: Record<string, string>;
+		/** Negative majority events from the day scan (digest-stats). */
+		negativeEvents?: { event_id: number }[];
 	} = $props();
 
 	const agenda = $derived(content.agenda ?? []);
@@ -51,6 +55,13 @@
 		}
 		return groups;
 	});
+
+	const negativeIds = $derived(new Set(negativeEvents.map((event) => event.event_id)));
+
+	/** Reason line for a negative entry: the situation summary, why fallback. */
+	function negativeReason(item: DigestNewsItem): string | null {
+		return item.summary ?? item.why_it_matters ?? null;
+	}
 
 	/** «Fuente: … Confianza: …» line; null when the item carries neither. */
 	function sourceLine(item: DigestNewsItem): string | null {
@@ -197,7 +208,13 @@
 						<h4>{group.topic ? topicLabel(group.topic) : 'Sin categoría'}</h4>
 						{#each group.items as item, ii (item.event_id ?? `item-${gi}-${ii}`)}
 							<div class="daily-detail-entry">
-								{#if item.summary || item.title}<p>{item.summary ?? item.title}</p>{/if}
+								{#if item.title}<p class="daily-detail-title">{item.title}</p>
+								{:else if item.summary}<p>{item.summary}</p>{/if}
+								{#if negativeIds.has(item.event_id ?? -1) && negativeReason(item)}
+									<p class="daily-detail-negative">
+										<strong>Nota negativa:</strong> {negativeReason(item)}
+									</p>
+								{/if}
 								{#if sourceLine(item)}<p class="daily-detail-source">{sourceLine(item)}</p>{/if}
 							</div>
 						{/each}

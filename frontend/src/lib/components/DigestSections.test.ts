@@ -116,6 +116,22 @@ describe('DigestSections v2', () => {
 		expect(news!.textContent).toContain('Fuente: RSS propios · News RSS. Confianza: alta.');
 	});
 
+	it('keeps entries compact: title first, summary only as the negative reason', () => {
+		const host = renderSection(digestFixture(), null, {
+			negativeEvents: [{ event_id: 673, title: 'x', source: 'news_rss', published_at: null }]
+		});
+		const entries = [...host.querySelectorAll('.daily-detail-entry')];
+		const negative = entries.find((entry) => entry.textContent.includes('Zacapoaxtla'));
+		const plain = entries.find((entry) => entry.textContent.includes('ofrenda'));
+		// The negative entry names itself and carries the reason (its summary).
+		expect(negative!.querySelector('.daily-detail-negative')?.textContent).toContain(
+			'La rectora encabezó la inauguración.'
+		);
+		// Non-negative entries stay compact: no summary paragraph.
+	expect(plain!.querySelector('.daily-detail-negative')).toBeNull();
+		expect(plain!.textContent).not.toContain('La obra fue elaborada');
+	});
+
 	it('renders agenda, rectora activity and limitations', () => {
 		const host = renderSection(digestFixture());
 		const text = host.textContent ?? '';

@@ -142,6 +142,7 @@
 			tones={data.tones}
 			sourcesCount={data.sourcesCount}
 			socialLabels={data.socialLabels}
+			negativeEvents={data.negativeEvents}
 		/>
 	</div>
 

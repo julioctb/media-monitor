@@ -688,6 +688,19 @@ html {
 .daily-detail-entry + .daily-detail-entry {
 	margin-top: 14px;
 }
+/* Compact entries lead with the headline; the summary survives only as the
+   negative call's reason. */
+.daily-detail-entry .daily-detail-title {
+	font-weight: 600;
+}
+.daily-detail-negative {
+	margin-top: 4px;
+	font-size: 13px;
+	color: var(--color-ink-2);
+}
+.daily-detail-negative strong {
+	color: var(--color-danger);
+}
 .daily-detail-item .daily-detail-source {
 	margin-top: 8px;
 	color: var(--color-muted);
