@@ -66,6 +66,25 @@ Forecast ~1000 líneas authored → estrategia `ask-on-risk`: preguntar chain vs
 umbral (reporte post T1–T2). Push/PR/merge = decisión de Julio. Deploy: solo tras merge, rebuild
 dashboard (+api si el builder cambia el runtime del worker) y verificación de snapshot en contenedor.
 
+## Token map (mockup v2 → app.css) — traducir variables, NO portar el `:root`
+
+Valores idénticos en ambos lados; la app ya vive con la convención `--color-*`:
+
+| mockup v2 | app.css |
+|---|---|
+| `--fg` / `--fg-2` | `--color-ink` / `--color-ink-2` |
+| `--border` / `--border-soft` | `--color-line` / `--color-line-soft` |
+| `--muted` / `--meta` | `--color-muted` / `--color-meta` |
+| `--accent*`, `--danger`, `--success` | `--color-accent*`, `--color-danger`, `--color-success` |
+| `--surface` (sin def explícita en v2) / `--surface-warm` | `--color-surface` (#f5f5f7) / `--color-surface-warm` |
+| `--bg` (blanco) | sin token: fondo existente del layout |
+| `--radius-sm/lg` (8/18px), `--radius-pill` | `--radius-control`/`--radius-panel`, pill = utilidad tailwind |
+| `--text-xs…2xl` | escala tailwind existente (`--text-base` 17px, `--text-lg` 21px) |
+| `--font-*`, `--tracking-display` | idénticos |
+
+Breakpoints del mockup a respetar: 600 / 700 / 800 / 1020 / 1180 px + `prefers-reduced-motion`.
+Sidebar 1020–1180: verificar regla específica del mockup antes de decidir el colapso.
+
 ## Notas
 
 - Mirror Engram `odd/home-digest-v2/tasks`: **pendiente** (sin herramientas engram en esta sesión);
