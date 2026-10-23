@@ -79,10 +79,13 @@ SYSTEM_PROMPT = (
     "visibles en los datos (when y title literales, sin inventar fechas), y "
     "redes: {<fuente>: {note, cuentas}} donde note es la nota narrativa de la "
     "red y cuentas es la lista [{cuenta, nota}] con una entrada POR CUENTA "
-    "rastreada con datos o hallazgos (estado, pendientes de verificación); "
-    "nota vacía o ausente cuando nada sea fechable, y omite cuentas sin nada "
-    "que decir. Prohibido inventar datos, fuentes o títulos: usa únicamente "
-    "los hechos. Español periodístico, máximo 2 oraciones por campo."
+    "rastreada con datos o hallazgos (estado, pendientes de verificación). "
+    "En facebook la nota describe los hallazgos SIN nombrar páginas, grupos "
+    "ni fuentes (el lector ya sabe cuáles se siguen) y sin bloque de "
+    "cuentas. Nota vacía o ausente cuando nada sea fechable, y omite cuentas "
+    "sin nada que decir. Prohibido inventar datos, fuentes o títulos: usa "
+    "únicamente los hechos. Español periodístico, máximo 2 oraciones por "
+    "campo."
 )
 
 
