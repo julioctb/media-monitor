@@ -43,6 +43,17 @@ y la detección queda fuera de este feature).
       deploy api+dashboard, migración 0022 al arranque, smoke E2E (POST/PATCH/GET + SSR) y
       limpieza del dato de prueba. Commit 36711682.
 
+## Fase 2: detección automática (hecha, 1297365e)
+
+- `app/summaries/agenda_detect.py`: `sync_agenda_from_digest` promue `content.agenda` a
+  `agenda_items` en CADA build (worker cut + regen API), idempotente por título normalizado
+  (sin duplicar en multi-corte/regen); fecha es-parser español best-effort (`27 oct.`,
+  `15 noviembre 2026`, ISO, prefijos «Hasta el...») — sin año asume el del digest; unparsable
+  queda undated con `date_label`; kind heurístico (inscripc/cierre/plazo/vence → `deadline`).
+  Fallas del sync nunca fallan el digest (try/except + log warning).
+- Pendiente explícito: matching contra events, propagación de edits humanos, borrado cuando
+  el item sale del digest — el sync solo agrega lo que falta.
+
 ## Verificación
 
 - Backend: `.venv/bin/python -m pytest backend/tests -q`
