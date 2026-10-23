@@ -2,9 +2,8 @@
  * Derived aggregates for the daily digest (resumen diario).
  *
  * Everything here is computed from data the API already exposes — the
- * day's mention page (sentiment x source) and the digest content
- * itself. No new endpoints: when the day query fails the UI renders
- * the coherent empty state instead.
+ * day's mention page and the digest content itself. No new endpoints:
+ * when the day query fails the UI renders the coherent empty state.
  */
 
 /** Sources counted as news media; the known social tags are the exception. */
@@ -20,29 +19,6 @@ export interface ToneCounts {
 	neutral: number;
 	unclassified: number;
 	total: number;
-}
-
-export function emptyTone(): ToneCounts {
-	return { positive: 0, negative: 0, neutral: 0, unclassified: 0, total: 0 };
-}
-
-function bump(tone: ToneCounts, sentiment: string | null): void {
-	if (sentiment === 'positive') tone.positive += 1;
-	else if (sentiment === 'negative') tone.negative += 1;
-	else if (sentiment === 'neutral') tone.neutral += 1;
-	else tone.unclassified += 1;
-	tone.total += 1;
-}
-
-/** Media vs social sentiment split for one day of mentions. */
-export function splitTones(items: { sentiment: string | null; source: string }[]): {
-	media: ToneCounts;
-	social: ToneCounts;
-} {
-	const media = emptyTone();
-	const social = emptyTone();
-	for (const item of items) bump(isNewsSource(item.source) ? media : social, item.sentiment);
-	return { media, social };
 }
 
 export interface ToneRow {
@@ -77,7 +53,7 @@ export interface CategoryRow {
 }
 
 /**
- * «Notas por categoría» rows. Percentages are relative to `total`
+ * «Categorías identificadas» rows. Percentages are relative to `total`
  * (defaults to the sum of the observed counts).
  */
 export function categoryRows(
@@ -98,17 +74,6 @@ export function categoryRows(
 		.sort((a, b) => b.count - a.count || a.key.localeCompare(b.key));
 }
 
-/** Overall tones across media + social. */
-export function combineTones(a: ToneCounts, b: ToneCounts): ToneCounts {
-	return {
-		positive: a.positive + b.positive,
-		negative: a.negative + b.negative,
-		neutral: a.neutral + b.neutral,
-		unclassified: a.unclassified + b.unclassified,
-		total: a.total + b.total
-	};
-}
-
 /** Up to two-letter monogram for the actor list («Lilia Cedillo» → LC). */
 export function monogram(name: string): string {
 	const parts = name
@@ -118,4 +83,85 @@ export function monogram(name: string): string {
 	if (parts.length === 0) return '–';
 	if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
 	return (parts[0][0] + parts[1][0]).toUpperCase();
+}
+
+/* ----------------------------- home digest v2 ----------------------------- */
+
+/** Noticia counts per event for the home day scan (see negativeNewsItems). */
+
+export interface NegativeNewsItem {
+	event_id: number;
+	title: string;
+	/** Source tag of the item's newest mention; labeled at the edge. */
+	source: string;
+	/** Publication of that same mention; null when never stamped. */
+	published_at: string | null;
+}
+
+/** Minimal mention shape the negative-events scan needs. */
+type NegativeInput = {
+	event_id?: number | null;
+	event_title?: string | null;
+	title?: string | null;
+	source: string;
+	sentiment?: string | null;
+	published_at?: string | null;
+};
+
+interface NegativeCandidate {
+	negative: number;
+	positive: number;
+	neutral: number;
+	newest: (NegativeInput & { event_id: number }) | null;
+}
+
+/**
+ * Events whose classified mentions are majority-negative, worst first.
+ * Majority is strict (negative beats positive and neutral); unclassified
+ * rows never tip the balance. Title/source ride the event's newest
+ * dated mention so the card can show who reported it and when. The
+ * display cap (3) lives at the edge, so the total stays known.
+ */
+export function negativeNewsItems(items: NegativeInput[]): NegativeNewsItem[] {
+	const candidates = new Map<number, NegativeCandidate>();
+	for (const item of items) {
+		if (item.event_id === undefined || item.event_id === null) continue;
+		const entry =
+			candidates.get(item.event_id) ?? { negative: 0, positive: 0, neutral: 0, newest: null };
+		if (item.sentiment === 'negative') entry.negative += 1;
+		else if (item.sentiment === 'positive') entry.positive += 1;
+		else if (item.sentiment === 'neutral') entry.neutral += 1;
+		const stamp = item.published_at ?? '';
+		const newestStamp = entry.newest?.published_at ?? '';
+		if (!entry.newest || stamp > newestStamp) entry.newest = { ...item, event_id: item.event_id };
+		candidates.set(item.event_id, entry);
+	}
+	const ranked = [...candidates.entries()].filter(
+		([, entry]) =>
+			entry.negative > 0 &&
+			entry.negative > entry.positive &&
+			entry.negative > entry.neutral &&
+			entry.newest?.title
+	);
+	ranked.sort((a, b) => b[1].negative - a[1].negative || a[0] - b[0]);
+	return ranked.map(([event_id, entry]) => ({
+		event_id,
+		title: entry.newest?.title ?? '',
+		source: entry.newest?.source ?? '',
+		published_at: entry.newest?.published_at ?? null
+	}));
+}
+
+/**
+ * Focus-person display name: content stamp first, persona lookup for
+ * pre-stamp digests. null = caller renders its own fallback («BUAP»).
+ */
+export function focusPersonLabel(
+	content: { rectora?: { person_id?: number | null; name?: string | null }; personas?: { person_id: number; name: string }[] } | null | undefined
+): string | null {
+	const rectora = content?.rectora;
+	if (!rectora) return null;
+	if (rectora.name) return rectora.name;
+	const persona = content?.personas?.find((person) => person.person_id === rectora.person_id);
+	return persona?.name ?? null;
 }

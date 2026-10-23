@@ -1,438 +1,256 @@
 <script lang="ts">
-	import NewsEntry from '$lib/components/NewsEntry.svelte';
-	import { sourceLabel, sentimentLabel, topicLabel } from '$lib/format';
+	import { sourceLabel, topicLabel } from '$lib/format';
 
-	import { categoryRows, toneRows, type ToneCounts } from '$lib/digest-stats';
-	import { formatDisplayDateTime, formatDisplayDateTimeAt } from '$lib/format';
+	import { focusPersonLabel, toneRows, type ToneCounts } from '$lib/digest-stats';
 	import type { DailySummaryContent, DigestNewsItem } from '$lib/api';
 
 	let {
 		content,
 		tones = null,
-		sentimentByEvent = {},
-		fieldCount = 0,
-		coverageLive = null,
-		updatedAt = null
+		sourcesCount = null,
+		socialLabels = {}
 	}: {
 		content: DailySummaryContent;
-		/** Media/social sentiment split for the day; null when the query failed. */
-		tones?: { media: ToneCounts; social: ToneCounts } | null;
-		/** Majority sentiment per event id, keyed as string. Empty when unknown. */
-		sentimentByEvent?: Record<string, string>;
-		/** Field-data mentions for the day; the section hides at zero. */
-		fieldCount?: number;
-		/** Live day coverage (mentions/events/topics) — single source of truth
-		    for the Cobertura numbers; the digest's frozen block stays archival. */
-		coverageLive?: { total: number; byTopic: Record<string, number>; events: number } | null;
-		/** Summary last update, rendered in the rectora stamp. */
-		updatedAt?: string | null;
+		/** Day tone split media/social/field; null when /stats/day failed. */
+		tones?: { media: ToneCounts; social: ToneCounts; field: ToneCounts } | null;
+		/** Ingest sources wired for this client; null when settings unreadable. */
+		sourcesCount?: number | null;
+		 /** Label overrides for the redes block, built from settings. */
+		socialLabels?: Record<string, string>;
 	} = $props();
 
-	const noticias = $derived(content.noticias ?? []);
+	const agenda = $derived(content.agenda ?? []);
+	const activity = $derived(content.rectora?.activity ?? []);
+	const pendientes = $derived(content.pendientes ?? []);
+	const redes = $derived(Object.entries(content.redes ?? {}));
 
-	const SOCIAL_SOURCES = new Set(['x_twitter', 'facebook_page']);
-	/** Same chain anatomy as the feed cards: tipo · outlets. */
-	function newsChannel(item: DigestNewsItem): string {
-		if (!item.sources?.length) return 'Fuente no registrada';
-		const first = item.sources[0];
-		const parts: string[] = [
-			SOCIAL_SOURCES.has(first.source) ? 'Redes sociales' : 'Noticias'
-		];
-		for (const s of item.sources) {
-			try {
-				const host = new URL(s.url).hostname.replace(/^www\./, '');
-				const root = host.split('.').shift() ?? host;
-				parts.push(root.length < 3 ? host : root);
-			} catch {
-				parts.push(s.source);
+	const mediaTones = $derived(toneRows(tones?.media, 'Sin calcular'));
+	const socialTones = $derived(toneRows(tones?.social, 'Sin datos'));
+	const fieldTones = $derived(toneRows(tones?.field, 'Sin datos'));
+
+	/** Sources note: real configured/always-on ingest sources, never a guess. */
+	const sourcesNote = $derived(
+		sourcesCount === null
+			? 'fuentes activas'
+			: `${sourcesCount} ${sourcesCount === 1 ? 'fuente activa' : 'fuentes activas'}`
+	);
+
+	/** Noticias grouped by topic, digest order preserved inside each group. */
+	const newsByTopic = $derived.by(() => {
+		const groups: { topic: string | null; items: DigestNewsItem[] }[] = [];
+		const byKey = new Map<string, { topic: string | null; items: DigestNewsItem[] }>();
+		for (const item of content.noticias ?? []) {
+			const key = item.topic ?? '';
+			let group = byKey.get(key);
+			if (!group) {
+				group = { topic: item.topic ?? null, items: [] };
+				byKey.set(key, group);
+				groups.push(group);
+			}
+			group.items.push(item);
+		}
+		return groups;
+	});
+
+	/** «Fuente: … Confianza: …» line; null when the item carries neither. */
+	function sourceLine(item: DigestNewsItem): string | null {
+		const parts: string[] = [];
+		const labels = [...new Set((item.sources ?? []).map((source) => sourceLabel(source.source)))];
+		if (labels.length > 0) parts.push(`Fuente: ${labels.join(' · ')}`);
+		if (item.confidence) parts.push(`Confianza: ${item.confidence}`);
+		return parts.length > 0 ? `${parts.join('. ')}.` : null;
+	}
+
+	/** Fixed line for a tracked source the day's revision found silent. */
+	const REDES_EMPTY_NOTE = 'Sin novedades fechables en la ventana.';
+
+	interface RedesEntry {
+		key: string;
+		label: string;
+		note: string;
+	}
+
+	/**
+	 * Redes narrativas: note when the digest carries one; the fixed
+	 * silent-line for configured sources without data (x always, Facebook
+	 * when pages are configured). Sources with data but no narrative and
+	 * unconfigured silences render nothing (never a fabricated claim).
+	 */
+	const redesEntries = $derived.by(() => {
+		const entries: RedesEntry[] = [];
+		for (const [key, info] of redes) {
+			const note = typeof info?.note === 'string' ? info.note.trim() : '';
+			if (note) {
+				entries.push({ key, label: socialLabels[key] ?? sourceLabel(key), note });
+			} else if ((info?.count ?? 0) === 0 && (key === 'x' || (key === 'facebook_page' && socialLabels[key]))) {
+				entries.push({ key, label: socialLabels[key] ?? sourceLabel(key), note: REDES_EMPTY_NOTE });
 			}
 		}
-		return [...new Set(parts)].join(' · ');
-	}
-	const rectora = $derived(content.rectora ?? {});
-	const redes = $derived(Object.entries(content.redes ?? {}));
-	const personas = $derived(content.personas ?? []);
-	const pendientes = $derived(content.pendientes ?? []);
-	const gaps = $derived(content.coverage?.gaps ?? []);
-
-	/** Topic taxonomy v2 size (classification-v2); legacy keys excluded. */
-	const TOPIC_TOTAL = 9;
-
-	const byTopic = $derived.by(() => {
-		if (coverageLive) return coverageLive.byTopic;
-		if (content.coverage?.by_topic) return content.coverage.by_topic;
-		const counts: Record<string, number> = {};
-		for (const item of noticias) if (item.topic) counts[item.topic] = (counts[item.topic] ?? 0) + 1;
-		return Object.keys(counts).length > 0 ? counts : undefined;
-	});
-	const total = $derived(coverageLive?.total ?? content.coverage?.total ?? noticias.length);
-	const liveEvents = $derived(coverageLive?.events ?? null);
-	const categories = $derived(categoryRows(byTopic, total));
-	const activeTopics = $derived(byTopic ? Object.keys(byTopic).length : 0);
-
-	const mediaToneRows = $derived(toneRows(tones?.media, 'Sin calcular'));
-	const socialToneRows = $derived(toneRows(tones?.social, 'Sin datos'));
-
-	const redesMeta = $derived(
-		redes.length > 0
-			? redes
-					.map(
-						([source, info]) =>
-							`${sourceLabel(source)}: ${info.count > 0 ? info.count : 'sin menciones'}`
-					)
-					.join(' · ')
-			: 'Fuente sin conexión'
-	);
-
-	/** Rectora display name: content stamp first, persona lookup for pre-stamp digests. */
-	const rectoraPersona = $derived(
-		rectora.person_id ? personas.find((person) => person.person_id === rectora.person_id) : undefined
-	);
-	const rectoraName = $derived(rectora.name ?? rectoraPersona?.name ?? 'Rectora');
-	/** Role · org note: content stamp wins, persona chain fallback, generic label last. */
-	const rectoraRoleOrg = $derived.by(() => {
-		const parts = [rectora.role ?? rectoraPersona?.role, rectora.org ?? rectoraPersona?.org].filter(
-			(part): part is string => Boolean(part)
-		);
-		return parts.length > 0 ? parts.join(' · ') : null;
+		return entries;
 	});
 
-	/* Editorial evidence layer: no feed chrome. The digest list is frozen per
-	   cut by design; the live stream lives in /feed (and the feed page's own
-	   sentiment pills reuse .feed-filter styles). */
-
-	/* Long days collapse to the first slice; one click reveals the rest. */
-	const COLLAPSED_VISIBLE = 6;
-	let expanded = $state(false);
-	const needsCollapse = $derived(noticias.length > COLLAPSED_VISIBLE);
-	const visibleNews = $derived(
-		needsCollapse && !expanded ? noticias.slice(0, COLLAPSED_VISIBLE) : noticias
-	);
-
-	/* Puntos de atención: the day's negative-tone events, capped, editorially
-	   surfaced above the full list (the list itself keeps every item). */
-	const ATTENTION_MAX = 5;
-	const attentionItems = $derived(
-		noticias
-			.filter(
-				(item) =>
-					item.event_id !== undefined &&
-					item.event_id !== null &&
-					sentimentByEvent[String(item.event_id)] === 'negative'
-			)
-			.slice(0, ATTENTION_MAX)
-	);
-
-	const sentimentedActions = $derived((rectora.actions ?? []).filter((action) => action.sentiment));
-
-	const positiveShare = $derived.by(() => {
-		if (sentimentedActions.length === 0) return null;
-		const positive = sentimentedActions.filter((action) => action.sentiment === 'positive').length;
-		return Math.round((positive / sentimentedActions.length) * 100);
+	/** Detail h3: focus person when identified, generic label otherwise. */
+	const rectoraHeading = $derived.by(() => {
+		const name = focusPersonLabel(content);
+		return name ? `Rectora ${name}` : 'Rectora';
 	});
 
-	/** Quotes: rectora news titles cited to their first source; actions as fallback. */
-	const rectoraQuotes = $derived.by(() => {
-		const fromNews = rectora.person_id
-			? noticias
-					.filter((item) => item.person_ids?.includes(rectora.person_id ?? -1) && item.title)
-					.slice(0, 2)
-					.map((item) => ({
-						text: item.title ?? '',
-						cite: item.sources[0]
-							? `${sourceLabel(item.sources[0].source)} · titular de la nota`
-							: 'Resumen del día'
-					}))
-			: [];
-		if (fromNews.length > 0) return fromNews;
-		return (rectora.actions ?? [])
-			.filter((action) => action.title)
-			.slice(0, 2)
-			.map((action) => ({ text: action.title ?? '', cite: 'Resumen del día' }));
-	});
+	const hasDetail = $derived(
+		newsByTopic.length > 0 ||
+			agenda.length > 0 ||
+			activity.length > 0 ||
+			pendientes.length > 0 ||
+			redesEntries.length > 0
+	);
 </script>
 
-<section id="cobertura" class="section" aria-labelledby="resumen-general">
+<section id="cobertura" class="section" aria-labelledby="resumen-general-heading">
 	<div class="section-heading">
-		<h2 id="resumen-general">Resumen general</h2>
-		<span class="section-note">Medios y redes sociales</span>
+		<h2 id="resumen-general-heading">Resumen general <span class="heading-soft">( Tendencia )</span></h2>
+		<span class="section-note">{sourcesNote}</span>
 	</div>
 	<div class="summary-grid">
 		<article class="summary-box" aria-labelledby="media-tone">
-			<h3 id="media-tone">Tendencia en medios</h3>
-			<p class="summary-meta">{total} {total === 1 ? 'mención' : 'menciones'} en la jornada</p>
+			<h3 id="media-tone">Noticias</h3>
+			{#if tones}
+				<p class="summary-meta">
+					{tones.media.total}
+					{tones.media.total === 1 ? 'nota registrada' : 'notas registradas'}
+				</p>
+			{/if}
 			<dl class="tone-list" aria-label="Distribución de tono en medios">
-				{#each mediaToneRows as row (row.key)}
+				{#each mediaTones as row (row.key)}
 					<div><dt>{row.label}</dt><dd>{row.value}</dd></div>
 				{/each}
 				{#if tones && tones.media.unclassified > 0}
 					<div><dt>Sin clasificar</dt><dd>{tones.media.unclassified}</dd></div>
 				{/if}
 			</dl>
-			<p class="summary-note">
-				{tones
-					? 'Corresponde a las menciones de medios registradas en la ventana del día.'
-					: 'La distribución de tono no estuvo disponible en esta consulta.'}
-			</p>
+			{#if tones}
+				<p class="summary-note">
+					Corresponde a las menciones de medios registradas en la ventana del día.
+				</p>
+			{/if}
 		</article>
 		<article class="summary-box" aria-labelledby="social-tone">
-			<h3 id="social-tone">Tendencia en redes</h3>
-			<p class="summary-meta">{redesMeta}</p>
+			<h3 id="social-tone">Redes Sociales</h3>
+			{#if tones}
+				<p class="summary-meta">
+					{tones.social.total > 0
+						? `${tones.social.total} ${tones.social.total === 1 ? 'publicación registrada' : 'publicaciones registradas'}`
+						: 'Sin publicaciones registradas'}
+				</p>
+			{/if}
 			<dl class="tone-list" aria-label="Distribución de tono en redes sociales">
-				{#each socialToneRows as row (row.key)}
+				{#each socialTones as row (row.key)}
 					<div><dt>{row.label}</dt><dd>{row.value}</dd></div>
 				{/each}
 				{#if tones && tones.social.unclassified > 0}
 					<div><dt>Sin clasificar</dt><dd>{tones.social.unclassified}</dd></div>
 				{/if}
 			</dl>
-			<p class="summary-note">
-				{tones
-					? 'Las publicaciones sociales se cuentan aparte de las notas de medios.'
-					: 'El tono por red no estuvo disponible en esta consulta.'}
-			</p>
-		</article>
-		<article class="summary-box" aria-labelledby="trending">
-			<h3 id="trending">Temas en tendencia</h3>
-			<p class="summary-meta">Redes sociales</p>
-			<p class="trend-empty" role="status">
-				Aún no hay temas identificados. Aparecerán aquí cuando la fuente social publique
-				tendencias.
-			</p>
-		</article>
-	</div>
-</section>
-
-<section id="desglose-cobertura" class="section" aria-labelledby="cobertura-dia">
-	<div class="section-heading">
-		<h2 id="cobertura-dia">Cobertura del día</h2>
-		<span class="section-note">{total} {total === 1 ? 'mención' : 'menciones'} en la jornada</span>
-	</div>
-	<div class="coverage">
-		<div class="metric">
-			<span class="metric-label">Cobertura de la jornada</span>
-			<strong class="metric-big">{total}</strong>
-			<span class="metric-detail">menciones publicadas en la jornada</span>
-		</div>
-		<div class="metric">
-			<span class="metric-label">Eventos detectados</span>
-			{#if liveEvents !== null}
-				<strong class="metric-big">{liveEvents}</strong>
-				<span class="metric-detail">agrupan menciones sobre un mismo hecho</span>
-			{:else}
-				<strong class="metric-big">–</strong>
-				<span class="metric-detail">eventos no disponibles</span>
+			{#if tones}
+				<p class="summary-note">
+					Las publicaciones sociales no se incluyen en las {tones.media.total} notas.
+				</p>
 			{/if}
-		</div>
-		<div class="metric">
-			<span class="metric-label">Categorías activas</span>
-			<strong class="metric-big">{activeTopics}</strong>
-			<span class="metric-detail">de {TOPIC_TOTAL} categorías posibles</span>
-		</div>
+		</article>
+		<article class="summary-box" aria-labelledby="field-tone">
+			<h3 id="field-tone">Datos de Campo</h3>
+			{#if tones}
+				<p class="summary-meta">
+					{tones.field.total > 0
+						? `${tones.field.total} ${tones.field.total === 1 ? 'registro cargado' : 'registros cargados'}`
+						: 'Sin registros cargados'}
+				</p>
+			{/if}
+			<dl class="tone-list" aria-label="Distribución de tono en datos de campo">
+				{#each fieldTones as row (row.key)}
+					<div><dt>{row.label}</dt><dd>{row.value}</dd></div>
+				{/each}
+				{#if tones && tones.field.unclassified > 0}
+					<div><dt>Sin clasificar</dt><dd>{tones.field.unclassified}</dd></div>
+				{/if}
+			</dl>
+			{#if tones}
+				<p class="summary-note">
+					{tones.field.total > 0
+						? 'Registros cargados manualmente; no forman parte del total de notas.'
+						: 'Sin estudio publicado. Esta fuente se actualiza ocasionalmente.'}
+				</p>
+			{/if}
+		</article>
 	</div>
-	{#each gaps as gap (gap)}
-		<p class="breakdown-note">{gap}</p>
-	{/each}
-	<h3 class="breakdown-heading">Menciones por categoría</h3>
-	{#if categories.length === 0}
-		<p class="breakdown-note">Sin categorías clasificadas para este día.</p>
-	{:else}
-		<ul class="category-breakdown" aria-label="Menciones por categoría; una categoría por mención">
-			{#each categories as row (row.key)}
-				<li class="category-row">
-					<span class="category-name">{topicLabel(row.key)}</span>
-					<span class="category-track" aria-hidden="true">
-						<span class="category-fill" style="width:{row.pct}%"></span>
-					</span>
-					<span class="category-value">{row.count} · {row.pct}&nbsp;%</span>
-				</li>
-			{/each}
-		</ul>
-	{/if}
 </section>
 
-{#if fieldCount > 0}
-<section id="datos-campo" class="section" aria-labelledby="datos-campo-heading">
-	<div class="section-heading">
-		<h2 id="datos-campo-heading">Datos de campo</h2>
-		<span class="section-note">Formularios y encuestas · carga manual</span>
-	</div>
-	<div class="manual-data-panel">
-		<div>
-			<span class="manual-data-status">Sin estudio publicado</span>
-			<h3>Aún no hay resultados de campo</h3>
-			<p>
-				Cuando se valide la primera carga, aquí aparecerán el hallazgo principal, el instrumento
-				utilizado y el periodo de recolección.
-			</p>
-		</div>
-		<dl class="manual-data-meta" aria-label="Estado de los datos de campo">
-			<div><dt>Última actualización</dt><dd>No disponible</dd></div>
-			<div><dt>Instrumento</dt><dd>No registrado</dd></div>
-			<div><dt>Muestra</dt><dd>No registrada</dd></div>
-		</dl>
-	</div>
-	<p class="manual-data-note">
-		Esta fuente se actualiza ocasionalmente y no forma parte del total de notas ni del feed en
-		tiempo real.
-	</p>
-</section>
-{/if}
-
-<section id="rectora" class="section" aria-labelledby="rectora-heading">
-	<div class="section-heading">
-		<h2 id="rectora-heading">{rectoraName}</h2>
-		<span class="section-note">{rectoraRoleOrg ?? 'Persona focal del resumen'}</span>
-	</div>
-	{#if updatedAt}
-		<p class="rectora-update">
-			Resumen actualizado el <time datetime={updatedAt}>{formatDisplayDateTimeAt(updatedAt)}</time>
-		</p>
-	{/if}
-	{#if rectora.mention_count}
-		<div class="rectora-summary" aria-label="Resumen de cobertura de la persona focal">
-			<div class="rectora-stat">
-				<strong>{rectora.mention_count}</strong>
-				<span>menciones</span>
+{#if hasDetail}
+	<section class="section daily-detail" aria-labelledby="daily-detail-heading">
+		<header class="daily-detail-header">
+			<h2 id="daily-detail-heading">Resumen detallado del día</h2>
+			<p>Interpretación y seguimiento de la cobertura.</p>
+		</header>
+		{#if newsByTopic.length > 0}
+			<div class="daily-detail-block">
+				<h3>Noticias</h3>
+				{#each newsByTopic as group, gi (`group-${gi}`)}
+					<div class="daily-detail-item">
+						<h4>{group.topic ? topicLabel(group.topic) : 'Sin categoría'}</h4>
+						{#each group.items as item, ii (item.event_id ?? `item-${gi}-${ii}`)}
+							<div class="daily-detail-entry">
+								{#if item.summary || item.title}<p>{item.summary ?? item.title}</p>{/if}
+								{#if sourceLine(item)}<p class="daily-detail-source">{sourceLine(item)}</p>{/if}
+							</div>
+						{/each}
+					</div>
+				{/each}
 			</div>
-			{#if positiveShare !== null}
-				<div class="rectora-stat">
-					<strong>{positiveShare}&nbsp;%</strong>
-					<span>positivas</span>
-				</div>
-			{:else if rectora.tone}
-				<div class="rectora-stat">
-					<strong>{rectora.tone}</strong>
-					<span>tono</span>
-				</div>
-			{/if}
-		</div>
-	{:else}
-		<p class="breakdown-note">Sin menciones de la persona focal en la ventana.</p>
-	{/if}
-	{#if rectoraQuotes.length > 0}
-		<div class="quotes">
-			{#each rectoraQuotes as quote, i (i)}
-				<blockquote>
-					“{quote.text}”
-					<cite>{quote.cite}</cite>
-				</blockquote>
-			{/each}
-		</div>
-	{/if}
-	{#if rectora.watch}<p class="breakdown-note">Vigilar: {rectora.watch}</p>{/if}
-	{#if rectora.gaps}<p class="breakdown-note">Gap: {rectora.gaps}</p>{/if}
-</section>
-
-{#if attentionItems.length > 0}
-	<section class="section" aria-labelledby="atencion-heading">
-		<div class="section-heading">
-			<h2 id="atencion-heading">Puntos de atención</h2>
-			<span class="section-note">Tono negativo · {attentionItems.length}</span>
-		</div>
-		<ul class="plain-list attention-list">
-			{#each attentionItems as item (item.event_id)}
-				<li>
-					<a href={`/events/${item.event_id}`}>{item.title ?? 'Sin título'}</a>
-					{#if item.why_it_matters}
-						<span class="attention-why"> — {item.why_it_matters}</span>
-					{/if}
-				</li>
-			{/each}
-		</ul>
-	</section>
-{/if}
-
-<section id="noticias" class="section" aria-labelledby="noticias-heading">
-	<div class="section-heading">
-		<h2 id="noticias-heading">Noticias del día</h2>
-		<a class="feed-full-link" href="/feed">Ver feed completo →</a>
-	</div>
-	{#if noticias.length === 0}
-		<p class="breakdown-note">Sin noticias registradas ese día.</p>
-	{:else}
-		<ol class="editorial-list feed-list" aria-label="Noticias del día">
-			{#each visibleNews as item, i (item.event_id ?? `i${i}`)}
-				<li class="news-item" data-channel="news">
-					<NewsEntry
-						variant="card"
-						channel={newsChannel(item)}
-						sentimentClass={item.event_id ? (sentimentByEvent[String(item.event_id)] ?? null) : null}
-						sentimentText={item.event_id && sentimentByEvent[String(item.event_id)]
-							? sentimentLabel(sentimentByEvent[String(item.event_id)])
-							: null}
-						title={item.title ?? 'Sin título'}
-						titleHref={item.sources[0]?.url ?? null}
-						body={[
-							item.summary ?? null,
-							item.why_it_matters ? `Por qué importa: ${item.why_it_matters}` : null
-						]
-							.filter(Boolean)
-							.join(' ')}
-					>
-						{#snippet footerLeft()}
-							{#if item.repeat}<span class="text-meta">Reiteración</span>{/if}
-							{#if item.topic}<span>Categoría · {topicLabel(item.topic)}</span>{/if}
-						{/snippet}
-
-						{#snippet footerRight()}
-							{#if item.event_id}
-								<a href={`/events/${item.event_id}`}>Evento #{item.event_id}</a>
-							{:else}
-								Sin evento relacionado
-							{/if}
-						{/snippet}
-					</NewsEntry>
-				</li>
-			{/each}
-		</ol>
-	{/if}
-	{#if needsCollapse}
-		<button
-			class="news-expand"
-			type="button"
-			aria-expanded={expanded}
-			onclick={() => (expanded = !expanded)}
-		>
-			{expanded
-				? 'Mostrar menos'
-				: `Ver las ${noticias.length - COLLAPSED_VISIBLE} noticias restantes`}
-		</button>
-	{/if}
-</section>
-
-{#if personas.length > 0}
-	<section class="section" aria-labelledby="personas-heading">
-		<div class="section-heading">
-			<h2 id="personas-heading">Personas mencionadas</h2>
-			<span class="section-note">Detectadas en la jornada</span>
-		</div>
-		<ul class="plain-list">
-			{#each personas as person (person.person_id)}
-				<li>
-					<a href="/persons/{person.person_id}" class="person-link">{person.name}</a>
-					{#if person.role || person.org}
-						<span class="person-meta">
-							{[person.role, person.org].filter(Boolean).join(' · ')}
-						</span>
-					{/if}
-					{#if person.fact} — {person.fact}{/if}
-				</li>
-			{/each}
-		</ul>
-	</section>
-{/if}
-
-{#if pendientes.length > 0}
-	<section id="pendientes" class="section" aria-labelledby="pendientes-heading">
-		<div class="section-heading">
-			<h2 id="pendientes-heading">Pendientes y silencios</h2>
-			<span class="section-note">Seguimiento de cobertura</span>
-		</div>
-		<ul class="pending-list">
-			{#each pendientes as pending (pending)}
-				<li><span>{pending}</span><span>ventana de 24 h</span></li>
-			{/each}
-		</ul>
+		{/if}
+		{#if agenda.length > 0}
+			<div class="daily-detail-block">
+				<h3>Agenda</h3>
+				<ul class="daily-detail-list">
+					{#each agenda as item, i (`agenda-${i}`)}
+						<li>
+							<strong>{[item.when, item.status].filter(Boolean).join(' · ')}</strong>
+							{item.title}{item.source ? ` Fuente: ${item.source}` : ''}
+						</li>
+					{/each}
+				</ul>
+			</div>
+		{/if}
+		{#if activity.length > 0}
+			<div class="daily-detail-block">
+				<h3>{rectoraHeading}</h3>
+				<ul class="daily-detail-list">
+					{#each activity as item, i (`activity-${i}`)}
+						<li>
+							<strong>{[item.when, item.status].filter(Boolean).join(' · ')}</strong>
+							{item.text}{item.channel ? ` (${item.channel})` : ''}
+						</li>
+					{/each}
+				</ul>
+			</div>
+		{/if}
+		{#if redesEntries.length > 0}
+			<div class="daily-detail-block">
+				<h3>Redes sociales</h3>
+				{#each redesEntries as entry (entry.key)}
+					<div class="daily-detail-item">
+						<h4>{entry.label}</h4>
+						<p>{entry.note}</p>
+					</div>
+				{/each}
+			</div>
+		{/if}
+		{#if pendientes.length > 0}
+			<div class="daily-detail-block">
+				<h3>Limitaciones de cobertura</h3>
+				<ul class="daily-detail-list">
+					{#each pendientes as pending, i (`pending-${i}`)}
+						<li>{pending}</li>
+					{/each}
+				</ul>
+			</div>
+		{/if}
 	</section>
 {/if}

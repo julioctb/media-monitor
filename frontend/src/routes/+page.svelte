@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { goto, invalidateAll } from '$app/navigation';
+	import { invalidateAll, goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 
 	import {
@@ -8,8 +8,9 @@
 		formatLongDate,
 		nextCutLabel
 	} from '$lib/format';
-	import { monogram } from '$lib/digest-stats';
+	import { categoryRows, focusPersonLabel, monogram } from '$lib/digest-stats';
 	import DigestSections from '$lib/components/DigestSections.svelte';
+	import NegativeNews from '$lib/components/NegativeNews.svelte';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -17,23 +18,10 @@
 	const summary = $derived(data.summary);
 	const day = $derived(data.day);
 
-	const modeLabel: Record<string, string> = {
-		heuristic: 'Plantilla',
-		llm: 'IA'
-	};
-
-	const governmentCount = $derived.by(() => {
-		const byTopic = summary?.content.coverage?.by_topic;
-		if (byTopic && 'government' in byTopic) return byTopic.government;
-		return (
-			summary?.content.noticias?.filter((item) => item.topic === 'government').length ?? 0
-		);
-	});
-
 	// Auto-refresh while visible (same contract as the feed): picks up new
 	// digest cuts and live counts without a manual reload. The digest's news
-	// list itself is frozen per cut; the day link below hands off to the
-	// live feed for anything newer.
+	// detail is frozen per cut; the day link in the negative panel hands off
+	// to the live feed for anything newer.
 	const REFRESH_MS = 90_000;
 	let refreshTimer: ReturnType<typeof setInterval> | undefined = $state();
 	let lastRefresh = $state<string | null>(null);
@@ -75,73 +63,72 @@
 
 	const updatedLabel = $derived(summary ? formatDisplayTime(summary.updated_at) : null);
 	const nextCut = $derived(nextCutLabel(data.digestHours, new Date()));
+
+	/** Header eyebrow: focus person when identified, «BUAP» fallback. */
+	const eyebrow = $derived.by(() => {
+		const name = summary ? focusPersonLabel(summary.content) : null;
+		return name ? `Resumen diario / BUAP - ${name}` : 'Resumen diario / BUAP';
+	});
+
+	/** Categorías identificadas: top 5 shares over the day's real total. */
+	const categoryRowsTop = $derived(
+		categoryRows(data.liveCoverage?.byTopic, data.liveCoverage?.total).slice(0, 5)
+	);
+	const TOPIC_TOTAL = 9;
+	const activeTopics = $derived(data.liveCoverage ? Object.keys(data.liveCoverage.byTopic).length : 0);
+
+	/** Por término de búsqueda: active keywords crossed with the day counts. */
+	const keywordRows = $derived.by(() => {
+		const counts = new Map(data.keywordCounts.map((row) => [row.id, row.count]));
+		return data.keywords.map((keyword) => ({ ...keyword, count: counts.get(keyword.id) ?? 0 }));
+	});
+
+	const coverageTotal = $derived(data.liveCoverage?.total ?? null);
+	const liveEvents = $derived(data.liveCoverage?.events ?? null);
+
+	/** Archive pagination: one month back per click, anchored on the visible page. */
+	const olderHref = $derived(
+		data.olderBefore
+			? `?date=${encodeURIComponent(day)}&before=${encodeURIComponent(data.olderBefore)}`
+			: null
+	);
 </script>
 
 <svelte:head>
 	<title>Resumen diario | Media Monitor</title>
 </svelte:head>
 
-<div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-4">
-	<div class="min-w-0">
+<div class="digest-layout">
+	<div class="digest-content">
 		{#if summary}
 			<section class="digest-header" aria-labelledby="digest-date">
-				<div class="eyebrow">Resumen diario / BUAP</div>
+				<div class="eyebrow">{eyebrow}</div>
 				<h1 id="digest-date">{formatLongDate(summary.summary_date)}</h1>
 				<div class="digest-meta">
-					<span class="mode">{modeLabel[summary.mode] ?? summary.mode}</span>
 					<span>
-						Resumen actualizado a las {updatedLabel}{nextCut ? ` · siguiente actualización a las ${nextCut}` : ''}
+						Interpretación actualizada a las {updatedLabel}{nextCut
+							? ` · siguiente actualización a las ${nextCut}`
+							: ''}
 					</span>
 					{#if lastRefresh}
 						<span>refrescado {lastRefresh}</span>
 					{/if}
 				</div>
-				{#if data.days.length > 1}
-					<!-- Mobile date jump: the sidebar Historial sits below the whole
-						digest on narrow viewports; this keeps day switching at hand. -->
-					<div class="day-jump">
-						<label class="day-jump-label" for="day-jump">Consultar otro día</label>
-						<select
-							id="day-jump"
-							value={day}
-							onchange={(event) => goto(`?date=${event.currentTarget.value}`)}
-						>
-							{#each data.days as entry (entry.summary_date)}
-								<option value={entry.summary_date}>
-									{formatLongDate(entry.summary_date)}
-								</option>
-							{/each}
-						</select>
-					</div>
-				{/if}
 			</section>
 
 			<section class="narrative" aria-labelledby="narrative-heading">
-				<div class="eyebrow" id="narrative-heading">Resumen del día</div>
+				<div class="eyebrow" id="narrative-heading">Sintesis del día</div>
 				<p>{summary.narrative}</p>
 			</section>
 
-			<!-- Day cross-link: the digest has its own feed section; this
-				anchor just scrolls down to it. -->
-			<a class="digest-feed-link" href="#noticias">
-				Ver el feed de noticias ↓
-			</a>
+			<NegativeNews items={data.negativeEvents} day={day} />
 
 			<DigestSections
 				content={summary.content}
 				tones={data.tones}
-				sentimentByEvent={data.eventSentiment}
-				coverageLive={data.liveCoverage}
-				fieldCount={data.fieldCount}
-				updatedAt={summary.updated_at}
+				sourcesCount={data.sourcesCount}
+				socialLabels={data.socialLabels}
 			/>
-
-			<details class="panel">
-				<summary class="cursor-pointer text-sm font-medium text-ink">
-					Texto plano (para el chat con RAG)
-				</summary>
-				<pre class="mt-3 whitespace-pre-wrap text-sm text-ink-2">{summary.content.plain_text}</pre>
-			</details>
 		{:else}
 			<div class="empty mt-6" role="status">
 				<p>Todavía no se genera el resumen del día.</p>
@@ -153,7 +140,7 @@
 		{/if}
 	</div>
 
-	<aside class="sidebar digest-aside" aria-label="Seguimiento especial, archivo y actores">
+	<aside class="sidebar digest-aside" aria-label="Historial, categorías y cobertura del día">
 		<section class="sidebar-section" aria-labelledby="archivo-heading">
 			<h2 id="archivo-heading">Historial</h2>
 			{#if data.days.length === 0}
@@ -173,57 +160,93 @@
 						</li>
 					{/each}
 				</ul>
+				{#if olderHref}
+					<p class="small-note">
+						<a class="month-link" href={olderHref}>ver mes anterior -&gt;</a>
+					</p>
+				{/if}
 			{/if}
-			<p class="small-note">La consulta histórica requiere conexión al backend.</p>
 		</section>
 
-		<section class="sidebar-section" aria-labelledby="actores-heading">
-			<h2 id="actores-heading">Actores en seguimiento</h2>
-			{#if data.persons.length === 0}
-				<p class="small-note">Sin actores registrados todavía.</p>
-			{:else}
-				{#each data.persons as person (person.id)}
-					<div class="actor-entry">
-						<span class="actor-monogram" aria-hidden="true">{monogram(person.name)}</span>
+		{#if categoryRowsTop.length > 0}
+			<section class="sidebar-section" aria-labelledby="categorias-heading">
+				<h2 id="categorias-heading">Categorías identificadas</h2>
+				<p class="archive-copy">
+					Distribución de las {coverageTotal}
+					{coverageTotal === 1 ? 'nota' : 'notas'} del día.
+				</p>
+				<dl class="tone-list identified" aria-label="Porcentaje de noticias por categoría">
+					{#each categoryRowsTop as row (row.key)}
 						<div>
-							<span class="actor-name">{person.name}</span>
-							<span class="actor-role">
+							<dt>{row.label}</dt>
+							<dd>
+								<span class="category-value">{row.pct}&nbsp;%</span>
+								<span class="category-track" aria-hidden="true">
+									<span class="category-fill" style="width:{row.pct}%"></span>
+								</span>
+							</dd>
+						</div>
+					{/each}
+				</dl>
+			</section>
+		{/if}
+
+		{#if data.persons.length > 0}
+			<section class="sidebar-section persons-panel" aria-labelledby="personas-heading">
+				<h2 id="personas-heading">Personas mencionadas</h2>
+				{#each data.persons as person (person.id)}
+					<div class="person-entry">
+						<span class="person-monogram" aria-hidden="true">{monogram(person.name)}</span>
+						<div class="person-data">
+							<strong>{person.name}</strong>
+							<p>
 								{[person.role ?? person.org, `${person.mention_count} menciones`]
 									.filter(Boolean)
 									.join(' · ')}
-							</span>
+							</p>
+							<a
+								class="person-more"
+								href="/persons/{person.id}"
+								aria-label="Ver cobertura de {person.name}"
+							>
+								Ver cobertura <span aria-hidden="true">→</span>
+							</a>
 						</div>
 					</div>
 				{/each}
-				<a class="actor-link" href="/persons">Ver cobertura →</a>
-			{/if}
-		</section>
+			</section>
+		{/if}
 
-		<section class="sidebar-section" aria-labelledby="especial-heading">
-			<h2 id="especial-heading">Categorías en seguimiento especial</h2>
-			<div class="special-topic">
-				<span class="special-topic-name">Gobierno</span>
-				<span class="special-topic-scope">Tema prioritario en noticias y redes sociales</span>
-				<p class="special-topic-status">
-					{governmentCount > 0
-						? `${governmentCount} ${governmentCount === 1 ? 'nota clasificada' : 'notas clasificadas'} hoy.`
-						: 'Sin notas clasificadas en esta categoría hoy.'}
-				</p>
-			</div>
-		</section>
-
-		<section class="sidebar-section" aria-labelledby="temas-heading">
-			<h2 id="temas-heading">Temas en seguimiento</h2>
-			{#if data.keywords.length === 0}
-				<p class="tracked-topics-empty" role="status">
-					Los temas definidos en Configuración aparecerán aquí.
-				</p>
-			{:else}
-				<ul class="tracked-list">
-					{#each data.keywords as keyword (keyword.id)}
-						<li>{keyword.text}</li>
-					{/each}
-				</ul>
+		<section class="sidebar-section" aria-labelledby="cobertura-dia-heading">
+			<h2 id="cobertura-dia-heading">Cobertura del día</h2>
+			<p class="coverage-figure">
+				<strong>{coverageTotal ?? '—'}</strong>
+				<span>
+					{coverageTotal === 1 ? 'nota registrada en la jornada' : 'notas registradas en la jornada'}
+				</span>
+			</p>
+			<dl class="coverage-rows">
+				<div>
+					<dt>Categorías</dt>
+					<dd>{activeTopics} de {TOPIC_TOTAL}</dd>
+				</div>
+				<div>
+					<dt>Eventos creados</dt>
+					<dd>{liveEvents ?? '—'}</dd>
+				</div>
+			</dl>
+			{#if keywordRows.length > 0}
+				<div class="day-terms">
+					<h3>Por término de búsqueda</h3>
+					<dl class="day-terms-list">
+						{#each keywordRows as row (row.id)}
+							<div>
+								<dt>{row.text}</dt>
+								<dd>{row.count}</dd>
+							</div>
+						{/each}
+					</dl>
+				</div>
 			{/if}
 		</section>
 	</aside>

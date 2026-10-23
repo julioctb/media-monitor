@@ -135,6 +135,21 @@ export function formatDisplayDateTimeLong(value: string | null | undefined): str
 
 const dayFormatter = new Intl.DateTimeFormat('es', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 
+const longDateFormatter = new Intl.DateTimeFormat('es-MX', {
+	timeZone: DISPLAY_TIMEZONE,
+	day: 'numeric',
+	month: 'long',
+	year: 'numeric'
+});
+
+/** `2026-10-19T…` → `19 de octubre de 2026` (negative-news source line). */
+export function formatDateLong(value: string | null | undefined): string {
+	if (!value) return '—';
+	const date = new Date(value);
+	if (Number.isNaN(date.getTime())) return value;
+	return longDateFormatter.format(date);
+}
+
 /** `2026-10-19T06:24` → `19/10/2026 a las 06:24` (detalle-actor mockup). */
 export function formatDisplayDateTimeAt(value: string | null | undefined): string {
 	const base = formatDisplayDateTime(value);

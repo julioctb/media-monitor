@@ -323,6 +323,29 @@ export function getStatsOverview(options: RequestOptions = {}): Promise<StatsOve
 	return request<StatsOverview>('/api/stats/overview', { method: 'GET' }, options);
 }
 
+/** One tone bucket of GET /stats/day (same shape as ToneCounts). */
+export interface StatsDayToneBucket {
+	positive: number;
+	negative: number;
+	neutral: number;
+	unclassified: number;
+	total: number;
+}
+
+/** GET /stats/day: home-page aggregates for one local day (home-digest-v2). */
+export interface StatsDay {
+	date: string;
+	timezone: string;
+	tones: { media: StatsDayToneBucket; social: StatsDayToneBucket; field: StatsDayToneBucket };
+	/** Mentions per keyword inside the day window (active + inactive). */
+	keywords: { id: number; text: string; count: number }[];
+}
+
+/** Day aggregates for the home: local-day window, tone split, keyword hits. */
+export function getDayStats(day: string, options: RequestOptions = {}): Promise<StatsDay> {
+	return request<StatsDay>(`/api/stats/day?date=${encodeURIComponent(day)}`, { method: 'GET' }, options);
+}
+
 export function listKeywords(options: RequestOptions = {}): Promise<Keyword[]> {
 	return request<Keyword[]>('/api/keywords', { method: 'GET' }, options);
 }
@@ -678,6 +701,8 @@ export interface DailySummaryContent {
 		gaps?: string[];
 	};
 	noticias?: DigestNewsItem[];
+	/** Agenda v2: LLM-authored upcoming items (home-digest-v2). */
+	agenda?: { when: string; title: string; status?: string; source?: string }[];
 	rectora?: {
 		person_id?: number | null;
 		/** Identity stamp (rectora-identity-stamp): absent on pre-stamp digests. */
@@ -685,6 +710,8 @@ export interface DailySummaryContent {
 		role?: string | null;
 		org?: string | null;
 		actions?: { title?: string; event_id?: number | null; sentiment?: string | null }[];
+		/** Activity log v2: dated items, channel optional (home-digest-v2). */
+		activity?: { text: string; when?: string; status?: string; channel?: string }[];
 		mention_count?: number;
 		tone?: string | null;
 		watch?: string | null;
