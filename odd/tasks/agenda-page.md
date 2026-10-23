@@ -29,17 +29,19 @@ y la detección queda fuera de este feature).
 
 ## Tareas
 
-- [ ] **T1 backend**: model + migration 0022 + queries + router `api/agenda.py` + schemas +
+- [x] **T1 backend**: model + migration 0022 + queries + router `api/agenda.py` + schemas +
       tests (CRUD + validación title + client scope). RED→GREEN.
-- [ ] **T2 front data+server**: tipos/fns en `lib/api.ts`; `+page.server.ts` load + actions
+- [x] **T2 front data+server**: tipos/fns en `lib/api.ts`; `+page.server.ts` load + actions
       create/edit-date (patrón settings: enhance, errorStatus/ErrorMessage); server test del
-      payload.
-- [ ] **T3 front página**: estructura completa mockup-fiel (intro/toolbar/lista/undated/forms
+      payload. *(cubierto en el commit único 36711682; la validación quedó server-side vía
+      queries.validated_agenda_changes, test de API en test_agenda.py).*
+- [x] **T3 front página**: estructura completa mockup-fiel (intro/toolbar/lista/undated/forms
       como bloques condicionales, no `<dialog>`); card `.activity` anatomy; filtros client-side.
-- [ ] **T4 calendar**: grid mensual, nav mes, day-detail, toggle lista.
-- [ ] **T5 verificación integral + nav**: view test, `npm run check && vitest && build`,
-      pytest, audit_coherence (nav literal), deploy api+dashboard, verificación de snapshot y
-      SSR.
+- [x] **T4 calendar**: grid mensual, nav mes, day-detail, toggle lista.
+- [x] **T5 verificación integral + nav**: check 0 errores, vitest 129/129, build ok, pytest
+      456 (1 flake pre-12:00 documentado), audit_coherence 5/5 con nav `href: '/agenda'`;
+      deploy api+dashboard, migración 0022 al arranque, smoke E2E (POST/PATCH/GET + SSR) y
+      limpieza del dato de prueba. Commit 36711682.
 
 ## Verificación
 
