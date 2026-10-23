@@ -117,12 +117,17 @@ def detect_kind(title: str | None, status: str | None) -> str:
 
 
 def sync_agenda_from_digest(
-    session: Session, client_id: int, content: dict, *, year: int
+    session: Session, client_id: int, content: dict, *, reference: date
 ) -> int:
     """Promote ``content['agenda']`` entries into agenda_items; return count.
 
     Idempotent by normalized title: existing items (any origin) suppress
     their detected twin, so repeated cuts and regens never pile up.
+
+    ``reference`` is the digest day (NOT today): the year anchor and the
+    next-occurrence roll are deterministic per digest, so regenerating an
+    old day never shifts years. A parsed date falling before the reference
+    means next year's edition — «15 nov.» detected on Dec 28 is Nov 2027.
     """
     entries = content.get("agenda")
     if not isinstance(entries, list):
@@ -144,12 +149,15 @@ def sync_agenda_from_digest(
             continue
         status = str(entry.get("status") or "").strip() or None
         source = str(entry.get("source") or "").strip() or None
+        event_date = parse_spanish_date(when, reference.year)
+        if event_date is not None and event_date < reference:
+            event_date = date(event_date.year + 1, event_date.month, event_date.day)
         session.add(
             AgendaItem(
                 client_id=client_id,
                 title=title[:240],
                 kind=detect_kind(title, status),
-                event_date=parse_spanish_date(when, year),
+                event_date=event_date,
                 date_label=when[:64],
                 source=source[:200] if source else None,
                 notes=status[:500] if status else None,

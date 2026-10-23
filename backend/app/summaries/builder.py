@@ -422,7 +422,7 @@ def build_daily_summary(
     try:
         from app.summaries.agenda_detect import sync_agenda_from_digest
 
-        sync_agenda_from_digest(session, client_id, content, year=day.year)
+        sync_agenda_from_digest(session, client_id, content, reference=day)
     except Exception as exc:  # noqa: BLE001 - detection is best-effort
         log.warning("agenda detect failed for %s (%s)", day, exc)
     return row

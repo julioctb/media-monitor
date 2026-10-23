@@ -58,6 +58,36 @@ def test_normalize_title_folds_accents_and_case() -> None:
     )
 
 
+def test_sync_rolls_past_dates_to_next_occurrence(db) -> None:
+    """«15 nov.» detected on Dec 28 must land in Nov 2027, not the past."""
+
+    db.add(Client(name="acme"))
+    db.commit()
+    client_id = db.query(Client).order_by(Client.id).first().id
+    reference = date(2026, 12, 28)
+    content = {
+        "agenda": [
+            # Same year, ahead of the reference: stays.
+            {"when": "30 dic.", "title": "Evento año actual"},
+            # Before the reference: next occurrence.
+            {"when": "15 nov.", "title": "Edición próxima"},
+            # Explicit year wins over the roll.
+            {"when": "10 de enero de 2026", "title": "Fecha explícita pasada"},
+        ]
+    }
+
+    created = sync_agenda_from_digest(db, client_id, content, reference=reference)
+    assert created == 3
+
+    from app.models import queries
+
+    by_title = {r.title: r for r in queries.list_agenda_items(db, client_id)}
+    assert by_title["Evento año actual"].event_date == date(2026, 12, 30)
+    assert by_title["Edición próxima"].event_date == date(2027, 11, 15)
+    # Explicit years roll too: past = next occurrence, uniform rule.
+    assert by_title["Fecha explícita pasada"].event_date == date(2027, 1, 10)
+
+
 def test_sync_creates_dedupes_and_keeps_unparsed_dates(db) -> None:
     db.add(Client(name="acme"))
     db.commit()
@@ -70,7 +100,7 @@ def test_sync_creates_dedupes_and_keeps_unparsed_dates(db) -> None:
         ]
     }
 
-    created = sync_agenda_from_digest(db, client_id, content, year=2026)
+    created = sync_agenda_from_digest(db, client_id, content, reference=date(2026, 10, 23))
     assert created == 3
 
     from app.models import queries
@@ -91,6 +121,6 @@ def test_sync_creates_dedupes_and_keeps_unparsed_dates(db) -> None:
     assert rows[2].date_label == "próxima semana"
 
     # Idempotent: same digest again -> nothing new.
-    again = sync_agenda_from_digest(db, client_id, content, year=2026)
+    again = sync_agenda_from_digest(db, client_id, content, reference=date(2026, 10, 23))
     assert again == 0
     assert len(queries.list_agenda_items(db, client_id)) == 3
