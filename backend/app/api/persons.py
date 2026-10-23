@@ -8,6 +8,7 @@ for the F4 chat answers (quote + source + url + sentiment + political label).
 """
 
 from fastapi import APIRouter, HTTPException
+from datetime import datetime
 from typing import Literal
 
 from app.api.deps import SessionDep
@@ -30,10 +31,24 @@ def list_persons(
     q: str | None = None,
     limit: int = 50,
     offset: int = 0,
+    since: datetime | None = None,
+    until: datetime | None = None,
 ) -> list[PersonOut]:
-    """Persons of the client; `mentions` rank (default) or `recent` activity."""
+    """Persons of the client; `mentions` rank (default) or `recent` activity.
+
+    With BOTH `since` and `until` the rank counts only links to mentions
+    published inside the window (home day card); `mention_count` becomes
+    the windowed count.
+    """
     _client_or_404(session, client_id)
     limit = max(1, min(200, limit))
+    if since is not None and until is not None:
+        return [
+            PersonOut.model_validate(person)
+            for person in queries.day_persons(
+                session, client_id=client_id, since=since, until=until, limit=limit
+            )
+        ]
     rows = queries.list_persons(
         session, client_id, sort=sort, q=q, limit=limit, offset=max(0, offset)
     )

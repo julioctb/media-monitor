@@ -559,14 +559,23 @@ export interface PersonDetail extends PersonSummary {
 }
 
 export function listPersons(
-	query: { sort?: 'mentions' | 'recent'; q?: string; limit?: number; offset?: number } = {},
+	query: {
+		sort?: 'mentions' | 'recent';
+		q?: string;
+		limit?: number;
+		offset?: number;
+		since?: string;
+		until?: string;
+	} = {},
 	options: RequestOptions = {}
 ): Promise<PersonSummary[]> {
 	const qs = buildQuery({
 		sort: query.sort,
 		q: query.q,
 		limit: query.limit,
-		offset: query.offset
+		offset: query.offset,
+		since: query.since,
+		until: query.until
 	});
 	return request<PersonSummary[]>(`/api/clients/1/persons${qs}`, { method: 'GET' }, options);
 }

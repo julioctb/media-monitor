@@ -1359,6 +1359,38 @@ def get_client_person(session: Session, *, person_id: int, client_id: int) -> Pe
     )
 
 
+def day_persons(
+    session: Session, *, client_id: int, since: datetime, until: datetime, limit: int = 5
+) -> list:
+    """Persons linked to mentions published within [since, until].
+
+    Day-scoped counterpart of `list_persons` for the home sidebar: the
+    «Personas mencionadas» card must name who appeared THAT day, not the
+    all-time ranking. Same day bounds the feed and day-stats use
+    (`published_at`, set by the caller via zonedDayBounds); ties break
+    alphabetically. Rows are Person instances with a transient
+    ``mention_count`` so PersonOut validates unchanged.
+    """
+    rows = session.execute(
+        select(Person, func.count().label("mention_count"))
+        .select_from(MentionPerson)
+        .join(Person, Person.id == MentionPerson.person_id)
+        .join(Mention, Mention.id == MentionPerson.mention_id)
+        .where(
+            Person.client_id == client_id,
+            Mention.client_id == client_id,
+            Mention.published_at >= since,
+            Mention.published_at <= until,
+        )
+        .group_by(Person.id)
+        .order_by(func.count().desc(), Person.name)
+        .limit(limit)
+    ).all()
+    for person, count in rows:
+        person.mention_count = count  # transient: consumed by PersonOut
+    return [person for person, _count in rows]
+
+
 def digest_persons(
     session: Session, *, client_id: int, since: datetime, limit: int = 5
 ) -> list[dict]:

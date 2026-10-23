@@ -766,6 +766,47 @@ class TestPersonsAPI:
         body = api.get(f"/api/clients/{client_id}/persons", params={"q": "xochitl gal"}).json()
         assert [p["name"] for p in body] == ["Xóchitl Gálvez"]
 
+    def test_list_day_window_counts_only_window(self, api, db) -> None:
+        """since+until → day card: windowed rank/count, other-day links ignored."""
+        from datetime import timedelta
+
+        client_id = first_client_id(db)
+        now = now_utc()
+        # Today: Xóchitl x2. Yesterday: Xóchitl x1 + Beto x1.
+        for i in range(2):
+            seed_person_mention(
+                db, client_id, f"https://day.com/{i}",
+                [{"name": "Xóchitl Gálvez", "role": "Senadora"}],
+                published=now - timedelta(hours=1),
+            )
+        seed_person_mention(
+            db, client_id, "https://yday.com/1",
+            [{"name": "Xóchitl Gálvez"}],
+            published=now - timedelta(days=1),
+        )
+        seed_person_mention(
+            db, client_id, "https://yday.com/2",
+            [{"name": "Beto", "role": "Alcalde"}],
+            published=now - timedelta(days=1, hours=2),
+        )
+        body = api.get(
+            f"/api/clients/{client_id}/persons",
+            params={
+                "since": (now - timedelta(hours=3)).isoformat(),
+                "until": now.isoformat(),
+                "limit": 5,
+            },
+        ).json()
+        assert [(p["name"], p["mention_count"]) for p in body] == [
+            ("Xóchitl Gálvez", 2)
+        ]
+        # The all-time ranking is untouched by the windowed params.
+        total = api.get(f"/api/clients/{client_id}/persons").json()
+        assert {p["name"]: p["mention_count"] for p in total} == {
+            "Xóchitl Gálvez": 3,
+            "Beto": 1,
+        }
+
     def test_detail_timeline(self, api, db) -> None:
         from app.models import Person
 

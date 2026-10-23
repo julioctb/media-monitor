@@ -103,7 +103,11 @@ export const load: PageServerLoad = async ({ url }) => {
 				listSummaryDays().catch(() => []),
 				getDayStats(day).catch(() => null),
 				listMentions({ since: bounds.since, until: bounds.until, limit: 500 }).catch(() => null),
-				listPersons({ sort: 'mentions', limit: 3 }).catch(() => []),
+				listPersons({
+					since: bounds.since,
+					until: bounds.until,
+					limit: 3
+				}).catch(() => []),
 				listKeywords()
 					.then((rows) => rows.filter((keyword) => keyword.is_active))
 					.catch(() => []),
