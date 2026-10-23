@@ -18,6 +18,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.models import (
+    AgendaItem,
     AlertSettings,
     Client,
     ClientSettings,
@@ -1457,3 +1458,122 @@ def person_timeline(
         }
         for link, mention in links
     ]
+
+
+# --- agenda items (feature agenda-page) -------------------------------------
+
+_AGENDA_KINDS = ("activity", "deadline")
+
+_AGENDA_TEXT_LIMITS = {
+    "title": 240,
+    "date_label": 64,
+    "time_label": 16,
+    "location": 200,
+    "source": 200,
+    "url": 500,
+}
+
+
+def _validate_agenda_text(field: str, value: object) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ValueError(f"agenda {field} must be a string")
+    text = value.strip()
+    if len(text) > _AGENDA_TEXT_LIMITS[field]:
+        raise ValueError(f"agenda {field} too long (max {_AGENDA_TEXT_LIMITS[field]})")
+    return text or None
+
+
+def _validate_agenda_title(value: object) -> str:
+    text = _validate_agenda_text("title", value)
+    if not text:
+        raise ValueError("agenda title is required")
+    return text
+
+
+def _validate_agenda_kind(value: object) -> str:
+    if value not in _AGENDA_KINDS:
+        raise ValueError(f"agenda kind must be one of {list(_AGENDA_KINDS)}")
+    return str(value)
+
+
+def _validate_agenda_date(value: object) -> date | None:
+    if value is None or value == "":
+        return None
+    if isinstance(value, date) and not isinstance(value, datetime):
+        return value
+    if not isinstance(value, str):
+        raise ValueError("agenda event_date must be an ISO date")
+    try:
+        return date.fromisoformat(value)
+    except ValueError as exc:
+        raise ValueError("agenda event_date must be an ISO date") from exc
+
+
+def _validate_agenda_notes(value: object) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ValueError("agenda notes must be a string")
+    return value.strip() or None
+
+
+_AGENDA_VALIDATORS = {
+    "title": _validate_agenda_title,
+    "kind": _validate_agenda_kind,
+    "event_date": _validate_agenda_date,
+    "date_label": lambda v: _validate_agenda_text("date_label", v),
+    "time_label": lambda v: _validate_agenda_text("time_label", v),
+    "location": lambda v: _validate_agenda_text("location", v),
+    "source": lambda v: _validate_agenda_text("source", v),
+    "url": lambda v: _validate_agenda_text("url", v),
+    "notes": _validate_agenda_notes,
+}
+
+
+def validated_agenda_changes(
+    changes: Mapping[str, object], *, partial: bool
+) -> dict[str, object]:
+    """Validate agenda-item fields; raises ValueError on bad values.
+
+    partial=False (create) requires title and defaults kind; partial=True
+    validates only the keys present. Unknown keys are ignored.
+    """
+    validated: dict[str, object] = {}
+    for field, validator in _AGENDA_VALIDATORS.items():
+        if field in changes:
+            validated[field] = validator(changes[field])
+        elif not partial and field == "kind":
+            validated[field] = "activity"
+    return validated
+
+
+def list_agenda_items(session: Session, client_id: int) -> list[AgendaItem]:
+    """Client agenda, dated ascending first and undated last.
+
+    The undated tail is the «Sin fecha completa» bucket; within each
+    segment creation order breaks ties.
+    """
+    return list(
+        session.scalars(
+            select(AgendaItem)
+            .where(AgendaItem.client_id == client_id)
+            .order_by(
+                AgendaItem.event_date.is_(None),
+                AgendaItem.event_date.asc().nullslast(),
+                AgendaItem.id.asc(),
+            )
+        )
+    )
+
+
+def get_agenda_item(
+    session: Session, item_id: int, client_id: int
+) -> AgendaItem | None:
+    """One agenda item, scoped to the client (None across tenants)."""
+    return session.scalar(
+        select(AgendaItem).where(
+            AgendaItem.id == item_id, AgendaItem.client_id == client_id
+        )
+    )

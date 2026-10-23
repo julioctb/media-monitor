@@ -3,6 +3,7 @@
 from fastapi import APIRouter
 
 from app.api import (
+    agenda,
     ask,
     alerts,
     events,
@@ -24,6 +25,7 @@ api_router.include_router(keywords.router)
 api_router.include_router(alerts.router)
 api_router.include_router(settings.router)
 api_router.include_router(saved_searches.router)
+api_router.include_router(agenda.router)
 api_router.include_router(spikes.router)
 api_router.include_router(summaries.router)
 api_router.include_router(ingest.router)

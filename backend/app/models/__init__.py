@@ -19,6 +19,7 @@ from app.models.keyword import Keyword
 from app.models.mention import Mention, make_url_hash, normalize_url
 from app.models.person import MentionPerson, Person
 from app.models.saved_search import SavedSearch
+from app.models.agenda_item import AgendaItem
 from app.models.settings import ClientSettings
 from app.models.spike_event import SpikeEvent
 from app.models import queries
@@ -41,6 +42,7 @@ __all__ = [
     "MentionSource",
     "Person",
     "SavedSearch",
+    "AgendaItem",
     "Sentiment",
     "SpikeEvent",
     "make_url_hash",

@@ -506,3 +506,49 @@ class AskResponse(BaseModel):
 
 class AskRequest(BaseModel):
     question: str = Field(min_length=3, max_length=500)
+
+
+# ---------------------------------------------------------------- agenda
+
+
+class AgendaItemOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    client_id: int
+    title: str
+    kind: str
+    event_date: date | None
+    date_label: str | None
+    time_label: str | None
+    location: str | None
+    source: str | None
+    url: str | None
+    notes: str | None
+    created_at: datetime
+
+
+class AgendaItemCreate(BaseModel):
+    title: str = Field(min_length=1, max_length=240)
+    kind: str = "activity"
+    event_date: date | None = None
+    date_label: str | None = Field(default=None, max_length=64)
+    time_label: str | None = Field(default=None, max_length=16)
+    location: str | None = Field(default=None, max_length=200)
+    source: str | None = Field(default=None, max_length=200)
+    url: str | None = Field(default=None, max_length=500)
+    notes: str | None = None
+
+
+class AgendaItemPatch(BaseModel):
+    """Partial update; the edit-date dialog sends only `event_date`."""
+
+    title: str | None = Field(default=None, min_length=1, max_length=240)
+    kind: str | None = None
+    event_date: date | None = None
+    date_label: str | None = Field(default=None, max_length=64)
+    time_label: str | None = Field(default=None, max_length=16)
+    location: str | None = Field(default=None, max_length=200)
+    source: str | None = Field(default=None, max_length=200)
+    url: str | None = Field(default=None, max_length=500)
+    notes: str | None = None
