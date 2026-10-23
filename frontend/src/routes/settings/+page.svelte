@@ -383,7 +383,7 @@
 					</article>
 
 					<article class="source-card source-card--wide">
-						<h3>Redes sociales</h3>
+						<h3>Facebook</h3>
 						<p>Páginas o grupos públicos de Facebook, por URL. Sin tokens: se lee el HTML público.</p>
 						{#if draft.pages.length === 0}
 							<p class="keywords-empty">Sin páginas: agrega la URL de la primera.</p>
