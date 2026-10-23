@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { mount, unmount } from 'svelte';
+import { mount, unmount, tick } from 'svelte';
 import { afterEach, expect, it } from 'vitest';
 
 import type { AgendaItem } from '$lib/api';
@@ -7,9 +7,9 @@ import type { AgendaItem } from '$lib/api';
 import AgendaPage from '../routes/agenda/+page.svelte';
 
 /**
- * Agenda page view (feature agenda-page): the mockup contract — intro,
- * filters, results with view toggle, «Sin fecha completa» bucket and both
- * forms — renders from the loaded items; empty states included.
+ * Agenda page view (mockup agenda-media-monitor contract): intro with the
+ * primary CTA, toolbar with the view toggle, month grid + shared list,
+ * «Sin fecha completa» bucket gated on data, both forms, about details.
  */
 
 const mounted: Array<Record<string, unknown>> = [];
@@ -50,7 +50,7 @@ afterEach(() => {
 	while (mounted.length) void unmount(mounted.pop() as never);
 });
 
-it('renders the mockup structure with dated and undated buckets', () => {
+it('renders the mockup structure with month view and pending bucket', () => {
 	const { text } = renderPage([
 		item({ id: 1 }),
 		item({
@@ -65,25 +65,39 @@ it('renders the mockup structure with dated and undated buckets', () => {
 
 	expect(text()).toContain('Agenda');
 	expect(text()).toContain('Añadir actividad');
-	expect(text()).toContain('Actividades y plazos identificados en la cobertura');
 	expect(text()).toContain('Buscar en la agenda');
-	expect(text()).toContain('Actividades detectadas');
 	expect(text()).toContain('Calendario');
 	expect(text()).toContain('Lista');
-	expect(text()).toContain('Sin fecha completa');
-	expect(text()).toContain('Solo aparecen aquí los registros que aún no indican día y mes.');
-	// Card anatomy via the undated bucket (visible in every view) + calendar.
+	expect(text()).toContain('Mes actual');
+	// Undated bucket: gated title with count, card rendered from the shared list.
+	expect(text()).toContain('Sin fecha completa (1)');
 	expect(text()).toContain('Inscripciones para «Bestias Eternas»');
 	expect(text()).toContain('Plazo de inscripción');
-	expect(text()).toContain('Fuente: Resumen del día');
+	expect(text()).toContain('Fecha por confirmar');
+	// Card anatomy: details grid, edit affordance on every card.
+	expect(text()).toContain('Lugar');
+	expect(text()).toContain('Fuente');
 	expect(text()).toContain('Editar fecha');
-	expect(text()).toContain('Mes actual');
+	expect(text()).toContain('Eliminar');
 });
 
-it('shows the empty state without items', () => {
-	const { text } = renderPage([]);
-	expect(text()).toContain('No hay actividades para mostrar.');
-	expect(text()).toContain('Nada pendiente de fecha.');
+it('hides the pending bucket without undated items', () => {
+	const { text } = renderPage([item({ id: 1 })]);
+	expect(text()).not.toContain('Sin fecha completa');
+	expect(text()).toContain('actividades con fecha completa en este mes');
+});
+
+it('shows the empty state on list view without matches', async () => {
+	const page = renderPage([]);
+	await tick();
+	const listButton = [...document.querySelectorAll('button')].find(
+		(b) => b.textContent?.trim() === 'Lista'
+	);
+	listButton?.click();
+	await tick();
+	const { text } = page;
+	expect(text()).toContain('No hay actividades para mostrar');
+	expect(text()).toContain('Prueba otra búsqueda o cambia el filtro.');
 });
 
 it('surfaces the action error message from the form result', () => {

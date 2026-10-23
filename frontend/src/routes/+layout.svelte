@@ -67,7 +67,7 @@
 		</div>
 	</header>
 
-	<main class="page flex-1">
+	<main class="page flex-1 w-full">
 		{@render children?.()}
 	</main>
 </div>

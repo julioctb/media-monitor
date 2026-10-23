@@ -4,7 +4,7 @@
 	import type { SubmitFunction } from './$types';
 	import { invalidateAll } from '$app/navigation';
 
-	import { formatDateLong } from '$lib/format';
+	import { formatDateLong, formatDayLabel } from '$lib/format';
 	import type { AgendaItem } from '$lib/api';
 	import type { PageProps } from './$types';
 
@@ -32,8 +32,6 @@
 		});
 	});
 
-	const dated = $derived(items.filter((item) => item.event_date !== null));
-	const undated = $derived(items.filter((item) => item.event_date === null));
 	const filteredDated = $derived(matches.filter((item) => item.event_date !== null));
 	const filteredUndated = $derived(matches.filter((item) => item.event_date === null));
 
@@ -69,6 +67,7 @@
 		const today = new Date();
 		cursor.year = today.getFullYear();
 		cursor.month = today.getMonth();
+		selectedDay = null;
 	}
 
 	/** Monday-first grid: leading blanks then one cell per day. */
@@ -97,6 +96,16 @@
 		return map;
 	});
 
+	/* Month view status line (mockup #month-notice). */
+	const monthItemCount = $derived.by(() => {
+		const prefix = `${cursor.year}-${String(cursor.month + 1).padStart(2, '0')}`;
+		return filteredDated.filter((item) => item.event_date?.startsWith(prefix)).length;
+	});
+
+	/* The shared list: pending cards under the month grid, everything filtered
+	   in list view (mockup render(): month → pending, list → visible). */
+	const listItems = $derived(view === 'month' ? filteredUndated : matches);
+
 	let selectedDay = $state<string | null>(null);
 	const selectedDayLabel = $derived(
 		selectedDay ? formatDateLong(selectedDay) : ''
@@ -109,18 +118,6 @@
 		activity: 'Actividad',
 		deadline: 'Plazo de inscripción'
 	};
-
-	/** Card secondary line: location · source · notes (mockup .notes). */
-	function notesLine(item: AgendaItem): string {
-		return [item.location, item.source ? `Fuente: ${item.source}` : null, item.notes]
-			.filter(Boolean)
-			.join(' · ');
-	}
-
-	function dateText(item: AgendaItem): string {
-		if (item.event_date) return formatDateLong(item.event_date);
-		return item.date_label ?? 'Sin fecha';
-	}
 
 	/* Dialogs as conditional panels (jsdom-testable, no native <dialog>). */
 	let showForm = $state(false);
@@ -183,43 +180,55 @@
 	<title>Agenda | Media Monitor</title>
 </svelte:head>
 
-{#snippet activityCard(item: AgendaItem, showEdit: boolean, yearNote: string | null)}
+{#snippet activityCard(item: AgendaItem)}
 	<article class="activity">
 		<div class="date">
-			{dateText(item)}
-			{#if item.time_label}<span> · {item.time_label}</span>{/if}
-			{#if yearNote}<small>{yearNote}</small>{/if}
+			<span>
+				{item.event_date ? formatDayLabel(item.event_date) : (item.date_label ?? 'Por confirmar')}
+			</span>
+			{#if item.time_label}<span>{item.time_label}</span>{/if}
+			{#if !item.event_date}<small>Fecha por confirmar</small>{/if}
 		</div>
 		<div class="activity-body">
 			<span class="badge">{KIND_LABEL[item.kind] ?? item.kind}</span>
-			<h4>{item.title}</h4>
-			{#if notesLine(item)}<p class="notes">{notesLine(item)}</p>{/if}
-			<div class="activity-actions">
-				{#if showEdit}
-					<button
-						type="button"
-						class="btn-secondary edit-date"
-						onclick={() => (editTarget = item)}
-					>
-						Editar fecha
-					</button>
+			<h3>{item.title}</h3>
+			<dl class="details">
+				<div>
+					<dt>Lugar</dt>
+					<dd>{item.location || 'Por confirmar'}</dd>
+				</div>
+				<div>
+					<dt>Fuente</dt>
+					<dd>{item.source || 'No indicada'}</dd>
+				</div>
+				{#if item.url}
+					<div>
+						<dt>Enlace</dt>
+						<dd>
+							<a
+								href={item.url}
+								target="_blank"
+								rel="noopener noreferrer"
+								aria-label={`Ver fuente de ${item.title} (abre otra pestaña)`}>Ver fuente</a
+							>
+						</dd>
+					</div>
 				{/if}
-				<form class="delete-form" method="POST" action="?/remove" use:enhance={handleDelete}>
-					<input type="hidden" name="id" value={item.id} />
-					<button type="submit" class="btn-secondary btn-delete" disabled={submitting}>
-						Eliminar
-					</button>
-				</form>
-			</div>
+			</dl>
+			{#if item.notes}<p class="notes">{item.notes}</p>{/if}
+		</div>
+		<div class="activity-actions">
+			<button type="button" onclick={() => (editTarget = item)}>Editar fecha</button>
+			<form class="delete-form" method="POST" action="?/remove" use:enhance={handleDelete}>
+				<input type="hidden" name="id" value={item.id} />
+				<button type="submit" class="btn-delete" disabled={submitting}>Eliminar</button>
+			</form>
 		</div>
 	</article>
 {/snippet}
 
-<section class="intro" aria-labelledby="agenda-title">
-	<div>
-		<h1 id="agenda-title" class="page-title">Agenda</h1>
-		<p class="lead">Actividades y plazos identificados en la cobertura, reunidos para su seguimiento.</p>
-	</div>
+<section class="agenda-intro" aria-labelledby="agenda-title">
+	<h1 id="agenda-title" class="page-title">Agenda</h1>
 	<button class="btn-primary" type="button" onclick={() => (showForm = !showForm)}>
 		Añadir actividad
 	</button>
@@ -227,15 +236,11 @@
 
 <section class="panel agenda-form-panel" aria-labelledby="form-title" hidden={!showForm}>
 	<h2 id="form-title">Nueva actividad</h2>
-	<p class="form-help">
+	<p class="form-intro">
 		Registra una actividad detectada. Solo el título es obligatorio; puedes completar la fecha
 		cuando esté confirmada.
 	</p>
-	<form
-		method="POST"
-		action="?/create"
-		use:enhance={handleCreate}
-	>
+	<form method="POST" action="?/create" use:enhance={handleCreate}>
 		<div class="form-grid">
 			<div class="field span-all">
 				<label for="activity-title">Título <span aria-hidden="true">*</span></label>
@@ -256,11 +261,11 @@
 				<label for="activity-time">Hora</label>
 				<input type="time" id="activity-time" name="time" />
 			</div>
-			<div class="field">
+			<div class="field span-all">
 				<label for="activity-location">Lugar</label>
 				<input id="activity-location" name="location" />
 			</div>
-			<div class="field">
+			<div class="field span-all">
 				<label for="activity-source">Fuente</label>
 				<input id="activity-source" name="source" placeholder="Medio, cuenta o informante" />
 			</div>
@@ -277,20 +282,18 @@
 			<p class="agenda-error" role="alert">{form.message}</p>
 		{/if}
 		<div class="form-actions">
-			<button type="button" class="btn-secondary" onclick={() => (showForm = false)}>
-				Cancelar
-			</button>
+			<button type="button" onclick={() => (showForm = false)}>Cancelar</button>
 			<button type="submit" class="btn-primary" disabled={submitting}>Guardar actividad</button>
 		</div>
 	</form>
 </section>
 
-<section class="panel agenda-toolbar" aria-label="Filtros de agenda">
-	<div class="field">
+<section class="agenda-toolbar" aria-label="Filtros de agenda">
+	<div class="field field-search">
 		<label for="agenda-search">Buscar en la agenda</label>
 		<input id="agenda-search" type="search" bind:value={query} placeholder="Título, lugar o fuente" />
 	</div>
-	<div class="field">
+	<div class="field field-filter">
 		<label for="agenda-filter">Mostrar</label>
 		<select id="agenda-filter" bind:value={filter}>
 			<option value="all">Todas las actividades</option>
@@ -299,137 +302,123 @@
 			<option value="undated">Fecha por confirmar</option>
 		</select>
 	</div>
+	<div class="view-controls" role="group" aria-label="Vista de agenda">
+		<button type="button" aria-pressed={view === 'month'} onclick={() => (view = 'month')}>
+			Calendario
+		</button>
+		<button type="button" aria-pressed={view === 'list'} onclick={() => (view = 'list')}>
+			Lista
+		</button>
+	</div>
 </section>
 
 {#if statusMessage}
 	<p class="agenda-status" role="status">{statusMessage}</p>
 {/if}
 
-<section aria-labelledby="agenda-list-title">
-	<div class="agenda-results-head">
-		<h2 id="agenda-list-title">Actividades detectadas</h2>
-		<div class="segmented" role="group" aria-label="Vista de agenda">
-			<button
-				type="button"
-				aria-pressed={view === 'month'}
-				onclick={() => (view = 'month')}
-			>
-				Calendario
-			</button>
-			<button
-				type="button"
-				aria-pressed={view === 'list'}
-				onclick={() => (view = 'list')}
-			>
-				Lista
-			</button>
-		</div>
-	</div>
-
+<section aria-label="Actividades de la agenda">
 	{#if view === 'month'}
-		<div class="agenda-month-nav">
-			<button type="button" class="btn-secondary" onclick={() => shiftMonth(-1)}>Anterior</button>
-			<button type="button" class="btn-secondary" onclick={goToday}>Mes actual</button>
-			<button type="button" class="btn-secondary" onclick={() => shiftMonth(1)}>Siguiente</button>
+		<div class="month-head">
+			<h3>{monthLabel}</h3>
+			<div class="month-controls">
+				<button type="button" aria-label="Mes anterior" onclick={() => shiftMonth(-1)}>
+					Anterior
+				</button>
+				<button type="button" onclick={goToday}>Mes actual</button>
+				<button type="button" aria-label="Mes siguiente" onclick={() => shiftMonth(1)}>
+					Siguiente
+				</button>
+			</div>
 		</div>
-		<p class="agenda-month-label">{monthLabel}</p>
-		<div class="calendar" role="grid" aria-label="Calendario mensual">
+		<div class="calendar" aria-label="Calendario mensual">
 			{#each ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'] as head (head)}
-				<span class="calendar-head">{head}</span>
+				<div class="calendar-head">{head}</div>
 			{/each}
 			{#each monthCells as day, i (`cell-${i}`)}
 				{#if day === null}
-					<span class="calendar-blank"></span>
+					<div class="calendar-cell empty-cell" aria-hidden="true"></div>
 				{:else}
 					{@const key = dayKey(day)}
 					{@const dayItems = itemsByDay.get(key) ?? []}
-					<button
-						type="button"
-						class="calendar-day"
-						class:today={key === todayKey}
-						class:selected={key === selectedDay}
-						aria-label={`{day} de ${monthLabel}: {dayItems.length} actividades`}
-						onclick={() => (selectedDay = key)}
-					>
+					<div class="calendar-cell" class:today={key === todayKey}>
 						<span class="calendar-num">{day}</span>
 						{#if dayItems.length > 0}
-							<span class="calendar-count">{dayItems.length}</span>
+							<button
+								type="button"
+								class="day-button"
+								aria-label={`${day} de ${monthLabel}: ${dayItems.map((it) => it.title).join('; ')}`}
+								onclick={() => (selectedDay = key)}
+							>
+								{dayItems.length}
+								{dayItems.length === 1 ? 'evento' : 'eventos'}
+							</button>
 						{/if}
-					</button>
+					</div>
 				{/if}
 			{/each}
 		</div>
-		{#if selectedDay}
-			<section class="day-detail panel" aria-labelledby="day-title">
+		<p class="month-notice" role="status">
+			{monthItemCount
+				? `${monthItemCount} actividades con fecha completa en este mes. Selecciona un día para ver los detalles.`
+				: 'No hay actividades con fecha completa en este mes para los filtros seleccionados.'}
+		</p>
+		{#if selectedDay && selectedDayItems.length > 0}
+			<section class="day-detail" aria-labelledby="day-title">
 				<h3 id="day-title" tabindex="-1">{selectedDayLabel}</h3>
-				{#if selectedDayItems.length === 0}
-					<p class="small-note">Sin actividades para este día.</p>
-				{:else}
-					<ul class="agenda-list">
-						{#each selectedDayItems as item (item.id)}
-							<li>
-								{@render activityCard(item, false, selectedDay.slice(0, 4))}
-							</li>
-						{/each}
-					</ul>
-				{/if}
+				<ul class="agenda-list">
+					{#each selectedDayItems as item (item.id)}
+						<li>{@render activityCard(item)}</li>
+					{/each}
+				</ul>
 			</section>
 		{/if}
-	{:else}
-		<ul class="agenda-list panel">
-			{#each filteredDated as item (item.id)}
-				<li>
-					{@render activityCard(item, false, item.event_date?.slice(0, 4) ?? null)}
-				</li>
-			{/each}
-		</ul>
-	{/if}
-
-	{#if matches.length === 0}
-		<p class="empty mt-4" role="status">No hay actividades para mostrar.</p>
-	{/if}
-
-	<section class="panel agenda-pending" aria-labelledby="pending-title">
-		<h3 id="pending-title" class="pending-title">Sin fecha completa</h3>
-		<p class="pending-note">Solo aparecen aquí los registros que aún no indican día y mes.</p>
-		{#if filteredUndated.length === 0}
-			<p class="small-note">Nada pendiente de fecha.</p>
-		{:else}
-			<ul class="agenda-list">
-				{#each filteredUndated as item (item.id)}
-					<li>
-						{@render activityCard(item, true, null)}
-					</li>
-				{/each}
-			</ul>
+		{#if filteredUndated.length > 0}
+			<h3 class="pending-title">Sin fecha completa ({filteredUndated.length})</h3>
 		{/if}
-	</section>
+	{/if}
+	<ul class="agenda-list">
+		{#each listItems as item (item.id)}
+			<li>{@render activityCard(item)}</li>
+		{/each}
+	</ul>
+	{#if view === 'list' && matches.length === 0}
+		<div class="agenda-empty">
+			<h3>No hay actividades para mostrar</h3>
+			<p>Prueba otra búsqueda o cambia el filtro.</p>
+		</div>
+	{/if}
 </section>
+
+<details class="agenda-about">
+	<summary>Acerca de esta agenda</summary>
+	<p>
+		Las actividades y los plazos se detectan automáticamente en el
+		<a href="/">resumen del día</a>; también puedes registrarlos manualmente con «Añadir
+		actividad».
+	</p>
+	<p>
+		Si una fuente indica día y mes pero no el año, se asigna el año siguiente al detector. La fecha
+		se completa o corrige con «Editar fecha».
+	</p>
+</details>
 
 {#if editTarget}
 	<section class="panel agenda-form-panel" aria-labelledby="edit-date-title">
 		<h2 id="edit-date-title">Editar fecha</h2>
-		<p class="form-help">
+		<p class="edit-context">
 			Fecha de actividad o cierre para «{editTarget.title}». La hora y el resto de los datos se
 			conservan.
 		</p>
-		<form
-			method="POST"
-			action="?/editDate"
-			use:enhance={handleEditDate}
-		>
-			<input type="hidden" name="id" value={editTarget.id} />
+		<form method="POST" action="?/editDate" use:enhance={handleEditDate}>
 			<div class="field">
 				<label for="edited-date">Fecha de actividad o cierre</label>
-				<input id="edited-date" name="event_date" type="date" required />
+				<input id="edited-date" name="event_date" type="date" required value={editTarget.event_date ?? ''} />
 			</div>
 			{#if form?.form === 'date' && form?.message}
 				<p class="agenda-error" role="alert">{form.message}</p>
 			{/if}
 			<div class="form-actions">
-				<button type="button" class="btn-secondary" onclick={() => (editTarget = null)}>
-					Cancelar
-				</button>
+				<button type="button" onclick={() => (editTarget = null)}>Cancelar</button>
 				<button type="submit" class="btn-primary" disabled={submitting}>Guardar fecha</button>
 			</div>
 		</form>

@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="es-ES"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Agenda · Media Monitor</title><style>
+:root {
+  --bg: #ffffff;
+  --surface: #f5f5f7;
+  --surface-warm: #fbfbfd;
+  --fg: #1d1d1f;
+  --fg-2: #424245;
+  --muted: #6e6e73;
+  --meta: #86868b;
+  --border: #d2d2d7;
+  --border-soft: #e8e8ed;
+  --accent: #0071e3;
+  --accent-on: #ffffff;
+  --accent-hover: #0077ed;
+  --accent-active: #0066cc;
+  --success: #16a34a;
+  --warn: #eab308;
+  --danger: #dc2626;
+  --font-display: "SF Pro Display", "SF Pro Icons", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-body: "SF Pro Text", "SF Pro Icons", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: "SF Mono", ui-monospace, "JetBrains Mono", Menlo, Monaco, Consolas, monospace;
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-base: 17px;
+  --text-lg: 21px;
+  --text-xl: 28px;
+  --text-2xl: 40px;
+  --text-3xl: 56px;
+  --text-4xl: 80px;
+  --leading-body: 1.47;
+  --leading-tight: 1.05;
+  --tracking-display: -0.015em;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --section-y-desktop: 100px;
+  --section-y-tablet: 64px;
+  --section-y-phone: 40px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-pill: 980px;
+  --elev-flat: none;
+  --elev-ring: 0 0 0 1px var(--border);
+  --elev-raised: 0 12px 32px rgba(0, 0, 0, 0.08);
+  --focus-ring: 0 0 0 4px color-mix(in oklab, var(--accent), transparent 65%);
+  --motion-fast: 150ms;
+  --motion-base: 220ms;
+  --ease-standard: cubic-bezier(0.28, 0, 0.22, 1);
+  --container-max: 1024px;
+  --container-gutter-desktop: 22px;
+  --container-gutter-tablet: 18px;
+  --container-gutter-phone: 16px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--surface);color:var(--fg);font:var(--text-base)/var(--leading-body) var(--font-body)}
+button{font:inherit;cursor:pointer}
+a{color:inherit;text-decoration:none}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.topbar{background:var(--fg);color:var(--bg)}
+.topbar-inner{max-width:1280px;min-height:64px;margin:auto;padding:0 40px;display:flex;align-items:center;gap:28px}
+.brand{font-weight:700;letter-spacing:-.02em;white-space:nowrap}
+.nav{margin-left:auto;display:flex;align-items:stretch;gap:22px;min-height:64px}
+.nav a{display:flex;align-items:center;position:relative;font-size:var(--text-sm);color:var(--surface);min-height:44px}
+.nav a:hover{color:var(--bg)}
+.nav a[aria-current="page"]{color:var(--bg);font-weight:700}
+.nav a[aria-current="page"]::after{content:"";position:absolute;bottom:0;left:0;right:0;height:3px;background:var(--accent)}
+.menu-toggle{display:none;min-height:44px;padding:9px 13px;margin-left:auto;border:1px solid var(--border);border-radius:var(--radius-sm);background:transparent;color:var(--bg)}
+.menu-toggle:hover{background:var(--fg-2)}
+.page{max-width:1280px;margin:auto;padding:40px 40px 72px}
+.intro{display:flex;align-items:flex-end;justify-content:space-between;gap:28px}
+.intro-copy{max-width:810px}
+.eyebrow{margin:0;color:var(--fg-2);font-size:var(--text-xs);font-weight:700;text-transform:uppercase;letter-spacing:.13em}
+h1{margin:8px 0 10px;font:600 clamp(32px,4vw,40px)/1.08 var(--font-display);letter-spacing:var(--tracking-display)}
+.lead{margin:0;max-width:75ch;color:var(--fg-2);font-size:var(--text-base)}
+
+[hidden]{display:none!important}input,select,textarea{font:inherit;max-width:100%;min-width:0}h2,h3,p{overflow-wrap:anywhere}h2{margin:0;font:600 21px/1.3 var(--font-display)}h3{margin:0;font:600 19px/1.35 var(--font-display)}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:10px 18px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);color:var(--fg);font-size:14px;font-weight:600}.btn:hover{background:var(--surface);border-color:var(--fg-2)}.btn.primary{background:var(--fg);border-color:var(--fg);color:var(--bg)}.btn.primary:hover{background:var(--fg-2)}.btn:disabled{opacity:.55;cursor:not-allowed}.btn.delete{padding:8px 12px;background:transparent;color:var(--fg-2)}.btn.delete:hover{background:var(--surface);color:var(--fg)}
+.notice{margin:24px 0;padding:16px 20px;border:1px solid var(--border-soft);border-radius:var(--radius-md);background:var(--bg);color:var(--fg-2);font-size:14px;line-height:1.6}.notice a{text-decoration:underline;text-underline-offset:3px}.notice a:hover{color:var(--fg)}.toolbar{display:flex;flex-wrap:wrap;align-items:end;gap:16px;margin:24px 0 16px}.field{display:grid;gap:6px;min-width:0}.field label{font-size:14px;font-weight:600}.field input,.field select,.field textarea{width:100%;min-height:44px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);color:var(--fg)}.field input::placeholder{color:var(--muted)}.search{flex:1 1 300px}.filter{flex:0 1 230px}.help{margin:0;color:var(--muted);font-size:12px}.result{font-size:14px;color:var(--fg-2);margin:16px 0}.list{display:grid;gap:16px;list-style:none;padding:0;margin:0}.activity{display:grid;grid-template-columns:140px minmax(0,1fr) auto;gap:24px;align-items:start;padding:24px;background:var(--bg);border:1px solid var(--border-soft);border-radius:var(--radius-lg)}.date{display:grid;gap:4px;color:var(--fg);font-variant-numeric:tabular-nums;font-size:17px;font-weight:600}.date small{font-size:12px;font-weight:400;color:var(--muted)}.badge{display:inline-block;margin:0 0 10px;padding:3px 8px;border:1px solid var(--border-soft);border-radius:var(--radius-pill);font-size:12px;font-weight:500;color:var(--fg-2)}.details{display:flex;flex-wrap:wrap;gap:8px 24px;margin:16px 0 0;font-size:14px;color:var(--fg-2)}.details div{min-width:0}.details dt{color:var(--muted);font-size:12px;margin-bottom:3px}.details dd{margin:0;overflow-wrap:anywhere}.details a{text-decoration:underline;text-underline-offset:3px}.details a:hover{color:var(--fg)}.notes{margin:12px 0 0;color:var(--fg-2);font-size:14px;white-space:pre-wrap}.empty{padding:40px 24px;text-align:center;border:1px solid var(--border-soft);border-radius:var(--radius-lg);background:var(--bg)}.empty p{color:var(--muted);font-size:14px}.status{font-size:14px;color:var(--fg-2)}.error{color:var(--danger);font-size:14px;font-weight:600}
+dialog{width:min(620px,calc(100% - 32px));max-height:calc(100dvh - 32px);padding:28px;border:1px solid var(--border);border-radius:var(--radius-lg);background:var(--bg);color:var(--fg);overflow:auto}dialog::backdrop{background:color-mix(in oklab,var(--fg),transparent 45%)}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:20px 0}.span-all{grid-column:1/-1}.actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:12px;margin-top:24px}.form-intro{color:var(--fg-2);font-size:14px}.nav{gap:18px}
+@media(max-width:1000px){.topbar-inner{padding:0 20px;gap:16px}.nav{gap:14px}}
+@media(max-width:800px){.topbar-inner{padding:0 16px;flex-wrap:wrap}.menu-toggle{display:block}.nav{display:none;order:3;width:100%;min-height:0;margin:0;padding:8px 0 16px;gap:8px 20px;flex-wrap:wrap}.nav.open{display:flex}.page{padding:28px 16px 48px}.intro{align-items:flex-start;flex-direction:column;gap:20px}.activity{grid-template-columns:minmax(0,1fr) auto;gap:12px 16px}.date{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:8px}.activity-body{min-width:0}.filter{flex:1 1 200px}}
+@media(max-width:480px){.activity{padding:20px;grid-template-columns:minmax(0,1fr)}.delete{justify-self:start}.form-grid{grid-template-columns:minmax(0,1fr)}dialog{padding:20px}.details{display:grid;gap:12px}}
+
+.view-controls,.month-controls{display:flex;flex-wrap:wrap;align-items:center;gap:8px}.view-controls{margin:20px 0}.view-controls [aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}.month-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px;margin:24px 0 16px}.month-head h3{text-transform:capitalize}.calendar{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border:1px solid var(--border);border-radius:var(--radius-md);overflow:hidden;background:var(--bg)}.weekday{text-align:center;padding:12px 2px;background:var(--surface);font-size:12px;color:var(--fg-2)}.day{min-width:0;min-height:98px;padding:8px;border-top:1px solid var(--border-soft);border-right:1px solid var(--border-soft);display:flex;flex-direction:column;gap:6px;font-size:14px}.day:nth-child(7n){border-right:0}.day.today{background:var(--surface-warm)}.day.today>span{font-weight:700;text-decoration:underline;text-underline-offset:4px}.day.empty-day{background:var(--surface)}.day-button{width:100%;min-height:44px;padding:6px 3px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--fg);font:600 12px/1.3 var(--font-body);overflow-wrap:anywhere}.day-button:hover{background:var(--border-soft)}.month-notice{margin:16px 0 24px;font-size:14px;color:var(--fg-2)}.pending-title{margin:28px 0 8px}.pending-note{font-size:14px;color:var(--fg-2);margin:0 0 16px}.day-detail{margin:24px 0}.day-detail h3{margin-bottom:16px}.view-support{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px}.view-support p{max-width:58ch}.calendar-shell{min-width:0;padding-top:var(--space-12)}
+@media(max-width:480px){.day{padding:6px 2px;min-height:82px;font-size:12px}.weekday{font-size:11px}.day-button{font-size:11px;padding:4px 1px}.month-controls .btn{padding-inline:12px}.month-head{align-items:flex-start;flex-direction:column}}
+.activity-actions{display:flex;flex-direction:column;gap:8px;align-items:stretch}.date-edited{display:block;font-size:12px;font-weight:600;color:var(--fg-2);line-height:1.4}.day .date-edited{font-size:11px;overflow-wrap:anywhere}.edit-context{color:var(--fg-2);font-size:14px;line-height:1.5}@media(max-width:480px){.activity-actions{flex-direction:row;flex-wrap:wrap}}
+.page{padding-top:28px}.intro{align-items:center;gap:16px}.intro h1{margin:0}.toolbar{margin:20px 0 12px;gap:12px}.toolbar .view-controls{margin:0}.month-head{margin:0 0 12px}.status:empty{display:none}.agenda-about{margin-top:28px;padding-top:16px;border-top:1px solid var(--border)}.agenda-about summary{width:max-content;min-height:44px;display:flex;align-items:center;color:var(--fg-2);font-size:14px;font-weight:600;cursor:pointer}.agenda-about summary:hover{color:var(--fg)}.agenda-about p{max-width:76ch;margin:8px 0;color:var(--fg-2);font-size:14px}.agenda-about a{text-decoration:underline;text-underline-offset:3px}
+@media(max-width:800px){.intro{flex-direction:row;align-items:center;flex-wrap:wrap;gap:12px}.toolbar{margin-top:16px}.toolbar .view-controls{width:100%}}
+</style><style>
+/* Márgenes exteriores compartidos; no modifica el espaciado interno. */
+.page{padding:28px 40px 72px}
+.topbar-inner{padding-left:40px;padding-right:40px}
+@media(max-width:1020px){
+  .page{padding:28px 24px 60px}
+  .topbar-inner{padding-left:24px;padding-right:24px}
+}
+@media(max-width:600px){
+  .page{padding:20px 16px 48px}
+  .topbar-inner{padding-left:16px;padding-right:16px}
+}
+</style>
+</head><body><header class="topbar" data-od-id="header"><div class="topbar-inner">
+  <a class="brand" href="resumen-diario-media-monitor.html" data-od-id="brand">Media Monitor <span data-od-id="brand-beta" style="display:inline-block;vertical-align:middle;margin-left:6px;padding:3px 7px;border:1px solid currentColor;border-radius:var(--radius-pill);color:inherit;font-size:var(--text-xs);font-weight:500;line-height:1;letter-spacing:.02em;">Beta</span></a>
+  <button class="menu-toggle" type="button" aria-controls="primary-nav" aria-expanded="false" data-od-id="menu-toggle">Menú</button>
+  <nav class="nav" id="primary-nav" aria-label="Navegación principal" data-od-id="navigation"><a href="resumen-diario-media-monitor.html">Resumen</a><a href="feed-media-monitor.html">Feed</a><a href="eventos-media-monitor.html">Eventos</a><a href="agenda-media-monitor.html" aria-current="page" data-od-id="nav-agenda">Agenda</a><a href="actores-media-monitor.html">Actores</a><a href="consultas-media-monitor.html">Consultas</a><a href="configuracion-media-monitor.html">Configuración</a></nav>
+</div></header>
+<main class="page" data-od-id="agenda-page">
+<section class="intro" aria-labelledby="agenda-title" data-od-id="agenda-intro"><h1 id="agenda-title" data-od-id="agenda-title">Agenda</h1><button class="btn primary" id="add-activity" disabled="" data-od-id="add-activity">Añadir actividad</button></section>
+<section aria-label="Filtros y vista de agenda" class="toolbar" data-od-id="agenda-filters"><div class="field search"><label for="agenda-search">Buscar en la agenda</label><input id="agenda-search" type="search" placeholder="Título, lugar o fuente" data-od-id="agenda-search"></div><div class="field filter"><label for="agenda-filter">Mostrar</label><select id="agenda-filter" data-od-id="agenda-filter"><option value="all">Todas las actividades</option><option value="activity">Actividades</option><option value="deadline">Plazos de inscripción</option><option value="undated">Fecha por confirmar</option></select></div><div class="view-controls" id="view-controls" role="group" aria-label="Vista de agenda" hidden="" data-od-id="agenda-views"><button type="button" class="btn" id="view-month" aria-pressed="true" data-od-id="view-month">Calendario</button><button type="button" class="btn" id="view-list" aria-pressed="false" data-od-id="view-list">Lista</button></div></section>
+<p id="storage-error" class="error" role="alert" hidden="" data-od-id="storage-error"></p><p id="agenda-status" class="status" role="status" data-od-id="agenda-status"></p>
+<section aria-label="Actividades de la agenda" data-od-id="agenda-results">
+<div id="month-view" class="calendar-shell" hidden="" data-od-id="month-view"><div class="month-head"><h3 id="month-title" aria-live="polite"></h3><div class="month-controls"><button type="button" class="btn" id="previous-month" aria-label="Mes anterior" data-od-id="previous-month">Anterior</button><button type="button" class="btn" id="current-month" data-od-id="current-month">Mes actual</button><button type="button" class="btn" id="next-month" aria-label="Mes siguiente" data-od-id="next-month">Siguiente</button></div></div><div class="calendar" id="calendar" data-od-id="calendar" aria-label="Calendario mensual"></div><p class="month-notice" id="month-notice" role="status"></p><section class="day-detail" id="day-detail" aria-labelledby="day-title" hidden=""><h3 id="day-title" tabindex="-1"></h3><ul class="list" id="day-list"></ul></section><h3 class="pending-title" id="pending-title" hidden="">Sin fecha completa</h3></div>
+<ul class="list" id="agenda-list" data-od-id="agenda-list">
+<li><article class="activity" data-od-id="fallback-support"><div class="date">27 oct. · 13:00<small>Año actual</small></div><div class="activity-body"><span class="badge">Ejemplo · Actividad</span><h3>Conectados pero solos: cómo construir una red de apoyo en la universidad</h3><p class="notes">Plática · Fuente: X, @BUAPoficial. Lugar por confirmar.</p></div></article></li>
+<li><article class="activity" data-od-id="fallback-exhibition"><div class="date">Hasta el 15 nov.<small>Año actual</small></div><div class="activity-body"><span class="badge">Ejemplo · Plazo de inscripción</span><h3>Inscripciones para «Bestias Eternas»</h3><p class="notes">Fecha de cierre de inscripciones, no de la exposición. Fuente: resumen del día; fuente original no indicada.</p></div></article></li>
+<li><article class="activity" data-od-id="fallback-workshop"><div class="date">22 oct. · 11:00<small>Año actual</small></div><div class="activity-body"><span class="badge">Ejemplo · Actividad</span><h3>Hablemos de Cáncer de Mama</h3><p class="notes">Taller · Aula Magna B, Derecho. Fuente: resumen del día; fuente original no indicada.</p></div></article></li>
+</ul><div id="agenda-empty" class="empty" hidden="" data-od-id="agenda-empty"><h3>No hay actividades para mostrar</h3><p>Prueba otra búsqueda o cambia el filtro.</p></div></section>
+<details class="agenda-about" data-od-id="agenda-about"><summary>Acerca de esta agenda</summary><p>Los ejemplos proceden del <a href="resumen-diario-media-monitor.html#rectora">resumen del día</a>. Los registros se guardan solo en este navegador; la detección automática y la sincronización aún no están conectadas.</p><p>Si una fuente indica día y mes, pero no el año, se aplica el año actual. Las fechas explícitas se conservan.</p></details>
+<noscript><p class="notice">Estos son ejemplos estáticos, no tus registros guardados. Activa JavaScript para consultar tu agenda, cambiar de vista y guardar actividades.</p></noscript>
+</main>
+<dialog id="activity-dialog" aria-labelledby="form-title" data-od-id="activity-dialog"><form id="activity-form"><h2 id="form-title">Nueva actividad</h2><p class="form-intro">Registra una actividad detectada. Solo el título es obligatorio; puedes completar la fecha cuando esté confirmada.</p><div class="form-grid">
+<div class="field span-all"><label for="activity-title">Título <span aria-hidden="true">*</span></label><input id="activity-title" name="title" required="" maxlength="240" data-od-id="activity-title"></div>
+<div class="field span-all"><label for="activity-kind">Tipo de registro</label><select id="activity-kind" name="kind" data-od-id="activity-kind"><option value="activity">Actividad</option><option value="deadline">Plazo de inscripción</option></select></div>
+<div class="field"><label for="activity-date">Fecha de actividad o cierre</label><input type="date" id="activity-date" name="date" data-od-id="activity-date"></div><div class="field"><label for="activity-time">Hora</label><input type="time" id="activity-time" name="time" data-od-id="activity-time"></div>
+<div class="field span-all"><label for="activity-location">Lugar</label><input id="activity-location" name="location" maxlength="200" data-od-id="activity-location"></div><div class="field span-all"><label for="activity-source">Fuente</label><input id="activity-source" name="source" maxlength="200" placeholder="Medio, cuenta o informante" data-od-id="activity-source"></div><div class="field span-all"><label for="activity-url">Enlace a la fuente</label><input type="url" id="activity-url" name="url" placeholder="https://" data-od-id="activity-url"><p class="help">Opcional. Solo enlaces HTTP o HTTPS.</p></div><div class="field span-all"><label for="activity-notes">Notas</label><textarea id="activity-notes" name="notes" rows="3" maxlength="2000" data-od-id="activity-notes"></textarea></div></div>
+<p id="form-error" class="error" role="alert" hidden="" data-od-id="form-error"></p><div class="actions"><button class="btn" type="button" id="cancel-activity" data-od-id="cancel-activity">Cancelar</button><button class="btn primary" type="submit" data-od-id="save-activity">Guardar actividad</button></div></form></dialog>
+<dialog id="edit-date-dialog" aria-labelledby="edit-date-title" data-od-id="edit-date-dialog"><form id="edit-date-form"><h2 id="edit-date-title">Editar fecha</h2><p id="edit-date-context" class="edit-context"></p><div class="field"><label for="edited-date">Fecha de actividad o cierre</label><input id="edited-date" name="date" type="date" required="" data-od-id="edited-date"><p class="help">La hora y el resto de los datos se conservan. El cambio se guarda solo en este navegador.</p></div><p id="edit-date-error" class="error" role="alert" hidden="" data-od-id="edit-date-error"></p><div class="actions"><button class="btn" type="button" id="cancel-date-edit" data-od-id="cancel-date-edit">Cancelar</button><button class="btn primary" type="submit" data-od-id="save-date-edit">Guardar fecha</button></div></form></dialog>
+<script>
+const AgendaData = (() => {
+ const key = 'media-monitor-agenda-v1';
+ const examples = [
+ {id:'example-support',title:'Conectados pero solos: cómo construir una red de apoyo en la universidad',kind:'activity',date:'',dateLabel:'27 oct.',time:'13:00',location:'',source:'X · @BUAPoficial',url:'',notes:'Plática identificada en el resumen. Sin nota periodística asociada.',origin:'example'},
+ {id:'example-exhibition',title:'Inscripciones para «Bestias Eternas»',kind:'deadline',date:'',dateLabel:'15 nov.',time:'',location:'',source:'Resumen del día · fuente no indicada',url:'',notes:'Exposición de literatura clásica a pintura e ilustración. La fecha indicada es el cierre de inscripciones, no la fecha de la exposición.',origin:'example'},
+ {id:'example-workshop',title:'Hablemos de Cáncer de Mama',kind:'activity',date:'',dateLabel:'22 oct.',time:'11:00',location:'Aula Magna B · Derecho',source:'Resumen del día · fuente no indicada',url:'',notes:'Taller incluido previamente en la agenda del resumen.',origin:'example'}
+ ];
+ function validate(item){
+  if(!item||typeof item.id!=='string'||!item.id||!['activity','deadline'].includes(item.kind)||!['example','manual'].includes(item.origin))throw Error('Registro de agenda no válido.');
+  for(const name of ['title','date','dateLabel','time','location','source','url','notes'])if(typeof item[name]!=='string')throw Error('Registro de agenda incompleto.');
+  if(!item.title.trim())throw Error('Escribe un título para la actividad.');
+  if(item.date&&!/^\d{4}-\d{2}-\d{2}$/.test(item.date))throw Error('Revisa la fecha.');
+  if(item.date){const date=new Date(item.date+'T12:00:00Z');if(!Number.isFinite(date.getTime())||date.toISOString().slice(0,10)!==item.date)throw Error('Revisa la fecha.');}
+  if(item.time&&!/^([01]\d|2[0-3]):[0-5]\d$/.test(item.time))throw Error('Revisa la hora.');
+  if(item.url){let url;try{url=Reflect.construct(globalThis.URL,[item.url])}catch{throw Error('Introduce un enlace válido.')}if(!['http:','https:'].includes(url.protocol))throw Error('El enlace debe comenzar por HTTP o HTTPS.');}
+  return item;
+ }
+ function normalize(item){
+  if(item.date||item.origin!=='example'||!item.dateLabel)return {...item};
+  const match=item.dateLabel.trim().toLocaleLowerCase('es').match(/^(\d{1,2})\s+(ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic)\.?$/);
+  if(!match)return {...item};
+  const month=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'].indexOf(match[2]);
+  const date=dateKey(new Date().getFullYear(),month,Number(match[1]));
+  try{return validate({...item,date,inferredYear:true});}catch{return {...item};}
+ }
+ function load(storage){const raw=storage.getItem(key);if(raw===null)return examples.map(normalize);const items=JSON.parse(raw);if(!Array.isArray(items))throw Error('Datos no válidos.');items.forEach(validate);if(new Set(items.map(item=>item.id)).size!==items.length)throw Error('Registros duplicados.');return items.map(normalize);}
+ function save(storage,items){items.forEach(validate);storage.setItem(key,JSON.stringify(items));return items;}
+ function create(fields,id){return validate({id,title:fields.title.trim(),kind:fields.kind,date:fields.date||'',dateLabel:'',time:fields.time||'',location:fields.location.trim(),source:fields.source.trim(),url:fields.url.trim(),notes:fields.notes.trim(),origin:'manual'});}
+ function filter(items,query,type){const normalize=value=>value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('es');const needle=normalize(query.trim());return items.filter(item=>(type==='all'||(type==='undated'?!item.date:item.kind===type))&&normalize([item.title,item.location,item.source,item.notes].join(' ')).includes(needle));}
+ function editDate(item,date){
+  if(!date)throw Error('Introduce una fecha completa.');
+  validate({...item,date});
+  if(date===item.date)return item;
+  return {...item,date,dateEdited:true,originalDate:typeof item.originalDate==='string'?item.originalDate:item.date,inferredYear:false};
+ }
+ function remove(items,id){return items.filter(item=>item.id!==id);}
+ function addExamples(items){const ids=new Set(items.map(item=>item.id));return [...items,...examples.filter(item=>!ids.has(item.id)).map(normalize)];}
+ function shiftMonth(year,month,delta){const date=new Date(year,month+delta,1,12);return {year:date.getFullYear(),month:date.getMonth()};}
+ function monthDays(year,month){const first=new Date(year,month,1,12);return {offset:(first.getDay()+6)%7,days:new Date(year,month+1,0,12).getDate()};}
+ function dateKey(year,month,day){return `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;}
+ return {load,save,create,filter,remove,addExamples,shiftMonth,monthDays,dateKey,normalize,editDate};
+})();
+(() => {
+ const $=id=>document.getElementById(id),dialog=$('activity-dialog'),form=$('activity-form');let items=[],loadFailed=false,editingId=null;const today=new Date();let month=today.getMonth(),year=today.getFullYear(),view='month',selectedDay='';
+ const error=(id,message)=>{const target=$(id);if(target){target.textContent=message;target.hidden=!message;}else if(message){console.error(message);}};
+ const required=['agenda-list','agenda-search','agenda-filter','agenda-empty','month-view','view-month','view-list','month-title','calendar','month-notice','day-detail','day-title','day-list','pending-title'];
+ const missing=required.filter(id=>!$(id));if(missing.length){error('storage-error','No se pudo iniciar la agenda: faltan elementos de la interfaz ('+missing.join(', ')+').');console.error('Agenda: missing required elements',missing);return;}
+ try{items=AgendaData.load(localStorage);}catch{loadFailed=true;items=AgendaData.addExamples([]);error('storage-error','Almacenamiento no disponible o datos guardados no legibles. Mostramos solo ejemplos de lectura; tus registros no se han modificado. Para guardar cambios, abre la página en un navegador con almacenamiento disponible.');if($('add-activity'))$('add-activity').disabled=true;if($('load-examples'))$('load-examples').disabled=true;}
+ function element(tag,text,className){const node=document.createElement(tag);node.textContent=text;if(className)node.className=className;return node;}
+ function appendCards(visible,target){target.replaceChildren();
+ for(const item of visible){const li=document.createElement('li'),card=element('article','','activity');card.dataset.odId='agenda-'+item.id;const date=element('div','','date');const label=item.date?new Intl.DateTimeFormat('es-ES',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date(item.date+'T12:00:00Z')):item.dateLabel||'Por confirmar';date.append(element('span',(item.kind==='deadline'?'Hasta el ':'')+label));if(item.time)date.append(element('span',item.time));if(item.inferredYear)date.append(element('small','Año actual aplicado'));else if(!item.date)date.append(element('small','Fecha por confirmar'));if(item.dateEdited)date.append(element('span','Fecha editada','date-edited'));const body=element('div','','activity-body');body.append(element('span',(item.origin==='example'?'Ejemplo':'Registro manual')+' · '+(item.kind==='deadline'?'Plazo de inscripción':'Actividad'),'badge'),element('h3',item.title));const details=element('dl','','details');for(const [title,value] of [['Lugar',item.location||'Por confirmar'],['Fuente',item.source||'No indicada']]){const pair=document.createElement('div');pair.append(element('dt',title),element('dd',value));details.append(pair);}if(item.url){const pair=document.createElement('div'),dd=document.createElement('dd'),a=element('a','Ver fuente');a.href=item.url;a.target='_blank';a.rel='noopener noreferrer';a.setAttribute('aria-label','Ver fuente de '+item.title+' (abre otra pestaña)');dd.append(a);pair.append(element('dt','Enlace'),dd);details.append(pair);}body.append(details);if(item.notes)body.append(element('p',item.notes,'notes'));const remove=element('button','Eliminar','btn delete');remove.type='button';remove.disabled=loadFailed;remove.dataset.odId='delete-'+item.id;remove.setAttribute('aria-label','Eliminar '+item.title);remove.addEventListener('click',()=>{if(!confirm('¿Eliminar «'+item.title+'» de la agenda de este navegador?'))return;try{const next=AgendaData.remove(items,item.id);AgendaData.save(localStorage,next);items=next;error('storage-error','');render();$('agenda-status').textContent='Actividad eliminada de este navegador.';$('agenda-search').focus();}catch{error('storage-error','No se pudo guardar la eliminación. La actividad se ha conservado.');}});const actions=element('div','','activity-actions'),edit=element('button','Editar fecha','btn');edit.type='button';edit.disabled=loadFailed;edit.dataset.odId='edit-date-'+item.id;edit.setAttribute('aria-label','Editar fecha de '+item.title);edit.addEventListener('click',()=>openDateEdit(item.id));actions.append(edit,remove);card.append(date,body,actions);li.append(card);target.append(li);}}
+ function render(){
+ const visible=AgendaData.filter(items,$('agenda-search').value,$('agenda-filter').value),pending=visible.filter(item=>!item.date);
+ if($('result-count'))$('result-count').textContent=`${visible.length} de ${items.length} registros · ${items.filter(x=>x.origin==='example').length} de ejemplo`;
+ $('month-view').hidden=view!=='month';$('view-month').setAttribute('aria-pressed',String(view==='month'));$('view-list').setAttribute('aria-pressed',String(view==='list'));
+ $('pending-title').hidden=pending.length===0;$('pending-title').textContent=`Sin fecha completa (${pending.length})`;
+ const shown=view==='month'?pending:visible;appendCards(shown,$('agenda-list'));$('agenda-empty').hidden=view==='month'||shown.length>0||loadFailed;
+ if(view==='month')renderMonth(visible);
+ }
+ function renderMonth(visible){
+ $('month-title').textContent=new Intl.DateTimeFormat('es-ES',{month:'long',year:'numeric'}).format(new Date(year,month,1,12));const calendar=$('calendar');calendar.replaceChildren();
+ for(const name of ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'])calendar.append(element('div',name,'weekday'));
+ const {offset,days}=AgendaData.monthDays(year,month);for(let index=0;index<offset;index++){const blank=element('div','','day empty-day');blank.setAttribute('aria-hidden','true');calendar.append(blank);}
+ let total=0;for(let day=1;day<=days;day++){const key=AgendaData.dateKey(year,month,day),entries=visible.filter(item=>item.date===key);total+=entries.length;const cell=element('div','','day'+(key===AgendaData.dateKey(today.getFullYear(),today.getMonth(),today.getDate())?' today':''));cell.append(element('span',String(day)));if(entries.length){const button=element('button',`${entries.length} ${entries.length===1?'evento':'eventos'}`,'day-button');button.type='button';button.setAttribute('aria-label',`${day} de ${$('month-title').textContent}: ${entries.map(item=>item.title+(item.dateEdited?' · Fecha editada':'')).join('; ')}`);button.addEventListener('click',()=>{selectedDay=key;renderDay(visible);$('day-title').focus();});cell.append(button);if(entries.some(item=>item.dateEdited))cell.append(element('span','Fecha editada','date-edited'));}calendar.append(cell);}
+ $('month-notice').textContent=total?`${total} actividades con fecha completa en este mes. Selecciona un día para ver los detalles.`:'No hay actividades con fecha completa en este mes para los filtros seleccionados.';renderDay(visible);
+ }
+ function renderDay(visible){const entries=selectedDay?visible.filter(item=>item.date===selectedDay):[];$('day-detail').hidden=!entries.length;if(entries.length){$('day-title').textContent=new Intl.DateTimeFormat('es-ES',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(selectedDay+'T12:00:00Z'));appendCards(entries,$('day-list'));}}
+ function setView(next){view=next;try{localStorage.setItem('media-monitor-agenda-view',view);}catch{}render();}
+ function openDateEdit(id){const item=items.find(item=>item.id===id);if(!item||loadFailed)return;editingId=id;$('edit-date-context').textContent=item.title;$('edited-date').value=item.date;error('edit-date-error','');$('edit-date-dialog').showModal();$('edited-date').focus();}
+ render();if($('view-controls'))$('view-controls').hidden=false;
+ $('cancel-date-edit')?.addEventListener('click',()=>$('edit-date-dialog').close());
+ $('edit-date-dialog')?.addEventListener('close',()=>{editingId=null;$('edit-date-form').reset();error('edit-date-error','');$('agenda-search').focus();});
+ $('edit-date-form')?.addEventListener('submit',event=>{event.preventDefault();const item=items.find(item=>item.id===editingId);if(!item||loadFailed)return;try{const changed=AgendaData.editDate(item,$('edited-date').value);if(changed===item){$('edit-date-dialog').close();$('agenda-status').textContent='La fecha no ha cambiado.';return;}const next=items.map(entry=>entry.id===item.id?changed:entry);AgendaData.save(localStorage,next);items=next;const parts=changed.date.split('-').map(Number);year=parts[0];month=parts[1]-1;selectedDay=changed.date;if($('agenda-filter').value==='undated')$('agenda-filter').value='all';error('storage-error','');render();$('edit-date-dialog').close();$('agenda-status').textContent='Fecha actualizada en este navegador. La actividad se marca como «Fecha editada».';}catch(err){error('edit-date-error',err.name==='QuotaExceededError'||err.name==='SecurityError'?'No se pudo guardar la fecha. Conservamos la fecha anterior y el formulario para que puedas intentarlo de nuevo.':err.message);}});
+ $('view-month').addEventListener('click',()=>setView('month'));$('view-list').addEventListener('click',()=>setView('list'));
+ for(const [id,delta] of [['previous-month',-1],['next-month',1]])$(id)?.addEventListener('click',()=>{const next=AgendaData.shiftMonth(year,month,delta);year=next.year;month=next.month;selectedDay='';render();});$('current-month')?.addEventListener('click',()=>{year=today.getFullYear();month=today.getMonth();selectedDay='';render();});
+ $('load-examples')?.addEventListener('click',()=>{try{const next=AgendaData.addExamples(items);AgendaData.save(localStorage,next);items=next;$('agenda-search').value='';$('agenda-filter').value='all';error('storage-error','');render();$('agenda-status').textContent='Ejemplos cargados. Tus actividades guardadas se han conservado.';}catch{error('storage-error','No se pudieron guardar los ejemplos. Tus actividades no se han modificado.');}});
+ $('agenda-search').addEventListener('input',render);$('agenda-filter').addEventListener('change',render);
+ $('add-activity')?.addEventListener('click',()=>{form.reset();error('form-error','');dialog.showModal();$('activity-title').focus();});$('cancel-activity')?.addEventListener('click',()=>dialog.close());dialog?.addEventListener('close',()=>{form.reset();error('form-error','');$('add-activity').focus();});
+ form?.addEventListener('submit',event=>{event.preventDefault();try{const fields=Object.fromEntries(new FormData(form));const id=globalThis.crypto?.randomUUID?.()||'manual-'+Date.now()+'-'+Math.random().toString(36).slice(2);const item=AgendaData.create(fields,id),next=[item,...items];AgendaData.save(localStorage,next);items=next;$('agenda-search').value='';$('agenda-filter').value='all';error('storage-error','');render();dialog.close();$('agenda-status').textContent='Actividad guardada en este navegador.';}catch(err){error('form-error',err.name==='QuotaExceededError'||err.name==='SecurityError'?'No se pudo guardar en este navegador. Conservamos los campos para que puedas intentarlo de nuevo.':err.message);}});
+ const menu=document.querySelector('.menu-toggle'),nav=document.querySelector('.nav');menu?.addEventListener('click',()=>{const open=nav.classList.toggle('open');menu.setAttribute('aria-expanded',String(open));});if(!loadFailed){if($('add-activity'))$('add-activity').disabled=false;if($('load-examples'))$('load-examples').disabled=false;}
+})();
+</script></body></html>
