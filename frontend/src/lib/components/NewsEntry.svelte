@@ -11,6 +11,8 @@
 		variant = 'card',
 		channel,
 		sentimentClass = null,
+		/** Accent rail for negative cards; off on surfaces already framed. */
+		accent = true,
 		sentimentText = null,
 		title,
 		titleHref = null,
@@ -26,6 +28,8 @@
 		/** Sentiment css key (positive|negative|neutral); pill hidden when null. */
 		sentimentClass?: string | null;
 		sentimentText?: string | null;
+		/** Accent rail for negative cards; off on surfaces already framed. */
+		accent?: boolean;
 		title: string;
 		titleHref?: string | null;
 		titleId?: string;
@@ -41,7 +45,7 @@
 
 <article
 	class="{variant === 'card' ? 'feed-card' : 'feed-preview'}"
-	class:accent-negative={sentimentClass === 'negative'}
+	class:accent-negative={accent && sentimentClass === 'negative'}
 	aria-labelledby={titleId}
 >
 	<div class="item-top">

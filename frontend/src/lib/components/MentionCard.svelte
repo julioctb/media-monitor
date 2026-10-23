@@ -18,9 +18,18 @@
 		keywordLabel?: string | null;
 		/** Mentions in the same-event group (footer coverage count). */
 		coverageCount?: number;
+		/** Passthrough: suppress the negative rail on pre-framed surfaces. */
+		accent?: boolean;
 	}
 
-	let { mention, event = null, keywordLabel = null, coverageCount = 1 }: Props = $props();
+	let {
+		mention,
+		event = null,
+		keywordLabel = null,
+		coverageCount = 1,
+		/** Passthrough: suppress the negative rail on pre-framed surfaces. */
+		accent = true
+	}: Props = $props();
 
 	const when = $derived(mention.published_at ?? mention.ingested_at);
 	/** Channel label per mockup: tipo de fuente, not the raw tag. */
@@ -98,6 +107,7 @@
 	variant="card"
 	channel={sourceChain}
 	sentimentClass={sentimentClass}
+	accent={accent}
 	sentimentText={sentimentText}
 	title={headline}
 	titleHref={mention.url}

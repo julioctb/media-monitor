@@ -1107,12 +1107,6 @@ html {
 .feed-preview.accent-negative {
 	box-shadow: inset 3px 0 0 var(--tone-negative-solid);
 }
-/* Inside the negative panel the accent rail is redundant (every card is
-   negative and the box already carries the danger frame). */
-.negative-summary .feed-card.accent-negative,
-.negative-summary .feed-preview.accent-negative {
-	box-shadow: none;
-}
 
 /* --- Feed filters + tone pills (shared with /feed) --- */
 .feed-filters {
