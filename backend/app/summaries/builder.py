@@ -68,7 +68,10 @@ BACKOFF_S = 0.5
 SYSTEM_PROMPT = (
     "Eres editor de monitoreo de medios. Recibes los HECHOS verificados del "
     "día en JSON (noticias, rectora, redes, personas). Devuelve EXCLUSIVAMENTE "
-    "un objeto JSON con: headline (1-2 oraciones ejecutivas del día), items "
+    "un objeto JSON con: headline (1-3 oraciones que tejen el día; el tono "
+    "de cada noticia via facts.noticias[i].tone — dedica énfasis explícito "
+    "a las de tono negativo dominante: nómbralas y explica la razón de su "
+    "tono según sus hechos; las positivas y neutras se subordinan), items "
     "[{index, summary, why_it_matters, confidence_note}] para las noticias "
     "que lo requieran; confidence_note justifica la confianza en<=6 palabras "
     "(ej. «fuente oficial directa») y es opcional; y rectora {tone, watch, "
@@ -162,7 +165,9 @@ def _human_day(day: date) -> str:
     return f"{day.day} de {MONTHS_ES[day.month - 1]} de {day.year}"
 
 
-def _heuristic_headline(day: date, total: int, silent: list[str], by_source: dict) -> str:
+def _heuristic_headline(
+    day: date, total: int, silent: list[str], by_source: dict, negative_events: int = 0
+) -> str:
     """Fixed-template Spanish headline; deterministic for a given input."""
     human = _human_day(day)
     if total == 0:
@@ -176,6 +181,11 @@ def _heuristic_headline(day: date, total: int, silent: list[str], by_source: dic
     if by_source:
         dominant = max(by_source.items(), key=lambda kv: (kv[1], kv[0]))[0]
         parts.append(f"La fuente con más notas fue {dominant}.")
+    if negative_events:
+        parts.append(
+            f"{negative_events} {'nota' if negative_events == 1 else 'notas'} con tono "
+            "negativo dominante."
+        )
     if silent:
         shown = ", ".join(silent[:MAX_KEYWORDS_NARRATIVE])
         parts.append(f"Sin menciones: {shown}.")
@@ -361,7 +371,18 @@ def build_daily_summary(
             if earliest < window_start_utc:
                 noticia["repeat"] = True
 
-    narrative = _heuristic_headline(day, total, silent, content["coverage"]["by_source"])
+    # Events whose mentions read negative-dominant, for the narrative emphasis
+    # (the LLM gets tone per noticia; the heuristic names the count).
+    negative_events = 0
+    for noticia in content["noticias"]:
+        tone = noticia.get("tone") or {}
+        neg = tone.get("negative", 0)
+        if neg > max(tone.get("positive", 0), tone.get("neutral", 0), 0):
+            negative_events += 1
+
+    narrative = _heuristic_headline(
+        day, total, silent, content["coverage"]["by_source"], negative_events
+    )
     mode = "heuristic"
     llm_ok = False
     if generate is None:

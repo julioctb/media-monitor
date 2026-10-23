@@ -79,6 +79,44 @@ def test_groups_event_with_confidence_and_sources(session) -> None:
     assert item["topic"] == "institutional"
 
 
+def test_event_carries_the_sentiment_mix_for_the_narrative(session) -> None:
+    """tone per noticia: the negative-dominance signal the headline weighs."""
+    from app.models import Sentiment
+
+    client_id = _client(session)
+    event = Event(
+        client_id=client_id,
+        title="Reforma de pensiones en revisión",
+        title_tokens="reforma pensiones",
+        mention_count=3,
+        source_count=2,
+        first_seen_at=NOON,
+        last_seen_at=NOON,
+    )
+    session.add(event)
+    session.flush()
+    for idx, (sentiment, source) in enumerate(
+        (
+            (Sentiment.negative, MentionSource.news_rss),
+            (Sentiment.negative, MentionSource.gdelt),
+            (Sentiment.positive, MentionSource.x_twitter),
+        )
+    ):
+        mention = _mention(
+            session,
+            client_id,
+            f"https://s/{idx}-{sentiment.value}",
+            source=source,
+            sentiment=sentiment,
+            event_id=event.id,
+        )
+        _classify(session, mention.id, "topic", "institutional")
+
+    facts = build_digest_facts(session, client_id=client_id, day=DAY, tz=TZ)
+
+    assert facts["noticias"][0]["tone"] == {"negative": 2, "positive": 1}
+
+
 def test_loose_mention_without_event_is_baja_and_own_item(session) -> None:
     client_id = _client(session)
     loose = _mention(session, client_id, "https://a/solo", title="Suelta")

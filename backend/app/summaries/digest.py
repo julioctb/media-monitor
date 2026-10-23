@@ -196,6 +196,9 @@ def build_digest_facts(
                             if mention.published_at
                             else None
                         ),
+                        "tone": (
+                            {mention.sentiment.value: 1} if mention.sentiment else {}
+                        ),
                         "why_it_matters": None,
                     }
                 )
@@ -204,6 +207,9 @@ def build_digest_facts(
             c.label for m in items for c in m.classifications if c.classifier == "topic"
         )
         topic = topic_counts.most_common(1)[0][0] if topic_counts else None
+        # Sentiment mix of the event's mentions: the narrative must know WHICH
+        # events read negative (and how loudly) to weigh them in the headline.
+        tone_counts = Counter(m.sentiment.value for m in items if m.sentiment is not None)
         person_ids = sorted({pid for m in items for pid in _mention_person_ids(m)})
         noticias.append(
             {
@@ -216,6 +222,7 @@ def build_digest_facts(
                     for m in items
                 ],
                 "confidence": confidence_for(len({m.source for m in items})),
+                "tone": dict(tone_counts),
                 "person_ids": person_ids,
                 "when_label": max(
                     (
