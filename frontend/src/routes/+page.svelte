@@ -83,73 +83,80 @@
 
 <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-4">
 	<div class="min-w-0">
-		{#if summary}
-			<section class="digest-header" aria-labelledby="digest-date">
-				<div class="eyebrow">Resumen diario / BUAP</div>
-				<h1 id="digest-date">{formatLongDate(summary.summary_date)}</h1>
-				<div class="digest-meta">
+		<!-- The page skeleton renders with or without a digest: a day
+		    awaiting its first cut keeps every section in place under
+		    placeholder states instead of collapsing to one legend. -->
+		<section class="digest-header" aria-labelledby="digest-date">
+			<div class="eyebrow">Resumen diario / BUAP</div>
+			<h1 id="digest-date">{formatLongDate(summary?.summary_date ?? day)}</h1>
+			<div class="digest-meta">
+				{#if summary}
 					<span class="mode">{modeLabel[summary.mode] ?? summary.mode}</span>
 					<span>
 						Resumen actualizado a las {updatedLabel}{nextCut ? ` · siguiente actualización a las ${nextCut}` : ''}
 					</span>
-					{#if lastRefresh}
-						<span>refrescado {lastRefresh}</span>
-					{/if}
-				</div>
-				{#if data.days.length > 1}
-					<!-- Mobile date jump: the sidebar Historial sits below the whole
-						digest on narrow viewports; this keeps day switching at hand. -->
-					<div class="day-jump">
-						<label class="day-jump-label" for="day-jump">Consultar otro día</label>
-						<select
-							id="day-jump"
-							value={day}
-							onchange={(event) => goto(`?date=${event.currentTarget.value}`)}
-						>
-							{#each data.days as entry (entry.summary_date)}
-								<option value={entry.summary_date}>
-									{formatLongDate(entry.summary_date)}
-								</option>
-							{/each}
-						</select>
-					</div>
+				{:else}
+					<span>En espera del primer corte del día</span>
+					<span>
+						Última actualización:
+						{data.latest_updated_at ? formatDisplayDateTime(data.latest_updated_at) : '—'}
+					</span>
 				{/if}
-			</section>
+				{#if lastRefresh}
+					<span>refrescado {lastRefresh}</span>
+				{/if}
+			</div>
+			{#if data.days.length > 1}
+				<!-- Mobile date jump: the sidebar Historial sits below the whole
+				    digest on narrow viewports; this keeps day switching at hand. -->
+				<div class="day-jump">
+					<label class="day-jump-label" for="day-jump">Consultar otro día</label>
+					<select
+						id="day-jump"
+						value={day}
+						onchange={(event) => goto(`?date=${event.currentTarget.value}`)}
+					>
+						{#each data.days as entry (entry.summary_date)}
+							<option value={entry.summary_date}>
+								{formatLongDate(entry.summary_date)}
+							</option>
+						{/each}
+					</select>
+				</div>
+			{/if}
+		</section>
 
 			<section class="narrative" aria-labelledby="narrative-heading">
-				<div class="eyebrow" id="narrative-heading">Resumen del día</div>
+			<div class="eyebrow" id="narrative-heading">Resumen del día</div>
+			{#if summary}
 				<p>{summary.narrative}</p>
-			</section>
+			{:else}
+				<p>En espera de generar el resumen del día</p>
+			{/if}
+		</section>
 
-			<!-- Day cross-link: the digest has its own feed section; this
-				anchor just scrolls down to it. -->
-			<a class="digest-feed-link" href="#noticias">
-				Ver el feed de noticias ↓
-			</a>
+		<!-- Day cross-link: the digest has its own feed section; this
+		    anchor just scrolls down to it. -->
+		<a class="digest-feed-link" href="#noticias">
+			Ver el feed de noticias ↓
+		</a>
 
-			<DigestSections
-				content={summary.content}
-				tones={data.tones}
-				sentimentByEvent={data.eventSentiment}
-				coverageLive={data.liveCoverage}
-				fieldCount={data.fieldCount}
-				updatedAt={summary.updated_at}
-			/>
+		<DigestSections
+			content={summary?.content ?? {}}
+			tones={data.tones}
+			sentimentByEvent={data.eventSentiment}
+			coverageLive={data.liveCoverage}
+			fieldCount={data.fieldCount}
+			updatedAt={summary?.updated_at ?? null}
+		/>
 
+		{#if summary}
 			<details class="panel">
 				<summary class="cursor-pointer text-sm font-medium text-ink">
 					Texto plano (para el chat con RAG)
 				</summary>
 				<pre class="mt-3 whitespace-pre-wrap text-sm text-ink-2">{summary.content.plain_text}</pre>
 			</details>
-		{:else}
-			<div class="empty mt-6" role="status">
-				<p>Todavía no se genera el resumen del día.</p>
-				<p class="mt-1 text-muted">
-					Última actualización:
-					{data.latest_updated_at ? formatDisplayDateTime(data.latest_updated_at) : '—'}
-				</p>
-			</div>
 		{/if}
 	</div>
 
