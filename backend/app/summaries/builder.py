@@ -408,7 +408,7 @@ def build_daily_summary(
             mode = "llm"
 
     content["plain_text"] = render_plain_text(content, narrative)
-    return queries.upsert_daily_summary(
+    row = queries.upsert_daily_summary(
         session,
         client_id=client_id,
         day=day,
@@ -416,3 +416,13 @@ def build_daily_summary(
         narrative=narrative,
         mode=mode,
     )
+    # Agenda auto-detect (agenda-detect): promote the digest's agenda
+    # entries to real rows on EVERY build path (worker cut + API regen).
+    # Idempotent by normalized title; failures never fail the digest.
+    try:
+        from app.summaries.agenda_detect import sync_agenda_from_digest
+
+        sync_agenda_from_digest(session, client_id, content, year=day.year)
+    except Exception as exc:  # noqa: BLE001 - detection is best-effort
+        log.warning("agenda detect failed for %s (%s)", day, exc)
+    return row
