@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { enhance } from '$app/forms';
 	import { formatDisplayDateTime } from '$lib/format';
 
 	import { INPUT_CLS } from '$lib/ui';
@@ -6,6 +7,9 @@
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
+
+	/** Gates the create submit while its action is in flight. */
+	let creating = $state(false);
 
 	const BTN_CLS = 'rounded-full border px-3 py-1.5 text-xs font-medium transition-colors';
 
@@ -50,6 +54,15 @@
 	method="POST"
 	action="?/create"
 	class="filter-panel"
+	use:enhance={() => {
+		creating = true;
+		return async ({ update }) => {
+			// Default reset on success is fine: the input recalls its value from
+			// `form` only on failure.
+			await update();
+			creating = false;
+		};
+	}}
 >
 	<div class="grid gap-3 md:grid-cols-2">
 		<div>
@@ -137,6 +150,7 @@
 
 	<button
 		type="submit"
+		disabled={creating}
 		class="mt-4 inline-flex min-h-[44px] items-center justify-center rounded-full border border-accent bg-accent px-[22px] text-sm font-semibold text-accent-on transition-colors hover:border-accent-hover hover:bg-accent-hover active:border-accent-active active:bg-accent-active disabled:opacity-60"
 	>
 		Crear búsqueda guardada
@@ -172,14 +186,14 @@
 				</div>
 
 				<div class="flex gap-2">
-					<form method="POST" action="?/toggle">
+					<form method="POST" action="?/toggle" use:enhance>
 						<input type="hidden" name="id" value={search.id} />
 						<input type="hidden" name="is_active" value={search.is_active ? '0' : '1'} />
 						<button type="submit" class={`${BTN_CLS} border-line text-ink-2 hover:bg-surface-warm`}>
 							{search.is_active ? 'Pausar' : 'Activar'}
 						</button>
 					</form>
-					<form method="POST" action="?/delete">
+					<form method="POST" action="?/delete" use:enhance>
 						<input type="hidden" name="id" value={search.id} />
 						<button type="submit" class={`${BTN_CLS} border-danger/40 text-danger hover:bg-danger/10`}>
 							Eliminar

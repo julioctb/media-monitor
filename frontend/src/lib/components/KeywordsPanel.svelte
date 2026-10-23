@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { enhance } from '$app/forms';
 	import { formatDisplayDateTime } from '$lib/format';
 	import { INPUT_CLS } from '$lib/ui';
 	import type { Keyword } from '$lib/api';
@@ -18,11 +19,27 @@
 
 	let { keywords, form = null }: Props = $props();
 
+	/** Gates the create submit while its action is in flight. */
+	let creating = $state(false);
+
 	const btn =
 		'inline-flex min-h-[44px] items-center justify-center rounded-full border px-3 text-xs font-semibold transition-colors disabled:opacity-60';
 </script>
 
-<form method="POST" action="?/create" class="keyword-form">
+<form
+	method="POST"
+	action="?/create"
+	class="keyword-form"
+	use:enhance={() => {
+		creating = true;
+		return async ({ update }) => {
+			// Default reset on success; on failure the term input recalls its
+			// value from `form`.
+			await update();
+			creating = false;
+		};
+	}}
+>
 	<div>
 		<label class="field-label" for="k-text">Nueva palabra clave</label>
 		<input
@@ -43,7 +60,11 @@
 			<option value="en">English</option>
 		</select>
 	</div>
-	<button type="submit" class={`${btn} border-accent bg-accent text-accent-on hover:bg-accent-hover`}>
+	<button
+		type="submit"
+		disabled={creating}
+		class={`${btn} border-accent bg-accent text-accent-on hover:bg-accent-hover`}
+	>
 		Añadir
 	</button>
 </form>
@@ -75,14 +96,14 @@
 						</td>
 						<td data-label="Acciones">
 							<div class="row-actions">
-								<form method="POST" action="?/toggle">
+								<form method="POST" action="?/toggle" use:enhance>
 									<input type="hidden" name="id" value={keyword.id} />
 									<input type="hidden" name="is_active" value={keyword.is_active ? '0' : '1'} />
 									<button type="submit" class={`${btn} btn-small border-line text-ink-2 hover:bg-surface-warm`}>
 										{keyword.is_active ? 'Desactivar' : 'Activar'}
 									</button>
 								</form>
-								<form method="POST" action="?/delete">
+								<form method="POST" action="?/delete" use:enhance>
 									<input type="hidden" name="id" value={keyword.id} />
 									<button
 										type="submit"
