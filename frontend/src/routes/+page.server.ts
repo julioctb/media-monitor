@@ -3,13 +3,14 @@ import { errorStatus, errorMessage } from '$lib/server/api-error';
 import {
 	ApiError,
 	getClientSettings,
+	getDayStats,
 	getDailySummary,
 	listSummaryDays,
 	listMentions,
 	listPersons,
 	listKeywords
 } from '$lib/api';
-import { splitTones } from '$lib/digest-stats';
+import { negativeNewsItems } from '$lib/digest-stats';
 import { zonedDayBounds } from '$lib/format';
 import type { PageServerLoad } from './$types';
 
@@ -26,116 +27,128 @@ function todayIn(tz: string): string {
 	}).format(new Date());
 }
 
-/**
- * Sidebar/summary aggregates: media vs social tone for the day, top
- * tracked actors and active keywords. Each piece degrades to null/[]
- * so a partial API outage keeps the digest readable.
- */
-type MentionLike = {
-	event_id?: number | null;
-	sentiment?: string | null;
-};
-
-/** Majority sentiment per canonical event, for the digest news pills. */
-function majoritySentimentByEvent(items: MentionLike[]): Record<string, string> {
-	const tally: Record<string, Record<string, number>> = {};
-	for (const item of items) {
-		if (!item.event_id || !item.sentiment || item.sentiment === 'none') continue;
-		const key = String(item.event_id);
-		const bucket = (tally[key] ??= {});
-		bucket[item.sentiment] = (bucket[item.sentiment] ?? 0) + 1;
-	}
-	const out: Record<string, string> = {};
-	for (const [key, counts] of Object.entries(tally)) {
-		out[key] = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
-	}
-	return out;
-}
-
-async function loadSideData(day: string) {
-	// Local-day bounds (same expansion the feed applies): raw date strings
-	// become UTC midnights in PG and skew the evening into the next day.
-	const bounds = zonedDayBounds(day);
-	const [mentionsResult, persons, keywords, settings] = await Promise.all([
-		listMentions({ since: bounds.since, until: bounds.until, limit: 500 })
-			.then((page) => ({
-				items: page.items,
-				tones: splitTones(page.items),
-				eventSentiment: majoritySentimentByEvent(page.items),
-				fieldCount: page.items.filter((m) => m.source === 'field').length
-			}))
-			.catch(() => null),
-		listPersons({ sort: 'mentions', limit: 3 }).catch(() => []),
-		listKeywords()
-			.then((rows) => rows.filter((keyword) => keyword.is_active))
-			.catch(() => []),
-		// Digest cut hours drive the "siguiente actualización" stamp.
-		getClientSettings().catch(() => null)
-	]);
-	const tones = mentionsResult?.tones ?? null;
-	const eventSentiment = mentionsResult?.eventSentiment ?? {};
-	const fieldCount = mentionsResult?.fieldCount ?? 0;
-	const digestHours = settings?.digest_hours ?? [];
-	// Live coverage: same mention set as the tone boxes, so every number on
-	// the page shares one basis (the digest's frozen coverage stays in the
-	// content for the archive, never rendered as current).
-	const liveItems = mentionsResult?.items ?? [];
-	const liveByTopic: Record<string, number> = {};
+/** Live day coverage: totals, topic histogram and distinct events. */
+function coverageOf(
+	items: { event_id?: number | null; classifications?: { classifier: string; label: string }[] | undefined }[]
+): {
+	total: number;
+	byTopic: Record<string, number>;
+	events: number;
+} {
+	const byTopic: Record<string, number> = {};
 	const seenEvents = new Set<number>();
-	for (const item of liveItems) {
+	for (const item of items) {
 		for (const classification of item.classifications ?? []) {
 			if (classification.classifier === 'topic') {
-				liveByTopic[classification.label] = (liveByTopic[classification.label] ?? 0) + 1;
+				byTopic[classification.label] = (byTopic[classification.label] ?? 0) + 1;
 			}
 		}
 		if (item.event_id !== undefined && item.event_id !== null) {
 			seenEvents.add(item.event_id);
 		}
 	}
-	const liveCoverage = mentionsResult
-		? { total: liveItems.length, byTopic: liveByTopic, events: seenEvents.size }
-		: null;
-	// Field-data ingest does not exist yet; count for the day drives the
-	// conditional "Datos de campo" section (hidden while zero).
-	return { tones, eventSentiment, fieldCount, persons, keywords, digestHours, liveCoverage, liveCount: liveItems.length };
+	return { total: items.length, byTopic, events: seenEvents.size };
+}
+
+/**
+ * Ingest sources wired on every cycle: google_news + x_index always; the
+ * rest per settings (gdelt flag, RSS list, scrapers, Facebook pages).
+ * Feeds the «N fuentes activas» note under Resumen general.
+ */
+function activeSourceCount(settings: {
+	gdelt_enabled?: boolean;
+	rss_feeds?: string[];
+	scrapers?: string[];
+	facebook_pages?: unknown[];
+} | null): number {
+	if (!settings) return 0;
+	return (
+		2 +
+		(settings.gdelt_enabled ? 1 : 0) +
+		(settings.rss_feeds?.length ?? 0) +
+		(settings.scrapers?.length ?? 0) +
+		(settings.facebook_pages?.length ?? 0)
+	);
+}
+
+/** Redes block labels: Facebook carries the configured account names. */
+function socialLabelsFor(pages: { label: string }[] | undefined): Record<string, string> {
+	if (!pages || pages.length === 0) return {};
+	return { facebook_page: `Facebook · ${pages.map((page) => page.label).join(', ')}` };
+}
+
+/** First day of the month containing `day` («ver mes anterior» anchor). */
+function monthFirst(day: string): string {
+	return `${day.slice(0, 7)}-01`;
 }
 
 export const load: PageServerLoad = async ({ url }) => {
 	const requested = url.searchParams.get('date');
-	let day = requested && DATE_RE.test(requested) ? requested : null;
-	if (!day) {
-		// "Today" must follow the client display timezone, not the container
-		// clock (UTC): after 18:00 local the UTC date is already tomorrow.
-		const settings = await getClientSettings().catch(() => null);
-		day = todayIn(settings?.timezone || DEFAULT_TZ);
-	}
+	const requestedDay = requested && DATE_RE.test(requested) ? requested : null;
+	// «ver mes anterior»: history pages older than this YYYY-MM-01.
+	const beforeParam = url.searchParams.get('before');
+	const before = beforeParam && DATE_RE.test(beforeParam) ? beforeParam : null;
+	// Single settings read: timezone gate, cut hours, source count, labels.
+	const settingsPromise = getClientSettings().catch(() => null);
+	// "Today" must follow the client display timezone, not the container
+	// clock (UTC): after 18:00 local the UTC date is already tomorrow.
+	const day = requestedDay ?? todayIn(((await settingsPromise) ?? undefined)?.timezone || DEFAULT_TZ);
 	try {
-		const [summary, days] = await Promise.all([
-			getDailySummary(day),
-			listSummaryDays().catch(() => [])
-		]);
+		// Local-day bounds (same expansion the feed applies): raw date strings
+		// become UTC midnights in PG and skew the evening into the next day.
+		const bounds = zonedDayBounds(day);
+		const [summary, allDays, dayStats, mentionsPage, persons, keywords, settings] =
+			await Promise.all([
+				getDailySummary(day),
+				listSummaryDays().catch(() => []),
+				getDayStats(day).catch(() => null),
+				listMentions({ since: bounds.since, until: bounds.until, limit: 500 }).catch(() => null),
+				listPersons({ sort: 'mentions', limit: 3 }).catch(() => []),
+				listKeywords()
+					.then((rows) => rows.filter((keyword) => keyword.is_active))
+					.catch(() => []),
+				settingsPromise
+			]);
 		// The visible summary is exactly the requested day's: no digest yet
 		// means the legend below renders until the first cut of the day.
 		let latestUpdatedAt: string | null = null;
-		if (!summary && days.length > 0) {
+		if (!summary && allDays.length > 0) {
 			// The day list carries no timestamp; pull the newest row for the
-			// "última actualización" line (null when the lookup fails).
-			const latest = await getDailySummary(days[0].summary_date).catch(() => null);
+			// «última actualización» line (null when the lookup fails).
+			const latest = await getDailySummary(allDays[0].summary_date).catch(() => null);
 			latestUpdatedAt = latest?.updated_at ?? null;
 		}
-		const side = summary
-			? await loadSideData(day)
-			: {
-					tones: null,
-					eventSentiment: {},
-					fieldCount: 0,
-					persons: [],
-					keywords: [],
-					digestHours: [],
-					liveCoverage: null,
-					liveCount: 0
-				};
-		return { day, summary, latest_updated_at: latestUpdatedAt, days, ...side };
+		// History pagination: with ?before=YYYY-MM-01 the sidebar lists the
+		// previous months only; the day under view is independent.
+		const days = before ? allDays.filter((entry) => entry.summary_date < before) : allDays;
+		// «ver mes anterior»: everything before the newest visible month;
+		// each click peels one month off the history list.
+		const newestVisible = days[0]?.summary_date;
+		const olderCandidate = newestVisible ? monthFirst(newestVisible) : null;
+		const olderBefore =
+			olderCandidate && allDays.some((entry) => entry.summary_date < olderCandidate)
+				? olderCandidate
+				: null;
+		// The mention page feeds the live coverage and the negative-events
+		// scan; tone buckets come from /stats/day (media/social/field).
+		const liveItems = mentionsPage?.items ?? [];
+		return {
+			day,
+			before,
+			summary,
+			latest_updated_at: latestUpdatedAt,
+			days,
+			olderBefore,
+			tones: dayStats?.tones ?? null,
+			keywordCounts: dayStats?.keywords ?? [],
+			negativeEvents: mentionsPage ? negativeNewsItems(liveItems) : [],
+			liveCoverage: mentionsPage ? coverageOf(liveItems) : null,
+			persons,
+			keywords,
+			digestHours: settings?.digest_hours ?? [],
+			sourcesCount: activeSourceCount(settings),
+			socialLabels: socialLabelsFor(settings?.facebook_pages)
+		};
 	} catch (cause) {
 		const status = errorStatus(cause, 503);
 		const detail = errorMessage(cause, 'error desconocido');

@@ -6,6 +6,8 @@ import { load } from '../routes/+page.server';
  * Home legend (digest-multi-cut): with no summary for the requested day the
  * load must answer summary:null plus `latest_updated_at` from the newest
  * stored day — the fallback that swapped in the previous digest is gone.
+ * The v2 load also carries the /stats/day aggregates, the negative-events
+ * scan and the «ver mes anterior» history window (?before=YYYY-MM-01).
  */
 
 type RouteTable = Record<string, unknown>;
@@ -22,6 +24,8 @@ function todayInMexicoCity(): string {
 
 const TODAY = todayInMexicoCity();
 const PREV = '2026-10-19';
+const OLDER_A = '2026-09-18';
+const OLDER_B = '2026-08-05';
 const UPDATED_ISO = '2026-10-19T21:05:00Z';
 
 function settingsRow() {
@@ -34,8 +38,8 @@ function settingsRow() {
 		digest_hour: 21,
 		digest_hours: [21],
 		gdelt_enabled: true,
-		facebook_pages: [],
-		rss_feeds: [],
+		facebook_pages: [{ page_id: '1', label: 'BUAPoficial' }],
+		rss_feeds: ['https://a/feed'],
 		scrapers: [],
 		ai_provider: 'local',
 		ai_api_key: null,
@@ -55,6 +59,16 @@ function summaryRow(day: string, updated: string) {
 		mode: 'heuristic',
 		created_at: updated,
 		updated_at: updated
+	};
+}
+
+function dayStats() {
+	const bucket = { positive: 1, negative: 0, neutral: 0, unclassified: 0, total: 1 };
+	return {
+		date: TODAY,
+		timezone: 'America/Mexico_City',
+		tones: { media: bucket, social: bucket, field: bucket },
+		keywords: [{ id: 7, text: 'BUAP', count: 3 }]
 	};
 }
 
@@ -84,12 +98,34 @@ function loadHome(query = '') {
 }
 
 /** Side-data endpoints; shapes only need the fields the load reads. */
-function sideRoutes(): RouteTable {
+function sideRoutes(overrides: RouteTable = {}): RouteTable {
 	return {
-		'/api/mentions': { items: [], total: 0 },
-		'/api/persons': [],
-		'/api/keywords': []
+		'/api/mentions': {
+			items: [
+				{
+					event_id: 33,
+					title: 'Nota negativa',
+					sentiment: 'negative',
+					source: 'news_rss',
+					published_at: '2026-10-19T10:00:00Z'
+				}
+			],
+			total: 1
+		},
+		'/api/clients/1/persons': [],
+		'/api/keywords': [{ id: 7, text: 'BUAP', is_active: true }],
+		'/api/stats/day': dayStats(),
+		...overrides
 	};
+}
+
+function historyDays(): unknown[] {
+	return [
+		{ summary_date: TODAY, mode: 'heuristic' },
+		{ summary_date: PREV, mode: 'llm' },
+		{ summary_date: OLDER_A, mode: 'llm' },
+		{ summary_date: OLDER_B, mode: 'heuristic' }
+	];
 }
 
 it('answers summary null + latest_updated_at when today has no digest', async () => {
@@ -126,7 +162,7 @@ it('answers latest_updated_at null when there is no stored day at all', async ()
 it('keeps the day summary and skips the latest lookup when it exists', async () => {
 	const fetchMock = stubFetch({
 		'/api/settings': settingsRow(),
-		'/api/clients/1/summaries': [{ summary_date: PREV, mode: 'heuristic' }],
+		'/api/clients/1/summaries': historyDays(),
 		[`/api/clients/1/summaries/${TODAY}`]: summaryRow(TODAY, UPDATED_ISO),
 		...sideRoutes()
 	});
@@ -139,4 +175,72 @@ it('keeps the day summary and skips the latest lookup when it exists', async () 
 		String(call[0]).includes('/summaries')
 	);
 	expect(summaryCalls).toHaveLength(2); // day list + today, no extra fetch
+});
+
+it('exposes the v2 aggregates: tones, keyword counts and negative events', async () => {
+	stubFetch({
+		'/api/settings': settingsRow(),
+		'/api/clients/1/summaries': historyDays(),
+		[`/api/clients/1/summaries/${TODAY}`]: summaryRow(TODAY, UPDATED_ISO),
+		...sideRoutes()
+	});
+
+	const data = await loadHome();
+
+	// Tone buckets ride /stats/day (media/social/field), not the mention page.
+	const tones = data['tones'] as { media: unknown; social: unknown; field: unknown };
+	expect(tones).toHaveProperty('field');
+	// Active keywords crossed with the day counts stay available to the UI.
+	expect(data['keywordCounts']).toEqual([{ id: 7, text: 'BUAP', count: 3 }]);
+	// The single negative mention is a majority-negative event.
+	expect(data['negativeEvents']).toEqual([
+		{
+			event_id: 33,
+			title: 'Nota negativa',
+			source: 'news_rss',
+			published_at: '2026-10-19T10:00:00Z'
+		}
+	]);
+	// Ingest sources: google_news + x_index + gdelt + 1 rss feed + 1 fb page.
+	expect(data['sourcesCount']).toBe(5);
+	// Facebook label for the redes block, built from settings.
+	expect(data['socialLabels']).toEqual({ facebook_page: 'Facebook · BUAPoficial' });
+});
+
+it('filters the history with ?before and anchors the previous month', async () => {
+	stubFetch({
+		'/api/settings': settingsRow(),
+		'/api/clients/1/summaries': historyDays(),
+		[`/api/clients/1/summaries/${TODAY}`]: summaryRow(TODAY, UPDATED_ISO),
+		...sideRoutes()
+	});
+
+	const paged = await loadHome('?before=2026-10-01');
+	// Only the months before October remain visible…
+	expect((paged['days'] as { summary_date: string }[]).map((d) => d.summary_date)).toEqual([
+		OLDER_A,
+		OLDER_B
+	]);
+	// …and the next anchor is the first day of the newest visible month.
+	expect(paged['olderBefore']).toBe('2026-09-01');
+
+	const unfiltered = await loadHome();
+	// Full view: the link points at the current-month edge (older months exist).
+	expect(unfiltered['olderBefore']).toBe('2026-10-01');
+});
+
+it('hides the month link when no older month exists', async () => {
+	stubFetch({
+		'/api/settings': settingsRow(),
+		'/api/clients/1/summaries': [
+			{ summary_date: TODAY, mode: 'heuristic' },
+			{ summary_date: PREV, mode: 'llm' }
+		],
+		[`/api/clients/1/summaries/${TODAY}`]: summaryRow(TODAY, UPDATED_ISO),
+		...sideRoutes()
+	});
+
+	const data = await loadHome();
+
+	expect(data['olderBefore']).toBeNull();
 });

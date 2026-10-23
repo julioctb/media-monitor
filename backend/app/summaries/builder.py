@@ -70,8 +70,15 @@ SYSTEM_PROMPT = (
     "día en JSON (noticias, rectora, redes, personas). Devuelve EXCLUSIVAMENTE "
     "un objeto JSON con: headline (1-2 oraciones ejecutivas del día), items "
     "[{index, summary, why_it_matters}] para las noticias que lo requieran, y "
-    "rectora {tone, watch}. Prohibido inventar datos, fuentes o títulos: usa "
-    "únicamente los hechos. Español periodístico, máximo 2 oraciones por campo."
+    "rectora {tone, watch, activity}: activity es el seguimiento narrativo de "
+    "la persona focal, lista [{when, status, text, channel}] con cuándo/qué, "
+    "estado y canal cuando aplique (omítela si no hay nada que vigilar). "
+    "Incluye además agenda: lista [{when, status, title, source}] de eventos o "
+    "citas futuras visibles en los datos (when y title literales, sin inventar "
+    "fechas), y redes: {<fuente>: {note}} con una nota narrativa por red con "
+    "datos; nota vacía o ausente cuando nada sea fechable. Prohibido inventar "
+    "datos, fuentes o títulos: usa únicamente los hechos. Español "
+    "periodístico, máximo 2 oraciones por campo."
 )
 
 
@@ -383,6 +390,18 @@ def build_daily_summary(
             for key in ("tone", "watch"):
                 if not rectora.get(key) and prev_rectora.get(key):
                     rectora[key] = prev_rectora[key]
+            # home-digest-v2: the narrative blocks travel with the prose.
+            prev_agenda = prev_content.get("agenda")
+            if not content.get("agenda") and prev_agenda:
+                content["agenda"] = prev_agenda
+            prev_activity = prev_rectora.get("activity")
+            if not rectora.get("activity") and prev_activity:
+                rectora["activity"] = prev_activity
+            for source, prev_data in (prev_content.get("redes") or {}).items():
+                prev_note = prev_data.get("note") if isinstance(prev_data, dict) else None
+                target = (content.get("redes") or {}).get(source)
+                if prev_note and isinstance(target, dict) and not target.get("note"):
+                    target["note"] = prev_note
             prev_plain = (prev_content.get("plain_text") or "").split("\n", 1)[0]
             if prev_plain:
                 narrative = prev_plain

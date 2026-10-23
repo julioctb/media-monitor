@@ -12,56 +12,61 @@ function digestFixture(): DailySummaryContent {
 			total: 2,
 			by_source: { news_rss: 2 },
 			by_topic: { institutional: 1 },
-			gaps: ['Facebook sin cobertura en la ventana']
+			gaps: []
 		},
 		noticias: [
 			{
 				event_id: 673,
 				title: 'BUAP inaugura edificio en Zacapoaxtla',
 				summary: 'La rectora encabezó la inauguración.',
-				why_it_matters: 'Obra regional emblemática.',
 				topic: 'institutional',
 				confidence: 'media',
+				sources: [{ source: 'news_rss', url: 'https://a/1' }]
+			},
+			{
+				event_id: 674,
+				title: 'Abrió la ofrenda de Día de Muertos',
+				summary: 'La obra fue elaborada por estudiantes.',
+				topic: 'culture',
+				confidence: 'alta',
 				sources: [
-					{ source: 'news_rss', url: 'https://a/1', title: 'A' },
-					{ source: 'rss_custom', url: 'https://b/2', title: 'B' }
-				],
-				person_ids: [88]
+					{ source: 'rss_custom', url: 'https://b/2' },
+					{ source: 'news_rss', url: 'https://c/3' }
+				]
+				},
+			{
+				event_id: 675,
+				title: 'Sin tema asignado',
+				summary: 'Nota sin clasificar.',
+				sources: []
 			}
+		],
+		agenda: [
+			{ when: '27 oct.', status: 'Nueva, sin nota aún', title: 'Plática sobre redes de apoyo', source: 'X, @BUAPoficial' }
 		],
 		rectora: {
 			person_id: 88,
-			mention_count: 1,
-			actions: [{ title: 'Inauguración', event_id: 673, sentiment: 'positive' }],
-			tone: 'positivo',
-			watch: 'reacciones post-votación'
+			name: 'Lilia Cedillo Ramírez',
+			activity: [{ when: '22 oct.', text: 'Inauguró la ofrenda en la Casa de la Bóveda.', channel: 'X' }]
 		},
 		redes: {
 			x: { count: 0 },
-			facebook_page: { count: 1 }
+			facebook_page: { count: 3, note: 'Vista previa limitada por inicio de sesión.' }
 		},
-		personas: [
-			{
-				person_id: 88,
-				name: 'Lilia Cedillo Ramírez',
-				role: 'Rectora',
-				org: 'BUAP',
-				mention_count: 1,
-				fact: 'BUAP inaugura edificio en Zacapoaxtla'
-			}
-		],
-		pendientes: ['«sin datos» sin menciones']
+		personas: [{ person_id: 88, name: 'Lilia Cedillo Ramírez', mention_count: 2 }],
+		pendientes: ['Sin notas nuevas fechables en e-consulta.']
 	};
 }
 
 const TONES = {
 	media: { positive: 3, negative: 1, neutral: 2, unclassified: 1, total: 7 },
-	social: { positive: 0, negative: 0, neutral: 0, unclassified: 2, total: 2 }
+	social: { positive: 0, negative: 0, neutral: 0, unclassified: 2, total: 2 },
+	field: { positive: 0, negative: 1, neutral: 0, unclassified: 0, total: 1 }
 };
 
 let instance: Record<string, unknown> | undefined;
 
-function renderCard(
+function renderSection(
 	content: DailySummaryContent,
 	tones: typeof TONES | null = null,
 	props: Record<string, unknown> = {}
@@ -72,175 +77,81 @@ function renderCard(
 	return target;
 }
 
-describe('DigestSections', () => {
+describe('DigestSections v2', () => {
 	afterEach(() => {
 		if (instance) void unmount(instance as never);
 		instance = undefined;
 	});
 
-	it('renders every editorial section', () => {
-		const host = renderCard(digestFixture(), null, { fieldCount: 3 });
-		const text = host.textContent ?? '';
-		for (const heading of [
-			'Resumen general',
-			'Cobertura del día',
-			'Datos de campo',
-			'Lilia Cedillo Ramírez',
-			'Noticias del día',
-			'Personas mencionadas',
-			'Pendientes y silencios'
-		]) {
+	it('renders the three summary boxes and the detail header', () => {
+		const host = renderSection(digestFixture(), TONES, { sourcesCount: 12 });
+		const text = (host.textContent ?? '').replace(/\s+/g, ' ');
+		for (const heading of ['Noticias', 'Redes Sociales', 'Datos de Campo', 'Resumen detallado del día']) {
 			expect(text).toContain(heading);
 		}
+		expect(text).toContain('12 fuentes activas');
+		expect(text).toContain('7 notas registradas');
+		expect(text).toContain('2 publicaciones registradas');
+		expect(text).toContain('1 registro cargado');
 	});
 
-	it('shows feed preview details and rectora watch note', () => {
-		const host = renderCard(digestFixture());
-		const text = host.textContent ?? '';
-		expect(text).toContain('Institucional');
-		expect(text).toContain('Noticias · a · b');
-		expect(text).toContain('Eventos detectados');
-		expect(text).toContain('La rectora encabezó la inauguración.');
-		expect(text).toContain('Por qué importa: Obra regional emblemática.');
-		expect(text).toContain('Vigilar: reacciones post-votación');
-		expect(text).toContain('BUAP inaugura edificio en Zacapoaxtla');
-	});
-
-	it('renders tone fallbacks and silent social sources without day stats', () => {
-		const host = renderCard(digestFixture());
+	it('falls back to the mockup empty states without day stats', () => {
+		const host = renderSection(digestFixture(), null, {});
 		const text = host.textContent ?? '';
 		expect(text).toContain('Sin calcular');
 		expect(text).toContain('Sin datos');
-		expect(text).toContain('X: sin menciones');
-		expect(text).toContain('Facebook sin cobertura en la ventana');
-		expect(text).toContain('eventos no disponibles');
+		expect(text).toContain('fuentes activas');
+		// The window claims only render with real buckets.
+		expect(text).not.toContain('Corresponde a las menciones de medios');
 	});
 
-	it('renders day tone split, category bars and rectora quotes', () => {
-		const host = renderCard(digestFixture(), TONES);
+	it('groups noticias under topic headings with source and confidence', () => {
+		const host = renderSection(digestFixture());
+		const blocks = [...host.querySelectorAll('.daily-detail-block')];
+		const news = blocks.find((block) => block.querySelector('h3')?.textContent === 'Noticias');
+		expect(news).toBeDefined();
+		const topics = [...news!.querySelectorAll('h4')].map((h) => h.textContent);
+		expect(topics).toEqual(['Institucional', 'Cultura', 'Sin categoría']);
+		expect(news!.textContent).toContain('Fuente: News RSS. Confianza: media.');
+		expect(news!.textContent).toContain('Fuente: RSS propios · News RSS. Confianza: alta.');
+	});
+
+	it('renders agenda, rectora activity and limitations', () => {
+		const host = renderSection(digestFixture());
 		const text = host.textContent ?? '';
-		expect(text).toContain('Corresponde a las menciones de medios');
-		expect(text).toContain('1 · 50\u00a0%');
-		// Quote from the rectora news item, cited to its first source.
-		expect(text).toContain('News RSS · titular de la nota');
+		expect(text).toContain('27 oct. · Nueva, sin nota aún');
+		expect(text).toContain('Plática sobre redes de apoyo');
+		expect(text).toContain('Fuente: X, @BUAPoficial');
+		expect(text).toContain('Rectora Lilia Cedillo Ramírez');
+		expect(text).toContain('22 oct.');
+		expect(text).toContain('Inauguró la ofrenda en la Casa de la Bóveda. (X)');
+		expect(text).toContain('Limitaciones de cobertura');
+		expect(text).toContain('Sin notas nuevas fechables en e-consulta.');
 	});
 
-	it('falls back to action quotes when no news item matches', () => {
-		const content = digestFixture();
-		content.noticias = [];
-		const host = renderCard(content);
+	it('marks silent tracked sources with the fixed line and honors label overrides', () => {
+		const host = renderSection(digestFixture(), null, {
+			socialLabels: { facebook_page: 'Facebook · BUAPoficial' }
+		});
 		const text = host.textContent ?? '';
-		expect(text).toContain('Inauguración');
-		expect(text).toContain('Resumen del día');
-	});
-
-	it('hides the field data section when the day has none', () => {
-		const host = renderCard({ schema: 2 });
-		expect(host.textContent).toContain('Sin noticias registradas');
-		expect(host.textContent).not.toContain('Aún no hay resultados de campo');
-	});
-
-	it('stamps the update as mockup copy inside <time>', () => {
-		const host = renderCard(digestFixture(), null, { updatedAt: '2026-10-19T06:24:00-06:00' });
-		const stamp = host.querySelector('.rectora-update time');
-		expect(stamp).not.toBeNull();
-		expect(stamp?.getAttribute('datetime')).toBe('2026-10-19T06:24:00-06:00');
-		expect(host.textContent).toContain('Resumen actualizado el 19/10/2026 a las 06:24');
-	});
-
-	it('prefers the rectora identity stamp over the persona lookup', () => {
-		const content = digestFixture();
-		content.rectora = { ...content.rectora, name: 'Nombre Estampado', role: 'Cargo', org: 'Org' };
-		const host = renderCard(content);
-		expect(host.querySelector('#rectora-heading')?.textContent).toContain('Nombre Estampado');
-		expect(host.textContent).toContain('Cargo · Org');
-	});
-
-	it('falls back to the persona chain on pre-stamp digests', () => {
-		const content = digestFixture();
-		const { name: _name, role: _role, org: _org, ...rectora } = content.rectora ?? {};
-		content.rectora = rectora;
-		const host = renderCard(content);
-		expect(host.querySelector('#rectora-heading')?.textContent).toContain(
-			'Lilia Cedillo Ramírez'
+		expect(text).toContain('Sin novedades fechables en la ventana.');
+		const social = [...host.querySelectorAll('.daily-detail-block')].find((block) =>
+			block.textContent?.includes('Redes sociales')
 		);
-		expect(host.textContent).toContain('Rectora · BUAP');
-	});
-});
-
-describe('DigestSections long-day collapse', () => {
-	afterEach(() => {
-		if (instance) void unmount(instance as never);
-		instance = undefined;
+		expect(social?.textContent).toContain('Facebook · BUAPoficial');
+		expect(social?.textContent).toContain('Vista previa limitada por inicio de sesión.');
 	});
 
-	function longDay(n: number): DailySummaryContent {
+	it('omits the detail section when the content has nothing', () => {
+		const host = renderSection({ schema: 2 });
+		expect((host.textContent ?? '')).not.toContain('Resumen detallado del día');
+	});
+
+	it('falls back to the generic rectora heading without identity', () => {
 		const content = digestFixture();
-		const base = content.noticias ?? [];
-		const extra = Array.from({ length: n }, (_, i) => ({
-			event_id: 900 + i,
-			title: `Extra ${i}`,
-			summary: `Resumen extra ${i}.`,
-			sources: [{ source: 'news_rss', url: `https://x/${i}`, title: 'X' }]
-		}));
-		content.noticias = [...base, ...extra];
-		return content;
-	}
-
-	function expander(host: HTMLElement): HTMLButtonElement {
-		const button = host.querySelector('.news-expand') as HTMLButtonElement | null;
-		if (!button) throw new Error('missing expander');
-		return button;
-	}
-
-	it('hides the expander on short days', () => {
-		const host = renderCard(digestFixture(), null, {});
-		expect(host.querySelector('.news-expand')).toBeNull();
-		expect(host.querySelectorAll('.news-item').length).toBe(
-			(digestFixture().noticias ?? []).length
-		);
-	});
-
-	it('collapses long days and expands on click', async () => {
-		const host = renderCard(longDay(8), null, {});
-		expect(host.querySelectorAll('.news-item').length).toBe(6);
-		const button = expander(host);
-		expect(button.getAttribute('aria-expanded')).toBe('false');
-		expect(button.textContent).toContain('3 noticias restantes');
-
-		button.click();
-		await new Promise((r) => setTimeout(r, 10));
-		expect(host.querySelectorAll('.news-item').length).toBe(9);
-		expect(expander(host).getAttribute('aria-expanded')).toBe('true');
-
-		expander(host).click();
-		await new Promise((r) => setTimeout(r, 10));
-		expect(host.querySelectorAll('.news-item').length).toBe(6);
-	});
-});
-
-describe('DigestSections negative focus', () => {
-	afterEach(() => {
-		if (instance) void unmount(instance as never);
-		instance = undefined;
-	});
-
-	it('renders the attention block with negative events only', () => {
-		const host = renderCard(digestFixture(), null, { sentimentByEvent: { 673: 'negative' } });
-		const section = host.querySelector('[aria-labelledby="atencion-heading"]');
-		expect(section).not.toBeNull();
-		expect(section?.textContent).toContain('Puntos de atención');
-		expect(section?.textContent).toContain('Tono negativo · 1');
-		expect(section?.querySelector('a')?.getAttribute('href')).toBe('/events/673');
-	});
-
-	it('hides the attention block when nothing is negative', () => {
-		const host = renderCard(digestFixture(), null, { sentimentByEvent: { 673: 'positive' } });
-		expect(host.querySelector('[aria-labelledby="atencion-heading"]')).toBeNull();
-	});
-
-	it('marks negative cards with the accent class', () => {
-		const host = renderCard(digestFixture(), null, { sentimentByEvent: { 673: 'negative' } });
-		expect(host.querySelector('.news-item .accent-negative')).not.toBeNull();
+		content.rectora = { activity: [{ text: 'Actividad suelta' }] };
+		const host = renderSection(content);
+		expect(host.textContent).toContain('Rectora');
+		expect(host.textContent).not.toContain('Rectora Lilia');
 	});
 });

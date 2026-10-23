@@ -254,6 +254,11 @@
 .data-table tr:last-child td {
 	border-bottom: 0;
 }
+/* Dense variant: data tables holding form controls (settings source cards).
+	The 18px text rhythm double-pads rows whose cells already carry inputs. */
+.source-card .data-table td {
+	padding-block: 10px;
+}
 
 /* --- Small shared bits --- */
 .sample-note {
@@ -391,15 +396,30 @@
 }
 
 /* ============================================================
-   Digest (resumen-diario mockup): header card, summary boxes,
-   coverage metrics, category bars, field-data panel, rectora,
-   pending list and sidebar tracking sections.
+   Digest home — «resumen diario» v2: reporte editorial.
+   Ported from referencia_visual/resumen-diario-media-monitor_v2.html
+   through the token map (--fg→ink, --border→line, --surface-warm→…).
+   Breakpoints 1180 / 1020 / 800 / 600 + prefers-reduced-motion.
    ============================================================ */
+html {
+	scroll-behavior: smooth;
+}
+
+/* --- Two-column frame: content + 228px aside (220px ≤1180) --- */
+.digest-layout {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 228px;
+	gap: 32px;
+}
+.digest-content {
+	min-width: 0;
+}
+
+/* --- Header card --- */
 .digest-header {
 	padding: 24px 28px;
 	border: 1px solid var(--color-line-soft);
 	border-radius: var(--radius-panel);
-	border-bottom: 1px solid var(--color-line-soft);
 	background: #fff;
 }
 .eyebrow {
@@ -415,40 +435,6 @@
 	font: 500 clamp(32px, 4vw, 40px) / 1.1 var(--font-display);
 	letter-spacing: var(--tracking-display);
 }
-/* Mobile day jump: the sidebar Historial renders below the whole digest on
-   narrow viewports, so day switching lives in the header instead. Hidden on
-   lg+, where the aside sits beside the content again. */
-.day-jump {
-	display: grid;
-	gap: 6px;
-	margin-top: 14px;
-}
-
-.day-jump-label {
-	font-size: 12px;
-	font-weight: 600;
-	letter-spacing: 0.08em;
-	text-transform: uppercase;
-	color: var(--color-ink-2);
-}
-
-.day-jump select {
-	width: 100%;
-	min-width: 0;
-	padding: 10px 12px;
-	border: 1px solid var(--color-line);
-	border-radius: var(--radius-control);
-	background: #fff;
-	font: 400 15px / 1.3 var(--font-body);
-	color: var(--color-ink);
-	appearance: auto;
-}
-
-@media (min-width: 1024px) {
-	.day-jump {
-		display: none;
-	}
-}
 .digest-meta {
 	display: flex;
 	align-items: center;
@@ -457,37 +443,29 @@
 	color: var(--color-muted);
 	font-size: 14px;
 }
-.mode {
-	display: inline-flex;
-	align-items: center;
-	padding: 3px 9px;
-	border: 1px solid var(--color-line);
-	border-radius: 980px;
-	color: var(--color-ink-2);
-	font-size: 12px;
-	font-weight: 700;
-	letter-spacing: 0.08em;
-	text-transform: uppercase;
-}
 
-/* Dark narrative hero. */
+/* --- Narrative hero (dark band, mockup .narrative) --- */
 .narrative {
 	margin-top: 16px;
-	padding: 24px 28px;
+	padding: 26px 30px 28px;
 	border-radius: var(--radius-panel);
 	background: var(--color-ink);
 	color: #fff;
 }
 .narrative .eyebrow {
-	color: rgb(255 255 255 / 0.6);
+	color: var(--color-surface);
 }
 .narrative p {
-	margin: 10px 0 0;
+	max-width: 900px;
+	margin: 12px 0 0;
+	font-family: var(--font-display);
 	font-size: 20px;
-	line-height: 1.45;
+	line-height: 1.38;
+	letter-spacing: -0.015em;
+	font-weight: 500;
 }
 
-/* Content sections as quiet editorial cards. */
+/* --- Editorial sections as boxed cards --- */
 .section {
 	margin-top: 16px;
 	padding: 22px 28px 24px;
@@ -499,23 +477,28 @@
 	display: flex;
 	align-items: baseline;
 	justify-content: space-between;
-	gap: 8px 16px;
-	/* Divider under every section heading (mockup .section-heading). */
+	gap: 16px;
 	padding-bottom: 12px;
-	border-bottom: 1px solid var(--color-line-soft);
-	margin: 0 0 4px;
+	border-bottom: 1px solid var(--color-line);
 }
-.section-heading h2 {
+.section-heading h2,
+.daily-detail-header h2 {
 	margin: 0;
-	font: 600 21px/1.2 var(--font-display);
+	font-family: var(--font-display);
+	font-size: clamp(21px, 1.9vw, 24px);
+	font-weight: 500;
+	line-height: 1.2;
+	letter-spacing: -0.01em;
+}
+.heading-soft {
+	font-weight: 200;
 }
 .section-note {
 	color: var(--color-muted);
-	font-size: 13px;
-	white-space: nowrap;
+	font-size: 14px;
 }
 
-/* Resumen general: three tone boxes. */
+/* --- Resumen general: three tone boxes --- */
 .summary-grid {
 	display: grid;
 	grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -531,7 +514,7 @@
 }
 .summary-box h3 {
 	margin: 0;
-	font: 600 17px/1.3 var(--font-display);
+	font: 600 17px / 1.3 var(--font-display);
 }
 .summary-meta {
 	margin: 5px 0 0;
@@ -564,260 +547,160 @@
 	font-size: 12px;
 	line-height: 1.45;
 }
-.trend-empty {
-	margin: 17px 0 0;
-	padding-top: 14px;
-	border-top: 1px solid var(--color-line-soft);
-	color: var(--color-ink-2);
-	font-size: 14px;
-	line-height: 1.5;
-}
 
-/* Cobertura del día: metric trio + category bars (digest only; the event
-   detail table reuses the .coverage name per the detalle-evento mockup). */
-div.coverage {
-	display: grid;
-	grid-template-columns: repeat(3, minmax(0, 1fr));
-	gap: 12px;
-	margin-top: 18px;
-}
-.metric {
-	min-width: 0;
-	min-height: 112px;
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	justify-content: center;
-	text-align: center;
-	gap: 4px;
-	padding: 16px;
-	border: 1px solid color-mix(in oklab, var(--color-line) 34%, #fff);
-	border-radius: 8px;
-	background: var(--color-surface-warm);
-}
-.metric + .metric {
-	border-left: 1px solid var(--color-line-soft);
-}
-.metric-label {
-	font-size: 12px;
-	font-weight: 700;
-	letter-spacing: 0.06em;
-	text-transform: uppercase;
-	color: var(--color-ink-2);
-}
-.metric-big {
-	font: 600 32px/1.1 var(--font-display);
-	color: var(--color-ink);
-}
-.metric-detail {
-	display: flex;
-	flex-wrap: wrap;
-	justify-content: center;
-	gap: 4px 10px;
-	color: var(--color-muted);
-	font-size: 12px;
-}
-.breakdown-note {
-	margin: 12px 0 0;
-	color: var(--color-muted);
-	font-size: 12px;
-	line-height: 1.5;
-}
-.breakdown-heading {
-	margin: 22px 0 0;
-	font: 600 17px/1.3 var(--font-display);
-}
-.category-breakdown {
-	margin: 10px 0 0;
-	padding: 10px 0 0;
-	border-top: 1px solid var(--color-line-soft);
-	list-style: none;
-}
-.category-row {
-	display: grid;
-	grid-template-columns: minmax(100px, 150px) minmax(0, 1fr) 74px;
-	align-items: center;
-	gap: 16px;
-	padding: 8px 0;
-	font-size: 14px;
-}
-.category-name {
-	font-weight: 600;
-	color: var(--color-ink);
-}
-.category-track {
-	height: 9px;
-	overflow: hidden;
-	border-radius: 980px;
-	background: var(--color-surface);
-}
-.category-fill {
-	display: block;
-	height: 100%;
-	border-radius: 980px;
-	background: var(--color-ink-2);
-}
-.category-value {
-	text-align: right;
-	color: var(--color-ink-2);
-	font-variant-numeric: tabular-nums;
-	white-space: nowrap;
-}
-
-/* Datos de campo. */
-.manual-data-panel {
-	display: grid;
-	grid-template-columns: minmax(0, 1fr) minmax(220px, 0.8fr);
-	gap: 20px;
-	margin-top: 18px;
-	padding: 20px;
-	border: 1px solid var(--color-line-soft);
+/* --- Noticias negativas: conditional negative-tone panel --- */
+.negative-summary {
+	margin: 20px 0;
+	padding: 20px 24px;
+	border: 1px solid color-mix(in oklch, var(--color-danger) 30%, var(--color-line-soft));
 	border-radius: 12px;
-	background: var(--color-surface-warm);
+	background: color-mix(in oklch, var(--color-danger) 3%, #fff);
+	color: var(--color-ink);
 }
-.manual-data-status {
-	display: inline-block;
-	padding: 4px 10px;
-	border: 1px solid var(--color-line);
-	border-radius: 980px;
-	color: var(--color-ink-2);
-	font-size: 12px;
-	font-weight: 600;
-}
-.manual-data-panel h3 {
-	margin: 12px 0 0;
-	font: 600 17px/1.3 var(--font-display);
-}
-.manual-data-panel p {
-	max-width: 52ch;
-	margin: 7px 0 0;
-	color: var(--color-ink-2);
-	font-size: 14px;
-	line-height: 1.5;
-}
-.manual-data-meta {
-	display: grid;
-	align-content: center;
-	gap: 10px;
-	margin: 0;
-	padding-left: 20px;
-	border-left: 1px solid var(--color-line-soft);
-}
-.manual-data-meta div {
+.negative-summary .negative-heading {
 	display: flex;
+	align-items: center;
 	justify-content: space-between;
-	gap: 12px;
-	font-size: 14px;
+	flex-wrap: wrap;
+	gap: 10px;
 }
-.manual-data-meta dt {
-	color: var(--color-muted);
-}
-.manual-data-meta dd {
+.negative-summary h2 {
 	margin: 0;
+	font: 600 21px / 1.3 var(--font-display);
+}
+.negative-summary .negative-count {
+	padding: 4px 10px;
+	border-radius: 980px;
+	background: color-mix(in oklch, var(--color-danger) 15%, #fff);
 	color: var(--color-ink);
+	font-size: 12px;
 	font-weight: 600;
-	text-align: right;
 }
-.manual-data-note {
-	margin: 12px 0 0;
-	color: var(--color-muted);
-	font-size: 12px;
-	line-height: 1.5;
-}
-
-/* Rectora. */
-.rectora-update {
-	margin: 10px 0 0;
-	color: var(--color-muted);
-	font-size: 12px;
-	line-height: 1.5;
-}
-.rectora-summary {
-	display: grid;
-	grid-template-columns: repeat(2, minmax(0, 1fr));
-	gap: 0;
-	padding: 18px 0 16px;
-}
-.rectora-stat {
-	display: flex;
-	align-items: baseline;
-	gap: 8px;
-	min-width: 0;
-}
-.rectora-stat + .rectora-stat {
-	border-left: 1px solid var(--color-line-soft);
-	padding-left: 24px;
-}
-.rectora-summary strong {
-	font: 600 clamp(28px, 2.5vw, 32px) / 1.1 var(--font-display);
-}
-.rectora-summary .rectora-stat span {
+.negative-summary .negative-context {
+	margin: 8px 0 0;
 	color: var(--color-ink-2);
 	font-size: 14px;
+	line-height: 1.5;
 }
-.quotes {
-	display: grid;
-	grid-template-columns: repeat(2, minmax(0, 1fr));
-	gap: 20px;
-	margin-top: 8px;
-}
-.quotes blockquote {
-	margin: 0;
-	padding-top: 14px;
-	border-top: 2px solid var(--color-ink);
-	font-size: 15px;
-	line-height: 1.45;
-	color: var(--color-ink);
-}
-.quotes cite {
-	display: block;
-	margin-top: 6px;
-	font-style: normal;
-	color: var(--color-muted);
-	font-size: 12px;
-}
-
-/* Pendientes y silencios. */
-.pending-list {
+.negative-summary ul {
+	list-style: none;
 	margin: 14px 0 0;
 	padding: 0;
-	list-style: none;
 }
-.pending-list li {
+.negative-summary li {
+	padding: 12px 0 0;
+	border-top: 1px solid color-mix(in oklch, var(--color-danger) 15%, var(--color-line-soft));
+}
+.negative-summary li + li {
+	margin-top: 12px;
+}
+.negative-summary .negative-source {
+	display: block;
+	color: var(--color-ink-2);
+	font-size: 12px;
+	line-height: 1.5;
+}
+.negative-summary a {
 	display: flex;
-	justify-content: space-between;
-	gap: 12px;
-	padding: 10px 0;
-	border-bottom: 1px solid var(--color-line-soft);
-	font-size: 14px;
+	align-items: center;
+	min-height: 44px;
+	padding: 6px 0;
 	color: var(--color-ink);
+	font-size: 17px;
+	font-weight: 600;
+	line-height: 1.4;
+	text-decoration: underline;
+	text-decoration-color: var(--color-line);
+	text-underline-offset: 4px;
+	overflow-wrap: anywhere;
 }
-.pending-list li:last-child {
-	border-bottom: 0;
-}
-.pending-list span:last-child {
-	color: var(--color-muted);
-	white-space: nowrap;
+.negative-summary a:hover {
+	color: var(--color-ink);
+	text-decoration-color: var(--color-ink);
 }
 
-/* Sidebar sections. */
-.sidebar-section {
-	padding: 22px 20px;
-	border: 1px solid var(--color-line-soft);
-	border-radius: var(--radius-panel);
-	background: #fff;
+/* --- Resumen detallado: narrative blocks, no cards --- */
+.daily-detail-header {
+	padding-bottom: 20px;
+	border-bottom: 1px solid var(--color-line-soft);
 }
-.sidebar-section + .sidebar-section {
-	margin-top: 16px;
-}
-.small-note {
-	margin: 14px 0 0;
+.daily-detail-header p {
+	margin: 8px 0 0;
 	color: var(--color-muted);
-	font-size: 12px;
-	line-height: 1.45;
+	font-size: 14px;
 }
-/* Home digest sidebar history. Scoped to .sidebar: the consultas workspace
-   has its own .history-list card layout (see Consultas section). */
+.daily-detail-block {
+	padding-top: 24px;
+	min-width: 0;
+}
+.daily-detail-block + .daily-detail-block {
+	margin-top: 24px;
+	border-top: 1px solid var(--color-line-soft);
+}
+.daily-detail-block h3 {
+	margin: 0 0 16px;
+	font-family: var(--font-display);
+	font-size: 21px;
+	line-height: 1.3;
+	font-weight: 600;
+	letter-spacing: -0.01em;
+}
+.daily-detail-item + .daily-detail-item {
+	margin-top: 20px;
+}
+.daily-detail-item h4 {
+	margin: 0 0 6px;
+	font-size: 17px;
+	font-weight: 600;
+	line-height: 1.4;
+	text-wrap: pretty;
+}
+.daily-detail-item p {
+	margin: 0;
+	color: var(--color-ink-2);
+	font-size: 14px;
+	line-height: 1.6;
+	overflow-wrap: anywhere;
+	text-wrap: pretty;
+}
+.daily-detail-entry + .daily-detail-entry {
+	margin-top: 14px;
+}
+.daily-detail-item .daily-detail-source {
+	margin-top: 8px;
+	color: var(--color-muted);
+}
+.daily-detail-list {
+	display: grid;
+	gap: 14px;
+	margin: 0;
+	padding-left: 20px;
+	color: var(--color-ink-2);
+	font-size: 14px;
+	line-height: 1.6;
+	overflow-wrap: anywhere;
+}
+.daily-detail-list strong {
+	color: var(--color-ink);
+	font-weight: 600;
+}
+
+/* --- Sidebar: the home aside keeps the shared .sidebar-section card;
+   v2 densities live under .digest-aside so the feed rail is untouched. --- */
+.digest-aside {
+	display: block;
+	min-width: 0;
+}
+.digest-aside .sidebar-section h2 {
+	margin: 0;
+	padding-bottom: 17px;
+	border-bottom: 1px solid var(--color-line);
+	font-family: var(--font-display);
+	font-size: clamp(21px, 1.9vw, 24px);
+	font-weight: 500;
+	line-height: 1.2;
+	letter-spacing: -0.01em;
+}
 .sidebar .history-list {
 	margin: 12px 0 0;
 	padding: 0;
@@ -842,6 +725,9 @@ div.coverage {
 .sidebar .history-list button:hover {
 	background: var(--color-surface);
 }
+.sidebar .history-list button:active {
+	transform: translateY(1px);
+}
 .sidebar .history-list button[aria-pressed='true'] {
 	font-weight: 600;
 	background: var(--color-surface);
@@ -849,190 +735,211 @@ div.coverage {
 	padding-right: 10px;
 	border-radius: 8px;
 }
-.actor-entry {
-	display: grid;
-	grid-template-columns: 38px minmax(0, 1fr);
-	gap: 11px;
-	align-items: start;
-	padding-top: 17px;
+.small-note {
+	margin: 14px 0 0;
+	padding: 0;
+	color: var(--color-muted);
+	font-size: 12px;
+	line-height: 1.45;
 }
-.actor-monogram {
+.month-link {
+	color: inherit;
+	font-weight: 500;
+	text-decoration: underline;
+	text-decoration-color: var(--color-line);
+	text-underline-offset: 4px;
+}
+.month-link:hover {
+	color: var(--color-ink);
+	text-decoration-color: var(--color-ink);
+}
+
+/* Categorías identificadas: compact shares on a 0–100 track. */
+.digest-aside .archive-copy {
+	margin: 10px 0 0;
+	color: var(--color-muted);
+	font-size: 14px;
+	line-height: 1.5;
+}
+.tone-list.identified {
 	display: grid;
-	place-items: center;
-	width: 38px;
-	height: 38px;
-	border-radius: 50%;
+	gap: 18px;
+	margin: 20px 0 0;
+}
+.tone-list.identified > div {
+	position: relative;
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	align-items: baseline;
+	gap: 10px;
+	min-width: 0;
+	padding: 0 0 12px;
+	border: 0;
+}
+.tone-list.identified dt {
+	min-width: 0;
+	color: var(--color-ink-2);
+	font-weight: 400;
+	line-height: 1.4;
+	overflow-wrap: anywhere;
+}
+.tone-list.identified dd {
+	margin: 0;
+	color: var(--color-ink);
+	font-weight: 600;
+	line-height: 1.4;
+	font-variant-numeric: tabular-nums;
+	text-align: right;
+}
+.tone-list.identified .category-value {
+	white-space: nowrap;
+}
+.tone-list.identified .category-track {
+	position: absolute;
+	inset: auto 0 0;
+	display: block;
+	height: 5px;
+	border-radius: 980px;
+	background: var(--color-line-soft);
+}
+.tone-list.identified .category-fill {
+	display: block;
+	height: 100%;
+	border-radius: inherit;
+	background: var(--color-ink-2);
+}
+
+/* Personas mencionadas: monogram row with detail link. */
+.person-entry {
+	display: grid;
+	grid-template-columns: 36px minmax(0, 1fr);
+	gap: 10px;
+	align-items: start;
+	margin-top: 16px;
+	padding-bottom: 16px;
+	border-bottom: 1px solid var(--color-line-soft);
+}
+.person-monogram {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 36px;
+	height: 36px;
+	border-radius: 980px;
 	background: var(--color-surface);
+	color: var(--color-ink-2);
+	font-size: 12px;
+	font-weight: 600;
+}
+.person-entry .person-data strong {
+	display: block;
 	color: var(--color-ink);
 	font-family: var(--font-display);
-	font-size: 12px;
-	font-weight: 600;
-	letter-spacing: 0.03em;
-}
-.actor-name {
-	display: block;
-	color: var(--color-ink);
-	font-size: 14px;
+	font-size: 16px;
 	font-weight: 600;
 	line-height: 1.35;
+	text-wrap: pretty;
 }
-.actor-role {
-	display: block;
+.person-entry .person-data p {
+	margin: 5px 0 0;
+	color: var(--color-ink-2);
+	font-size: 14px;
+	line-height: 1.5;
+	text-wrap: pretty;
+	font-variant-numeric: tabular-nums;
+}
+.person-more {
+	display: inline-flex;
+	align-items: center;
+	min-height: 44px;
 	margin-top: 2px;
-	color: var(--color-muted);
-	font-size: 12px;
-	line-height: 1.45;
+	color: var(--color-ink);
+	font-size: 14px;
+	font-weight: 500;
+	text-decoration: none;
 }
-html {
-	scroll-behavior: smooth;
+.person-more:hover {
+	color: var(--color-ink);
+	text-decoration: underline;
+	text-underline-offset: 4px;
 }
 
-.actor-link,
-.digest-feed-link {
-	display: inline-flex;
-	align-items: center;
-	min-height: 44px;
-	margin-top: 4px;
-	padding: 4px 8px 4px 0;
-	color: var(--color-ink);
-	font-size: 14px;
-	font-weight: 600;
-	text-decoration: underline;
-	text-decoration-color: var(--color-line);
-	text-underline-offset: 4px;
-}
-/* Digest CTA sits alone at the end of the content column: more air. */
-.digest-feed-link {
-	margin: 24px 0 0;
-	font-size: 15px;
-}
-/* Anchor target: clear the sticky topbar when jumping to the digest feed. */
-#noticias {
-	scroll-margin-top: 80px;
-}
-/* Negative-news emphasis: the shared card carries a tone accent (A). */
-.feed-card.accent-negative,
-.feed-preview.accent-negative {
-	box-shadow: inset 3px 0 0 var(--tone-negative-solid);
-}
-/* Long-day expander under the digest news list. */
-.news-expand {
-	display: inline-flex;
-	align-items: center;
-	min-height: 44px;
-	margin-top: 4px;
-	padding: 4px 8px 4px 0;
-	border: 0;
-	background: transparent;
-	color: var(--color-ink);
-	font-size: 14px;
-	font-weight: 600;
-	text-decoration: underline;
-	text-decoration-color: var(--color-line);
-	text-underline-offset: 4px;
-	cursor: pointer;
-}
-.news-expand:hover {
-	text-decoration-color: var(--color-ink);
-}
-/* Puntos de atención: negative-tone digest events, accent-marked. */
-.attention-list {
-	margin: 0;
-	padding: 0;
-	list-style: none;
-}
-.attention-list li {
-	padding: 10px 0 10px 14px;
-	border-left: 3px solid var(--tone-negative-solid);
-	border-bottom: 1px solid var(--color-line-soft);
+/* Cobertura del día: figure, rows and the keyword terms block. */
+.digest-aside .coverage-figure {
+	margin: 16px 0;
+	color: var(--color-ink-2);
 	font-size: 14px;
 	line-height: 1.5;
 }
-.attention-list a {
-	font-weight: 600;
-	color: var(--color-ink);
-}
-.attention-why {
-	color: var(--color-muted);
-}
-.actor-link:hover {
-	background: var(--color-surface);
-	text-decoration-color: var(--color-ink);
-}
-.special-topic {
-	margin-top: 16px;
-	padding: 14px;
-	border: 1px solid var(--color-line-soft);
-	border-radius: 8px;
-	background: var(--color-surface-warm);
-}
-.special-topic-name {
+.digest-aside .coverage-figure strong {
 	display: block;
 	color: var(--color-ink);
+	font-family: var(--font-display);
+	font-size: 40px;
+	line-height: 1.1;
+	font-weight: 500;
+	font-variant-numeric: tabular-nums;
+}
+.digest-aside .coverage-figure span {
+	display: block;
+	margin-top: 4px;
+}
+.coverage-rows {
+	display: grid;
+	gap: 12px;
+	margin: 0;
 	font-size: 14px;
-	font-weight: 600;
-	line-height: 1.35;
+	line-height: 1.5;
 }
-.special-topic-scope {
-	display: block;
-	margin-top: 3px;
-	color: var(--color-ink-2);
-	font-size: 12px;
-	line-height: 1.45;
+.coverage-rows > div {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	gap: 4px 8px;
 }
-.special-topic-status {
-	margin: 12px 0 0;
-	padding-top: 10px;
+.coverage-rows > div:first-child {
+	padding-top: 12px;
 	border-top: 1px solid var(--color-line-soft);
-	color: var(--color-muted);
-	font-size: 12px;
-	line-height: 1.45;
 }
-.tracked-list {
-	margin: 12px 0 0;
-	padding: 0;
-	list-style: none;
-	display: flex;
-	flex-wrap: wrap;
-	gap: 6px;
-}
-.tracked-list li {
-	display: inline-flex;
-	align-items: center;
-	min-height: 28px;
-	padding: 4px 10px;
-	border: 1px solid var(--color-line-soft);
-	border-radius: 980px;
-	background: #fff;
+.coverage-rows dt {
 	color: var(--color-ink-2);
-	font-size: 12px;
+}
+.coverage-rows dd {
+	margin: 0;
+	text-align: right;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+}
+.day-terms {
+	margin-top: 16px;
+	padding-top: 16px;
+	border-top: 1px solid var(--color-line-soft);
+}
+.day-terms h3 {
+	margin: 0 0 10px;
+	color: var(--color-ink);
+	font-size: 14px;
+	line-height: 1.4;
 	font-weight: 600;
 }
-.tracked-topics-empty {
-	margin: 16px 0 0;
-	color: var(--color-ink-2);
+.day-terms-list {
+	display: grid;
+	gap: 10px;
+	margin: 0;
 	font-size: 14px;
 	line-height: 1.5;
 }
-
-/* Digest news feed (resumen mockup): toolbar, filters, feed previews. */
-.editorial-list {
-	padding: 0;
+.day-terms-list > div {
+	display: flex;
+	justify-content: space-between;
+	flex-wrap: wrap;
+	gap: 2px 8px;
+}
+.day-terms-list dd {
 	margin: 0;
-	list-style: none;
+	color: var(--color-muted);
 }
-.news-item {
-	/* Digest news: boxed card per mockup daily-news rule (surface-warm,
-	   line-soft border, radius-md). */
-	padding: 0;
-	border: 1px solid var(--color-line-soft);
-	border-radius: 12px;
-	background: var(--color-surface-warm);
-	overflow: hidden;
-}
-.news-item + .news-item {
-	margin-top: 12px;
-}
+
+/* --- Shared tone badge (NewsEntry) — kept for /feed. --- */
 .sentiment {
 	display: inline-flex;
 	align-items: center;
@@ -1057,6 +964,12 @@ html {
 .feed-preview {
 	padding: 17px 18px;
 }
+.feed-card.accent-negative,
+.feed-preview.accent-negative {
+	box-shadow: inset 3px 0 0 var(--tone-negative-solid);
+}
+
+/* --- Feed filters + tone pills (shared with /feed) --- */
 .feed-filters {
 	display: flex;
 	flex-wrap: wrap;
@@ -1089,8 +1002,7 @@ html {
 /* Tono pills (Positivo/Neutro/Negativo): tint at rest, solid same-hue when
    pressed. Colors come from the --tone-* tokens (single mix definition above);
    no per-component palette. Placed after the base .feed-filter rules so the
-   pressed tone (0,3,0) explicitly wins over base rest/hover/pressed, and the
-   tone hover sits before the pressed rule so pressed+hover stays solid. */
+   pressed tone explicitly wins over base rest/hover/pressed. */
 .feed-filter.tone-positive {
 	background: var(--tone-positive-bg);
 }
@@ -1124,90 +1036,77 @@ html {
 	border-color: var(--tone-neutral-solid);
 	color: var(--tone-on-solid);
 }
-.feed-full-link {
-	min-height: 44px;
-	display: inline-flex;
-	align-items: center;
-	color: var(--color-ink);
-	font-size: 14px;
-	font-weight: 600;
-	text-decoration: underline;
-	text-decoration-color: var(--color-line);
-	text-underline-offset: 4px;
-}
-.feed-full-link:hover {
-	text-decoration-color: var(--color-ink);
-}
 
-/* Digest responsive. */
-@media (max-width: 900px) {
-	.summary-grid,
-	div.coverage,
-	.quotes {
-		grid-template-columns: 1fr;
+/* --- Responsive: 1180 / 1020 / 800 / 600 --- */
+@media (max-width: 1180px) {
+	.digest-layout {
+		gap: 28px;
+		grid-template-columns: minmax(0, 1fr) 220px;
 	}
-	.manual-data-panel {
-		grid-template-columns: 1fr;
+}
+@media (max-width: 1020px) {
+	.digest-layout {
+		display: block;
 	}
-	.manual-data-meta {
-		padding: 14px 0 0;
-		border-left: 0;
-		border-top: 1px solid var(--color-line-soft);
+	.digest-aside {
+		margin-top: 16px;
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 16px;
+	}
+	.digest-aside .sidebar-section + .sidebar-section {
+		margin-top: 0;
+	}
+}
+/* The persona card spans both columns while the aside is two-up
+   (mockup: actor-tracking grid-column rule, 601–1020). */
+@media (min-width: 601px) and (max-width: 1020px) {
+	.digest-aside .persons-panel {
+		grid-column: 1 / -1;
+	}
+}
+@media (max-width: 800px) {
+	.summary-grid {
+		grid-template-columns: 1fr;
 	}
 }
 @media (max-width: 600px) {
-	.digest-header,
-	.section,
+	.digest-header {
+		padding: 22px 20px;
+	}
 	.narrative {
+		margin-top: 20px;
+		padding: 22px 20px;
+	}
+	.narrative p {
+		font-size: 21px;
+	}
+	.section {
+		margin-top: 14px;
 		padding: 20px;
 	}
-	.rectora-summary {
-		grid-template-columns: 1fr;
-		gap: 12px;
+	.negative-summary {
+		padding: 18px 16px;
 	}
-	.rectora-stat + .rectora-stat {
-		border-left: 0;
-		padding-left: 0;
+	.digest-aside {
+		display: block;
+		margin-top: 14px;
 	}
-	.pending-list span:last-child {
-		white-space: normal;
+	.digest-aside .sidebar-section {
+		padding: 20px;
+	}
+	.digest-aside .sidebar-section + .sidebar-section {
+		margin-top: 14px;
 	}
 }
 
-/* Digest list odds and ends. */
-.plain-list {
-	margin: 16px 0 0;
-	padding: 0;
-	list-style: none;
-	display: grid;
-	gap: 12px;
-}
-.plain-list {
-	gap: 0;
-}
-.plain-list li {
-	padding: 10px 0;
-	border-bottom: 1px solid var(--color-line-soft);
-	font-size: 14px;
-	color: var(--color-ink-2);
-}
-.plain-list li:last-child {
-	border-bottom: 0;
-}
-.person-link {
-	font-weight: 600;
-	color: var(--color-ink);
-	text-decoration: underline;
-	text-decoration-color: var(--color-line);
-	text-underline-offset: 3px;
-}
-.person-link:hover {
-	text-decoration-color: var(--color-ink);
-}
-.person-meta {
-	margin-left: 6px;
-	color: var(--color-muted);
-	font-size: 12px;
+@media (prefers-reduced-motion: reduce) {
+	html {
+		scroll-behavior: auto;
+	}
+	.sidebar .history-list button:active {
+		transform: none;
+	}
 }
 
 /* ============================================================
@@ -2010,24 +1909,6 @@ span.page-button {
 .sidebar .date-row input {
 	width: 100%;
 	min-width: 0;
-}
-/* Digest home aside: spacing only — no divider rail (user request). */
-.digest-aside {
-	display: block;
-	padding-left: 24px;
-	padding-top: 6px;
-}
-.digest-aside .sidebar-section {
-	margin: 32px 0 0;
-}
-.digest-aside .sidebar-section:first-child {
-	margin-top: 0;
-}
-@media (max-width: 1023px) {
-	.digest-aside {
-		border-left: 0;
-		padding-left: 0;
-	}
 }
 .sidebar-section h2 {
 	margin: 0;
