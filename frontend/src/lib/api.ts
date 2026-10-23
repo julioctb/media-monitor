@@ -172,6 +172,11 @@ export interface ClientSettings {
 	retention_days: number;
 	/** Daily digest cut hours (0..23, ascending); legacy digest_hour = first. */
 	digest_hours: number[];
+	/** Person highlighted in the digest rectora section; null = no focus. */
+	digest_focus_person_id: number | null;
+	/** Worker per-cycle caps (1..1000; backend validates the range). */
+	enrich_max_per_cycle: number;
+	fetch_max_per_cycle: number;
 	gdelt_enabled: boolean;
 	facebook_pages: FacebookPage[];
 	rss_feeds: string[];
@@ -197,6 +202,10 @@ export interface ClientSettingsInput {
 	timezone?: string;
 	retention_days?: number;
 	digest_hours?: number[];
+	/** null clears the focus person; absent keeps the stored value. */
+	digest_focus_person_id?: number | null;
+	enrich_max_per_cycle?: number;
+	fetch_max_per_cycle?: number;
 	gdelt_enabled?: boolean;
 	facebook_pages?: FacebookPage[];
 	rss_feeds?: string[];

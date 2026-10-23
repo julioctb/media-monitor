@@ -20,6 +20,9 @@ const SETTINGS_VIEW: ClientSettings = {
 	timezone: 'America/Mexico_City',
 	retention_days: 30,
 	digest_hours: [21],
+	digest_focus_person_id: null,
+	enrich_max_per_cycle: 40,
+	fetch_max_per_cycle: 120,
 	gdelt_enabled: true,
 	facebook_pages: [],
 	rss_feeds: [],
@@ -45,7 +48,7 @@ function renderPage(settings: ClientSettings): { text: () => string } {
 	document.body.appendChild(target);
 	const instance = mount(SettingsPage, {
 		target,
-		props: { params: {}, data: { settings, scrapersAvailable: [], keywords: [] }, form: null }
+		props: { params: {}, data: { settings, scrapersAvailable: [], keywords: [], persons: [] }, form: null }
 	});
 	mounted.push(instance as unknown as Record<string, unknown>);
 	// Markup wraps lines: collapse whitespace so copy asserts survive reflows.

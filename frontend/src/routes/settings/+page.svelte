@@ -34,6 +34,11 @@
 		retention_days: string;
 		/** Daily digest cut hours, 1..8 entries in 0..23. */
 		digest_hours: number[];
+		/** Selected focus-person id as text; '' = none (null on the API). */
+		focus_person_id: string;
+		/** Worker per-cycle caps, text like retention_days. */
+		enrich_max: string;
+		fetch_max: string;
 		gdelt_enabled: boolean;
 		pages: PageDraft[];
 		/** One RSS URL per line, exactly as edited in the textarea. */
@@ -51,6 +56,12 @@
 			timezone: settings.timezone,
 			retention_days: String(settings.retention_days),
 			digest_hours: [...settings.digest_hours],
+			focus_person_id:
+				settings.digest_focus_person_id === null
+					? ''
+					: String(settings.digest_focus_person_id),
+			enrich_max: String(settings.enrich_max_per_cycle),
+			fetch_max: String(settings.fetch_max_per_cycle),
 			gdelt_enabled: settings.gdelt_enabled,
 			pages: settings.facebook_pages.map((page) => ({
 				url: `facebook.com/${page.page_id}`,
@@ -316,9 +327,55 @@
 						<p class="field-hint" id="digest-hours-hint">
 							Entre 1 y 8 cortes diarios (0&ndash;23). El resumen se regenera en cada corte.
 						</p>
-					</div>
-				</div>
-			</section>
+						</div>
+						<div>
+						<label for="set-focus-person" class={LABEL_CLS}>Persona focus del resumen</label>
+						<select
+							id="set-focus-person"
+							name="digest_focus_person_id"
+							bind:value={draft.focus_person_id}
+							disabled={submitting}
+							class={INPUT_CLS}
+						>
+							<option value="">Sin persona focus</option>
+							{#each data.persons as person (person.id)}
+								<option value={String(person.id)}>{person.name}</option>
+							{/each}
+						</select>
+						<p class="field-hint">Identidad destacada en la sección Rectora del resumen.</p>
+						</div>
+						<div>
+						<label for="set-enrich-max" class={LABEL_CLS}>Enriquecimiento por ciclo</label>
+						<input
+							id="set-enrich-max"
+							name="enrich_max_per_cycle"
+							type="number"
+							min={1}
+							max={1000}
+							step={1}
+							bind:value={draft.enrich_max}
+							disabled={submitting}
+							class={INPUT_CLS}
+						/>
+						<p class="field-hint">Máximo de menciones enriquecidas por ciclo.</p>
+						</div>
+						<div>
+						<label for="set-fetch-max" class={LABEL_CLS}>Ingesta por ciclo</label>
+						<input
+							id="set-fetch-max"
+							name="fetch_max_per_cycle"
+							type="number"
+							min={1}
+							max={1000}
+							step={1}
+							bind:value={draft.fetch_max}
+							disabled={submitting}
+							class={INPUT_CLS}
+						/>
+						<p class="field-hint">Máximo de menciones ingestadas por ciclo.</p>
+						</div>
+						</div>
+						</section>
 
 			<!-- Fuentes -->
 			<section id="fuentes" class="panel" aria-labelledby="fuentes-title">

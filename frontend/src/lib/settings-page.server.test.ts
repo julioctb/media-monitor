@@ -43,6 +43,9 @@ const SETTINGS_ROW = {
 	retention_days: 30,
 	digest_hour: 21,
 	digest_hours: [21],
+	digest_focus_person_id: 7,
+	enrich_max_per_cycle: 40,
+	fetch_max_per_cycle: 120,
 	gdelt_enabled: true,
 	facebook_pages: [],
 	rss_feeds: [],
@@ -85,12 +88,66 @@ it('serializes digest hours as a deduped sorted array', async () => {
 	const result = await save({
 		timezone: 'America/Mexico_City',
 		retention_days: '30',
-		digest_hour: ['21', '8', '8', '6']
+		digest_hour: ['21', '8', '8', '6'],
+		enrich_max_per_cycle: '40',
+		fetch_max_per_cycle: '120'
 	});
 
 	expect(result['ok']).toBe(true);
 	const body = savedBodies[0] as { digest_hours?: number[] };
 	expect(body['digest_hours']).toEqual([6, 8, 21]);
+});
+
+it('persists focus person and per-cycle caps on the save PUT', async () => {
+	stubFetch(SETTINGS_ROW);
+
+	const result = await save({
+		timezone: 'America/Mexico_City',
+		retention_days: '30',
+		digest_hour: ['21'],
+		digest_focus_person_id: '7',
+		enrich_max_per_cycle: '40',
+		fetch_max_per_cycle: '120'
+	});
+
+	expect(result['ok']).toBe(true);
+	const body = savedBodies[0] as Record<string, unknown>;
+	expect(body['digest_focus_person_id']).toBe(7);
+	expect(body['enrich_max_per_cycle']).toBe(40);
+	expect(body['fetch_max_per_cycle']).toBe(120);
+});
+
+it('clears the focus person when the select is empty', async () => {
+	stubFetch(SETTINGS_ROW);
+
+	const result = await save({
+		timezone: 'America/Mexico_City',
+		retention_days: '30',
+		digest_hour: ['21'],
+		digest_focus_person_id: '',
+		enrich_max_per_cycle: '40',
+		fetch_max_per_cycle: '120'
+	});
+
+	expect(result['ok']).toBe(true);
+	const body = savedBodies[0] as Record<string, unknown>;
+	expect(body['digest_focus_person_id']).toBeNull();
+});
+
+it('fails with 400 on out-of-range cycle caps', async () => {
+	stubFetch(SETTINGS_ROW);
+
+	const result = failureOf(
+		await save({
+			timezone: 'America/Mexico_City',
+			retention_days: '30',
+			digest_hour: ['21'],
+			enrich_max_per_cycle: '0',
+			fetch_max_per_cycle: '1001'
+		})
+	);
+
+	expect(result.status).toBe(400);
 });
 
 it('fails with 400 when no valid hour is set', async () => {
@@ -128,6 +185,8 @@ it('persists facebook rows from urls, normalized tokenless', async () => {
 		timezone: 'America/Mexico_City',
 		retention_days: '30',
 		digest_hour: ['21'],
+		enrich_max_per_cycle: '40',
+		fetch_max_per_cycle: '120',
 		fb_url: ['https://www.facebook.com/105335348671635/posts/1?ref=page', ''],
 		fb_label: ['Despierta BUAP', '']
 	});
@@ -144,6 +203,8 @@ it('dedupes facebook refs keeping the first label, dropping invalid rows', async
 		timezone: 'America/Mexico_City',
 		retention_days: '30',
 		digest_hour: ['21'],
+		enrich_max_per_cycle: '40',
+		fetch_max_per_cycle: '120',
 		fb_url: [
 			'facebook.com/econsulta',
 			'https://www.facebook.com/econsulta?sk=wall', // same ref: dropped

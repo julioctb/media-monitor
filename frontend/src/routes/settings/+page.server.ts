@@ -4,6 +4,7 @@ import {
 	getClientSettings,
 	listAvailableScrapers,
 	listKeywords,
+	listPersons,
 	testAi,
 	updateClientSettings
 } from '$lib/api';
@@ -71,6 +72,20 @@ function optionalText(form: FormData, key: string): string | null {
 }
 
 const DIGEST_HOUR_RE = /^\d{1,2}$/;
+/** Backend bounds: ClientSettingsUpdate ge=1 le=1000 on both cycle caps. */
+const CYCLE_CAP_RE = /^\d{1,4}$/;
+const FOCUS_ID_RE = /^\d+$/;
+
+/**
+ * Per-cycle cap from a number input: 1..1000 or null when absent/invalid
+ * (the caller turns null into a friendly 400).
+ */
+function readCycleCap(form: FormData, key: string): number | null {
+	const raw = text(form, key);
+	if (!CYCLE_CAP_RE.test(raw)) return null;
+	const value = Number.parseInt(raw, 10);
+	return value >= 1 && value <= 1000 ? value : null;
+}
 
 /**
  * Digest cut hours from the repeated `digest_hour` inputs: parsed, clamped
@@ -112,11 +127,13 @@ export const load: PageServerLoad = async () => {
 		// Best-effort: an unavailable registry must not block the page; the
 		// card renders an empty state instead. Keywords feed the embedded
 		// panel; a failure there degrades to an empty table.
-		const [scrapersAvailable, keywords] = await Promise.all([
+		const [scrapersAvailable, keywords, persons] = await Promise.all([
 			listAvailableScrapers().catch(() => []),
-			listKeywords().catch(() => [])
+			listKeywords().catch(() => []),
+			// Best-effort too: the focus select degrades to the none option.
+			listPersons().catch(() => [])
 		]);
-		return { settings: await getClientSettings(), scrapersAvailable, keywords };
+		return { settings: await getClientSettings(), scrapersAvailable, keywords, persons };
 	} catch (cause) {
 		const status = cause instanceof ApiError && cause.status >= 400 ? cause.status : 503;
 		const detail = cause instanceof Error ? cause.message : 'error desconocido';
@@ -143,6 +160,23 @@ export const actions: Actions = {
 			);
 		}
 
+		const enrich_max_per_cycle = readCycleCap(form, 'enrich_max_per_cycle');
+		const fetch_max_per_cycle = readCycleCap(form, 'fetch_max_per_cycle');
+		if (enrich_max_per_cycle === null || fetch_max_per_cycle === null) {
+			return failure('save', 400, 'Configura los máximos por ciclo entre 1 y 1000.');
+		}
+
+		// '' = Sin persona focus -> null clears the stored id; anything else
+		// must be a positive integer (the select only emits known ids).
+		const focusRaw = text(form, 'digest_focus_person_id');
+		let digest_focus_person_id: number | null = null;
+		if (focusRaw !== '') {
+			if (!FOCUS_ID_RE.test(focusRaw)) {
+				return failure('save', 400, 'Persona focus inválida.');
+			}
+			digest_focus_person_id = Number.parseInt(focusRaw, 10);
+		}
+
 		try {
 			// Full-object PUT: the API keeps server-side fields (id, client_id,
 			// updated_at) and validates the rest, mirroring the stored row.
@@ -150,6 +184,9 @@ export const actions: Actions = {
 				timezone: text(form, 'timezone'),
 				retention_days,
 				digest_hours,
+				digest_focus_person_id,
+				enrich_max_per_cycle,
+				fetch_max_per_cycle,
 				gdelt_enabled: form.get('gdelt_enabled') === '1',
 				facebook_pages: readFacebookPages(form),
 				rss_feeds: text(form, 'rss_feeds')
