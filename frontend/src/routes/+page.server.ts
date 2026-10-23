@@ -71,13 +71,10 @@ function activeSourceCount(settings: {
 	);
 }
 
-/** Redes block labels: Facebook never enumerates the followed pages. */
+/** Redes block labels: plain «Facebook», never the page list. */
 function socialLabelsFor(pages: { label: string }[] | undefined): Record<string, string> {
-	const count = pages?.length ?? 0;
-	if (count === 0) return {};
-	return {
-		facebook_page: `Facebook (${count} ${count === 1 ? 'página' : 'páginas'} seguida${count === 1 ? '' : 's'})`
-	};
+	if (!pages || pages.length === 0) return {};
+	return { facebook_page: 'Facebook' };
 }
 
 /** First day of the month containing `day` («ver mes anterior» anchor). */
