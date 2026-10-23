@@ -873,13 +873,23 @@ html {
 	font-size: 12px;
 	font-weight: 600;
 }
-.person-entry .person-data strong {
+.person-entry .person-data strong,
+.person-entry .person-link {
 	display: block;
 	color: var(--color-ink);
 	font-size: 14px;
 	font-weight: 600;
 	line-height: 1.35;
 	text-wrap: pretty;
+}
+/* The name IS the link: quiet underline, ink on hover. */
+.person-entry .person-link {
+	text-decoration: underline;
+	text-decoration-color: var(--color-line);
+	text-underline-offset: 3px;
+}
+.person-entry .person-link:hover {
+	text-decoration-color: var(--color-ink);
 }
 .person-entry .person-data p {
 	margin: 2px 0 0;
@@ -888,23 +898,6 @@ html {
 	line-height: 1.5;
 	text-wrap: pretty;
 	font-variant-numeric: tabular-nums;
-}
-.person-more {
-	display: inline-flex;
-	align-items: center;
-	min-height: 44px;
-	margin-top: 4px;
-	padding: 4px 8px 4px 0;
-	color: var(--color-ink);
-	font-size: 14px;
-	font-weight: 600;
-	text-decoration: underline;
-	text-decoration-color: var(--color-line);
-	text-underline-offset: 4px;
-}
-.person-more:hover {
-	background: var(--color-surface);
-	text-decoration-color: var(--color-ink);
 }
 
 /* Cobertura del día: figure, rows and the keyword terms block. */

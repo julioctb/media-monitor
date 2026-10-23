@@ -204,19 +204,13 @@
 					<div class="person-entry">
 						<span class="person-monogram" aria-hidden="true">{monogram(person.name)}</span>
 						<div class="person-data">
-							<strong>{person.name}</strong>
+							<!-- The name is the link: no separate «ver cobertura» CTA. -->
+							<a class="person-link" href="/persons/{person.id}">{person.name}</a>
 							<p>
 								{[person.role ?? person.org, `${person.mention_count} menciones`]
 									.filter(Boolean)
 									.join(' · ')}
 							</p>
-							<a
-								class="person-more"
-								href="/persons/{person.id}"
-								aria-label="Ver cobertura de {person.name}"
-							>
-								Ver cobertura <span aria-hidden="true">→</span>
-							</a>
 						</div>
 					</div>
 				{/each}
