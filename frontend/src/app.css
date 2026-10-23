@@ -691,6 +691,18 @@ html {
 	display: block;
 	min-width: 0;
 }
+/* Sidebar section card: shared by every rail (home digest v2, feed,
+   consultas). The mockup cards .sidebar-section at every width; density
+   overrides live under .digest-aside media queries. */
+.sidebar-section {
+	padding: 22px 20px;
+	border: 1px solid var(--color-line-soft);
+	border-radius: var(--radius-panel);
+	background: #fff;
+}
+.sidebar-section + .sidebar-section {
+	margin-top: 16px;
+}
 .digest-aside .sidebar-section h2 {
 	margin: 0;
 	padding-bottom: 17px;
