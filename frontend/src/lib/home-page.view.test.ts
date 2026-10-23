@@ -108,7 +108,7 @@ it('lists the active keywords in the digest header', () => {
 			{ id: 9, text: 'Lilia Cedillo', is_active: true }
 		]
 	} as never;
-	const { text } = renderPage(data);
+	const { text, container } = renderPage(data);
 
 	const header = container.querySelector('.digest-header')?.textContent ?? '';
 	expect(header).toContain('Palabras clave');
