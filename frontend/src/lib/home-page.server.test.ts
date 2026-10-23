@@ -192,12 +192,14 @@ it('exposes the v2 aggregates: tones, keyword counts and negative events', async
 	expect(tones).toHaveProperty('field');
 	// Active keywords crossed with the day counts stay available to the UI.
 	expect(data['keywordCounts']).toEqual([{ id: 7, text: 'BUAP', count: 3 }]);
-	// The single negative mention is a majority-negative event.
+	// The negative scan returns the winning mention COMPLETE (feed-card data):
+	// same object the mention entry renders, no projection.
 	expect(data['negativeEvents']).toEqual([
 		{
 			event_id: 33,
 			title: 'Nota negativa',
 			source: 'news_rss',
+			sentiment: 'negative',
 			published_at: '2026-10-19T10:00:00Z'
 		}
 	]);

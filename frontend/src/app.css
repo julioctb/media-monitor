@@ -604,41 +604,11 @@ html {
 	font-size: 14px;
 	line-height: 1.5;
 }
-.negative-summary ul {
-	list-style: none;
-	margin: 14px 0 0;
-	padding: 0;
-}
-.negative-summary li {
-	padding: 12px 0 0;
-	border-top: 1px solid color-mix(in oklch, var(--color-danger) 15%, var(--color-line-soft));
-}
-.negative-summary li + li {
-	margin-top: 12px;
-}
-.negative-summary .negative-source {
-	display: block;
-	color: var(--color-ink-2);
-	font-size: 12px;
-	line-height: 1.5;
-}
-.negative-summary a {
-	display: flex;
-	align-items: center;
-	min-height: 44px;
-	padding: 6px 0;
-	color: var(--color-ink);
-	font-size: 17px;
-	font-weight: 600;
-	line-height: 1.4;
-	text-decoration: underline;
-	text-decoration-color: var(--color-line);
-	text-underline-offset: 4px;
-	overflow-wrap: anywhere;
-}
-.negative-summary a:hover {
-	color: var(--color-ink);
-	text-decoration-color: var(--color-ink);
+/* Card list: the entries ARE feed cards (MentionCard); no local chrome. */
+.negative-summary .negative-list {
+	margin-top: 14px;
+	display: grid;
+	gap: 12px;
 }
 
 /* --- Resumen detallado: narrative blocks, no cards --- */

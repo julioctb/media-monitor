@@ -1,13 +1,18 @@
 <script lang="ts">
-	import { formatDateLong, sourceLabel } from '$lib/format';
+	import MentionCard from '$lib/components/MentionCard.svelte';
+	import type { Mention } from '$lib/api';
 
-	import type { NegativeNewsItem } from '$lib/digest-stats';
+	/**
+	 * Noticias negativas: the SAME anatomy as the feed — each entry is a
+	 * MentionCard over the day's real mention (single source of truth, zero
+	 * duplicated card markup). The scan lives in digest-stats; this component
+	 * only caps the display.
+	 */
+	let { mentions = [] }: { mentions?: Mention[] } = $props();
 
-	let { items = [], day }: { items?: NegativeNewsItem[]; day: string } = $props();
-
-	/** Editorial cap: the mockup shows at most three, total in the chip. */
+	/** Editorial cap: at most three cards; the count chip carries the total. */
 	const VISIBLE_MAX = 3;
-	const visible = $derived(items.slice(0, VISIBLE_MAX));
+	const visible = $derived(mentions.slice(0, VISIBLE_MAX));
 </script>
 
 {#if visible.length > 0}
@@ -15,30 +20,18 @@
 		<div class="negative-heading">
 			<h2 id="negative-news-heading">Noticias negativas</h2>
 			<span class="negative-count">
-				{items.length}
-				{items.length === 1 ? 'noticia' : 'noticias'}
+				{mentions.length}
+				{mentions.length === 1 ? 'noticia' : 'noticias'}
 			</span>
 		</div>
-		<ul aria-label="Noticias con sentimiento negativo">
-			{#each visible as item (item.event_id)}
-				<li>
-					<span class="negative-source">
-						{item.source ? sourceLabel(item.source) : 'Fuente no registrada'}{item.published_at
-							? ` · ${formatDateLong(item.published_at)}`
-							: ''}
-					</span>
-					<a
-						href={`/feed?since=${day}&until=${day}`}
-						aria-label={`${item.title}. Ver en el feed de noticias`}
-					>
-						{item.title}
-					</a>
-				</li>
+		<div class="negative-list">
+			{#each visible as mention (mention.id)}
+				<MentionCard {mention} />
 			{/each}
-		</ul>
-		{#if items.length > visible.length}
+		</div>
+		{#if mentions.length > visible.length}
 			<p class="negative-context">
-				Se muestran {visible.length} de {items.length} noticias negativas del día.
+				Se muestran {visible.length} de {mentions.length} noticias negativas del día.
 			</p>
 		{/if}
 	</section>

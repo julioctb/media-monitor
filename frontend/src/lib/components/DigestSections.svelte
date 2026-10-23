@@ -19,8 +19,9 @@
 		sourcesCount?: number | null;
 		 /** Label overrides for the redes block, built from settings. */
 		socialLabels?: Record<string, string>;
-		/** Negative majority events from the day scan (digest-stats). */
-		negativeEvents?: { event_id: number }[];
+		/** Negative-majority events from the day scan (digest-stats); the
+		 * mention objects ride complete for the negative cards. */
+		negativeEvents?: { event_id?: number | null }[];
 	} = $props();
 
 	const agenda = $derived(content.agenda ?? []);

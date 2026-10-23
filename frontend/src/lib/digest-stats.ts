@@ -144,14 +144,21 @@ interface NegativeCandidate {
  * dated mention so the card can show who reported it and when. The
  * display cap (3) lives at the edge, so the total stays known.
  */
-export function negativeNewsItems(items: NegativeInput[]): NegativeNewsItem[] {
-	const candidates = new Map<number, NegativeCandidate>();
+export function negativeNewsItems<T extends NegativeInput>(items: T[]): T[] {
+	const candidates = new Map<number, NegativeCandidate & { rep: T | null }>();
 	for (const item of items) {
 		if (item.event_id === undefined || item.event_id === null) continue;
 		const entry =
-			candidates.get(item.event_id) ?? { negative: 0, positive: 0, neutral: 0, newest: null };
-		if (item.sentiment === 'negative') entry.negative += 1;
-		else if (item.sentiment === 'positive') entry.positive += 1;
+			candidates.get(item.event_id) ??
+			{ negative: 0, positive: 0, neutral: 0, newest: null, rep: null };
+		if (item.sentiment === 'negative') {
+			entry.negative += 1;
+			// The card must read negative: the representative is the NEWEST
+			// negative mention, never a positive/neutral row of the event.
+			const stamp = item.published_at ?? '';
+			const rep = entry.rep as T | null;
+			if (!rep || stamp > (rep.published_at ?? '')) entry.rep = item;
+		} else if (item.sentiment === 'positive') entry.positive += 1;
 		else if (item.sentiment === 'neutral') entry.neutral += 1;
 		const stamp = item.published_at ?? '';
 		const newestStamp = entry.newest?.published_at ?? '';
@@ -163,15 +170,10 @@ export function negativeNewsItems(items: NegativeInput[]): NegativeNewsItem[] {
 			entry.negative > 0 &&
 			entry.negative > entry.positive &&
 			entry.negative > entry.neutral &&
-			entry.newest?.title
+			entry.rep?.title
 	);
 	ranked.sort((a, b) => b[1].negative - a[1].negative || a[0] - b[0]);
-	return ranked.map(([event_id, entry]) => ({
-		event_id,
-		title: entry.newest?.title ?? '',
-		source: entry.newest?.source ?? '',
-		published_at: entry.newest?.published_at ?? null
-	}));
+	return ranked.map(([, entry]) => entry.rep as T);
 }
 
 /**

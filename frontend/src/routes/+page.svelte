@@ -135,7 +135,7 @@
 			{/if}
 		</section>
 
-		<NegativeNews items={data.negativeEvents} day={day} />
+		<NegativeNews mentions={data.negativeEvents} />
 
 		<DigestSections
 			content={summary?.content ?? {}}
