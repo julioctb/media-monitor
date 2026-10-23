@@ -30,6 +30,12 @@ El worker hoy loguea "X provider disabled: X_PROVIDER_API_KEY not set" — cero 
 - [x] T2 — Wiring en `build_adapters()` + test wiring + rebuild api/worker + verificación de ciclo en logs (`adapter x_index: fetched N`) + coverage check en PG (`SELECT count(*) FROM mentions WHERE source='x_twitter'` tras el ciclo). Commit feat. → código+wiring commit abajo; **rebuild/verificación de ciclo/PG pendientes del orquestador** (fuera del alcance del subagent).
 
 ## Verification evidence
+- 2026-10-22 (deploy + ciclo vivo, orquestador):
+  - Rebuild api+worker en background; snapshot verificado en ambos containers (`grep -c XIndexAdapter` → x_index.py:1, worker.py:2).
+  - Primer ciclo vivo: `2026-10-22 23:17:55 INFO ingest.pipeline adapter x_index: fetched 100 items, inserted 84 new mentions`.
+  - PG: `SELECT count(*) FROM mentions WHERE source='x_twitter'` → **84**; **84/84 con URL canónica `https://x.com/...`** (resueltas por article_fetch vía batchexecute — mejor que el diseño, que aceptaba redirects news.google.com).
+  - Contenido real: tweets de rectora Lilia Cedillo (informe, foros, inauguraciones). Un tweet 2024 entró en el primer ciclo (watermark nuevo sin filtro `when:`) — esperado en backfill inicial; ciclos siguientes acotan por watermark.
+  - **Branch feat/x-index-source deployada pero SIN merger a main** — merge es decisión de Julio.
 - 2026-10-22 (implementación, subagent):
   - RED: `ModuleNotFoundError: No module named 'app.ingest.x_index'` en la primera corrida de `backend/tests/test_x_index.py` (tests escritos primero); wiring test RED con `['google_news', 'gdelt'] != ['google_news', 'x_index', ...]` antes de tocar `worker.py`.
   - GREEN: `.venv/bin/python -m pytest backend/tests -q` → **430 passed** (suite completa, incluye 6 tests nuevos de x_index + 6 aserciones de wiring actualizadas en test_worker.py).
