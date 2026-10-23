@@ -482,14 +482,16 @@
 							</div>
 
 							{#if xMode === 'free'}
-								<p
-									class="mt-4 rounded-lg px-4 py-3 text-sm ring-1 ring-inset bg-surface-warm text-ink-2 ring-line"
-								>
-									Modo gratuito: las menciones de X provienen del índice de Google News (site:x.com).
-									Limitaciones: sin autor de la cuenta; cobertura parcial —solo lo que Google indexa
-									(medios y cuentas institucionales, no toda la conversación)—; la publicación puede
-									tardar horas en reflejarse.
-								</p>
+								<div class="mt-4">
+									<p
+										class="rounded-lg px-4 py-3 text-sm ring-1 ring-inset bg-surface-warm text-ink-2 ring-line"
+									>
+										Modo gratuito: las menciones de X provienen del índice de Google News (site:x.com).
+										Limitaciones: sin autor de la cuenta; cobertura parcial —solo lo que Google indexa
+										(medios y cuentas institucionales, no toda la conversación)—; la publicación puede
+										tardar horas en reflejarse.
+									</p>
+								</div>
 							{/if}
 
 							{#if xMode === 'paid'}
