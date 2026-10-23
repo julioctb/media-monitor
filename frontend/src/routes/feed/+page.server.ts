@@ -55,7 +55,9 @@ async function loadChannelPage(
 	if (channelSources.length === 0) {
 		return { items: [], total: 0 };
 	}
-	const pool = Math.min(offset + limit, 1000);
+	// The API caps limit at 500 (app/api/mentions.py Query le=500); a deeper
+	// pool 422s and the page degrades to null.
+	const pool = Math.min(offset + limit, 500);
 	const pages = await Promise.all(
 		channelSources.map((source) =>
 			listMentions({ ...common, source, limit: pool, offset: 0 })
