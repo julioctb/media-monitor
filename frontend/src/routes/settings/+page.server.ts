@@ -1,4 +1,5 @@
 import { error, fail } from '@sveltejs/kit';
+import { errorStatus, errorMessage } from '$lib/server/api-error';
 import {
 	ApiError,
 	getClientSettings,
@@ -52,8 +53,8 @@ function failure(action: SettingsActionResult['action'], status: number, message
 }
 
 function failureFrom(cause: unknown, action: SettingsActionResult['action'], fallback: string) {
-	const status = cause instanceof ApiError && cause.status >= 400 ? cause.status : 502;
-	const message = cause instanceof Error && cause.message ? cause.message : fallback;
+	const status = errorStatus(cause, 502);
+	const message = errorMessage(cause, fallback);
 	return failure(action, status, message);
 }
 
@@ -135,8 +136,8 @@ export const load: PageServerLoad = async () => {
 		]);
 		return { settings: await getClientSettings(), scrapersAvailable, keywords, persons };
 	} catch (cause) {
-		const status = cause instanceof ApiError && cause.status >= 400 ? cause.status : 503;
-		const detail = cause instanceof Error ? cause.message : 'error desconocido';
+		const status = errorStatus(cause, 503);
+		const detail = errorMessage(cause, 'error desconocido');
 		throw error(status, `No se pudo cargar la configuración: ${detail}`);
 	}
 };

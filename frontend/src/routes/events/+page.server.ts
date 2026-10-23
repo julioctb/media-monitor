@@ -1,4 +1,5 @@
 import { error } from '@sveltejs/kit';
+import { errorStatus, errorMessage } from '$lib/server/api-error';
 import { ApiError, listEvents } from '$lib/api';
 import type { PageServerLoad } from './$types';
 
@@ -17,8 +18,8 @@ export const load: PageServerLoad = async ({ url }) => {
 		});
 		return { events, scope };
 	} catch (cause) {
-		const status = cause instanceof ApiError && cause.status >= 400 ? cause.status : 503;
-		const detail = cause instanceof Error ? cause.message : 'error desconocido';
+		const status = errorStatus(cause, 503);
+		const detail = errorMessage(cause, 'error desconocido');
 		throw error(status, `No se pudieron cargar los eventos: ${detail}`);
 	}
 };

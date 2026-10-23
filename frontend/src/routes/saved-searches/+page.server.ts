@@ -1,4 +1,5 @@
 import { error, fail } from '@sveltejs/kit';
+import { errorStatus, errorMessage } from '$lib/server/api-error';
 import {
 	ApiError,
 	createSavedSearch,
@@ -25,8 +26,8 @@ function failure(action: SavedSearchActionResult['action'], status: number, mess
 }
 
 function apiFailure(action: SavedSearchActionResult['action'], cause: unknown, name = '') {
-	const status = cause instanceof ApiError && cause.status >= 400 ? cause.status : 502;
-	const message = cause instanceof Error ? cause.message : 'error desconocido';
+	const status = errorStatus(cause, 502);
+	const message = errorMessage(cause, 'error desconocido');
 	return failure(action, status, message, name);
 }
 
@@ -37,8 +38,8 @@ export const load: PageServerLoad = async () => {
 		const sourceReadiness = await getSourceReadiness().catch(() => null);
 		return { savedSearches: await listSavedSearches(), sources: SOURCES, sourceReadiness };
 	} catch (cause) {
-		const status = cause instanceof ApiError && cause.status >= 400 ? cause.status : 503;
-		const detail = cause instanceof Error ? cause.message : 'error desconocido';
+		const status = errorStatus(cause, 503);
+		const detail = errorMessage(cause, 'error desconocido');
 		throw error(status, `No se pudieron cargar las búsquedas guardadas: ${detail}`);
 	}
 };
