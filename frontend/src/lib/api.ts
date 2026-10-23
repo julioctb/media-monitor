@@ -843,3 +843,7 @@ export function patchAgendaItem(
 		options
 	);
 }
+
+export function deleteAgendaItem(id: number, options: RequestOptions = {}): Promise<void> {
+	return request<void>(`/api/clients/1/agenda-items/${id}`, { method: 'DELETE' }, options);
+}

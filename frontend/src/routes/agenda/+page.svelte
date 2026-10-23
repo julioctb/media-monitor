@@ -136,7 +136,12 @@
 		if (result.type === 'success') {
 			showForm = false;
 			editTarget = null;
-			statusMessage = result.data?.form === 'date' ? 'Fecha actualizada.' : 'Actividad guardada.';
+			statusMessage =
+				result.data?.form === 'date'
+					? 'Fecha actualizada.'
+					: result.data?.form === 'delete'
+						? 'Actividad eliminada.'
+						: 'Actividad guardada.';
 		}
 		await update();
 	}
@@ -158,6 +163,14 @@
 		};
 	};
 
+	const handleDelete: SubmitFunction = () => {
+		return async ({ result, update }) => {
+			submitting = true;
+			await handleResult(result, invalidateAll);
+			submitting = false;
+		};
+	};
+
 	const todayKey = $derived.by(() => {
 		const t = new Date();
 		return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(
@@ -169,6 +182,38 @@
 <svelte:head>
 	<title>Agenda | Media Monitor</title>
 </svelte:head>
+
+{#snippet activityCard(item: AgendaItem, showEdit: boolean, yearNote: string | null)}
+	<article class="activity">
+		<div class="date">
+			{dateText(item)}
+			{#if item.time_label}<span> · {item.time_label}</span>{/if}
+			{#if yearNote}<small>{yearNote}</small>{/if}
+		</div>
+		<div class="activity-body">
+			<span class="badge">{KIND_LABEL[item.kind] ?? item.kind}</span>
+			<h4>{item.title}</h4>
+			{#if notesLine(item)}<p class="notes">{notesLine(item)}</p>{/if}
+			<div class="activity-actions">
+				{#if showEdit}
+					<button
+						type="button"
+						class="btn-secondary edit-date"
+						onclick={() => (editTarget = item)}
+					>
+						Editar fecha
+					</button>
+				{/if}
+				<form class="delete-form" method="POST" action="?/remove" use:enhance={handleDelete}>
+					<input type="hidden" name="id" value={item.id} />
+					<button type="submit" class="btn-secondary btn-delete" disabled={submitting}>
+						Eliminar
+					</button>
+				</form>
+			</div>
+		</div>
+	</article>
+{/snippet}
 
 <section class="intro" aria-labelledby="agenda-title">
 	<div>
@@ -323,18 +368,7 @@
 					<ul class="agenda-list">
 						{#each selectedDayItems as item (item.id)}
 							<li>
-								<article class="activity">
-									<div class="date">
-										{dateText(item)}
-										{#if item.time_label}<span> · {item.time_label}</span>{/if}
-										<small>{selectedDay.slice(0, 4)}</small>
-									</div>
-									<div class="activity-body">
-										<span class="badge">{KIND_LABEL[item.kind] ?? item.kind}</span>
-										<h4>{item.title}</h4>
-										{#if notesLine(item)}<p class="notes">{notesLine(item)}</p>{/if}
-									</div>
-								</article>
+								{@render activityCard(item, false, selectedDay.slice(0, 4))}
 							</li>
 						{/each}
 					</ul>
@@ -345,18 +379,7 @@
 		<ul class="agenda-list panel">
 			{#each filteredDated as item (item.id)}
 				<li>
-					<article class="activity">
-						<div class="date">
-							{dateText(item)}
-							{#if item.time_label}<span> · {item.time_label}</span>{/if}
-							{#if item.event_date}<small>{item.event_date.slice(0, 4)}</small>{/if}
-						</div>
-						<div class="activity-body">
-							<span class="badge">{KIND_LABEL[item.kind] ?? item.kind}</span>
-							<h4>{item.title}</h4>
-							{#if notesLine(item)}<p class="notes">{notesLine(item)}</p>{/if}
-						</div>
-					</article>
+					{@render activityCard(item, false, item.event_date?.slice(0, 4) ?? null)}
 				</li>
 			{/each}
 		</ul>
@@ -375,24 +398,7 @@
 			<ul class="agenda-list">
 				{#each filteredUndated as item (item.id)}
 					<li>
-						<article class="activity">
-							<div class="date">
-								{dateText(item)}
-								{#if item.time_label}<span> · {item.time_label}</span>{/if}
-							</div>
-							<div class="activity-body">
-								<span class="badge">{KIND_LABEL[item.kind] ?? item.kind}</span>
-								<h4>{item.title}</h4>
-								{#if notesLine(item)}<p class="notes">{notesLine(item)}</p>{/if}
-								<button
-									type="button"
-									class="btn-secondary edit-date"
-									onclick={() => (editTarget = item)}
-								>
-									Editar fecha
-								</button>
-							</div>
-						</article>
+						{@render activityCard(item, true, null)}
 					</li>
 				{/each}
 			</ul>

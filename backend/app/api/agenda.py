@@ -51,6 +51,15 @@ def create_agenda_item(
     return row
 
 
+@router.delete("/agenda-items/{item_id}", status_code=204)
+def delete_agenda_item(
+    item_id: int, client_id: int, session: SessionDep
+) -> None:
+    row = _get_owned_or_404(session, item_id, client_id)
+    session.delete(row)
+    session.commit()
+
+
 @router.patch("/agenda-items/{item_id}", response_model=AgendaItemOut)
 def update_agenda_item(
     item_id: int, client_id: int, payload: AgendaItemPatch, session: SessionDep

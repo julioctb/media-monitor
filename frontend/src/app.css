@@ -2715,3 +2715,16 @@ span.page-button {
 		gap: 6px;
 	}
 }
+.activity-actions {
+	display: flex;
+	gap: 8px;
+	margin-top: 8px;
+}
+.activity-actions .btn-secondary {
+	min-height: 32px;
+	padding: 0 12px;
+	font-size: 12px;
+}
+.delete-form {
+	display: contents;
+}

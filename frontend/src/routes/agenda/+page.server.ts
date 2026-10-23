@@ -1,6 +1,6 @@
 import { error, fail } from '@sveltejs/kit';
 import { errorStatus, errorMessage } from '$lib/server/api-error';
-import { ApiError, createAgendaItem, listAgendaItems, patchAgendaItem } from '$lib/api';
+import { ApiError, createAgendaItem, deleteAgendaItem, listAgendaItems, patchAgendaItem } from '$lib/api';
 import type { Actions, PageServerLoad } from './$types';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -74,5 +74,23 @@ export const actions: Actions = {
 			});
 		}
 		return { form: 'date', ok: true };
+	},
+
+	remove: async ({ request }) => {
+		const form = await request.formData();
+		const id = Number.parseInt(text(form, 'id'), 10);
+		if (!Number.isInteger(id)) {
+			return fail(400, { form: 'delete', message: 'Actividad inválida.' });
+		}
+		try {
+			await deleteAgendaItem(id);
+		} catch (cause) {
+			const status = cause instanceof ApiError && cause.status === 404 ? 404 : 502;
+			return fail(status, {
+				form: 'delete',
+				message: errorMessage(cause, 'No se pudo eliminar la actividad.')
+			});
+		}
+		return { form: 'delete', ok: true };
 	}
 };

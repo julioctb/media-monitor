@@ -147,6 +147,24 @@ def test_patch_validates_kind_and_date(api, db) -> None:
     assert api.patch(url, json={"event_date": "noviembre"}).status_code == 422
 
 
+def test_delete_scoped_and_idempotent_404(api, db) -> None:
+    client_id = _main_client_id(db)
+    other = Client(name="other")
+    db.add(other)
+    db.commit()
+    item = _create(api, client_id)
+
+    cross = api.delete(f"/api/clients/{other.id}/agenda-items/{item['id']}")
+    assert cross.status_code == 404
+
+    gone = api.delete(f"/api/clients/{client_id}/agenda-items/{item['id']}")
+    assert gone.status_code == 204
+    assert api.get(f"/api/clients/{client_id}/agenda-items").json() == []
+
+    repeat = api.delete(f"/api/clients/{client_id}/agenda-items/{item['id']}")
+    assert repeat.status_code == 404
+
+
 def test_patch_cross_client_404(api, db) -> None:
     client_id = _main_client_id(db)
     other = Client(name="other")
