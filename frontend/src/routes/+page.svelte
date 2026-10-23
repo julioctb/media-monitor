@@ -8,7 +8,7 @@
 		formatLongDate,
 		nextCutLabel
 	} from '$lib/format';
-	import { categoryRows, focusPersonLabel, monogram } from '$lib/digest-stats';
+	import { categoryRows, monogram } from '$lib/digest-stats';
 	import DigestSections from '$lib/components/DigestSections.svelte';
 	import NegativeNews from '$lib/components/NegativeNews.svelte';
 	import type { PageProps } from './$types';
@@ -64,19 +64,11 @@
 	const updatedLabel = $derived(summary ? formatDisplayTime(summary.updated_at) : null);
 	const nextCut = $derived(nextCutLabel(data.digestHours, new Date()));
 
-	/** Header eyebrow: focus person when identified, «BUAP» fallback. */
+	/** Header eyebrow: «Resumen diario /» + active keywords (BUAP fallback). */
 	const eyebrow = $derived.by(() => {
-		const name = summary ? focusPersonLabel(summary.content) : null;
-		return name ? `Resumen diario / BUAP - ${name}` : 'Resumen diario / BUAP';
+		const terms = data.keywords.filter((keyword) => keyword.is_active).map((k) => k.text);
+		return terms.length > 0 ? `Resumen diario / ${terms.join(' · ')}` : 'Resumen diario / BUAP';
 	});
-
-	/** Header keyword line: the active terms that fed today's capture. */
-	const keywordsLine = $derived(
-		data.keywords
-			.filter((keyword) => keyword.is_active)
-			.map((keyword) => keyword.text)
-			.join(' · ')
-	);
 
 	/** Categorías identificadas: top 5 shares over the day's real total. */
 	const categoryRowsTop = $derived(
@@ -114,11 +106,6 @@
 		<section class="digest-header" aria-labelledby="digest-date">
 			<div class="eyebrow">{eyebrow}</div>
 			<h1 id="digest-date">{formatLongDate(summary?.summary_date ?? day)}</h1>
-			{#if keywordsLine}
-				<p class="digest-keywords">
-					<strong>Palabras clave:</strong> {keywordsLine}
-				</p>
-			{/if}
 			<div class="digest-meta">
 				{#if summary}
 					<span>

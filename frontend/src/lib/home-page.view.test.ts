@@ -99,7 +99,7 @@ it('renders the narrative and hides the placeholder once the digest exists', () 
 	expect(text()).toContain('Interpretación actualizada a las');
 });
 
-it('lists the active keywords in the digest header', () => {
+it('joins the active keywords to the eyebrow after Resumen diario', () => {
 	const data = {
 		...emptyDayData(),
 		summary: summaryFixture(),
@@ -108,15 +108,14 @@ it('lists the active keywords in the digest header', () => {
 			{ id: 9, text: 'Lilia Cedillo', is_active: true }
 		]
 	} as never;
-	const { text, container } = renderPage(data);
+	const { container, text } = renderPage(data);
 
 	const header = container.querySelector('.digest-header')?.textContent ?? '';
-	expect(header).toContain('Palabras clave');
-	expect(header).toContain('BUAP · Lilia Cedillo');
+	expect(header).toContain('Resumen diario / BUAP · Lilia Cedillo');
 });
 
-it('omits the keyword line when the day has no active keywords', () => {
-	const { container } = renderPage({ ...emptyDayData(), summary: summaryFixture() });
+it('falls back to Resumen diario / BUAP without active keywords', () => {
+	const { text } = renderPage({ ...emptyDayData(), summary: summaryFixture() });
 
-	expect(container.querySelector('.digest-keywords')).toBeNull();
+	expect(text()).toContain('Resumen diario / BUAP');
 });
