@@ -2283,6 +2283,16 @@ span.page-button {
 	align-items: end;
 	margin-top: 20px;
 }
+/* Mockup ≤600: the three tracks don't fit — stack them full width (otherwise
+   the auto tracks collapse the search column to 0px) and span the button. */
+@media (max-width: 600px) {
+	.filter-bar {
+		grid-template-columns: 1fr;
+	}
+	.search-button {
+		width: 100%;
+	}
+}
 .search-button {
 	min-height: 44px;
 	padding: 8px 20px;
