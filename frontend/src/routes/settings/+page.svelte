@@ -211,7 +211,6 @@
 		<a href="#operacion">Operación</a>
 		<a href="#fuentes">Fuentes</a>
 		<a href="#llm">LLM</a>
-		<a href="#x-twitter">X (Twitter)</a>
 	</nav>
 
 	<div class="settings-flow">
@@ -453,6 +452,76 @@
 						</button>
 					</article>
 
+					<article class="source-card source-card--wide">
+						<h3>X (Twitter)</h3>
+						<p>Elige cómo se obtienen las menciones de X.</p>
+						<span id="x-mode-label" class={LABEL_CLS}>Modo de la fuente</span>
+							<div class="provider-radios" role="radiogroup" aria-labelledby="x-mode-label">
+								<label class="radio-option">
+									<input
+										form="x-save-form"
+										type="radio"
+										name="x_mode"
+										value="free"
+										checked={xMode === 'free'}
+										onchange={() => (xMode = 'free')}
+									/>
+									Gratuito
+								</label>
+								<label class="radio-option">
+									<input
+										form="x-save-form"
+										type="radio"
+										name="x_mode"
+										value="paid"
+										checked={xMode === 'paid'}
+										onchange={() => (xMode = 'paid')}
+									/>
+									API de pago
+								</label>
+							</div>
+
+							{#if xMode === 'free'}
+								<p
+									class="mt-4 rounded-lg px-4 py-3 text-sm ring-1 ring-inset bg-surface-warm text-ink-2 ring-line"
+								>
+									Modo gratuito: las menciones de X provienen del índice de Google News (site:x.com).
+									Limitaciones: sin autor de la cuenta; cobertura parcial —solo lo que Google indexa
+									(medios y cuentas institucionales, no toda la conversación)—; la publicación puede
+									tardar horas en reflejarse.
+								</p>
+							{/if}
+
+							<div class="mt-4">
+								<label for="x-api-key" class={LABEL_CLS}>API key</label>
+								<input
+									id="x-api-key"
+									form="x-save-form"
+									name="x_api_key"
+									type="password"
+									placeholder="Dejar vacío para conservar la actual"
+									autocomplete="off"
+									class={INPUT_CLS}
+								/>
+								{#if data.settings.x_api_key_set}
+									<p class="field-hint">API key guardada</p>
+								{:else if xMode === 'paid'}
+									<p class="field-hint">Sin key: se usará el modo gratuito como respaldo</p>
+								{/if}
+							</div>
+
+							<div class="mt-4">
+								<button
+									form="x-save-form"
+									type="submit"
+									disabled={xSaving}
+									class={BTN_PRIMARY_CLS}
+								>
+									Guardar X
+								</button>
+							</div>
+					</article>
+
 					<article class="source-card wip">
 						<span class="status-chip off">En desarrollo</span>
 						<h3>Datos de campo</h3>
@@ -578,70 +647,10 @@
 			</div>
 		</form>
 
-		<!-- X source: own form, sibling of the save form — a nested form would
-			be invalid HTML and break submit. -->
-		<section id="x-twitter" class="panel" aria-labelledby="x-title">
-			<div class="panel-head">
-				<h2 id="x-title">X (Twitter)</h2>
-				<p class="panel-note">Elige cómo se obtienen las menciones de X.</p>
-			</div>
-			<form method="POST" action="?/save-x" use:enhance={handleXSubmit}>
-				<span id="x-mode-label" class={LABEL_CLS}>Modo de la fuente</span>
-				<div class="provider-radios" role="radiogroup" aria-labelledby="x-mode-label">
-					<label class="radio-option">
-						<input
-							type="radio"
-							name="x_mode"
-							value="free"
-							checked={xMode === 'free'}
-							onchange={() => (xMode = 'free')}
-						/>
-						Gratuito
-					</label>
-					<label class="radio-option">
-						<input
-							type="radio"
-							name="x_mode"
-							value="paid"
-							checked={xMode === 'paid'}
-							onchange={() => (xMode = 'paid')}
-						/>
-						API de pago
-					</label>
-				</div>
-
-				{#if xMode === 'free'}
-					<p
-						class="mt-4 rounded-lg px-4 py-3 text-sm ring-1 ring-inset bg-surface-warm text-ink-2 ring-line"
-					>
-						Modo gratuito: las menciones de X provienen del índice de Google News (site:x.com).
-						Limitaciones: sin autor de la cuenta; cobertura parcial —solo lo que Google indexa
-						(medios y cuentas institucionales, no toda la conversación)—; la publicación puede
-						tardar horas en reflejarse.
-					</p>
-				{/if}
-
-				<div class="mt-4">
-					<label for="x-api-key" class={LABEL_CLS}>API key</label>
-					<input
-						id="x-api-key"
-						name="x_api_key"
-						type="password"
-						placeholder="Dejar vacío para conservar la actual"
-						autocomplete="off"
-						class={INPUT_CLS}
-					/>
-					{#if data.settings.x_api_key_set}
-						<p class="field-hint">API key guardada</p>
-					{:else if xMode === 'paid'}
-						<p class="field-hint">Sin key: se usará el modo gratuito como respaldo</p>
-					{/if}
-				</div>
-
-				<div class="mt-4">
-					<button type="submit" disabled={xSaving} class={BTN_PRIMARY_CLS}>Guardar X</button>
-				</div>
-			</form>
-		</section>
+		<!-- X (Twitter): the UI card lives inside the Fuentes grid above, but the
+			HTML form owner sits here at page level (a form cannot nest inside the
+			main save form); its inputs associate via the form="x-save-form"
+			attribute. Same ?/save-x action and handler as before. -->
+		<form id="x-save-form" method="POST" action="?/save-x" use:enhance={handleXSubmit}></form>
 	</div>
 </div>
