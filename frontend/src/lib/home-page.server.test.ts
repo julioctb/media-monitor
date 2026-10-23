@@ -203,8 +203,8 @@ it('exposes the v2 aggregates: tones, keyword counts and negative events', async
 	]);
 	// Ingest sources: google_news + x_index + gdelt + 1 rss feed + 1 fb page.
 	expect(data['sourcesCount']).toBe(5);
-	// Facebook label for the redes block, built from settings.
-	expect(data['socialLabels']).toEqual({ facebook_page: 'Facebook · BUAPoficial' });
+	// Facebook label for the redes block: count, never page names.
+	expect(data['socialLabels']).toEqual({ facebook_page: 'Facebook (1 página seguida)' });
 });
 
 it('filters the history with ?before and anchors the previous month', async () => {

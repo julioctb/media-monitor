@@ -71,10 +71,13 @@ function activeSourceCount(settings: {
 	);
 }
 
-/** Redes block labels: Facebook carries the configured account names. */
+/** Redes block labels: Facebook never enumerates the followed pages. */
 function socialLabelsFor(pages: { label: string }[] | undefined): Record<string, string> {
-	if (!pages || pages.length === 0) return {};
-	return { facebook_page: `Facebook · ${pages.map((page) => page.label).join(', ')}` };
+	const count = pages?.length ?? 0;
+	if (count === 0) return {};
+	return {
+		facebook_page: `Facebook (${count} ${count === 1 ? 'página' : 'páginas'} seguida${count === 1 ? '' : 's'})`
+	};
 }
 
 /** First day of the month containing `day` («ver mes anterior» anchor). */
