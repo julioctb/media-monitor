@@ -274,3 +274,46 @@ it('rejects foreign domains and empty input', () => {
 	expect(normalizeFacebookPageRef('')).toBeNull();
 	expect(normalizeFacebookPageRef('   ')).toBeNull();
 });
+
+// -- X source mode (free/paid) and its masked API key --
+
+/**
+ * The dedicated X action must PUT a PARTIAL body: only x_mode and
+ * x_api_key. '' travels explicitly — the API reads it as "keep the
+ * stored key" (masked-GET semantics: the UI never holds the value).
+ */
+async function runXAction(entries: Record<string, string>) {
+	return actions['save-x']({ request: formRequest(entries) } as never) as Promise<{
+		status?: number;
+		data?: Record<string, unknown>;
+		ok?: boolean;
+	}>;
+}
+
+it('saves x mode and key as a partial payload', async () => {
+	stubFetch(SETTINGS_ROW);
+
+	const result = await runXAction({ x_mode: 'paid', x_api_key: ' tok-123 ' });
+
+	expect(result['ok']).toBe(true);
+	expect(savedBodies[0]).toEqual({ x_mode: 'paid', x_api_key: 'tok-123' });
+});
+
+it('sends an empty key so the stored one is kept', async () => {
+	stubFetch(SETTINGS_ROW);
+
+	const result = await runXAction({ x_mode: 'free' });
+
+	expect(result['ok']).toBe(true);
+	expect(savedBodies[0]).toEqual({ x_mode: 'free', x_api_key: '' });
+});
+
+it('rejects an unknown x mode with 400 before the API', async () => {
+	stubFetch(SETTINGS_ROW);
+
+	const result = failureOf(await runXAction({ x_mode: 'hybrid', x_api_key: 'k' }));
+
+	expect(result.status).toBe(400);
+	expect(result.data['ok']).toBe(false);
+	expect(savedBodies).toHaveLength(0);
+});
