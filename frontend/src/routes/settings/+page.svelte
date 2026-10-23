@@ -492,23 +492,25 @@
 								</p>
 							{/if}
 
-							<div class="mt-4">
-								<label for="x-api-key" class={LABEL_CLS}>API key</label>
-								<input
-									id="x-api-key"
-									form="x-save-form"
-									name="x_api_key"
-									type="password"
-									placeholder="Dejar vacío para conservar la actual"
-									autocomplete="off"
-									class={INPUT_CLS}
-								/>
-								{#if data.settings.x_api_key_set}
-									<p class="field-hint">API key guardada</p>
-								{:else if xMode === 'paid'}
-									<p class="field-hint">Sin key: se usará el modo gratuito como respaldo</p>
-								{/if}
-							</div>
+							{#if xMode === 'paid'}
+								<div class="mt-4">
+									<label for="x-api-key" class={LABEL_CLS}>API key</label>
+									<input
+										id="x-api-key"
+										form="x-save-form"
+										name="x_api_key"
+										type="password"
+										placeholder="Dejar vacío para conservar la actual"
+										autocomplete="off"
+										class={INPUT_CLS}
+									/>
+									{#if data.settings.x_api_key_set}
+										<p class="field-hint">API key guardada</p>
+									{:else}
+										<p class="field-hint">Sin key: se usará el modo gratuito como respaldo</p>
+									{/if}
+								</div>
+							{/if}
 
 							<div class="mt-4">
 								<button

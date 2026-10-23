@@ -59,14 +59,16 @@ afterEach(() => {
 const BANNER_HEAD = 'Modo gratuito: las menciones de X provienen del índice de Google News';
 const FALLBACK_NOTE = 'Sin key: se usará el modo gratuito como respaldo';
 
-it('shows the free limitations banner and stored-key note', () => {
+it('shows the free limitations banner and hides the paid-only key field', () => {
 	const { text } = renderPage(pageSettings({ x_mode: 'free', x_api_key_set: true }));
 
 	expect(text()).toContain(BANNER_HEAD);
 	expect(text()).toContain('sin autor de la cuenta');
 	expect(text()).toContain('cobertura parcial');
 	expect(text()).toContain('la publicación puede tardar horas en reflejarse');
-	expect(text()).toContain('API key guardada');
+	// The API key field is paid-only: absent (input AND stored note) under free.
+	expect(document.querySelector('input#x-api-key')).toBeNull();
+	expect(text()).not.toContain('API key guardada');
 	expect(text()).not.toContain(FALLBACK_NOTE);
 });
 
@@ -76,6 +78,8 @@ it('hides the banner on paid and warns about the free fallback', () => {
 	expect(text()).not.toContain(BANNER_HEAD);
 	expect(text()).not.toContain('API key guardada');
 	expect(text()).toContain(FALLBACK_NOTE);
+	// Paid mode reveals the key field.
+	expect(document.querySelector('input#x-api-key')).toBeInstanceOf(HTMLInputElement);
 });
 
 it('reveals the banner as soon as free is selected, without saving', () => {
@@ -90,4 +94,19 @@ it('reveals the banner as soon as free is selected, without saving', () => {
 
 	expect(text()).toContain(BANNER_HEAD);
 	expect(text()).not.toContain(FALLBACK_NOTE); // the fallback note is paid-conditional
+	expect(document.querySelector('input#x-api-key')).toBeNull(); // so is the field
+});
+
+it('reveals the API key field only under paid, without saving', () => {
+	const { text } = renderPage(pageSettings({ x_mode: 'free', x_api_key_set: true }));
+	expect(document.querySelector('input#x-api-key')).toBeNull();
+
+	const paid = document.querySelector('input[name="x_mode"][value="paid"]') as HTMLInputElement;
+	paid.checked = true;
+	paid.dispatchEvent(new Event('change', { bubbles: true }));
+	flushSync();
+
+	expect(document.querySelector('input#x-api-key')).toBeInstanceOf(HTMLInputElement);
+	expect(text()).toContain('API key guardada');
+	expect(text()).not.toContain(BANNER_HEAD);
 });
