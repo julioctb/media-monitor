@@ -785,9 +785,6 @@ html {
 .daily-detail-tema h4 {
 	color: var(--color-muted);
 }
-.daily-detail-negative strong {
-	color: var(--color-danger);
-}
 .daily-detail-item .daily-detail-source {
 	margin-top: 8px;
 	color: var(--color-muted);
@@ -984,9 +981,7 @@ html {
 	font-weight: 600;
 	line-height: 1.35;
 	text-wrap: pretty;
-}
-/* The name IS the link: quiet underline, ink on hover. */
-.person-entry .person-link {
+	/* The name IS the link: quiet underline, ink on hover. */
 	text-decoration: underline;
 	text-decoration-color: var(--color-line);
 	text-underline-offset: 3px;
@@ -2177,10 +2172,6 @@ span.page-button {
 	overflow: hidden;
 }
 .item-footer {
-	border-top: 1px solid var(--color-line-soft);
-	padding-top: 10px;
-}
-.item-footer {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
@@ -2607,9 +2598,6 @@ span.page-button {
 /* --- Agenda (feature agenda-page; mockup agenda-media-monitor) --- */
 .agenda-form-panel .form-grid,
 .agenda-form-panel .field,
-.agenda-toolbar {
-	min-width: 0;
-}
 .agenda-form-panel {
 	margin-top: 18px;
 }
@@ -2682,6 +2670,7 @@ span.page-button {
 	color: var(--color-ink);
 }
 .agenda-toolbar {
+	min-width: 0;
 	display: grid;
 	grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
 	gap: 18px;
