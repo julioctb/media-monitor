@@ -788,3 +788,58 @@ export function generateDailySummary(
 		options
 	);
 }
+
+/* --------------------------------- agenda --------------------------------- */
+
+/** Agenda entry (feature agenda-page): manual activity/deadline rows. */
+export interface AgendaItem {
+	id: number;
+	client_id: number;
+	title: string;
+	kind: 'activity' | 'deadline';
+	/** ISO date; null = «Sin fecha completa». */
+	event_date: string | null;
+	/** Source's partial date text («27 oct.»), kept for display. */
+	date_label: string | null;
+	time_label: string | null;
+	location: string | null;
+	source: string | null;
+	url: string | null
+	notes: string | null;
+	created_at: string;
+}
+
+export interface AgendaItemInput {
+	title: string;
+	kind?: 'activity' | 'deadline';
+	event_date?: string | null;
+	date_label?: string | null;
+	time_label?: string | null;
+	location?: string | null;
+	source?: string | null;
+	url?: string | null;
+	notes?: string | null;
+}
+
+export function listAgendaItems(options: RequestOptions = {}): Promise<AgendaItem[]> {
+	return request<AgendaItem[]>('/api/clients/1/agenda-items', { method: 'GET' }, options);
+}
+
+export function createAgendaItem(
+	input: AgendaItemInput,
+	options: RequestOptions = {}
+): Promise<AgendaItem> {
+	return request<AgendaItem>('/api/clients/1/agenda-items', jsonInit('POST', input), options);
+}
+
+export function patchAgendaItem(
+	id: number,
+	patch: Partial<AgendaItemInput>,
+	options: RequestOptions = {}
+): Promise<AgendaItem> {
+	return request<AgendaItem>(
+		`/api/clients/1/agenda-items/${id}`,
+		jsonInit('PATCH', patch),
+		options
+	);
+}

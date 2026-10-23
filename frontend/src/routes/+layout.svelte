@@ -16,6 +16,7 @@
 		{ label: 'Resumen', href: '/' },
 		{ label: 'Feed', href: '/feed' },
 		{ label: 'Eventos', href: '/events' },
+		{ label: 'Agenda', href: '/agenda' },
 		{ label: 'Actores', href: '/persons' },
 		{ label: 'Consultas', href: '/consultas' },
 		{ label: 'Estadísticas', href: '/stats' },
