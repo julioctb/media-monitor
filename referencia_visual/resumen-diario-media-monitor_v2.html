@@ -1,0 +1,530 @@
+<!doctype html>
+<html lang="es-ES"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Resumen diario · Media Monitor</title>
+  <style>
+/* design-systems/apple/tokens.css — active visual contract */
+:root {
+  --bg: #ffffff;
+  --surface: #f5f5f7;
+  --surface-warm: #fbfbfd;
+  --fg: #1d1d1f;
+  --fg-2: #424245;
+  --muted: #6e6e73;
+  --meta: #86868b;
+  --border: #d2d2d7;
+  --border-soft: #e8e8ed;
+  --accent: #0071e3;
+  --accent-on: #ffffff;
+  --accent-hover: #0077ed;
+  --accent-active: #0066cc;
+  --success: #16a34a;
+  --warn: #eab308;
+  --danger: #dc2626;
+  --font-display: "SF Pro Display", "SF Pro Icons", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-body: "SF Pro Text", "SF Pro Icons", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: "SF Mono", ui-monospace, "JetBrains Mono", Menlo, Monaco, Consolas, monospace;
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-base: 17px;
+  --text-lg: 21px;
+  --text-xl: 28px;
+  --text-2xl: 40px;
+  --text-3xl: 56px;
+  --text-4xl: 80px;
+  --leading-body: 1.47;
+  --leading-tight: 1.05;
+  --tracking-display: -0.015em;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --section-y-desktop: 100px;
+  --section-y-tablet: 64px;
+  --section-y-phone: 40px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-pill: 980px;
+  --elev-flat: none;
+  --elev-ring: 0 0 0 1px var(--border);
+  --elev-raised: 0 12px 32px rgba(0, 0, 0, 0.08);
+  --focus-ring: 0 0 0 4px color-mix(in oklab, var(--accent), transparent 65%);
+  --motion-fast: 150ms;
+  --motion-base: 220ms;
+  --ease-standard: cubic-bezier(0.28, 0, 0.22, 1);
+  --container-max: 1024px;
+  --container-gutter-desktop: 22px;
+  --container-gutter-tablet: 18px;
+  --container-gutter-phone: 16px;
+}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:var(--text-base);line-height:1.5}a{color:inherit;text-decoration:none}button,input{font:inherit}a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:4px}button{cursor:pointer}.topbar{background:var(--fg);color:var(--bg);border-bottom:1px solid var(--border-soft)}.topbar-inner{max-width:1280px;margin:auto;min-height:64px;padding:0 40px;display:flex;align-items:center;gap:28px}.nav{display:flex;align-items:stretch;gap:18px;min-height:64px;margin-left:auto}.nav a{display:flex;align-items:center;position:relative;color:var(--surface);font-size:var(--text-sm);white-space:nowrap}.nav a:hover,.nav a:focus-visible{color:var(--bg)}.nav a[aria-current="page"]{color:var(--bg);font-weight:700}.nav a[aria-current="page"]:after{content:"";position:absolute;bottom:0;left:0;right:0;height:3px;background:var(--accent)}.menu-toggle{display:none;color:var(--bg);background:transparent;border:1px solid var(--border);border-radius:var(--radius-sm);padding:9px 13px;min-height:44px}.page{max-width:1280px;margin:0 auto;padding:36px 40px 72px;display:grid;grid-template-columns:minmax(0,1fr) 228px;gap:32px}.content{min-width:0}.digest-header{padding-bottom:24px;border-bottom:1px solid var(--border-soft)}.eyebrow{font-size:var(--text-xs);font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--fg-2)}.digest-header h1{max-width:760px;margin:10px 0 12px;font-family:var(--font-display);font-size:clamp(32px,4vw,40px);font-weight:500;line-height:1.1;letter-spacing:var(--tracking-display)}.digest-meta{display:flex;align-items:center;gap:13px;flex-wrap:wrap;color:var(--muted);font-size:var(--text-sm)}.mode{display:inline-flex;align-items:center;padding:3px 9px;border:1px solid var(--border);border-radius:var(--radius-pill);color:var(--fg-2);font-size:var(--text-xs);font-weight:700;letter-spacing:.05em}.narrative{margin:24px 0 0;background:var(--fg);color:var(--bg);padding:26px 30px 28px;border-radius:var(--radius-sm)}.narrative .eyebrow{color:var(--surface)}.narrative p{max-width:900px;margin:12px 0 0;font-family:var(--font-display);font-size:clamp(var(--text-lg),2vw,24px);line-height:1.38;letter-spacing:-.015em;font-weight:500}.section{margin-top:32px}.section-heading{display:flex;justify-content:space-between;align-items:baseline;gap:16px;padding-bottom:12px;border-bottom:1px solid var(--border)}.section h2,.sidebar h2{font-family:var(--font-display);font-size:clamp(var(--text-lg),1.9vw,24px);font-weight:500;line-height:1.2;letter-spacing:-.01em;margin:0}.section-note{color:var(--muted);font-size:var(--text-sm)}.coverage{display:grid;grid-template-columns:1.1fr 1.6fr 1.5fr;gap:16px;padding-top:16px}.metric{border-right:1px solid var(--border-soft);padding-right:20px}.metric:last-child{border:0}.metric-label{display:block;color:var(--muted);font-size:var(--text-xs);text-transform:uppercase;letter-spacing:.08em;font-weight:700}.metric-big{display:block;font-family:var(--font-display);font-size:32px;line-height:1.12;letter-spacing:-.03em;margin:4px 0}.metric-detail{display:flex;gap:7px 14px;flex-wrap:wrap;color:var(--fg-2);font-size:var(--text-sm)}.metric-detail strong{color:var(--fg);font-weight:700}.rectora-summary{display:flex;gap:28px;align-items:baseline;padding:16px 0 12px}.rectora-summary strong{font-size:32px;font-weight:500;letter-spacing:-.02em}.rectora-summary span{color:var(--muted);font-size:var(--text-sm)}.quotes{display:grid;grid-template-columns:1fr 1fr;gap:20px}.quotes blockquote{margin:0;padding:14px 0 0;border-top:2px solid var(--fg);font-size:var(--text-base);line-height:1.45}.quotes cite{display:block;margin-top:13px;color:var(--muted);font-size:var(--text-xs);font-style:normal}.editorial-list{padding:0;margin:0;list-style:none}.topic-heading{padding:18px 0 3px;color:var(--fg-2);font-size:var(--text-xs);text-transform:uppercase;letter-spacing:.12em;font-weight:700}.news-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px 20px;padding:15px 0;border-bottom:1px solid var(--border-soft)}.news-title{font-family:var(--font-display);font-size:18px;line-height:1.36;font-weight:600;letter-spacing:-.01em}.news-actions{display:flex;align-items:center;gap:17px}.sentiment{border-radius:var(--radius-pill);padding:4px 9px;font-size:var(--text-xs);font-weight:700;white-space:nowrap}.positive{background:color-mix(in oklch,var(--success) 22%,var(--bg));color:var(--fg)}.neutral{background:var(--surface);color:var(--fg-2)}.negative{background:color-mix(in oklch,var(--danger) 20%,var(--bg));color:var(--fg)}.original{white-space:nowrap;font-size:var(--text-xs);text-decoration:underline;text-decoration-color:var(--border);text-underline-offset:4px}.original:hover{color:var(--fg);text-decoration-color:var(--fg)}.pending-list{margin:0;padding:15px 0 0;list-style:none}.pending-list li{display:flex;justify-content:space-between;gap:20px;padding:13px 0;border-bottom:1px solid var(--border-soft);font-size:var(--text-sm)}.pending-list span:last-child{color:var(--muted);white-space:nowrap}.sidebar{padding-top:6px;border-left:1px solid var(--border-soft);padding-left:24px}.sidebar-section + .sidebar-section{margin-top:32px}.sidebar h2{font-size:var(--text-lg);padding-bottom:17px;border-bottom:1px solid var(--border)}.history-list{list-style:none;margin:0;padding:0}.history-list a{display:flex;justify-content:space-between;align-items:center;min-height:48px;border-bottom:1px solid var(--border-soft);font-size:var(--text-sm)}.history-list a:hover{color:var(--fg-2)}.history-list .mode{border-color:var(--border-soft)}.archive-copy{font-size:var(--text-sm);color:var(--muted);line-height:1.5}.archive-link{display:block;margin-top:19px;border:1px solid var(--border);border-radius:var(--radius-pill);padding:12px 18px;min-height:44px;font-size:var(--text-sm);text-align:center;font-weight:700}.archive-link:hover{background:var(--fg);color:var(--bg)}.archive-link:focus-visible{outline-offset:3px}.small-note{margin-top:23px;padding-top:16px;border-top:1px solid var(--border-soft);font-size:var(--text-xs);line-height:1.5;color:var(--muted)}
+@media(max-width:1180px){.topbar-inner{padding:0 30px}.nav{gap:13px}.nav a{font-size:var(--text-xs)}.page{padding:32px 30px 64px;gap:28px;grid-template-columns:minmax(0,1fr) 220px}.news-item{grid-template-columns:1fr}.news-actions{justify-content:space-between}}
+@media(max-width:1020px){.topbar-inner{flex-wrap:wrap;min-height:66px;padding:0 24px}.menu-toggle{display:block;margin-left:auto}.nav{display:none;order:3;width:100%;margin:0;min-height:0;padding:8px 0 16px;flex-wrap:wrap;gap:0 20px}.nav.open{display:flex}.nav a{min-height:44px;font-size:var(--text-sm)}.nav a[aria-current="page"]:after{bottom:5px}.page{display:block;padding:36px 24px 72px}.sidebar{margin-top:44px;padding:0;border:0;display:grid;grid-template-columns:1fr 1fr;gap:32px}.sidebar-section + .sidebar-section{margin:0}.digest-header h1{font-size:clamp(32px,4vw,40px)}}
+@media(max-width:600px){.topbar-inner{padding:0 20px}.page{padding:31px 20px 60px}.digest-header{padding-bottom:26px}.digest-header h1{font-size:clamp(32px,4vw,40px)}.narrative{margin-top:20px;padding:22px 20px}.narrative p{font-size:var(--text-lg)}.section{margin-top:28px}.section h2{font-size:var(--text-lg)}.coverage{grid-template-columns:1fr 1fr;gap:0 18px;padding-top:18px}.metric{padding:0 0 19px;border:0}.metric:first-child{grid-column:1/-1;border-bottom:1px solid var(--border-soft);margin-bottom:19px}.metric-big{font-size:32px}.rectora-summary{gap:20px;flex-wrap:wrap}.quotes{grid-template-columns:1fr;gap:23px}.news-item{gap:13px}.news-title{font-size:var(--text-base)}.sidebar{display:block}.sidebar-section + .sidebar-section{margin-top:36px}.pending-list li{display:block}.pending-list span:last-child{display:block;margin-top:2px}}
+  /* Scoped coverage boxes: quiet editorial borders, no card shadows. */
+  .coverage[data-od-id="path-1-0-2-1"]{grid-template-columns:minmax(0,.9fr) minmax(0,1.25fr) minmax(0,1.05fr);gap:12px}
+  .coverage[data-od-id="path-1-0-2-1"] .metric,
+  .coverage[data-od-id="path-1-0-2-1"] .metric:last-child{min-width:0;min-height:112px;padding:16px;border:1px solid color-mix(in oklch,var(--border) 34%,var(--bg));border-radius:var(--radius-sm)}
+  .coverage[data-od-id="path-1-0-2-1"] .metric{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+  .coverage[data-od-id="path-1-0-2-1"] .metric-detail{justify-content:center}
+  @media(max-width:600px){
+    .coverage[data-od-id="path-1-0-2-1"]{grid-template-columns:1fr;gap:10px}
+    .coverage[data-od-id="path-1-0-2-1"] .metric,
+    .coverage[data-od-id="path-1-0-2-1"] .metric:first-child{grid-column:auto;min-height:0;margin:0;padding:18px;border:1px solid color-mix(in oklch,var(--border) 34%,var(--bg))}
+  }
+  /* Final polish: legible controls, honest unavailable states, and compact mobile rhythm. */
+  .brand-link{display:inline-flex;align-items:center;white-space:nowrap;font-size:var(--text-lg);font-weight:700;letter-spacing:-.02em}
+  .news-meta{display:flex;flex-wrap:wrap;align-items:center;column-gap:8px;row-gap:4px;margin-top:8px;color:var(--muted);font-size:var(--text-xs)}
+  .nav .nav-disabled{display:flex;align-items:center;min-height:44px;color:var(--meta);font-size:var(--text-sm);cursor:not-allowed}
+  .original{display:inline-flex;align-items:center;min-height:44px;padding:0 3px;font-size:var(--text-sm)}
+  .original:hover{color:var(--fg);text-decoration-color:var(--fg);background:var(--surface)}
+  .history-list button{display:flex;justify-content:space-between;align-items:center;width:100%;min-height:48px;padding:0;border:0;border-bottom:1px solid var(--border-soft);background:transparent;color:var(--fg);text-align:left;font-size:var(--text-sm)}
+  .history-list button:hover{background:var(--surface);color:var(--fg)}
+  .history-list button[aria-pressed="true"]{font-weight:600;background:var(--surface)}
+  .archive-feedback{margin-top:16px;padding:14px 16px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface-warm);font-size:var(--text-sm);line-height:1.5;color:var(--fg-2)}
+  .archive-feedback[hidden]{display:none}
+  .archive-feedback strong{display:block;margin-bottom:4px;color:var(--fg)}
+  .archive-link[aria-disabled="true"]{cursor:not-allowed;background:var(--surface);color:var(--fg-2);border-color:var(--border);text-decoration:none}
+  .archive-link[aria-disabled="true"]:hover{background:var(--surface);color:var(--fg-2)}
+  .archive-unavailable{margin:10px 0 0;color:var(--muted);font-size:var(--text-xs);line-height:1.5}
+  [data-od-id="history"] .archive-intro{margin:12px 0 16px;color:var(--fg-2);font-size:var(--text-sm);line-height:1.5}
+  [data-od-id="history"] .archive-list-label{margin:0 0 5px;color:var(--muted);font-size:var(--text-xs);font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+  [data-od-id="history"] .history-list button{gap:12px;padding:7px 0}
+  [data-od-id="history"] .history-list button[aria-pressed="true"]{padding-left:10px;padding-right:10px;border-radius:var(--radius-sm)}
+  [data-od-id="history"] .small-note{margin:14px 0 0;padding:0;border:0}
+  [data-od-id="history"] .archive-feedback{margin-top:14px}
+  .menu-toggle:hover{background:var(--fg-2);color:var(--bg)}
+  .menu-toggle:active,.history-list button:active{transform:translateY(1px)}
+  @media(max-width:1020px){.nav .nav-disabled{font-size:var(--text-sm)}}
+  @media(max-width:600px){.section-heading{align-items:flex-start;flex-wrap:wrap;gap:4px 12px}.section-note{line-height:1.45}.digest-header h1{font-size:clamp(32px,4vw,40px)}.rectora-summary{gap:12px 24px}.news-actions{gap:12px}.pending-list span:last-child{white-space:normal}}
+  @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.menu-toggle:active,.history-list button:active{transform:none}}
+  #rectora .rectora-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;padding:18px 0 16px}
+  #rectora .rectora-summary .rectora-stat{display:flex;align-items:baseline;gap:8px;min-width:0}
+  #rectora .rectora-summary .rectora-stat + .rectora-stat{border-left:1px solid var(--border-soft);padding-left:24px}
+  #rectora .rectora-summary strong{font-family:var(--font-display);font-size:clamp(28px,2.5vw,32px);font-weight:600;line-height:1.1}
+  #rectora .rectora-summary span{color:var(--fg-2);font-size:var(--text-sm)}
+  @media(max-width:600px){#rectora .rectora-summary .rectora-stat + .rectora-stat{padding-left:16px}#rectora .rectora-summary{padding:16px 0}}
+  /* Soft neutral canvas with editorial content boxes. */
+  body{background:var(--surface)}
+  .page{gap:22px}
+  .digest-header,.content>.section,.sidebar-section{background:var(--bg);border:1px solid var(--border-soft);border-radius:var(--radius-lg)}
+  .digest-header{padding:24px 28px;border-bottom:1px solid var(--border-soft)}
+  .content>.section{margin-top:16px;padding:22px 28px 24px}
+  .narrative{margin-top:16px;border-radius:var(--radius-lg)}
+  .sidebar{padding:0;border:0}
+  .sidebar-section{padding:22px 20px}
+  .sidebar-section + .sidebar-section{margin-top:16px}
+  .coverage[data-od-id="path-1-0-2-1"] .metric,
+  .coverage[data-od-id="path-1-0-2-1"] .metric:last-child{background:var(--surface-warm);border-color:var(--border-soft)}
+  @media(max-width:1020px){.sidebar{margin-top:16px;gap:16px}.sidebar-section + .sidebar-section{margin-top:0}}
+  @media(max-width:600px){.page{padding:20px 16px 48px}.digest-header{padding:22px 20px}.content>.section{padding:20px;margin-top:14px}.narrative{margin-top:14px}.sidebar{margin-top:14px}.sidebar-section{padding:20px}.sidebar-section + .sidebar-section{margin-top:14px}}
+  .category-breakdown{margin:22px 0 0;padding:18px 0 0;border-top:1px solid var(--border-soft);list-style:none}
+  .category-row{display:grid;grid-template-columns:minmax(100px,150px) minmax(0,1fr) 74px;align-items:center;gap:16px;padding:8px 0;font-size:var(--text-sm)}
+  .category-name{font-weight:600;color:var(--fg)}
+  .category-track{height:9px;overflow:hidden;border-radius:var(--radius-pill);background:var(--surface)}
+  .category-fill{display:block;height:100%;border-radius:var(--radius-pill);background:var(--fg-2)}
+  .category-value{text-align:right;color:var(--fg-2);font-variant-numeric:tabular-nums;white-space:nowrap}
+  @media(max-width:600px){.category-row{grid-template-columns:minmax(90px,110px) minmax(0,1fr) 62px;gap:8px;font-size:var(--text-xs)}.category-breakdown{margin-top:18px;padding-top:14px}}
+
+  /* Feed-only treatment; no page-wide rules. */
+  [data-od-id="daily-news"] .feed-intro{margin:14px 0 0;color:var(--muted);font-size:var(--text-sm);line-height:1.5}
+  [data-od-id="daily-news"] .feed-toolbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin:18px 0 4px}
+  [data-od-id="daily-news"] .feed-filters{display:flex;flex-wrap:wrap;gap:6px}
+  [data-od-id="daily-news"] .feed-filter{min-height:44px;padding:8px 15px;border:1px solid var(--border);border-radius:var(--radius-pill);background:var(--bg);color:var(--fg);font-size:var(--text-sm);font-weight:600}
+  [data-od-id="daily-news"] .feed-filter:hover{background:var(--surface);color:var(--fg)}
+  [data-od-id="daily-news"] .feed-filter[aria-pressed="true"]{background:var(--fg);border-color:var(--fg);color:var(--bg)}
+  [data-od-id="daily-news"] .feed-filter[aria-pressed="true"]:hover{background:var(--fg-2);border-color:var(--fg-2);color:var(--bg)}
+  [data-od-id="daily-news"] .feed-status{color:var(--muted);font-size:var(--text-xs);line-height:1.45}
+  [data-od-id="daily-news"] .feed-list{margin-top:5px}
+  [data-od-id="daily-news"] .news-item:first-child{border-top:1px solid var(--border-soft)}
+  [data-od-id="daily-news"] .feed-channel{font-weight:600;color:var(--fg-2)}
+  [data-od-id="daily-news"] .feed-list{display:grid;gap:12px;margin-top:16px}
+  [data-od-id="daily-news"] .news-item,[data-od-id="daily-news"] .news-item:first-child{display:block;min-width:0;margin:0;padding:0;border:1px solid var(--border-soft);border-radius:var(--radius-md);background:var(--surface-warm)}
+  [data-od-id="daily-news"] .feed-preview{padding:17px 18px}
+  [data-od-id="daily-news"] .feed-preview-top{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px 14px}
+  [data-od-id="daily-news"] .feed-preview-meta{display:flex;flex-wrap:wrap;gap:4px 8px;margin:8px 0 0;color:var(--muted);font-size:var(--text-xs)}
+  [data-od-id="daily-news"] .news-title{margin:10px 0 0;font-size:18px}
+  [data-od-id="daily-news"] .feed-preview-summary{margin:6px 0 0;color:var(--fg-2);font-size:var(--text-sm);line-height:1.5}
+  [data-od-id="daily-news"] .feed-preview-footer{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px 16px;margin-top:14px;padding-top:12px;border-top:1px solid var(--border-soft)}
+  [data-od-id="daily-news"] .feed-preview-chips{display:flex;flex-wrap:wrap;gap:6px}
+  [data-od-id="daily-news"] .feed-preview-chips span{display:inline-flex;align-items:center;min-height:28px;padding:4px 10px;border:1px solid var(--border-soft);border-radius:var(--radius-pill);background:var(--bg);color:var(--fg-2);font-size:var(--text-xs);font-weight:600}
+  [data-od-id="daily-news"] .feed-preview-event{color:var(--muted);font-size:var(--text-xs)}
+  [data-od-id="daily-news"] .feed-full-link{min-height:44px;display:inline-flex;align-items:center;color:var(--fg);font-size:var(--text-sm);font-weight:600;text-decoration:underline;text-decoration-color:var(--border);text-underline-offset:4px}
+  [data-od-id="daily-news"] .feed-full-link:hover{color:var(--fg);text-decoration-color:var(--fg);background:var(--surface)}
+  [data-od-id="daily-news"] .feed-empty{margin-top:14px;padding:20px;border:1px solid var(--border-soft);border-radius:var(--radius-sm);background:var(--surface-warm);color:var(--fg-2);font-size:var(--text-sm);line-height:1.5}
+  [data-od-id="daily-news"] .feed-empty[hidden],[data-od-id="daily-news"] .news-item[hidden]{display:none}
+  @media(max-width:600px){[data-od-id="daily-news"] .feed-toolbar{align-items:flex-start}[data-od-id="daily-news"] .feed-status{width:100%}[data-od-id="daily-news"] .feed-filter{padding:8px 13px}}
+  [data-od-id="rector-coverage"] .rectora-update{margin:10px 0 0;color:var(--muted);font-size:var(--text-xs);line-height:1.5}
+  [data-od-id="coverage"] .coverage-subheading{margin:18px 0 0;font-family:var(--font-display);font-size:var(--text-base);font-weight:600;line-height:1.3}
+  [data-od-id="coverage"] .social-coverage{margin-top:24px;padding:20px;border:1px solid var(--border-soft);border-radius:var(--radius-md);background:var(--surface-warm)}
+  [data-od-id="coverage"] .social-heading{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px 16px}
+  [data-od-id="coverage"] .social-heading h3{margin:0;font-family:var(--font-display);font-size:var(--text-base);font-weight:600;line-height:1.3}
+  [data-od-id="coverage"] .social-status{padding:4px 9px;border:1px solid var(--border);border-radius:var(--radius-pill);color:var(--fg-2);font-size:var(--text-xs);font-weight:600}
+  [data-od-id="coverage"] .social-description{margin:10px 0 0;color:var(--muted);font-size:var(--text-sm);line-height:1.5}
+  [data-od-id="coverage"] .social-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:16px 0 0}
+  [data-od-id="coverage"] .social-metrics>div{min-width:0;padding-top:11px;border-top:1px solid var(--border-soft)}
+  [data-od-id="coverage"] .social-metrics dt{color:var(--fg-2);font-size:var(--text-xs);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  [data-od-id="coverage"] .social-metrics dd{margin:4px 0 0;color:var(--muted);font-size:var(--text-sm)}
+  @media(max-width:600px){[data-od-id="coverage"] .social-coverage{padding:16px}[data-od-id="coverage"] .social-metrics{grid-template-columns:1fr;gap:8px}}
+  [data-od-id="coverage"] .summary-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:18px}
+  [data-od-id="coverage"] .summary-box{min-width:0;padding:18px;border:1px solid var(--border-soft);border-radius:var(--radius-md);background:var(--surface-warm)}
+  [data-od-id="coverage"] .summary-box h3{margin:0;font-family:var(--font-display);font-size:var(--text-base);font-weight:600;line-height:1.3}
+  [data-od-id="coverage"] .summary-meta{margin:5px 0 0;color:var(--muted);font-size:var(--text-xs);line-height:1.45}
+  [data-od-id="coverage"] .tone-list{margin:17px 0 0}
+  [data-od-id="coverage"] .tone-list div{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-top:1px solid var(--border-soft);font-size:var(--text-sm)}
+  [data-od-id="coverage"] .tone-list dt{color:var(--fg-2)}
+  [data-od-id="coverage"] .tone-list dd{margin:0;color:var(--muted);font-variant-numeric:tabular-nums}
+  [data-od-id="coverage"] .summary-note{margin:12px 0 0;color:var(--muted);font-size:var(--text-xs);line-height:1.45}
+  [data-od-id="coverage"] .trend-empty{margin:17px 0 0;padding-top:14px;border-top:1px solid var(--border-soft);color:var(--fg-2);font-size:var(--text-sm);line-height:1.5}
+  [data-od-id="coverage"] .coverage-categories{margin-top:16px;padding-top:14px;border-top:1px solid var(--border-soft)}
+  [data-od-id="coverage"] .coverage-categories summary{width:max-content;max-width:100%;min-height:44px;display:flex;align-items:center;gap:8px;color:var(--fg);font-size:var(--text-sm);font-weight:600;cursor:pointer}
+  [data-od-id="coverage"] .coverage-categories summary:hover{text-decoration:underline;text-underline-offset:3px}
+  [data-od-id="coverage"] .coverage-categories summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+  [data-od-id="coverage"] .coverage-categories .category-breakdown{margin:8px 0 0;padding:10px 0 0}
+  @media(max-width:800px){[data-od-id="coverage"] .summary-grid{grid-template-columns:1fr}}
+  [data-od-id="coverage-breakdown"] .breakdown-note{margin:12px 0 0;color:var(--muted);font-size:var(--text-xs);line-height:1.5}
+  [data-od-id="coverage-breakdown"] .breakdown-heading{margin:22px 0 0;font-family:var(--font-display);font-size:var(--text-base);font-weight:600;line-height:1.3}
+  [data-od-id="coverage-breakdown"] .category-breakdown{margin-top:10px;padding-top:10px}
+  [data-od-id="coverage-breakdown"] .category-row[data-topic="government"]{padding:12px 14px;margin:5px 0;background:var(--surface-warm);border:1px solid var(--border);border-radius:var(--radius-sm)}
+  [data-od-id="coverage-breakdown"] .category-row[data-topic="government"] .category-name{font-weight:700}
+  [data-od-id="coverage-breakdown"] .category-row[data-topic="government"] .category-fill{background:var(--fg)}
+  [data-od-id="daily-news"] .news-item[data-topic="government"]{padding:15px 14px;margin:5px 0;background:var(--surface-warm);border:1px solid var(--border);border-radius:var(--radius-sm)}
+  [data-od-id="manual-data"] .manual-data-panel{display:grid;grid-template-columns:minmax(0,1fr) minmax(220px,.8fr);gap:20px;margin-top:18px;padding:20px;border:1px solid var(--border-soft);border-radius:var(--radius-md);background:var(--surface-warm)}
+  [data-od-id="manual-data"] .manual-data-status{display:inline-block;padding:4px 10px;border:1px solid var(--border);border-radius:var(--radius-pill);color:var(--fg-2);font-size:var(--text-xs);font-weight:600}
+  [data-od-id="manual-data"] .manual-data-panel h3{margin:12px 0 0;font-family:var(--font-display);font-size:var(--text-base);font-weight:600;line-height:1.3}
+  [data-od-id="manual-data"] .manual-data-panel p{max-width:52ch;margin:7px 0 0;color:var(--fg-2);font-size:var(--text-sm);line-height:1.5}
+  [data-od-id="manual-data"] .manual-data-meta{display:grid;align-content:center;gap:10px;margin:0;padding-left:20px;border-left:1px solid var(--border-soft)}
+  [data-od-id="manual-data"] .manual-data-meta div{display:flex;justify-content:space-between;gap:12px;font-size:var(--text-sm)}
+  [data-od-id="manual-data"] .manual-data-meta dt{color:var(--muted)}
+  [data-od-id="manual-data"] .manual-data-meta dd{margin:0;color:var(--fg);font-weight:600;text-align:right}
+  [data-od-id="manual-data"] .manual-data-note{margin:12px 0 0;color:var(--muted);font-size:var(--text-xs);line-height:1.5}
+  @media(max-width:700px){[data-od-id="manual-data"] .manual-data-panel{grid-template-columns:1fr;gap:16px;padding:16px}[data-od-id="manual-data"] .manual-data-meta{padding:14px 0 0;border-left:0;border-top:1px solid var(--border-soft)}}
+  [data-od-id="sidebar"] .actor-entry{display:grid;grid-template-columns:38px minmax(0,1fr);gap:11px;align-items:start;padding-top:17px}
+  [data-od-id="sidebar"] .actor-monogram{display:grid;place-items:center;width:38px;height:38px;border-radius:50%;background:var(--surface);color:var(--fg);font-family:var(--font-display);font-size:var(--text-xs);font-weight:600;letter-spacing:.03em}
+  [data-od-id="sidebar"] .actor-name{display:block;color:var(--fg);font-size:var(--text-sm);font-weight:600;line-height:1.35}
+  [data-od-id="sidebar"] .actor-role{display:block;margin-top:2px;color:var(--muted);font-size:var(--text-xs);line-height:1.45}
+  [data-od-id="sidebar"] .actor-count{margin:14px 0 0;padding-top:12px;border-top:1px solid var(--border-soft);color:var(--fg-2);font-size:var(--text-xs)}
+  [data-od-id="sidebar"] .actor-count strong{color:var(--fg);font-weight:600}
+  [data-od-id="sidebar"] .actor-link{display:inline-flex;align-items:center;min-height:44px;margin-top:4px;padding:4px 8px 4px 0;color:var(--fg);font-size:var(--text-sm);font-weight:600;text-decoration:underline;text-decoration-color:var(--border);text-underline-offset:4px}
+  [data-od-id="sidebar"] .actor-link:hover{background:var(--surface);color:var(--fg);text-decoration-color:var(--fg)}
+  [data-od-id="sidebar"] .special-topic{margin-top:16px;padding:14px;border:1px solid var(--border-soft);border-radius:var(--radius-sm);background:var(--surface-warm)}
+  [data-od-id="sidebar"] .special-topic-name{display:block;color:var(--fg);font-size:var(--text-sm);font-weight:600;line-height:1.35}
+  [data-od-id="sidebar"] .special-topic-scope{display:block;margin-top:3px;color:var(--fg-2);font-size:var(--text-xs);line-height:1.45}
+  [data-od-id="sidebar"] .special-topic-status{margin:12px 0 0;padding-top:10px;border-top:1px solid var(--border-soft);color:var(--muted);font-size:var(--text-xs);line-height:1.45}
+  [data-od-id="sidebar"] .tracked-topics-empty{margin:16px 0 0;color:var(--fg-2);font-size:var(--text-sm);line-height:1.5}
+  @media(min-width:601px) and (max-width:1020px){[data-od-id="sidebar"] [data-od-id="actor-tracking"]{grid-column:1/-1}}
+  
+  /* Conditional negative-news summary, scoped to this panel. */
+  [data-od-id="negative-news-summary"]{margin:20px 0;padding:20px 24px;border:1px solid color-mix(in oklch,var(--danger) 30%,var(--border-soft));border-radius:var(--radius-md);background:color-mix(in oklch,var(--danger) 3%,var(--bg));color:var(--fg)}
+  [data-od-id="negative-news-summary"][hidden]{display:none}
+  [data-od-id="negative-news-summary"] .negative-heading{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+  [data-od-id="negative-news-summary"] h2{margin:0;font:600 var(--text-lg)/1.3 var(--font-display)}
+  [data-od-id="negative-news-summary"] .negative-count{padding:4px 10px;border-radius:var(--radius-pill);background:color-mix(in oklch,var(--danger) 15%,var(--bg));color:var(--fg);font-size:var(--text-xs);font-weight:600}
+  [data-od-id="negative-news-summary"] .negative-context{margin:8px 0 0;color:var(--fg-2);font-size:var(--text-sm);line-height:1.5}
+  [data-od-id="negative-news-summary"] ul{list-style:none;margin:14px 0 0;padding:0}
+  [data-od-id="negative-news-summary"] li{padding:12px 0 0;border-top:1px solid color-mix(in oklch,var(--danger) 15%,var(--border-soft))}
+  [data-od-id="negative-news-summary"] li+li{margin-top:12px}
+  [data-od-id="negative-news-summary"] .negative-source{display:block;color:var(--fg-2);font-size:var(--text-xs);line-height:1.5}
+  [data-od-id="negative-news-summary"] a{display:flex;align-items:center;min-height:44px;padding:6px 0;color:var(--fg);font-size:var(--text-base);font-weight:600;line-height:1.4;text-decoration:underline;text-decoration-color:var(--border);text-underline-offset:4px;overflow-wrap:anywhere}
+  [data-od-id="negative-news-summary"] a:hover{color:var(--fg);text-decoration-color:var(--fg)}
+  [data-od-id="negative-news-summary"] a:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:var(--radius-sm)}
+  @media(max-width:600px){[data-od-id="negative-news-summary"]{padding:18px 16px}}
+
+  /* Compact category shares on a common 0–100 scale. */
+  [data-od-id="identified-categories"] .archive-copy{margin:10px 0 0;font-size:var(--text-sm);line-height:1.5;color:var(--muted)}
+  [data-od-id="identified-categories"] .tone-list{display:grid;gap:18px;margin:20px 0 0}
+  [data-od-id="identified-categories"] .tone-list>div{position:relative;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:baseline;gap:10px;min-width:0;padding:0 0 12px;border:0}
+  [data-od-id="identified-categories"] dt{min-width:0;color:var(--fg-2);font-size:var(--text-sm);font-weight:400;line-height:1.4;overflow-wrap:anywhere}
+  [data-od-id="identified-categories"] dd{margin:0;color:var(--fg);font-size:var(--text-sm);font-weight:600;line-height:1.4;font-variant-numeric:tabular-nums;text-align:right}
+  [data-od-id="identified-categories"] .category-value{white-space:nowrap}
+  [data-od-id="identified-categories"] .category-track{position:absolute;inset:auto 0 0;display:block;height:5px;border-radius:var(--radius-pill);background:var(--border-soft)}
+  [data-od-id="identified-categories"] .category-fill{display:block;height:100%;border-radius:inherit;background:var(--fg-2)}
+</style>
+</head>
+<body>
+<header class="topbar" data-od-id="header">
+  <div class="topbar-inner">
+    <a class="brand-link" href="resumen-diario-media-monitor.html" aria-label="Media Monitor, resumen diario" data-od-id="brand">Media Monitor</a>
+    <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="primary-nav" data-od-id="menu-toggle">Menú</button>
+    <nav class="nav" id="primary-nav" aria-label="Navegación principal" data-od-id="navigation">
+      <a href="resumen-diario-media-monitor.html" aria-current="page">Resumen</a><a href="feed-media-monitor.html">Feed</a><a href="eventos-media-monitor.html">Eventos</a><a href="agenda-media-monitor.html" data-od-id="nav-agenda">Agenda</a><a href="actores-media-monitor.html">Actores</a><a href="consultas-media-monitor.html">Consultas</a><a href="configuracion-media-monitor.html">Configuración</a>
+    </nav>
+  </div>
+</header>
+<main class="page" data-od-id="daily-summary">
+  <div class="content">
+    <section class="digest-header" data-od-id="digest-header">
+      <div class="eyebrow">Resumen diario / BUAP - Lilia Cedillo</div>
+      <h1 data-od-id="digest-date">Domingo 19 de octubre, 2026</h1>
+      <div class="digest-meta"><span>Interpretación actualizada a las 08:00 · siguiente actualización a las 21:00</span></div>
+    </section>
+    <section class="narrative" aria-labelledby="narrative-heading" data-od-id="daily-headline">
+      <div class="eyebrow" id="narrative-heading">Sintesis del día</div>
+      <p style="font-size: 20px;">La BUAP centró la jornada en la gestión del rectorado: el Primer Informe de Labores de la rectora Lilia Cedillo dominó 14 de las 31 notas del día, con un tono institucional positivo y escaso contraste.</p>
+    </section>
+    <section data-od-id="negative-news-summary" aria-labelledby="negative-news-heading" data-example="true">
+      <div class="negative-heading"><h2 id="negative-news-heading">Noticias negativas</h2><span class="negative-count" data-negative-count="">1 noticia · Ejemplo</span></div>
+      <p class="negative-context">Muestra ilustrativa. No representa una detección en tiempo real.</p>
+      <ul data-negative-list="" aria-label="Noticias con sentimiento negativo"><li data-od-id="negative-news-example"><span class="negative-source">NVI Noticias · 19 de octubre de 2026</span><a href="feed-media-monitor.html" data-od-id="negative-example-link">Presupuesto 2027: reclaman mayor aportación a la BUAP</a></li></ul>
+    </section>
+    <section class="section" id="cobertura" data-od-id="coverage">
+      <div class="section-heading"><h2 style="font-weight: 500;">Resumen general <span style="font-weight: 200;">( Tendencia )</span></h2><span class="section-note">fuentes activas</span></div>
+      <div class="summary-grid">
+        <article class="summary-box" data-od-id="media-sentiment" aria-labelledby="media-sentiment-heading">
+          <h3 id="media-sentiment-heading">Noticias</h3>
+          <p class="summary-meta">25 notas registradas</p>
+          <dl class="tone-list" aria-label="Distribución de tono en medios">
+            <div><dt>Positiva</dt><dd>Sin calcular</dd></div>
+            <div><dt>Negativa</dt><dd>Sin calcular</dd></div>
+            <div><dt>Neutra</dt><dd>Sin calcular</dd></div>
+          </dl>
+          <p class="summary-note">Corresponde a las menciones de medios registradas en la ventana del día.</p>
+        </article>
+        <article class="summary-box" data-od-id="social-sentiment" aria-labelledby="social-sentiment-heading">
+          <h3 id="social-sentiment-heading">Redes Sociales</h3>
+          <p class="summary-meta">0 publicaciones cargadas en esta vista · fuente sin conexión</p>
+          <dl class="tone-list" aria-label="Distribución de tono en redes sociales">
+            <div><dt>Positiva</dt><dd>Sin datos</dd></div>
+            <div><dt>Negativa</dt><dd>Sin datos</dd></div>
+            <div><dt>Neutra</dt><dd>Sin datos</dd></div>
+          </dl>
+          <p class="summary-note">Las publicaciones sociales no se incluyen en las 25 notas.</p>
+        </article>
+        <article class="summary-box" data-od-id="field-sentiment" aria-labelledby="field-sentiment-heading">
+          <h3 id="field-sentiment-heading">Datos de Campo</h3>
+          <p class="summary-meta">0 registros cargados en esta vista · carga manual</p>
+          <dl class="tone-list" aria-label="Distribución de tono en datos de campo">
+            <div><dt>Positiva</dt><dd>Sin datos</dd></div>
+            <div><dt>Negativa</dt><dd>Sin datos</dd></div>
+            <div><dt>Neutra</dt><dd>Sin datos</dd></div>
+          </dl>
+          <p class="summary-note">Sin estudio publicado. Esta fuente se actualiza ocasionalmente.</p>
+        </article>
+      </div>
+    </section>
+    
+    
+    <section class="section" id="rectora" data-od-id="rector-coverage" style="transform: translate(-6px, -3px);">
+      <style>
+        [data-od-id="rector-coverage"] .daily-detail-header{padding-bottom:20px;border-bottom:1px solid var(--border-soft)}
+        [data-od-id="rector-coverage"] .daily-detail-header p{margin:8px 0 0;color:var(--muted);font-size:var(--text-sm)}
+        [data-od-id="rector-coverage"] .daily-detail-block{padding-top:24px;min-width:0}
+        [data-od-id="rector-coverage"] .daily-detail-block + .daily-detail-block{margin-top:24px;border-top:1px solid var(--border-soft)}
+        [data-od-id="rector-coverage"] .daily-detail-block h3{margin:0 0 16px;font-family:var(--font-display);font-size:var(--text-lg);line-height:1.3;font-weight:600;letter-spacing:-.01em}
+        [data-od-id="rector-coverage"] .daily-detail-item + .daily-detail-item{margin-top:20px}
+        [data-od-id="rector-coverage"] .daily-detail-item h4{margin:0 0 6px;font-size:var(--text-base);font-weight:600;line-height:1.4;text-wrap:pretty}
+        [data-od-id="rector-coverage"] .daily-detail-item p{margin:0;color:var(--fg-2);font-size:var(--text-sm);line-height:1.6;overflow-wrap:anywhere;text-wrap:pretty}
+        [data-od-id="rector-coverage"] .daily-detail-item .daily-detail-source{margin-top:8px;color:var(--muted)}
+        [data-od-id="rector-coverage"] .daily-detail-list{display:grid;gap:14px;margin:0;padding-left:20px;color:var(--fg-2);font-size:var(--text-sm);line-height:1.6;overflow-wrap:anywhere}
+        [data-od-id="rector-coverage"] .daily-detail-list strong{color:var(--fg);font-weight:600}
+      </style>
+      <header class="daily-detail-header" data-od-id="daily-detail-header">
+        <h2 data-od-id="daily-detail-title">Resumen detallado del día</h2>
+        <p>Ejemplo proporcionado · 22 de octubre</p>
+        <p>Interpretación y seguimiento de la cobertura. Contenido de muestra; las fuentes y los niveles de confianza se reproducen del ejemplo, sin verificación en esta vista.</p>
+      </header>
+      <div class="daily-detail-block" data-od-id="daily-detail-news">
+        <h3>Noticias</h3>
+        <article class="daily-detail-item" data-od-id="daily-detail-culture">
+          <h4>Cultura / Día de Muertos</h4>
+          <p><strong>22 oct.</strong> La rectora inauguró la ofrenda «Cultura, Muerte y Tradición. Altar dedicado a los Artistas Universitarios» en la Casa de la Bóveda. La obra, en tres niveles, fue elaborada por estudiantes de Artes Plásticas y Audiovisuales (ARPA) y talleres de cartonería. Cedillo destacó que el recinto fue históricamente una sede de formación de artistas y convocó a visitar la ofrenda y los eventos de la temporada.</p>
+          <p class="daily-detail-source">Fuente: Boletín BUAP · node/4721. Confianza: alta — fuente oficial directa.</p>
+        </article>
+        <article class="daily-detail-item" data-od-id="daily-detail-environment">
+          <h4>Medioambiente / Centro Histórico</h4>
+          <p><strong>21 oct. · Nota recuperada.</strong> No incluida en la actualización anterior. Colaboración BUAP–Gobierno de la Ciudad para el primer diagnóstico integral de microclima y calidad ambiental del Centro Histórico de Puebla, en el marco de la glosa del segundo informe municipal. Se destaca el papel del arbolado en la mitigación térmica.</p>
+          <p class="daily-detail-source">Fuente: Contraparte · 21 oct. Confianza: alta — declaración oficial de comparecencia.</p>
+        </article>
+        <article class="daily-detail-item" data-od-id="daily-detail-labor">
+          <h4>Pensiones / Relaciones laborales</h4>
+          <p>Sin novedades identificadas en la ventana del ejemplo. La votación en el Consejo sigue prevista para el <strong>28 oct.</strong> La próxima actualización será clave para el seguimiento.</p>
+        </article>
+      </div>
+      <div class="daily-detail-block" data-od-id="daily-detail-agenda">
+        <h3>Agenda</h3>
+        <ul class="daily-detail-list">
+          <li><strong>27 oct. · 13:00 · Nueva, sin nota aún.</strong> Plática «Conectados pero solos: cómo construir una red de apoyo en la universidad». Fuente: X, @BUAPoficial.</li>
+          <li><strong>Hasta el 15 nov. · Nueva, sin nota aún.</strong> Inscripciones abiertas para la exposición «Bestias Eternas», de la literatura clásica a la pintura y la ilustración.</li>
+          <li><strong>22 oct. · 11:00 · Ya en agenda.</strong> Taller «Hablemos de Cáncer de Mama», Aula Magna B, Derecho.</li>
+        </ul>
+      </div>
+      <div class="daily-detail-block" data-od-id="daily-detail-rector">
+        <h3>Rectora Lilia Cedillo</h3>
+        <ul class="daily-detail-list">
+          <li><strong>22 oct. · Ofrenda de Día de Muertos.</strong> Inauguración en la Casa de la Bóveda, descrita en Noticias. Tono institucional y cultural, emotivo y sin polémica en el ejemplo; mensaje sobre la memoria y los artistas universitarios.</li>
+          <li><strong>Expo Hortícola · Ya reportada.</strong> Inaugurada el 21 oct., sin novedades adicionales. El ejemplo sitúa su cierre el 23 oct. y lo llama «hoy», aunque este resumen corresponde al 22 oct. <strong>Fecha de cierre y estado por confirmar.</strong></li>
+          <li><strong>X propio · @LiliaCedilloMX / @LiliaCedilIo.</strong> No se localizaron publicaciones fechables el 22 oct. en el índice de búsqueda, por octava revisión consecutiva. Esto no confirma ausencia de actividad.</li>
+          <li><strong>Facebook propio · MaLiliaCedilloRamirez.</strong> Sin publicaciones nuevas fechables en la vista consultada; el contenido visible sigue siendo el álbum del Primer Informe.</li>
+        </ul>
+      </div>
+      <div class="daily-detail-block" data-od-id="daily-detail-social">
+        <h3>Redes sociales</h3>
+        <div class="daily-detail-item" data-od-id="daily-detail-x">
+          <h4>X · @BUAPoficial</h4>
+          <p>Publicaciones de las 7–14 horas previas, visibles mediante un espejo del índice: agenda y recapitulaciones de notas ya cubiertas sobre el taller de cáncer de mama, Freddy Ortega, Reciclatón y Temporada de Muertos, esta última con referencia a cultura.buap.mx. Sin información material nueva identificada. La publicación sobre el edificio TEZ4 de la Preparatoria Teziutlán circula sin fecha confirmable; podría ser anterior a la ventana. Verificar en la próxima actualización antes de reportarla.</p>
+        </div>
+        <div class="daily-detail-item" data-od-id="daily-detail-facebook">
+          <h4>Facebook · BUAPoficial</h4>
+          <p>Vista previa limitada por inicio de sesión. El post sobre la plataforma de evaluación geriátrica integral sigue sin fecha exacta confirmada. El ejemplo indica que su URL quedó confirmada e identifica la publicación como 1416541037178651, pero no aporta el enlace completo. Pendiente de revisión en la próxima actualización. El resto corresponde al recordatorio SEIIDA (19–30 oct.) y a la exposición de cempasúchil: agenda ya conocida.</p>
+        </div>
+        <div class="daily-detail-item" data-od-id="daily-detail-tiktok">
+          <h4>TikTok</h4>
+          <p>@liliacedilloramirez_, @radiobuap, @buap.esponja y @prepateziutlanbuap: sin vídeos nuevos fechables en el índice para esta ventana. La ausencia de resultados fechables no demuestra ausencia de publicaciones.</p>
+        </div>
+        <div class="daily-detail-item" data-od-id="daily-detail-community">
+          <h4>Denuncias Universitarias (BUAP)</h4>
+          <p>Grupo de 9,1 mil miembros. El ejemplo registra actividad reciente, de hace 25 minutos, pero la vista previa no muestra contenido que pueda fecharse.</p>
+        </div>
+      </div>
+      <div class="daily-detail-block" data-od-id="daily-detail-gaps">
+        <h3>Limitaciones de cobertura</h3>
+        <ul class="daily-detail-list">
+          <li><strong>Acceso limitado.</strong> El entorno descrito en el ejemplo no dispone de navegador. Facebook se consulta solo mediante vistas previas sujetas a inicio de sesión e índices de búsqueda; es una limitación estructural presente también en actualizaciones anteriores.</li>
+          <li><strong>Evaluación geriátrica en Facebook.</strong> Fecha exacta pendiente de confirmación por segunda actualización consecutiva.</li>
+          <li><strong>TEZ4 · Preparatoria Teziutlán.</strong> Fecha de la publicación de X sin confirmar. Verificar antes de reportarla para evitar duplicar un evento anterior.</li>
+          <li><strong>e-consulta, El Sol de Puebla y Milenio.</strong> Sin notas nuevas fechables el 22 oct. identificadas en la ventana del ejemplo, tras revisar las etiquetas. Último contenido localizado: e-consulta, 21 oct.; El Sol de Puebla, 19 oct.</li>
+        </ul>
+      </div>
+    </section>
+    
+    
+  </div>
+  <aside class="sidebar" aria-label="Seguimiento especial, archivo y consultas" data-od-id="sidebar">
+    <section class="sidebar-section" id="archivo" data-od-id="history" aria-labelledby="archive-heading">
+      <h2 id="archive-heading">Historial</h2>
+      
+      
+      <ul class="history-list">
+        <li><button type="button" data-date="2026-10-18" aria-label="Consultar resumen del 18 de octubre de 2026" aria-pressed="false"><span>18 de octubre de 2026</span></button></li>
+        <li><button type="button" data-date="2026-10-17" aria-label="Consultar resumen del 17 de octubre de 2026" aria-pressed="false"><span>17 de octubre de 2026</span></button></li>
+        <li><button type="button" data-date="2026-10-16" aria-label="Consultar resumen del 16 de octubre de 2026" aria-pressed="false"><span>16 de octubre de 2026</span></button></li>
+        <li><button type="button" data-date="2026-10-15" aria-label="Consultar resumen del 15 de octubre de 2026" aria-pressed="false"><span>15 de octubre de 2026</span></button></li>
+      </ul>
+      <div class="archive-feedback" id="archive-feedback" role="status" aria-live="polite" hidden="" data-od-id="archive-feedback"></div>
+      <p class="small-note"><a style="font-weight: 500; border-color: rgb(0, 0, 0);">ver mes anterior -&gt;</a></p>
+    </section>
+    
+    <section class="sidebar-section" data-od-id="identified-categories" aria-labelledby="identified-categories-heading">
+      <h2 id="identified-categories-heading">Categorías identificadas</h2>
+      <p class="archive-copy">Distribución de las 25 noticias del día.</p>
+      <dl class="tone-list" aria-label="Porcentaje de noticias por categoría">
+        <div data-topic="culture" data-od-id="identified-category-culture"><dt>Cultura</dt><dd><span class="category-value">40 %</span><span class="category-track" aria-hidden="true"><span class="category-fill" style="width:40%"></span></span></dd></div>
+        <div data-topic="academic" data-od-id="identified-category-academic"><dt>Academia</dt><dd><span class="category-value">36 %</span><span class="category-track" aria-hidden="true"><span class="category-fill" style="width:36%"></span></span></dd></div>
+        <div data-topic="institutional" data-od-id="identified-category-institutional"><dt>Institucional</dt><dd><span class="category-value">12 %</span><span class="category-track" aria-hidden="true"><span class="category-fill" style="width:12%"></span></span></dd></div>
+        <div data-topic="health" data-od-id="identified-category-health"><dt>Salud</dt><dd><span class="category-value">8 %</span><span class="category-track" aria-hidden="true"><span class="category-fill" style="width:8%"></span></span></dd></div>
+        <div data-topic="finance" data-od-id="identified-category-finance"><dt>Finanzas</dt><dd><span class="category-value">4 %</span><span class="category-track" aria-hidden="true"><span class="category-fill" style="width:4%"></span></span></dd></div>
+      </dl>
+    </section>
+    <section class="sidebar-section" data-od-id="tracked-topics" aria-labelledby="tracked-topics-heading" data-source="configuration">
+      <style>
+        [data-od-id="tracked-topics"] .mentioned-person-link{display:flex;align-items:center;min-height:44px;margin-top:8px;color:var(--fg);font-size:var(--text-sm);font-weight:500;text-decoration:none}
+        [data-od-id="tracked-topics"] .mentioned-person-link:hover{color:var(--fg);text-decoration:underline;text-underline-offset:4px}
+        [data-od-id="tracked-topics"] .mentioned-person-link:focus-visible{outline:2px solid var(--accent);outline-offset:4px;border-radius:var(--radius-sm)}
+      </style>
+      <h2 id="tracked-topics-heading">Personas mencionadas</h2>
+      <div data-od-id="mentioned-person-lilia" style="display:grid;grid-template-columns:36px minmax(0,1fr);gap:10px;align-items:start;margin-top:16px;padding-bottom:16px;border-bottom:1px solid var(--border-soft);">
+        <span aria-hidden="true" style="display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:var(--radius-pill);background:var(--surface);color:var(--fg-2);font-size:var(--text-xs);font-weight:600;">LC</span>
+        <div style="min-width:0;">
+          <strong style="display:block;color:var(--fg);font-family:var(--font-display);font-size:16px;font-weight:600;line-height:1.35;text-wrap:pretty;">Lilia Cedillo Ramírez</strong>
+          <p style="margin:5px 0 0;color:var(--fg-2);font-size:var(--text-sm);line-height:1.5;text-wrap:pretty;">Rectora · BUAP<br><span style="font-variant-numeric:tabular-nums;">14 menciones</span></p>
+          <p style="margin:6px 0 0;color:var(--muted);font-size:var(--text-xs);line-height:1.5;">En el resumen diario · Ejemplo</p>
+        </div>
+      </div>
+      <a class="mentioned-person-link" href="detalle-actor-media-monitor.html" data-od-id="mentioned-person-coverage" aria-label="Ver cobertura de Lilia Cedillo Ramírez">Ver cobertura <span aria-hidden="true" style="margin-left:6px;">→</span></a>
+    </section>
+
+      <section class="sidebar-section" data-od-id="sidebar-day-coverage" aria-labelledby="sidebar-day-coverage-heading">
+      <h2 id="sidebar-day-coverage-heading" data-od-id="sidebar-day-coverage-title">Cobertura del día</h2>
+      <p style="margin:16px 0;color:var(--fg-2);font-size:var(--text-sm);line-height:1.5;"><strong style="display:block;color:var(--fg);font-family:var(--font-display);font-size:var(--text-2xl);line-height:1.1;font-weight:500;font-variant-numeric:tabular-nums;">25</strong><span style="display:block;margin-top:4px;">notas registradas en la jornada</span></p>
+      <dl style="display:grid;gap:12px;margin:0;font-size:var(--text-sm);line-height:1.5;">
+        <div data-od-id="sidebar-day-categories" style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;padding-top:12px;border-top:1px solid var(--border-soft);"><dt style="color:var(--fg-2);">Categorías</dt><dd style="margin:0;font-weight:600;font-variant-numeric:tabular-nums;">5 de 9</dd></div>
+        <div data-od-id="sidebar-day-events" style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 8px;"><dt style="color:var(--fg-2);">Eventos creados</dt><dd style="margin:0;text-align:right;"><strong aria-label="Recuento no disponible">—</strong></dd><dd style="grid-column:1/-1;margin:0;color:var(--muted);font-size:var(--text-xs);">Recuento pendiente</dd></div>
+      </dl>
+      <div data-od-id="sidebar-day-search-terms" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border-soft);">
+        <h3 style="margin:0 0 10px;color:var(--fg);font-size:var(--text-sm);line-height:1.4;font-weight:600;">Por término de búsqueda</h3>
+        <dl style="display:grid;gap:10px;margin:0;font-size:var(--text-sm);line-height:1.5;">
+          <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:2px 8px;" data-od-id="sidebar-day-term-buap"><dt>BUAP</dt><dd style="margin:0;color:var(--muted);">Pendiente</dd></div>
+          <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:2px 8px;" data-od-id="sidebar-day-term-lilia"><dt>Lilia Cedillo</dt><dd style="margin:0;color:var(--muted);">Pendiente</dd></div>
+        </dl>
+      </div>
+    </section>
+  </aside>
+</main>
+<script>
+  const menu = document.querySelector('.menu-toggle');
+  const nav = document.querySelector('.nav');
+  const closeMenu = () => { nav.classList.remove('open'); menu.setAttribute('aria-expanded', 'false'); };
+  menu.addEventListener('click', () => {
+    const open = nav.classList.toggle('open');
+    menu.setAttribute('aria-expanded', String(open));
+  });
+  nav.addEventListener('click', event => { if (event.target.closest('a')) closeMenu(); });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && nav.classList.contains('open')) { closeMenu(); menu.focus(); }
+  });
+  const archiveFeedback = document.getElementById('archive-feedback');
+  const archiveButtons = [...document.querySelectorAll('.history-list button')];
+  const availableDates = new Set(archiveButtons.map(button => button.dataset.date));
+  function showArchiveState(date) {
+    archiveButtons.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.date === date)));
+    archiveFeedback.hidden = false;
+    if (!availableDates.has(date)) {
+      archiveFeedback.innerHTML = '<strong>Fecha no válida</strong><span>Selecciona una de las fechas de ejemplo.</span>';
+    } else {
+      const readableDate = archiveButtons.find(button => button.dataset.date === date).querySelector('span').textContent;
+      archiveFeedback.innerHTML = '<strong>Resumen no disponible</strong><span>No hay un resumen cargado para ' + readableDate + ' en esta versión.</span>';
+    }
+  }
+  archiveButtons.forEach(button => button.addEventListener('click', () => showArchiveState(button.dataset.date)));
+  const requestedDate = new URLSearchParams(location.search).get('fecha');
+  if (requestedDate) showArchiveState(requestedDate);
+</script>
+
+
+
+
+
+
+
+
+
+<script data-od-script="negative-news-summary">
+(() => {
+  const panel = document.querySelector('[data-od-id="negative-news-summary"]');
+  const feed = document.querySelector('[data-od-id="daily-news"]');
+  if (!panel || panel.dataset.example === 'true' || !feed) return;
+  const negativeItems = [...feed.querySelectorAll('.feed-list .news-item')].filter(item =>
+    item.querySelector('.sentiment.negative') && item.querySelector('.news-title')?.textContent.trim()
+  );
+  if (!negativeItems.length) return;
+  const list = panel.querySelector('[data-negative-list]');
+  const count = negativeItems.length;
+  panel.querySelector('[data-negative-count]').textContent = count === 1 ? '1 noticia' : `${count} noticias`;
+  negativeItems.slice(0, 3).forEach(item => {
+    const row = document.createElement('li');
+    const source = document.createElement('span');
+    source.className = 'negative-source';
+    source.textContent = item.querySelector('.feed-channel')?.textContent.trim() || 'Fuente no registrada';
+    const link = document.createElement('a');
+    link.href = item.id ? `#${encodeURIComponent(item.id)}` : '#noticias';
+    link.textContent = item.querySelector('.news-title').textContent.trim();
+    link.setAttribute('aria-label', `${link.textContent}. Ver en el feed de noticias`);
+    row.append(source, link);
+    list.append(row);
+  });
+  if (count > 3) {
+    const note = document.createElement('p');
+    note.className = 'negative-context';
+    note.textContent = `Se muestran 3 de ${count} noticias negativas de la muestra.`;
+    panel.append(note);
+  }
+  panel.hidden = false;
+})();
+</script>
+</body></html>
