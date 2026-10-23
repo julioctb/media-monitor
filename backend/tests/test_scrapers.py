@@ -248,11 +248,10 @@ class TestScraperSettingsApi:
 
 
 class TestWorkerScrapers:
-    def test_scrapers_enabled_from_settings(self, monkeypatch) -> None:
+    def test_scrapers_enabled_from_settings(self) -> None:
         from app import worker
         from app.settings_runtime import EffectiveSettings
 
-        monkeypatch.setattr(worker.settings, "x_provider_api_key", "")
         effective = EffectiveSettings(
             client_id=1, scrapers=("e_consulta", "unknown_scraper")
         )
@@ -261,10 +260,9 @@ class TestWorkerScrapers:
         assert len(scrapers) == 1
         assert scrapers[0]._names == ["e_consulta"]  # unknown filtered, logged
 
-    def test_scrapers_absent_leaves_adapter_out(self, monkeypatch) -> None:
+    def test_scrapers_absent_leaves_adapter_out(self) -> None:
         from app import worker
         from app.settings_runtime import EffectiveSettings
 
-        monkeypatch.setattr(worker.settings, "x_provider_api_key", "")
         adapters = worker.build_adapters(EffectiveSettings(client_id=1))
         assert all(a.name != "scraper" for a in adapters)

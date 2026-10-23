@@ -13,54 +13,61 @@ def _effective(**overrides) -> EffectiveSettings:
     return EffectiveSettings(client_id=1, **overrides)
 
 
-def test_x_provider_disabled_without_key(monkeypatch) -> None:
-    monkeypatch.setattr(worker.settings, "x_provider_api_key", "")
+def test_x_free_mode_uses_index_adapter() -> None:
+    """Default: free mode rides the x_index adapter (no key needed)."""
     adapters = worker.build_adapters(_effective())
     names = [a.name for a in adapters]
-    assert names == ["google_news", "gdelt"]
+    assert names == ["google_news", "x_index", "gdelt"]
 
 
-def test_x_provider_enabled_with_key(monkeypatch) -> None:
-    monkeypatch.setattr(worker.settings, "x_provider_api_key", "secret")
+def test_x_paid_mode_uses_provider_from_settings(monkeypatch) -> None:
+    """paid + stored key: the provider replaces the free index adapter."""
     monkeypatch.setattr(
         worker.settings, "x_provider_base_url", "https://api.twitterapi.io"
     )
     monkeypatch.setattr(worker.settings, "x_provider_rate_per_min", 5.0)
-    adapters = worker.build_adapters(_effective())
+    adapters = worker.build_adapters(_effective(x_mode="paid", x_api_key="secret"))
     names = [a.name for a in adapters]
-    assert names == ["google_news", "gdelt", "x_twitter"]
-    # Construction must not open connections.
-    assert adapters[2].search_url == "https://api.twitterapi.io/twitter/tweet/advanced_search"
+    assert names == ["google_news", "x_twitter", "gdelt"]
+    # Construction must not open connections; key comes from settings.
+    assert adapters[1]._api_key == "secret"
+    assert adapters[1].search_url == "https://api.twitterapi.io/twitter/tweet/advanced_search"
 
 
-def test_gdelt_disabled_by_settings(monkeypatch) -> None:
-    monkeypatch.setattr(worker.settings, "x_provider_api_key", "")
+def test_x_paid_mode_without_key_falls_back(caplog) -> None:
+    """paid with no key never loses coverage: warning + index fallback."""
+    import logging as _logging
+
+    with caplog.at_level(_logging.WARNING, logger="worker"):
+        adapters = worker.build_adapters(_effective(x_mode="paid", x_api_key=None))
+    assert [a.name for a in adapters] == ["google_news", "x_index", "gdelt"]
+    assert any("x_api_key" in record.message for record in caplog.records)
+
+
+def test_gdelt_disabled_by_settings() -> None:
     adapters = worker.build_adapters(_effective(gdelt_enabled=False))
-    assert [a.name for a in adapters] == ["google_news"]
+    assert [a.name for a in adapters] == ["google_news", "x_index"]
 
 
-def test_facebook_pages_disabled_without_config(monkeypatch) -> None:
-    monkeypatch.setattr(worker.settings, "x_provider_api_key", "")
+def test_facebook_pages_disabled_without_config() -> None:
     adapters = worker.build_adapters(_effective())
-    assert [a.name for a in adapters] == ["google_news", "gdelt"]
+    assert [a.name for a in adapters] == ["google_news", "x_index", "gdelt"]
 
 
-def test_facebook_pages_enabled_from_settings(monkeypatch) -> None:
-    monkeypatch.setattr(worker.settings, "x_provider_api_key", "")
+def test_facebook_pages_enabled_from_settings() -> None:
     pages = (FacebookPageTarget(page_id="1001", label="L"),)
     adapters = worker.build_adapters(_effective(facebook_pages=pages))
-    assert [a.name for a in adapters] == ["google_news", "gdelt", "facebook_page"]
+    assert [a.name for a in adapters] == ["google_news", "x_index", "gdelt", "facebook_page"]
     # Construction must not open connections; the public scraper carries
     # the (page_id, label) pairs verbatim.
-    assert adapters[2]._pages == [("1001", "L")]
+    assert adapters[3]._pages == [("1001", "L")]
 
 
-def test_rss_feeds_enabled_from_settings(monkeypatch) -> None:
-    monkeypatch.setattr(worker.settings, "x_provider_api_key", "")
+def test_rss_feeds_enabled_from_settings() -> None:
     adapters = worker.build_adapters(
         _effective(rss_feeds=("https://example.com/feed.xml",))
     )
-    assert [a.name for a in adapters] == ["google_news", "gdelt", "rss_custom"]
+    assert [a.name for a in adapters] == ["google_news", "x_index", "gdelt", "rss_custom"]
 
 
 def test_cycle_sentiment_analyzer_from_pinned_settings() -> None:

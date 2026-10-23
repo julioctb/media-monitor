@@ -195,6 +195,11 @@ class ClientSettingsOut(BaseModel):
     digest_hours: list[int]
     digest_focus_person_id: int | None
     gdelt_enabled: bool
+    # Paid-mode X key is masked: x_api_key is ALWAYS "" on the wire; only
+    # x_api_key_set tells the UI a key is stored.
+    x_mode: Literal["free", "paid"]
+    x_api_key: str
+    x_api_key_set: bool
     facebook_pages: list[FacebookPageTarget]
     rss_feeds: list[str]
     scrapers: list[str]
@@ -218,6 +223,12 @@ class ClientSettingsOut(BaseModel):
             return parse_digest_hours(value)
         return value
 
+    @field_validator("x_api_key", mode="before")
+    @classmethod
+    def _mask_x_api_key(cls, value: object) -> str:
+        """Never serialize the stored key; the UI reads x_api_key_set."""
+        return ""
+
 
 class ClientSettingsUpdate(BaseModel):
     """Partial update; absent fields are kept, null clears optionals."""
@@ -229,6 +240,10 @@ class ClientSettingsUpdate(BaseModel):
     digest_hours: list[int] | None = Field(default=None)
     digest_focus_person_id: int | None = Field(default=None, ge=1)
     gdelt_enabled: bool | None = None
+    # X source mode; x_api_key: non-empty stores, ''/null keeps the stored
+    # key (the GET never returns it, so the masked UI sends '' to keep).
+    x_mode: Literal["free", "paid"] | None = None
+    x_api_key: str | None = Field(default=None, max_length=500)
     facebook_pages: list[FacebookPageTarget] | None = None
     rss_feeds: list[str] | None = None
     scrapers: list[str] | None = None

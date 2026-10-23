@@ -154,6 +154,9 @@ interface ClassifierBreakdown {
 
 type AiProvider = 'local' | 'openai';
 
+/** X mention source: free Google News index or a paid provider API. */
+export type XMode = 'free' | 'paid';
+
 /** One monitored public Facebook page (mirrors FacebookPageTarget). */
 interface FacebookPage {
 	/** Numeric id or slug; the public wall is scraped, no tokens. */
@@ -178,6 +181,12 @@ export interface ClientSettings {
 	ai_api_key: string | null;
 	ai_base_url: string | null;
 	ai_model: string | null;
+	/** Paid-mode X source; see x-mode-settings. */
+	x_mode: XMode;
+	/** Always "" on the wire: the API masks the stored key. */
+	x_api_key: string;
+	/** The only key signal: whether a key is stored. */
+	x_api_key_set: boolean;
 	/** ISO datetime of the last update. */
 	updated_at: string;
 }
@@ -196,6 +205,9 @@ export interface ClientSettingsInput {
 	ai_api_key?: string | null;
 	ai_base_url?: string | null;
 	ai_model?: string | null;
+	x_mode?: XMode;
+	/** Non-empty stores the key; ''/absent keeps the stored one. */
+	x_api_key?: string;
 }
 
 /** Result of POST /api/settings/test-ai (always answers, ok flags success). */

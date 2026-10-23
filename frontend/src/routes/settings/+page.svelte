@@ -2,8 +2,8 @@
 	import { enhance } from '$app/forms';
 
 	import KeywordsPanel from '$lib/components/KeywordsPanel.svelte';
-	import { INPUT_CLS } from '$lib/ui';
-	import type { AvailableScraper, ClientSettings } from '$lib/api';
+	import { BTN_PRIMARY_CLS, INPUT_CLS } from '$lib/ui';
+	import type { AvailableScraper, ClientSettings, XMode } from '$lib/api';
 	import { normalizeFacebookPageRef } from '$lib/facebook-page';
 	import type { PageProps, SubmitFunction } from './$types';
 
@@ -73,6 +73,13 @@
 	let submitting = $state(false);
 	/** Inline per-row URL hints appear once a save persisted (or dropped) rows. */
 	let showRowHints = $state(false);
+
+	// X mode snapshot: like `draft`, a local edit surface published by its own
+	// save; `data` refreshes must not revert an unsaved selection.
+	// svelte-ignore state_referenced_locally
+	let xMode: XMode = $state(data.settings.x_mode);
+	/** Gates the X section's submit while its request is in flight. */
+	let xSaving = $state(false);
 
 	// Registry snapshot from the load: toggles write to `draft`, never to
 	// page data. Intentional snapshot, like `draft` above.
@@ -157,6 +164,21 @@
 			}
 		};
 	};
+
+	/**
+	 * X form: nothing to reset or prune — `reset: false` keeps the typed key
+	 * visible and the stored-key note refreshes from the reloaded data.
+	 */
+	const handleXSubmit: SubmitFunction = () => {
+		xSaving = true;
+		return async ({ update }) => {
+			try {
+				await update({ reset: false });
+			} finally {
+				xSaving = false;
+			}
+		};
+	};
 </script>
 
 <svelte:head>
@@ -170,7 +192,7 @@
 	</p>
 </header>
 
-{#if form && ['save', 'create', 'toggle', 'delete'].includes(form.action ?? '')}
+{#if form && ['save', 'save-x', 'create', 'toggle', 'delete'].includes(form.action ?? '')}
 	<div
 		role={form.ok ? 'status' : 'alert'}
 		class={`mt-4 rounded-lg px-4 py-3 text-sm ring-1 ring-inset ${
@@ -361,7 +383,7 @@
 					</article>
 
 					<article class="source-card source-card--wide">
-						<h3>Redes sociales</h3>
+						<h3>Facebook</h3>
 						<p>Páginas o grupos públicos de Facebook, por URL. Sin tokens: se lee el HTML público.</p>
 						{#if draft.pages.length === 0}
 							<p class="keywords-empty">Sin páginas: agrega la URL de la primera.</p>
@@ -428,6 +450,80 @@
 						>
 							+ Agregar fuente
 						</button>
+					</article>
+
+					<article class="source-card source-card--wide">
+						<h3>X (Twitter)</h3>
+						<p>Elige cómo se obtienen las menciones de X.</p>
+						<span id="x-mode-label" class={LABEL_CLS}>Modo de la fuente</span>
+							<div class="provider-radios" role="radiogroup" aria-labelledby="x-mode-label">
+								<label class="radio-option">
+									<input
+										form="x-save-form"
+										type="radio"
+										name="x_mode"
+										value="free"
+										checked={xMode === 'free'}
+										onchange={() => (xMode = 'free')}
+									/>
+									Gratuito
+								</label>
+								<label class="radio-option">
+									<input
+										form="x-save-form"
+										type="radio"
+										name="x_mode"
+										value="paid"
+										checked={xMode === 'paid'}
+										onchange={() => (xMode = 'paid')}
+									/>
+									API de pago
+								</label>
+							</div>
+
+							{#if xMode === 'free'}
+								<div class="mt-4">
+									<p
+										class="rounded-lg px-4 py-3 text-sm ring-1 ring-inset bg-surface-warm text-ink-2 ring-line"
+									>
+										Modo gratuito: las menciones de X provienen del índice de Google News (site:x.com).
+										Limitaciones: sin autor de la cuenta; cobertura parcial —solo lo que Google indexa
+										(medios y cuentas institucionales, no toda la conversación)—; la publicación puede
+										tardar horas en reflejarse.
+									</p>
+								</div>
+							{/if}
+
+							{#if xMode === 'paid'}
+								<div class="mt-4">
+									<label for="x-api-key" class={LABEL_CLS}>API key</label>
+									<input
+										id="x-api-key"
+										form="x-save-form"
+										name="x_api_key"
+										type="password"
+										placeholder="Dejar vacío para conservar la actual"
+										autocomplete="off"
+										class={INPUT_CLS}
+									/>
+									{#if data.settings.x_api_key_set}
+										<p class="field-hint">API key guardada</p>
+									{:else}
+										<p class="field-hint">Sin key: se usará el modo gratuito como respaldo</p>
+									{/if}
+								</div>
+							{/if}
+
+							<div class="mt-4">
+								<button
+									form="x-save-form"
+									type="submit"
+									disabled={xSaving}
+									class={BTN_PRIMARY_CLS}
+								>
+									Guardar X
+								</button>
+							</div>
 					</article>
 
 					<article class="source-card wip">
@@ -554,5 +650,11 @@
 				<p class="storage-note">Los cambios se aplican al pulsar Guardar configuración.</p>
 			</div>
 		</form>
+
+		<!-- X (Twitter): the UI card lives inside the Fuentes grid above, but the
+			HTML form owner sits here at page level (a form cannot nest inside the
+			main save form); its inputs associate via the form="x-save-form"
+			attribute. Same ?/save-x action and handler as before. -->
+		<form id="x-save-form" method="POST" action="?/save-x" use:enhance={handleXSubmit}></form>
 	</div>
 </div>

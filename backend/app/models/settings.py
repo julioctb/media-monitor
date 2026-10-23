@@ -32,6 +32,11 @@ DEFAULT_RETENTION_DAYS = 365
 # Keep in sync with app.sentiment.api_analyzer.DEFAULT_OPENAI_BASE_URL.
 DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1"
 AI_PROVIDERS = ("local", "openai")
+# X source mode: 'free' rides the Google-News index adapter (x_index),
+# 'paid' targets the twitterapi.io-compatible provider (twitter_x).
+# Enum values enforced at validation time (queries._validate_x_mode);
+# no DB CHECK so the migration stays dialect-agnostic.
+X_MODES = ("free", "paid")
 
 
 class ClientSettings(IntPk, Base):
@@ -87,6 +92,14 @@ class ClientSettings(IntPk, Base):
     gdelt_enabled: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default="1"
     )
+    # X source mode ('free' | 'paid', see X_MODES) and the paid-mode API
+    # key. The key is never serialized: the API exposes x_api_key_set only
+    # (models.settings.ClientSettings.x_api_key_set); empty PUT values keep
+    # the stored key so the masked UI never wipes it by accident.
+    x_mode: Mapped[str] = mapped_column(
+        String(8), nullable=False, default="free", server_default="free"
+    )
+    x_api_key: Mapped[str | None] = mapped_column(String(500), nullable=True)
     facebook_pages: Mapped[list[dict]] = mapped_column(
         JsonType, nullable=False, default=list
     )
@@ -124,3 +137,8 @@ class ClientSettings(IntPk, Base):
 
     def __repr__(self) -> str:
         return f"<ClientSettings id={self.id} client_id={self.client_id}>"
+
+    @property
+    def x_api_key_set(self) -> bool:
+        """Whether a paid-mode X key is stored (the key itself never leaves)."""
+        return bool(self.x_api_key)

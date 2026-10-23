@@ -13,7 +13,7 @@ import type { Actions, PageServerLoad } from './$types';
 
 /** Uniform action result: every branch carries the same keys for the view. */
 interface SettingsActionResult {
-	action: 'save' | 'test-ai';
+	action: 'save' | 'save-x' | 'test-ai';
 	ok: boolean;
 	/** Banner text on save; probe outcome/error on the test action. */
 	message: string;
@@ -57,6 +57,7 @@ function failureFrom(cause: unknown, action: SettingsActionResult['action'], fal
 }
 
 const SAVE_OK_MESSAGE = 'Configuración guardada.';
+const X_SAVE_OK_MESSAGE = 'Configuración de X guardada.';
 
 function text(form: FormData, key: string): string {
 	const value = form.get(key);
@@ -191,6 +192,26 @@ export const actions: Actions = {
 			);
 		} catch (cause) {
 			return failureFrom(cause, 'test-ai', 'No se pudo contactar la prueba del proveedor.');
+		}
+	},
+
+	// Dedicated X-source action: the section owns its form (never nested in
+	// the page form), so its PUT is PARTIAL — only these two keys travel and
+	// every absent setting keeps its stored value.
+	'save-x': async ({ request }) => {
+		const form = await request.formData();
+		const x_mode = text(form, 'x_mode');
+		if (x_mode !== 'free' && x_mode !== 'paid') {
+			return failure('save-x', 400, 'Elige el modo de X: gratuito o API de pago.');
+		}
+
+		try {
+			// Empty key travels as '': the API masks the stored value on GET,
+			// so '' is the documented keep-the-current sentinel, not a clear.
+			await updateClientSettings({ x_mode, x_api_key: text(form, 'x_api_key') });
+			return actionResult('save-x', true, X_SAVE_OK_MESSAGE);
+		} catch (cause) {
+			return failureFrom(cause, 'save-x', 'No se pudo guardar la configuración de X.');
 		}
 	},
 
