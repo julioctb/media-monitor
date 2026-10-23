@@ -18,7 +18,7 @@ const mounted: Array<Record<string, unknown>> = [];
 
 type HomeData = PageProps['data'];
 
-function renderPage(data: HomeData): { text: () => string } {
+function renderPage(data: HomeData): { text: () => string; container: HTMLElement } {
 	const target = document.createElement('div');
 	document.body.appendChild(target);
 	const instance = mount(HomePage, {
@@ -27,7 +27,10 @@ function renderPage(data: HomeData): { text: () => string } {
 	});
 	mounted.push(instance as unknown as Record<string, unknown>);
 	// Markup wraps lines: collapse whitespace so copy asserts survive reflows.
-	return { text: () => (target.textContent ?? '').replace(/\s+/g, ' ') };
+	return {
+		text: () => (target.textContent ?? '').replace(/\s+/g, ' '),
+		container: target
+	};
 }
 
 function emptyDayData(): HomeData {
@@ -94,4 +97,26 @@ it('renders the narrative and hides the placeholder once the digest exists', () 
 	expect(text()).toContain('Narrativa editorial del día.');
 	expect(text()).not.toContain(PLACEHOLDER);
 	expect(text()).toContain('Interpretación actualizada a las');
+});
+
+it('lists the active keywords in the digest header', () => {
+	const data = {
+		...emptyDayData(),
+		summary: summaryFixture(),
+		keywords: [
+			{ id: 7, text: 'BUAP', is_active: true },
+			{ id: 9, text: 'Lilia Cedillo', is_active: true }
+		]
+	} as never;
+	const { text } = renderPage(data);
+
+	const header = container.querySelector('.digest-header')?.textContent ?? '';
+	expect(header).toContain('Palabras clave');
+	expect(header).toContain('BUAP · Lilia Cedillo');
+});
+
+it('omits the keyword line when the day has no active keywords', () => {
+	const { container } = renderPage({ ...emptyDayData(), summary: summaryFixture() });
+
+	expect(container.querySelector('.digest-keywords')).toBeNull();
 });

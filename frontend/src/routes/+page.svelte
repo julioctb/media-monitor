@@ -70,6 +70,14 @@
 		return name ? `Resumen diario / BUAP - ${name}` : 'Resumen diario / BUAP';
 	});
 
+	/** Header keyword line: the active terms that fed today's capture. */
+	const keywordsLine = $derived(
+		data.keywords
+			.filter((keyword) => keyword.is_active)
+			.map((keyword) => keyword.text)
+			.join(' · ')
+	);
+
 	/** Categorías identificadas: top 5 shares over the day's real total. */
 	const categoryRowsTop = $derived(
 		categoryRows(data.liveCoverage?.byTopic, data.liveCoverage?.total).slice(0, 5)
@@ -106,6 +114,11 @@
 		<section class="digest-header" aria-labelledby="digest-date">
 			<div class="eyebrow">{eyebrow}</div>
 			<h1 id="digest-date">{formatLongDate(summary?.summary_date ?? day)}</h1>
+			{#if keywordsLine}
+				<p class="digest-keywords">
+					<strong>Palabras clave:</strong> {keywordsLine}
+				</p>
+			{/if}
 			<div class="digest-meta">
 				{#if summary}
 					<span>
