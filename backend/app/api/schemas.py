@@ -359,6 +359,33 @@ class SummaryDayOut(BaseModel):
     mode: str
 
 
+class SummaryRevisionOut(BaseModel):
+    """One stored narrative revision (append-only build history)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    seq: int
+    summary_date: date
+    narrative: str
+    mode: str
+    created_at: datetime
+
+
+class SummaryRevisionDayOut(BaseModel):
+    """Index row: a day with stored revisions and how many."""
+
+    summary_date: date
+    count: int
+    last_at: datetime
+
+
+class SummaryRevisionRestoreRequest(BaseModel):
+    """Body of POST /summary-revisions/restore."""
+
+    day: date
+    seq: int
+
+
 class SummaryGenerateRequest(BaseModel):
     """Optional body of POST /summaries/generate; null/absent date = today."""
 

@@ -737,3 +737,24 @@ def test_window_extension_persists_across_rebuilds(session):
     row2 = build_daily_summary(session, client_id=client.id, day=DAY.date())
     assert row2.content["window"]["from"] == first_window
     assert end > start
+
+
+def test_every_build_logs_a_narrative_revision(session):
+    """summary-revisions: append per build, seq grows, prose preserved."""
+    from sqlalchemy import select
+
+    from app.models import DailySummaryRevision
+
+    client = add_client(session)
+    first = build_daily_summary(session, client_id=client.id, day=DAY.date())
+    second = build_daily_summary(session, client_id=client.id, day=DAY.date())
+
+    rows = session.scalars(
+        select(DailySummaryRevision)
+        .where(DailySummaryRevision.client_id == client.id)
+        .order_by(DailySummaryRevision.seq)
+    ).all()
+    assert [revision.seq for revision in rows] == [1, 2]
+    assert [revision.mode for revision in rows] == ["heuristic", "heuristic"]
+    assert rows[0].narrative == first.narrative
+    assert rows[1].narrative == second.narrative

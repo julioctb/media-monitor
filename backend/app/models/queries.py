@@ -23,6 +23,7 @@ from app.models import (
     Client,
     ClientSettings,
     DailySummary,
+    DailySummaryRevision,
     Event,
     IngestCursor,
     IngestRun,
@@ -1608,4 +1609,51 @@ def get_agenda_item(
         select(AgendaItem).where(
             AgendaItem.id == item_id, AgendaItem.client_id == client_id
         )
+    )
+
+
+# ------------------------------------------------------- summary revisions
+
+
+def summary_revision_days(session: Session, client_id: int) -> list[dict]:
+    """Days with stored narrative revisions, newest first, with counts."""
+    rows = session.execute(
+        select(
+            DailySummaryRevision.summary_date,
+            func.count().label("count"),
+            func.max(DailySummaryRevision.created_at).label("last_at"),
+        )
+        .where(DailySummaryRevision.client_id == client_id)
+        .group_by(DailySummaryRevision.summary_date)
+        .order_by(DailySummaryRevision.summary_date.desc())
+    ).all()
+    return [
+        {"summary_date": r.summary_date, "count": r.count, "last_at": r.last_at}
+        for r in rows
+    ]
+
+
+def list_summary_revisions(
+    session: Session, client_id: int, day: date
+) -> list[DailySummaryRevision]:
+    """One day's revisions, oldest first (build order)."""
+    return list(
+        session.scalars(
+            select(DailySummaryRevision)
+            .where(
+                DailySummaryRevision.client_id == client_id,
+                DailySummaryRevision.summary_date == day,
+            )
+            .order_by(DailySummaryRevision.seq)
+        )
+    )
+
+
+def get_summary_revision(
+    session: Session, client_id: int, day: date, seq: int
+) -> DailySummaryRevision | None:
+    return (
+        session.query(DailySummaryRevision)
+        .filter_by(client_id=client_id, summary_date=day, seq=seq)
+        .first()
     )

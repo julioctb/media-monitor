@@ -611,6 +611,109 @@ html {
 	gap: 12px;
 }
 
+/* --- Revisiones: historial de narrativas por día --- */
+.revisions-layout {
+	display: grid;
+	grid-template-columns: 240px minmax(0, 1fr);
+	gap: 24px;
+	align-items: start;
+}
+.revisions-days ul {
+	margin: 8px 0 0;
+	padding: 0;
+	list-style: none;
+}
+.revisions-days a {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	padding: 8px 10px;
+	border-radius: 8px;
+	color: var(--color-ink-2);
+	font-size: 13px;
+}
+.revisions-days a:hover,
+.revisions-days a[aria-current='page'] {
+	background: var(--color-surface);
+	color: var(--color-ink);
+}
+.revisions-count {
+	padding: 1px 8px;
+	border-radius: 980px;
+	background: var(--color-surface);
+	color: var(--color-ink-2);
+	font-size: 11px;
+	font-weight: 600;
+}
+.revisions-panel h2 {
+	margin: 0;
+	font: 600 21px / 1.3 var(--font-display);
+}
+.revisions-list {
+	margin: 14px 0 0;
+	padding: 0;
+	list-style: none;
+	display: grid;
+	gap: 14px;
+}
+.revision-card {
+	padding: 16px 18px;
+	border: 1px solid var(--color-line-soft);
+	border-radius: 12px;
+	background: #fff;
+}
+.revision-card header {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	color: var(--color-muted);
+	font-size: 12px;
+}
+.revision-seq {
+	font-weight: 700;
+	color: var(--color-ink-2);
+}
+.revision-mode {
+	padding: 2px 8px;
+	border: 1px solid var(--color-line-soft);
+	border-radius: 980px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+.revision-text {
+	margin: 10px 0 0;
+	color: var(--color-ink);
+	font-size: 15px;
+	line-height: 1.6;
+	text-wrap: pretty;
+}
+.revision-restore {
+	margin-top: 10px;
+	padding: 6px 14px;
+	border: 1px solid var(--color-line);
+	border-radius: 8px;
+	background: #fff;
+	color: var(--color-ink);
+	font-size: 13px;
+	font-weight: 600;
+	cursor: pointer;
+}
+.revision-restore:hover {
+	background: var(--color-surface);
+}
+.revisions-flash {
+	margin: 12px 0 0;
+	font-size: 13px;
+}
+.revisions-flash.ok {
+	color: var(--color-ink-2);
+}
+.revisions-flash.error {
+	color: var(--color-danger);
+}
+
 /* --- Resumen detallado: narrative blocks, no cards --- */
 .daily-detail-header {
 	padding-bottom: 20px;

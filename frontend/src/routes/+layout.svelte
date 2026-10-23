@@ -21,6 +21,7 @@
 		{ label: 'Consultas', href: '/consultas' },
 		{ label: 'Estadísticas', href: '/stats' },
 		{ label: 'Búsquedas', href: '/saved-searches' },
+		{ label: 'Revisiones', href: '/revisiones' },
 		{ label: 'Configuración', href: '/settings' }
 	];
 

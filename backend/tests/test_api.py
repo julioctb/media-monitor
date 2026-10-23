@@ -966,3 +966,71 @@ def test_stats_day_uses_local_day_bounds(api, db) -> None:
     resp = api.get("/api/stats/day", params={"date": "2026-10-22"})
     assert resp.status_code == 200
     assert resp.json()["tones"]["media"]["total"] == 1
+
+
+class TestSummaryRevisions:
+    def _seed_day(self, db, client_id: int, day=None) -> None:
+        from datetime import date
+
+        from app.models import DailySummary, DailySummaryRevision
+
+        summary_date = day or date(2026, 10, 23)
+        db.add(
+            DailySummary(
+                client_id=client_id,
+                summary_date=summary_date,
+                content={"schema": 2},
+                narrative="versión vigente",
+                mode="heuristic",
+            )
+        )
+        for seq, text in ((1, "primera versión"), (2, "segunda versión")):
+            db.add(
+                DailySummaryRevision(
+                    client_id=client_id,
+                    summary_date=summary_date,
+                    seq=seq,
+                    narrative=text,
+                    mode="heuristic",
+                )
+            )
+        db.commit()
+
+    def test_index_and_day_listing(self, api, db) -> None:
+        from datetime import date
+
+        client_id = first_client_id(db)
+        self._seed_day(db, client_id)
+        days = api.get(f"/api/clients/{client_id}/summary-revisions").json()
+        assert len(days) == 1
+        assert days[0]["summary_date"] == "2026-10-23"
+        assert days[0]["count"] == 2
+
+        rows = api.get(f"/api/clients/{client_id}/summary-revisions/2026-10-23").json()
+        assert [row["seq"] for row in rows] == [1, 2]
+        assert rows[0]["narrative"] == "primera versión"
+
+    def test_restore_updates_the_live_row(self, api, db) -> None:
+        client_id = first_client_id(db)
+        self._seed_day(client_id=client_id, db=db)
+
+        def restore(seq: int):
+            return api.post(
+                f"/api/clients/{client_id}/summary-revisions/restore",
+                json={"day": "2026-10-23", "seq": seq},
+            )
+
+        assert restore(1).status_code == 200
+        row = api.get(f"/api/clients/{client_id}/summaries/2026-10-23").json()
+        assert row["narrative"] == "primera versión"
+
+        # Unknown seq/day → 404; the live row stays untouched.
+        assert restore(9).status_code == 404
+        assert restore.__name__ == "restore"  # sanity: closure usable
+        other = api.post(
+            f"/api/clients/{client_id}/summary-revisions/restore",
+            json={"day": "2025-01-01", "seq": 1},
+        )
+        assert other.status_code == 404
+        row = api.get(f"/api/clients/{client_id}/summaries/2026-10-23").json()
+        assert row["narrative"] == "primera versión"

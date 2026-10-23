@@ -797,6 +797,55 @@ export function listSummaryDays(options: RequestOptions = {}): Promise<SummaryDa
 	return request<SummaryDayRef[]>('/api/clients/1/summaries', { method: 'GET' }, options);
 }
 
+/* ------------------------- narrative revisions ---------------------------- */
+
+/** One stored narrative revision (build history, append-only). */
+export interface SummaryRevision {
+	seq: number;
+	summary_date: string;
+	narrative: string;
+	mode: SummaryMode;
+	created_at: string;
+}
+
+/** Index row: a day with stored revisions and how many. */
+export interface SummaryRevisionDay {
+	summary_date: string;
+	count: number;
+	last_at: string;
+}
+
+export function listSummaryRevisionDays(options: RequestOptions = {}): Promise<SummaryRevisionDay[]> {
+	return request<SummaryRevisionDay[]>(
+		'/api/clients/1/summary-revisions',
+		{ method: 'GET' },
+		options
+	);
+}
+
+export function listSummaryRevisions(
+	day: string,
+	options: RequestOptions = {}
+): Promise<SummaryRevision[]> {
+	return request<SummaryRevision[]>(
+		`/api/clients/1/summary-revisions/${day}`,
+		{ method: 'GET' },
+		options
+	);
+}
+
+export function restoreSummaryRevision(
+	day: string,
+	seq: number,
+	options: RequestOptions = {}
+): Promise<DailySummary> {
+	return request<DailySummary>(
+		'/api/clients/1/summary-revisions/restore',
+		jsonInit('POST', { day, seq }),
+		options
+	);
+}
+
 /** Builds (or regenerates) the summary; no date = today in the client tz. */
 export function generateDailySummary(
 	day?: string | null,
