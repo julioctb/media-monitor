@@ -137,6 +137,35 @@ describe('DigestSections v2', () => {
 		expect(plain!.querySelector('.daily-detail-negative')).toBeNull();
 	});
 
+	it('stamps the local date, recovered tag and justified confidence', () => {
+		const content = digestFixture();
+		content.noticias![0].when_label = '22 oct.';
+		content.noticias![0].repeat = true;
+		content.noticias![0].confidence_note = 'fuente oficial directa';
+		const host = renderSection(content);
+		const entry = [...host.querySelectorAll('.daily-detail-entry')][0];
+		expect(entry!.textContent).toContain('22 oct. · Nota recuperada — ');
+		expect(entry!.querySelector('.daily-detail-source')?.textContent).toContain(
+			'Confianza: media — fuente oficial directa'
+		);
+	});
+
+	it('lists silent themes under noticias and accounts under redes', () => {
+		const content = digestFixture();
+		content.temas_sin_nota = ['Pensiones / Relaciones laborales'];
+		(content.redes ?? {}).x = {
+			count: 2,
+			note: 'Actividad cubierta por notas del día.',
+			cuentas: [{ cuenta: '@BUAPoficial', nota: 'solo recapitulaciones' }]
+		};
+		const host = renderSection(content);
+		const tema = host.querySelector('.daily-detail-tema');
+		expect(tema?.querySelector('h4')?.textContent).toBe('Pensiones / Relaciones laborales');
+		expect(tema?.textContent).toContain('Sin novedades identificadas');
+		const cuenta = host.querySelector('.daily-detail-cuenta');
+		expect(cuenta?.textContent).toContain('@BUAPoficial — solo recapitulaciones');
+	});
+
 	it('renders agenda, rectora activity and limitations', () => {
 		const host = renderSection(digestFixture());
 		const text = host.textContent ?? '';

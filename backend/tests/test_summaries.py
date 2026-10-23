@@ -92,8 +92,9 @@ def test_heuristic_builder_shape_v2(session):
     }
     assert content["rectora"]["person_id"] is None
     assert content["redes"]["x"]["count"] == 0
-    # Pending: the silent keyword, human-readable.
-    assert any("sin datos" in p for p in content["pendientes"])
+    # The silent keyword feeds the temas block; limitaciones = coverage gaps.
+    assert content["temas_sin_nota"] == ["sin datos"]
+    assert content["pendientes"] == content["coverage"]["gaps"]
     # Plain text render for RAG: sectioned, deterministic.
     plain = content["plain_text"]
     assert "NOTICIAS" in plain
@@ -339,14 +340,41 @@ def test_apply_narrative_v2_blocks_tolerate_legacy_content():
             "headline": "h",
             "agenda": [{"when": "27 oct.", "title": "Taller"}],
             "rectora": {"activity": [{"text": "nota"}], "tone": "neutral"},
-            "redes": {"x": {"note": "n"}},
+            "redes": {
+                "x": {
+                    "note": "n",
+                    "cuentas": [
+                        {"cuenta": "@BUAPoficial", "nota": "sin novedades"},
+                        {"nota": "sin cuenta, se descarta"},
+                    ],
+                }
+            },
         },
     )
     assert errors == []
     assert content["rectora"]["tone"] == "neutral"
     assert content["redes"]["x"]["note"] == "n"
+    assert content["redes"]["x"]["cuentas"] == [{"cuenta": "@BUAPoficial", "nota": "sin novedades"}]
     assert "agenda" not in content  # legacy shape untouched
     assert "activity" not in content["rectora"]
+
+
+def test_apply_narrative_confidence_note_lands_on_the_item():
+    content = {
+        "schema": 2,
+        "coverage": {},
+        "noticias": [{"event_id": 1, "confidence": "alta", "sources": []}],
+        "rectora": {},
+        "redes": {},
+        "personas": [],
+        "pendientes": [],
+    }
+    errors = apply_narrative(
+        content,
+        {"items": [{"index": 0, "confidence_note": "fuente oficial directa"}]},
+    )
+    assert errors == []
+    assert content["noticias"][0]["confidence_note"] == "fuente oficial directa"
 
 
 def test_empty_day_stays_heuristic_and_lists_pending(session):
@@ -364,7 +392,9 @@ def test_empty_day_stays_heuristic_and_lists_pending(session):
     assert "Sin cobertura para: BUAP." in row.narrative
     assert row.content["coverage"]["total"] == 0
     assert row.content["noticias"] == []
-    assert any("BUAP" in p for p in row.content["pendientes"])
+    # Silent keywords became the temas block; limitaciones = coverage gaps.
+    assert row.content["temas_sin_nota"] == ["BUAP"]
+    assert any("sin cobertura" in p for p in row.content["pendientes"])
 
 
 def test_summary_generator_gating():

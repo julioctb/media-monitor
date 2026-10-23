@@ -703,6 +703,10 @@ export interface DigestNewsItem {
 	sources: DigestSourceRef[];
 	/** alta | media | baja — rule-based, never LLM-authored. */
 	confidence?: string;
+	/** LLM one-liner justifying the confidence («fuente oficial directa»). */
+	confidence_note?: string | null;
+	/** Local-day stamp of the latest mention («22 oct.»); deterministic. */
+	when_label?: string | null;
 	/** The event circulated in a previous edition; cover as reiteration. */
 	repeat?: boolean;
 	person_ids?: number[];
@@ -747,9 +751,16 @@ export interface DailySummaryContent {
 		watch?: string | null;
 		gaps?: string;
 	};
-	redes?: Record<string, { count: number; note?: string }>;
+	redes?: Record<string, {
+		count: number;
+		note?: string;
+		/** Per-account follow-ups (LLM); absent on legacy rows. */
+		cuentas?: { cuenta: string; nota?: string }[];
+	}>;
 	personas?: DigestPersonItem[];
 	pendientes?: string[];
+	/** Active keywords with zero mentions: the «sin novedades» themes. */
+	temas_sin_nota?: string[];
 	/** Plain-text render of the whole digest, kept for the RAG chat. */
 	plain_text?: string;
 }

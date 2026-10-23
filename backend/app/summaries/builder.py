@@ -69,16 +69,20 @@ SYSTEM_PROMPT = (
     "Eres editor de monitoreo de medios. Recibes los HECHOS verificados del "
     "día en JSON (noticias, rectora, redes, personas). Devuelve EXCLUSIVAMENTE "
     "un objeto JSON con: headline (1-2 oraciones ejecutivas del día), items "
-    "[{index, summary, why_it_matters}] para las noticias que lo requieran, y "
-    "rectora {tone, watch, activity}: activity es el seguimiento narrativo de "
-    "la persona focal, lista [{when, status, text, channel}] con cuándo/qué, "
-    "estado y canal cuando aplique (omítela si no hay nada que vigilar). "
-    "Incluye además agenda: lista [{when, status, title, source}] de eventos o "
-    "citas futuras visibles en los datos (when y title literales, sin inventar "
-    "fechas), y redes: {<fuente>: {note}} con una nota narrativa por red con "
-    "datos; nota vacía o ausente cuando nada sea fechable. Prohibido inventar "
-    "datos, fuentes o títulos: usa únicamente los hechos. Español "
-    "periodístico, máximo 2 oraciones por campo."
+    "[{index, summary, why_it_matters, confidence_note}] para las noticias "
+    "que lo requieran; confidence_note justifica la confianza en<=6 palabras "
+    "(ej. «fuente oficial directa») y es opcional; y rectora {tone, watch, "
+    "activity}: activity es el seguimiento narrativo de la persona focal, "
+    "lista [{when, status, text, channel}] con cuándo/qué, estado y canal "
+    "cuando aplique (omítela si no hay nada que vigilar). Incluye además "
+    "agenda: lista [{when, status, title, source}] de eventos o citas futuras "
+    "visibles en los datos (when y title literales, sin inventar fechas), y "
+    "redes: {<fuente>: {note, cuentas}} donde note es la nota narrativa de la "
+    "red y cuentas es la lista [{cuenta, nota}] con una entrada POR CUENTA "
+    "rastreada con datos o hallazgos (estado, pendientes de verificación); "
+    "nota vacía o ausente cuando nada sea fechable, y omite cuentas sin nada "
+    "que decir. Prohibido inventar datos, fuentes o títulos: usa únicamente "
+    "los hechos. Español periodístico, máximo 2 oraciones por campo."
 )
 
 
@@ -321,7 +325,11 @@ def build_daily_summary(
         "date": day.isoformat(),
         "timezone": effective.timezone,
     }
-    content["pendientes"] = [f"«{name}» sin menciones" for name in silent]
+    content["temas_sin_nota"] = silent
+    # Limitaciones: the coverage gaps (tracked sources silent in the window).
+    # Silent keywords moved to temas_sin_nota (Noticias block); legacy rows
+    # keep keywords here and render unchanged.
+    content["pendientes"] = list(content["coverage"]["gaps"])
     if window_extended:
         # Persist the extended bounds: later cuts rebuild with the same
         # window instead of dropping the rescued late-evening tail.

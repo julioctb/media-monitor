@@ -698,6 +698,23 @@ html {
 .daily-detail-negative strong {
 	color: var(--color-danger);
 }
+/* Recovered/date prefix rides inline, muted, before the review text. */
+.daily-detail-entry p:first-child {
+	color: var(--color-ink);
+}
+/* Per-account follow-ups under the network note. */
+.daily-detail-cuenta {
+	margin-top: 4px;
+	font-size: 13px;
+	color: var(--color-ink-2);
+}
+/* «Sin novedades» themes close the noticias block. */
+.daily-detail-tema h4 {
+	color: var(--color-muted);
+}
+.daily-detail-negative strong {
+	color: var(--color-danger);
+}
 .daily-detail-item .daily-detail-source {
 	margin-top: 8px;
 	color: var(--color-muted);

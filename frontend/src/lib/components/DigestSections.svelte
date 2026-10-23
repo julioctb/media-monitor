@@ -58,12 +58,26 @@
 
 	const negativeIds = $derived(new Set(negativeEvents.map((event) => event.event_id)));
 
+	/** Inline entry prefix: local-day stamp plus the recovered-note tag. */
+	function entryPrefix(item: DigestNewsItem): string {
+		const parts: string[] = [];
+		if (item.when_label) parts.push(item.when_label);
+		if (item.repeat) parts.push('Nota recuperada');
+		return parts.length > 0 ? `${parts.join(' · ')} — ` : '';
+	}
+
 	/** «Fuente: … Confianza: …» line; null when the item carries neither. */
 	function sourceLine(item: DigestNewsItem): string | null {
 		const parts: string[] = [];
 		const labels = [...new Set((item.sources ?? []).map((source) => sourceLabel(source.source)))];
 		if (labels.length > 0) parts.push(`Fuente: ${labels.join(' · ')}`);
-		if (item.confidence) parts.push(`Confianza: ${item.confidence}`);
+		if (item.confidence) {
+			parts.push(
+				item.confidence_note
+					? `Confianza: ${item.confidence} — ${item.confidence_note}`
+					: `Confianza: ${item.confidence}`
+			);
+		}
 		return parts.length > 0 ? `${parts.join('. ')}.` : null;
 	}
 
@@ -74,6 +88,7 @@
 		key: string;
 		label: string;
 		note: string;
+		cuentas?: { cuenta: string; nota?: string }[];
 	}
 
 	/**
@@ -86,14 +101,18 @@
 		const entries: RedesEntry[] = [];
 		for (const [key, info] of redes) {
 			const note = typeof info?.note === 'string' ? info.note.trim() : '';
+			const cuentas = Array.isArray(info?.cuentas) ? info.cuentas : [];
 			if (note) {
-				entries.push({ key, label: socialLabels[key] ?? sourceLabel(key), note });
+				entries.push({ key, label: socialLabels[key] ?? sourceLabel(key), note, cuentas });
 			} else if ((info?.count ?? 0) === 0 && (key === 'x' || (key === 'facebook_page' && socialLabels[key]))) {
 				entries.push({ key, label: socialLabels[key] ?? sourceLabel(key), note: REDES_EMPTY_NOTE });
 			}
 		}
 		return entries;
 	});
+
+	/** Active keywords without mentions: the «sin novedades» theme rows. */
+	const temasSinNota = $derived(content.temas_sin_nota ?? []);
 
 	/** Detail h3: focus person when identified, generic label otherwise. */
 	const rectoraHeading = $derived.by(() => {
@@ -103,6 +122,7 @@
 
 	const hasDetail = $derived(
 		newsByTopic.length > 0 ||
+			temasSinNota.length > 0 ||
 			agenda.length > 0 ||
 			activity.length > 0 ||
 			pendientes.length > 0 ||
@@ -195,7 +215,7 @@
 			<h2 id="daily-detail-heading">Resumen detallado del día</h2>
 			<p>Interpretación y seguimiento de la cobertura.</p>
 		</header>
-		{#if newsByTopic.length > 0}
+		{#if newsByTopic.length > 0 || temasSinNota.length > 0}
 			<div class="daily-detail-block">
 				<h3>Noticias</h3>
 				{#each newsByTopic as group, gi (`group-${gi}`)}
@@ -210,10 +230,18 @@
 											: ''}
 									</p>
 								{/if}
-								{#if item.summary || item.title}<p>{item.summary ?? item.title}</p>{/if}
+								{#if item.summary || item.title}
+									<p>{entryPrefix(item)}{item.summary ?? item.title}</p>
+								{/if}
 								{#if sourceLine(item)}<p class="daily-detail-source">{sourceLine(item)}</p>{/if}
 							</div>
 						{/each}
+					</div>
+				{/each}
+				{#each temasSinNota as tema (tema)}
+					<div class="daily-detail-item daily-detail-tema">
+						<h4>{tema}</h4>
+						<p>Sin novedades identificadas en la ventana de este resumen.</p>
 					</div>
 				{/each}
 			</div>
@@ -251,6 +279,11 @@
 					<div class="daily-detail-item">
 						<h4>{entry.label}</h4>
 						<p>{entry.note}</p>
+						{#each entry.cuentas ?? [] as cuentaEntry (cuentaEntry.cuenta)}
+							<p class="daily-detail-cuenta">
+								<strong>{cuentaEntry.cuenta}</strong>{cuentaEntry.nota ? ` — ${cuentaEntry.nota}` : ''}
+							</p>
+						{/each}
 					</div>
 				{/each}
 			</div>

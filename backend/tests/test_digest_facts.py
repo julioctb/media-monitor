@@ -74,6 +74,7 @@ def test_groups_event_with_confidence_and_sources(session) -> None:
     item = facts["noticias"][0]
     assert item["event_id"] == event.id
     assert item["confidence"] == "media"  # 2 independent outlets
+    assert item["when_label"] == "17 oct."  # local-day stamp from the mention
     assert {s["source"] for s in item["sources"]} == {"news_rss", "rss_custom"}
     assert item["topic"] == "institutional"
 

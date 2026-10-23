@@ -32,6 +32,38 @@ CONFIDENCE_SCALE = ("alta", "media", "baja")
 
 REQUIRED_SECTIONS = ("coverage", "noticias", "rectora", "redes", "personas", "pendientes")
 
+#: Spanish short months for the per-news date label («17 oct.»).
+ES_SHORT_MONTHS = (
+    "ene",
+    "feb",
+    "mar",
+    "abr",
+    "may",
+    "jun",
+    "jul",
+    "ago",
+    "sep",
+    "oct",
+    "nov",
+    "dic",
+)
+
+
+def es_short_label(dt: datetime, tz_name: str) -> str:
+    """«17 oct.» — local-day label for a mention timestamp.
+
+    The digest window spans one client-day, but the rescued evening tail
+    (morning-cutover) belongs to the previous label, so the stamp comes from
+    the timestamp itself, never from the digest day.
+    """
+    from zoneinfo import ZoneInfo
+
+    try:
+        local = dt.astimezone(ZoneInfo(tz_name))
+    except Exception:  # noqa: BLE001 - a bad stored tz falls back to UTC
+        local = dt.astimezone(timezone.utc)
+    return f"{local.day} {ES_SHORT_MONTHS[local.month - 1]}."
+
 
 def confidence_for(source_count: int) -> str:
     """Auditability rule: independent outlets decide, never the LLM."""
@@ -159,6 +191,11 @@ def build_digest_facts(
                         ],
                         "confidence": "baja",
                         "person_ids": _mention_person_ids(mention),
+                        "when_label": (
+                            es_short_label(mention.published_at, tz)
+                            if mention.published_at
+                            else None
+                        ),
                         "why_it_matters": None,
                     }
                 )
@@ -180,6 +217,14 @@ def build_digest_facts(
                 ],
                 "confidence": confidence_for(len({m.source for m in items})),
                 "person_ids": person_ids,
+                "when_label": max(
+                    (
+                        es_short_label(m.published_at, tz)
+                        for m in items
+                        if m.published_at is not None
+                    ),
+                    default=None,
+                ),
                 # narrative fields, filled by the composer (LLM or heuristic)
                 "why_it_matters": None,
             }
@@ -317,11 +362,13 @@ def apply_narrative(content: dict, payload: object) -> list[str]:
     deterministic sections are never rewritten):
 
         {"headline": str,
-         "items": [{"index": int, "summary": str, "why_it_matters": str}],
+         "items": [{"index": int, "summary": str, "why_it_matters": str,
+                    "confidence_note"?: str}],
          "rectora": {"tone": str, "watch": str,
                      "activity": [{"when?, status?, text, channel?}]},
          "agenda": [{"when, status?, title, source?}],
-         "redes": {<source>: {"note": str} | str}}
+         "redes": {<source>: {"note": str,
+                              "cuentas"?: [{"cuenta": str, "nota": str}]} | str}}
     """
     if not isinstance(content, dict) or not isinstance(payload, dict):
         return ["payload must be an object"]
@@ -339,7 +386,7 @@ def apply_narrative(content: dict, payload: object) -> list[str]:
             target = noticias[index]
             if not isinstance(target, dict):
                 continue
-            for key in ("summary", "why_it_matters"):
+            for key in ("summary", "why_it_matters", "confidence_note"):
                 value = entry.get(key)
                 if isinstance(value, str) and value.strip():
                     target[key] = value.strip()
@@ -391,7 +438,9 @@ def apply_narrative(content: dict, payload: object) -> list[str]:
         if entries:
             content["agenda"] = entries
     # redes narrative note; only for sources the digest tracks, bare
-    # strings tolerated.
+    # strings tolerated. cuentas: optional per-account follow-ups
+    # ({cuenta, nota}); merged only into seeded dict targets so pre-v2
+    # rows keep their shape.
     redes_payload = payload.get("redes")
     if isinstance(redes_payload, dict) and isinstance(content.get("redes"), dict):
         for source, note_payload in redes_payload.items():
@@ -399,11 +448,28 @@ def apply_narrative(content: dict, payload: object) -> list[str]:
             if not isinstance(target, dict):
                 continue
             note = note_payload
+            cuentas = None
             if isinstance(note_payload, dict):
                 note = note_payload.get("note")
+                cuentas = note_payload.get("cuentas")
             note = _clean_str(note)
             if note:
                 target["note"] = note
+            if isinstance(cuentas, list):
+                entries = []
+                for entry in cuentas:
+                    if not isinstance(entry, dict):
+                        continue
+                    cuenta = _clean_str(entry.get("cuenta"))
+                    nota = _clean_str(entry.get("nota"))
+                    if not cuenta:
+                        continue
+                    item: dict[str, str] = {"cuenta": cuenta}
+                    if nota:
+                        item["nota"] = nota
+                    entries.append(item)
+                if entries:
+                    target["cuentas"] = entries
     return validate_digest(content)
 
 
@@ -414,9 +480,12 @@ def render_plain_text(content: dict, narrative: str) -> str:
     for item in content.get("noticias") or []:
         confidence = item.get("confidence") or "?"
         repeat_tag = " (se repite nuevamente)" if item.get("repeat") else ""
-        lines.append(f"- [{confidence}]{repeat_tag} {item.get('title') or '(sin título)'}")
+        when = item.get("when_label")
+        when_tag = f" ({when})" if when else ""
+        lines.append(f"- [{confidence}]{when_tag}{repeat_tag} {item.get('title') or '(sin título)'}")
         if item.get("summary"):
-            lines.append(f"  {item['summary']}")
+            note = f" ({item['confidence_note']})" if item.get("confidence_note") else ""
+            lines.append(f"  {item['summary']}{note}")
         if item.get("why_it_matters"):
             lines.append(f"  Por qué importa: {item['why_it_matters']}")
         sources = ", ".join(
@@ -424,6 +493,12 @@ def render_plain_text(content: dict, narrative: str) -> str:
         )
         if sources:
             lines.append(f"  Fuentes: {sources}")
+    temas = content.get("temas_sin_nota") or []
+    if temas:
+        lines.append("")
+        lines.append("TEMAS SIN NOTA")
+        for name in temas:
+            lines.append(f"- {name}: sin novedades identificadas en la ventana.")
     agenda = content.get("agenda") or []
     if agenda:
         lines.append("")
@@ -448,6 +523,18 @@ def render_plain_text(content: dict, narrative: str) -> str:
             lines.append(f"  Vigilar: {rectora['watch']}")
     else:
         lines.append("- Sin menciones de la persona focal en la ventana.")
+    for source, info in (content.get("redes") or {}).items():
+        if isinstance(info, dict) and info.get("note"):
+            lines.append(f"  {source}: {info['note']}")
+        cuentas = info.get("cuentas") if isinstance(info, dict) else None
+        for entry in cuentas or []:
+            cuenta = entry.get("cuenta")
+            nota = entry.get("nota")
+            line = f"    - {cuenta}" if cuenta else None
+            if line and nota:
+                line += f": {nota}"
+            if line:
+                lines.append(line)
     for entry in rectora.get("activity") or []:
         if not isinstance(entry, dict) or not entry.get("text"):
             continue
