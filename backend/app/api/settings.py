@@ -6,6 +6,7 @@ ok/error payload — it exists to be rendered inline by the dashboard, not
 to raise.
 """
 
+import json
 import time
 
 import httpx
@@ -13,11 +14,14 @@ from fastapi import APIRouter, HTTPException
 
 from app.api.deps import ClientIdDep, SessionDep
 from app.api.schemas import AiProbeRequest, ClientSettingsOut, ClientSettingsUpdate
+from app.enrich.llm import strip_code_fence
 from app.models import queries
 from app.sentiment.api_analyzer import (
     DEFAULT_OPENAI_MODEL,
     ApiSentimentAnalyzer,
 )
+from app.summaries.digest_schema import NarrativePayload, narrative_response_schema
+from app.models.settings import DEFAULT_OPENAI_BASE_URL
 
 router = APIRouter(tags=["settings"])
 
@@ -87,7 +91,6 @@ def probe_ai(payload: AiProbeRequest, *, client: httpx.Client | None = None) -> 
             api_key=payload.api_key,
             base_url=payload.base_url,
             model=payload.model,
-            fallback=None,
             client=client,
             timeout=AI_PROBE_TIMEOUT_S,
             attempts=1,
@@ -115,4 +118,103 @@ def probe_ai(payload: AiProbeRequest, *, client: httpx.Client | None = None) -> 
 @router.post("/settings/test-ai")
 def test_ai_endpoint(payload: AiProbeRequest) -> dict:
     """Probe the sentiment provider; always 200 with ok/error."""
-    return probe_ai(payload)
+    result = probe_ai(payload)
+    if result["ok"] and payload.provider == "openai":
+        # The digest narrative path has its own failure modes (guided
+        # json_schema support, parseable shape); probe it in the same
+        # click so Configuración is the single diagnostic surface.
+        result["narrative"] = probe_narrative(payload)
+    return result
+
+
+_NARRATIVE_PROBE_PROMPT = 'Respondé solo un JSON: {"items": [], "headline": "prueba"}'
+
+
+def _narrative_body(payload: AiProbeRequest, response_format: dict | None) -> dict:
+    body: dict = {
+        "model": payload.model or DEFAULT_OPENAI_MODEL,
+        "messages": [{"role": "user", "content": _NARRATIVE_PROBE_PROMPT}],
+        "temperature": 0,
+    }
+    if response_format is not None:
+        body["response_format"] = response_format
+    return body
+
+
+def probe_narrative(
+    payload: AiProbeRequest,
+    *,
+    client: httpx.Client | None = None,
+    timeout: float = AI_PROBE_TIMEOUT_S,
+) -> dict:
+    """Digest-narrative path probe: guided json_schema, plain fallback.
+
+    ok + json_schema='supported' -> the endpoint took the schema and the
+    answer parses as NarrativePayload (the exact builder contract).
+    ok + 'unsupported' -> schema call failed, plain call worked: the
+    builder retry covers this server; detail carries the schema error.
+    ok False -> neither path worked; error carries the last exception.
+
+    Never raises: the probe reports, the UI renders.
+    """
+    if not payload.api_key:
+        return {"ok": False, "json_schema": None, "latency_ms": None, "detail": None,
+                "error": "api_key is required for the openai provider"}
+    base_url = (payload.base_url or DEFAULT_OPENAI_BASE_URL).rstrip("/")
+    headers = {"Authorization": f"Bearer {payload.api_key}"}
+    owned = client is None
+    client = client or httpx.Client(timeout=timeout)
+
+    def _post(body: dict) -> str:
+        resp = client.post(f"{base_url}/chat/completions", headers=headers, json=body)
+        resp.raise_for_status()
+        content = resp.json()["choices"][0]["message"]["content"]
+        if not isinstance(content, str) or not content.strip():
+            raise ValueError("empty narrative content")
+        return strip_code_fence(content)
+
+    def _elapsed(started: float) -> int:
+        return int((time.perf_counter() - started) * 1000)
+
+    schema_body = {
+        "type": "json_schema",
+        "json_schema": {"name": "digest_narrative", "schema": narrative_response_schema()},
+    }
+    try:
+        started = time.perf_counter()
+        raw = _post(_narrative_body(payload, schema_body))
+        NarrativePayload.model_validate(json.loads(raw))
+        if owned:
+            client.close()
+        return {
+            "ok": True,
+            "json_schema": "supported",
+            "latency_ms": _elapsed(started),
+            "detail": None,
+            "error": None,
+        }
+    except Exception as exc:  # noqa: BLE001 - reported, never raised
+        detail = str(exc) or exc.__class__.__name__
+
+    try:
+        started = time.perf_counter()
+        raw = _post(_narrative_body(payload, None))
+        json.loads(raw)  # without guidance, a parseable object is enough
+        return {
+            "ok": True,
+            "json_schema": "unsupported",
+            "latency_ms": _elapsed(started),
+            "detail": detail,
+            "error": None,
+        }
+    except Exception as exc:  # noqa: BLE001
+        return {
+            "ok": False,
+            "json_schema": None,
+            "latency_ms": None,
+            "detail": detail,
+            "error": str(exc) or exc.__class__.__name__,
+        }
+    finally:
+        if owned:
+            client.close()

@@ -681,6 +681,22 @@
 									{#if form.model}&middot; {form.model}{/if}
 									{#if form.latency_ms !== null}&middot; {form.latency_ms} ms{/if}
 								</p>
+								{#if form.narrative}
+									{#if form.narrative.ok && form.narrative.json_schema === 'supported'}
+										<p class="mt-1 text-xs text-success">
+											Narrativa del digest: schema guiado OK
+											{#if form.narrative.latency_ms !== null}&middot; {form.narrative.latency_ms} ms{/if}
+										</p>
+									{:else if form.narrative.ok}
+										<p class="mt-1 text-xs text-warning">
+											Narrativa del digest: sin json_schema; se regenera sin guía
+										</p>
+									{:else}
+										<p class="mt-1 text-xs text-danger">
+											Narrativa del digest: error{form.narrative.error ? ` — ${form.narrative.error}` : ''}
+										</p>
+									{/if}
+								{/if}
 							{:else}
 								<p class="mt-2 text-xs text-danger">Error: {form.message}</p>
 							{/if}

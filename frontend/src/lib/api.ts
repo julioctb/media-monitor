@@ -233,6 +233,18 @@ export interface AiProbeResult {
 	latency_ms: number | null;
 	label: string | null;
 	error: string | null;
+	/** Digest-narrative path probe; null for local providers. */
+	narrative: AiNarrativeProbeResult | null;
+}
+
+export interface AiNarrativeProbeResult {
+	ok: boolean;
+	/** 'supported' | 'unsupported' | null. */
+	json_schema: string | null;
+	latency_ms: number | null;
+	/** Schema-attempt failure detail when unsupported. */
+	detail: string | null;
+	error: string | null;
 }
 
 export interface AiProbeInput {

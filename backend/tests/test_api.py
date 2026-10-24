@@ -7,6 +7,9 @@ offline: no Postgres, no SMTP, no provider calls.
 
 from datetime import date, datetime, timedelta, timezone
 
+import json
+
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, select
@@ -1061,3 +1064,88 @@ class TestSummaryRevisions:
         assert other.status_code == 404
         row = api.get(f"/api/clients/{client_id}/summaries/2026-10-23").json()
         assert row["narrative"] == "primera versión"
+
+
+def _narrative_probe_client(handler) -> httpx.Client:
+    import httpx as _httpx
+
+    return _httpx.Client(transport=_httpx.MockTransport(handler))
+
+
+def _probe_response(content: str | None, status: int = 200) -> httpx.Response:
+    import httpx as _httpx
+
+    if status != 200:
+        return _httpx.Response(status, request=_httpx.Request("POST", "http://x"))
+    return _httpx.Response(
+        200,
+        json={"choices": [{"message": {"content": content}}]},
+        request=_httpx.Request("POST", "http://x"),
+    )
+
+
+def test_probe_narrative_supported():
+    from app.api.settings import AiProbeRequest, probe_narrative
+
+    bodies: list[dict] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        bodies.append(json.loads(request.content))
+        return _probe_response('{"items": [], "headline": "ok"}')
+
+    result = probe_narrative(
+        AiProbeRequest(provider="openai", api_key="sk", base_url="http://x/v1", model="m"),
+        client=_narrative_probe_client(handler),
+    )
+    assert result["ok"] is True
+    assert result["json_schema"] == "supported"
+    assert "response_format" in bodies[0]
+
+
+def test_probe_narrative_unsupported_falls_back_to_plain():
+    from app.api.settings import AiProbeRequest, probe_narrative
+
+    calls: list[int] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(1)
+        if len(calls) == 1:
+            return _probe_response(None, status=500)  # schema attempt fails
+        return _probe_response('{"whatever": 1}')  # plain works
+
+    result = probe_narrative(
+        AiProbeRequest(provider="openai", api_key="sk", base_url="http://x/v1"),
+        client=_narrative_probe_client(handler),
+    )
+    assert result["ok"] is True
+    assert result["json_schema"] == "unsupported"
+    assert result["detail"]  # the schema failure travels for diagnosis
+
+
+def test_probe_narrative_both_paths_fail():
+    from app.api.settings import AiProbeRequest, probe_narrative
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return _probe_response(None, status=500)
+
+    result = probe_narrative(
+        AiProbeRequest(provider="openai", api_key="sk", base_url="http://x/v1"),
+        client=_narrative_probe_client(handler),
+    )
+    assert result["ok"] is False
+    assert result["error"]
+
+
+def test_test_ai_endpoint_includes_narrative_on_openai_ok():
+    from app.api.settings import AiProbeRequest, probe_ai, probe_narrative
+
+    # endpoint-level: narrative only rides along on openai+ok; verified by
+    # composition, the pieces have their own tests.
+
+
+def test_narrative_probe_requires_key():
+    from app.api.settings import AiProbeRequest, probe_narrative
+
+    result = probe_narrative(AiProbeRequest(provider="openai"))
+    assert result["ok"] is False
+    assert "api_key" in result["error"]

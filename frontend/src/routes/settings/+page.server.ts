@@ -9,6 +9,7 @@ import {
 	testAi,
 	updateClientSettings
 } from '$lib/api';
+import type { AiNarrativeProbeResult } from '$lib/api';
 import { normalizeFacebookPageRef } from '$lib/facebook-page';
 import { handleKeywordCreate, handleKeywordDelete, handleKeywordToggle } from '$lib/keyword-actions';
 import type { Actions, PageServerLoad } from './$types';
@@ -23,10 +24,12 @@ interface SettingsActionResult {
 	model: string | null;
 	latency_ms: number | null;
 	label: string | null;
+	/** Digest-narrative probe; null for local providers / older backends. */
+	narrative?: AiNarrativeProbeResult | null;
 }
 
 type ActionResultExtras = Partial<
-	Pick<SettingsActionResult, 'engine' | 'model' | 'latency_ms' | 'label'>
+	Pick<SettingsActionResult, 'engine' | 'model' | 'latency_ms' | 'label' | 'narrative'>
 >;
 
 /** Probe-shaped defaults so callers only pass the fields they know. */
@@ -225,7 +228,8 @@ export const actions: Actions = {
 					engine: probe.engine,
 					model: probe.model,
 					latency_ms: probe.latency_ms,
-					label: probe.label
+					label: probe.label,
+					narrative: probe.narrative ?? null
 				}
 			);
 		} catch (cause) {
