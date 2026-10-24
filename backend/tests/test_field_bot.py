@@ -1,7 +1,8 @@
-"""Field bot: the guided intake state machine, no network.
+"""Field bot: phone-gated intake, no network.
 
-The conversation must land a review-status report whose intake keeps the
-verbatim answers; identity auto-registers on first contact.
+The allowlist is the door: a shared contact whose phone matches a
+pre-loaded operator binds the account (id + accepted stamp) and opens the
+intake; unknown numbers never persist anything.
 """
 
 import pytest
@@ -34,131 +35,106 @@ class FakeBot(Bot):
     def __init__(self, db) -> None:
         super().__init__("test:token", db_factory=lambda: db, client_id=1)
         self.replies: list[str] = []
+        self.markups: list[dict | None] = []
 
-    def send(self, chat_id: int, text: str) -> None:
+    def send(self, chat_id: int, text: str, reply_markup: dict | None = None) -> None:
         self.replies.append(text)
+        self.markups.append(reply_markup)
 
 
-def _update(text: str, chat: int = CHAT) -> dict:
-    return {"update_id": 1, "message": {"chat": {"id": chat}, "text": text, "from": dict(FROM)}}
+def _text_update(text: str, chat: int = CHAT) -> dict:
+    return {
+        "update_id": 1,
+        "message": {"chat": {"id": chat}, "text": text, "from": dict(FROM)},
+    }
 
 
-def _seed_operator(db, tg_id: int = 42, active: bool = True) -> FieldOperator:
-    operator = FieldOperator(
-        client_id=1, telegram_user_id=tg_id, display_name="Julio", active=active
-    )
+def _contact_update(phone: str, chat: int = CHAT) -> dict:
+    return {
+        "update_id": 2,
+        "message": {
+            "chat": {"id": chat},
+            "contact": {"phone_number": phone},
+            "from": dict(FROM),
+        },
+    }
+
+
+def _seed_operator(db, phone: str = "52 222 123-4567", **overrides) -> FieldOperator:
+    operator = FieldOperator(client_id=1, phone=phone, display_name="Julio", **overrides)
     db.add(operator)
     db.commit()
     return operator
 
 
-def test_full_intake_lands_review_with_verbatim_answers(db):
-    _seed_operator(db)
+def _run_intake(bot: FakeBot) -> None:
+    bot.handle_update(_contact_update("+52 222 123 4567"))  # messy on purpose
+    assert "1/4" in bot.replies[-1]
+    for answer in ("Bache gigante", "Hundimiento fuerte", "Puebla centro", "Hoy 10am"):
+        bot.handle_update(_text_update(answer))
+    bot.handle_update(_text_update("ok"))
+
+
+def test_phone_match_binds_activates_and_intakes(db):
+    operator = _seed_operator(db)
     bot = FakeBot(db)
 
-    bot.handle_update(_update("/start"))
-    assert "1/4" in bot.replies[-1]
-    bot.handle_update(_update("Bache gigante"))
-    assert "2/4" in bot.replies[-1]
-    bot.handle_update(_update("Hundimiento fuerte"))
-    assert "3/4" in bot.replies[-1]
-    bot.handle_update(_update("Puebla centro"))
-    assert "4/4" in bot.replies[-1]
-    bot.handle_update(_update("Hoy a las 10 de la maana"))
-    # summary + confirmation prompt
-    assert "Repaso" in bot.replies[-2]
-    assert "OK" in bot.replies[-1]
+    bot.handle_update(_text_update("/start"))
+    assert "teléfono" in bot.replies[-1]
+    assert bot.markups[-1] is not None  # the contact-share keyboard came along
 
-    bot.handle_update(_update("ok"))
+    _run_intake(bot)
+
+    db.expire_all()
+    bound = db.get(FieldOperator, operator.id)
+    assert bound.telegram_user_id == 42
+    assert bound.active is True
+    assert bound.accepted_at is not None
 
     report = db.scalar(select(FieldReport))
     assert report is not None
     assert report.status == "review"
-    assert report.title == "Bache gigante"
-    assert "Hundimiento fuerte" in (report.content or "")
-    assert report.place == "Puebla centro"
-    assert report.intake["when"] == "Hoy a las 10 de la maana"
-    assert report.mention_id is None  # publication is the queue's job
-
-    operator = db.scalar(select(FieldOperator))
-    assert operator is not None
-    assert operator.telegram_user_id == 42
-    assert operator.display_name == "Julio"
     assert report.operator_id == operator.id
+    assert report.intake["what"] == "Bache gigante"
 
 
-def test_cancel_restarts_conversation(db):
-    _seed_operator(db)
+def test_unknown_phone_never_persists(db):
+    _seed_operator(db, phone="111222333")  # someone else's line
     bot = FakeBot(db)
-    bot.handle_update(_update("/start"))
-    bot.handle_update(_update("Bache"))
-    bot.handle_update(_update("cancelar"))
-    assert "1/4" in bot.replies[-1]
-    # the old answer is gone: the next reply is step 2 for the fresh intake
-    bot.handle_update(_update("Otra cosa"))
-    assert "2/4" in bot.replies[-1]
+
+    bot.handle_update(_text_update("/start"))
+    bot.handle_update(_contact_update("5550001111"))
+
+    assert "no está registrado" in bot.replies[-1]
+    assert db.scalar(select(FieldReport)) is None
+    assert len(db.scalars(select(FieldOperator)).all()) == 1  # no phantom rows
 
 
-def test_confirm_rejects_unknown_and_reprompts(db):
-    _seed_operator(db)
+def test_conflicting_binding_reports_and_gates(db):
+    _seed_operator(db, phone="5550001111", telegram_user_id=999)
     bot = FakeBot(db)
-    for answer in ("/start", "T", "D", "L", "W"):
-        bot.handle_update(_update(answer))
-    prompts = bot.replies.count(
-        "Confirmás el reporte? Respondé OK para enviarlo o NO para volver a empezar."
-    )
-    bot.handle_update(_update("quizas"))
-    assert bot.replies.count(
-        "Confirmás el reporte? Respondé OK para enviarlo o NO para volver a empezar."
-    ) == prompts + 1
-    assert db.scalar(select(FieldReport)) is None  # nothing persisted yet
 
+    bot.handle_update(_text_update("/start"))
+    bot.handle_update(_contact_update("5550001111"))  # right number, wrong account
 
-def test_no_empty_reports_even_without_text(db):
-    _seed_operator(db)
-    bot = FakeBot(db)
-    bot.handle_update({"update_id": 2, "message": {"chat": {"id": CHAT}}})
-    assert bot.replies == []  # silence, no crash
-
-
-def test_unknown_sender_goes_to_waitlist_not_intake(db):
-    """The access gate: no operator row => pending registration, no intake.
-
-    The unknown sender canNOT generate reports until the admin activates
-    them from /campo; the waiting reply is neutral and repeats.
-    """
-    bot = FakeBot(db)  # no operator seeded
-    bot.handle_update(_update("/start"))
-    assert "lista de espera" in bot.replies[-1]
-
-    # they try to answer anyway: still gated, nothing captured
-    bot.handle_update(_update("Bache gigante"))
-    assert "lista de espera" in bot.replies[-1]
+    assert "ya está vinculado" in bot.replies[-1]
     assert db.scalar(select(FieldReport)) is None
 
-    # the admin activates: same sender, now the intake opens. The bot closes
-    # the shared session on each turn (correct in prod), so re-fetch fresh.
-    operator = db.get(FieldOperator, db.scalar(select(FieldOperator)).id)
+
+def test_deactivated_operator_is_gated(db):
+    operator = _seed_operator(db, active=False)
+    bot = FakeBot(db)
+
+    bot.handle_update(_text_update("/start"))
+    bot.handle_update(_contact_update("+52 222 123 4567"))
+    assert "desactivado" in bot.replies[-1]
+
+    # admin reactivates: the next contact exchange flows
+    operator = db.get(FieldOperator, operator.id)
     operator.active = True
     db.commit()
-
-    bot.handle_update(_update("/start"))
+    bot.handle_update(_contact_update("+52 222 123 4567"))
     assert "1/4" in bot.replies[-1]
-    bot.handle_update(_update("Bache"))
-    assert "2/4" in bot.replies[-1]
-
-
-def test_deactivated_operator_is_gated_again(db):
-    operator = _seed_operator(db)
-    bot = FakeBot(db)
-    bot.handle_update(_update("/start"))
-    assert "1/4" in bot.replies[-1]
-
-    operator = db.get(FieldOperator, operator.id)  # re-attach post-close
-    operator.active = False
-    db.commit()
-    bot.handle_update(_update("Bache"))
-    assert "lista de espera" in bot.replies[-1]
 
 
 def test_enrichment_writes_suggestions_and_flags_duplicates(db, monkeypatch):

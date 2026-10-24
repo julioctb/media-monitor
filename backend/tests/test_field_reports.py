@@ -156,3 +156,49 @@ def test_reject_terminal_and_freeze(api):
 def test_unknown_report_404(api):
     assert api.get("/api/field-reports/999").status_code == 404
     assert api.post("/api/field-reports/999/approve").status_code == 404
+
+
+def test_operator_create_invite_and_phone_allowlist(api, db, monkeypatch):
+    import os
+
+    monkeypatch.setenv("TELEGRAM_BOT_USERNAME", "TestBot")
+    from app.models.field import FieldOperator as FO
+
+    created = api.post(
+        "/api/field-operators",
+        json={"display_name": "Juane", "phone": "+52 222 999 8877"},
+    )
+    assert created.status_code == 200, created.text
+    body = created.json()
+    assert body["active"] is True
+    assert body["accepted_at"] is None
+
+    dup = api.post(
+        "/api/field-operators", json={"display_name": "Otro", "phone": "52-222-999-8877"}
+    )
+    assert dup.status_code == 409  # same digits: normalized clash
+
+    missing = api.post("/api/field-operators", json={"display_name": "X"})
+    assert missing.status_code == 422
+
+    invite = api.post(f"/api/field-operators/{body['id']}/invite").json()
+    assert invite["token"]
+    assert invite["link"] and invite["link"].startswith("https://t.me/")
+    assert "start=" in invite["link"]
+
+    # the allowlist now answers the bot phone match via plain query
+    listed = api.get("/api/field-operators").json()["items"]
+    assert any(o["phone"] == "522229998877" for o in listed)
+    assert listed[0]["invited_at"] is not None
+
+    # deactivate cuts the bot access flag without deleting
+    off = api.post(f"/api/field-operators/{body['id']}/deactivate")
+    assert off.json()["active"] is False
+    on = api.post(f"/api/field-operators/{body['id']}/activate")
+    assert on.json()["active"] is True
+    assert db.scalar(select(FO).where(FO.id == body["id"])) is not None
+
+
+def test_operator_unknown_404(api):
+    assert api.post("/api/field-operators/999/invite").status_code == 404
+    assert api.post("/api/field-operators/999/activate").status_code == 404

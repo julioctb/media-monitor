@@ -1,7 +1,7 @@
 <script lang="ts">
 	let { data, form } = $props();
 
-	import type { FieldOperatorRecord, FieldReportRecord } from '$lib/api';
+	import type { FieldReportRecord } from '$lib/api';
 	import { sourceLabel } from '$lib/format';
 
 	type Report = FieldReportRecord;
@@ -42,42 +42,10 @@
 	</p>
 {/if}
 
-<section class="section" aria-labelledby="campo-operators">
-	<div class="section-heading">
-		<h2 id="campo-operators">Acceso de operadores</h2>
-	</div>
-	<p class="mt-1 text-xs text-gray-500">
-		Solo operadores activos pueden reportar al bot; los desconocidos quedan en lista de espera.
-	</p>
-	{#if (data.operators as FieldOperatorRecord[]).length === 0}
-		<p class="empty">Sin operadores registrados todavía.</p>
-	{:else}
-		<ul class="mt-2 grid gap-2">
-			{#each data.operators as operator (operator.id)}
-				<li class="flex min-h-[44px] items-center justify-between gap-3 rounded border px-3 py-2">
-					<div class="text-sm">
-						<span class="font-semibold">{operator.display_name}</span>
-						{#if operator.telegram_user_id}
-							<span class="text-xs text-gray-500"> · tg {operator.telegram_user_id}</span>
-						{/if}
-						<span class={'text-xs ' + (operator.active ? 'text-success' : 'text-warning')}>
-							· {operator.active ? 'activo' : 'en espera'}
-						</span>
-					</div>
-					<form method="post" action={operator.active ? '?/deactivateOperator' : '?/activateOperator'}>
-						<input type="hidden" name="id" value={operator.id} />
-						<button
-							type="submit"
-							class="min-h-[44px] rounded-full border px-4 text-sm font-semibold"
-						>
-							{operator.active ? 'Desactivar' : 'Activar'}
-						</button>
-					</form>
-				</li>
-			{/each}
-		</ul>
-	{/if}
-</section>
+<p class="mt-1 text-xs text-gray-500">
+	<a class="underline font-semibold" href="/campo/operadores">Operadores y accesos →</a>
+	Solo operadores con teléfono cargado pueden reportar al bot.
+</p>
 
 <section class="section" aria-labelledby="campo-pending">
 	<div class="section-heading">

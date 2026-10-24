@@ -1013,6 +1013,8 @@ export interface FieldOperatorRecord {
 	telegram_user_id: number | null;
 	phone: string | null;
 	active: boolean;
+	invited_at: string | null;
+	accepted_at: string | null;
 }
 
 export function listFieldOperators(options: RequestOptions = {}): Promise<{
@@ -1045,4 +1047,22 @@ export function deactivateFieldOperator(
 		{ method: 'POST' },
 		options
 	);
+}
+
+export function createFieldOperator(
+	input: { display_name: string; phone: string; telegram_user_id?: number | null },
+	options: RequestOptions = {}
+): Promise<FieldOperatorRecord> {
+	return request<FieldOperatorRecord>(
+		'/api/field-operators',
+		jsonInit('POST', input),
+		options
+	);
+}
+
+export function inviteFieldOperator(
+	id: number,
+	options: RequestOptions = {}
+): Promise<{ id: number; token: string; link: string | null }> {
+	return request(`/api/field-operators/${id}/invite`, { method: 'POST' }, options);
 }

@@ -1,10 +1,7 @@
 import { fail } from '@sveltejs/kit';
 import { errorStatus, errorMessage } from '$lib/server/api-error';
 import {
-	activateFieldOperator,
 	approveFieldReport,
-	deactivateFieldOperator,
-	listFieldOperators,
 	listFieldReports,
 	rejectFieldReport,
 	updateFieldReport
@@ -20,13 +17,11 @@ function numericId(form: FormData): number | null {
 
 export const load: PageServerLoad = async () => {
 	try {
-		const [operators, pending, recent] = await Promise.all([
-			listFieldOperators(),
+		const [pending, recent] = await Promise.all([
 			listFieldReports('review'),
 			listFieldReports()
 		]);
 		return {
-			operators: operators.items,
 			pending: pending.items,
 			recent: recent.items.filter((report) => report.status !== 'review').slice(0, 30)
 		};
@@ -84,32 +79,6 @@ export const actions: Actions = {
 		} catch (cause) {
 			return fail(errorStatus(cause, 502), {
 				message: errorMessage(cause, 'No se pudo actualizar el reporte.')
-			});
-		}
-	},
-
-	activateOperator: async ({ request }) => {
-		const id = numericId(await request.formData());
-		if (id === null) return fail(400, { message: 'Id inválido.' });
-		try {
-			await activateFieldOperator(id);
-			return { ok: true, message: 'Operador activado: ya puede reportar.' };
-		} catch (cause) {
-			return fail(errorStatus(cause, 502), {
-				message: errorMessage(cause, 'No se pudo activar al operador.')
-			});
-		}
-	},
-
-	deactivateOperator: async ({ request }) => {
-		const id = numericId(await request.formData());
-		if (id === null) return fail(400, { message: 'Id inválido.' });
-		try {
-			await deactivateFieldOperator(id);
-			return { ok: true, message: 'Operador desactivado: acceso al bot bloqueado.' };
-		} catch (cause) {
-			return fail(errorStatus(cause, 502), {
-				message: errorMessage(cause, 'No se pudo desactivar al operador.')
 			});
 		}
 	}

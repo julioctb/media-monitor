@@ -1,25 +1,30 @@
-"""Field-report Telegram bot: guided intake, never free-form parsing.
+"""Field-report Telegram bot: closed access by phone allowlist.
 
-Design (odd/tasks/field-reports-telegram.md): the bot asks what happened,
-where, when, plus optional detail context; answers travel verbatim in
-``field_reports.intake`` and the row lands in ``review`` — the human queue
-is the gate; the enrichment LLM arrives later and only suggests.
+Access model (odd/tasks/field-reports-telegram.md, cierre 23/oct):
 
-Identity is one-way anonymous: the operator sees a neutral bot; the admin
-sees telegram id + name (auto-registered on first contact).
+- Operators are PRE-loaded by an admin (name + phone) in /campo/operadores.
+- A first-time sender is asked to share the contact; the phone is matched
+  against the allowlist. Match => the account binds to that operator
+  (telegram id + accepted stamp) and the intake opens.
+- No match => "número no registrado"; NOTHING is persisted — unknowns do
+  not exist for the system until an admin loads their phone.
+- An invite deep-link (t.me/bot?start=TOKEN) only pre-selectes the
+  operator; the binding proof is always the phone. The token is a
+  reference, never the credential.
 
-Run as its own compose service (long polling: no webhook, no public URL):
+Run as its own compose service (long polling; no webhook, no public URL):
 
     docker compose up -d field-bot
 
 The in-progress conversation lives in memory per chat: a restarted process
-drops half answered intakes and the operator begins again with /start;
-nothing is persisted until the operator confirms the summary.
+drops half-answered intakes; reports only persist on confirmation.
 """
 
 import logging
 import os
+import re
 import time
+from datetime import datetime, timezone
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
@@ -28,8 +33,8 @@ from sqlalchemy import select
 
 from app.db import SessionLocal
 from app.models import FieldOperator
-from app.models.field import FieldReportStatus
 from app.models import queries
+from app.models.field import FieldReportStatus
 
 logger = logging.getLogger("field.bot")
 
@@ -46,8 +51,8 @@ STEPS: tuple[tuple[str, str], ...] = (
 )
 
 WELCOME = (
-    "Reporte de Campo: te guío en 4 preguntas y el reporte va a revisión "
-    "antes de publicarse. /cancelar empieza de nuevo."
+    "Reporte de Campo: te guío en 4 preguntas y el reporte se publica tras "
+    "revisión. /cancelar empieza de nuevo."
 )
 
 CONFIRM_PROMPT = "Confirmás el reporte? Respondé OK para enviarlo o NO para volver a empezar."
@@ -55,18 +60,25 @@ CONFIRM_PROMPT = "Confirmás el reporte? Respondé OK para enviarlo o NO para vo
 CONFIRM_WORDS = {"ok", "si", "sí", "dale", "confirmo"}
 CANCEL_WORDS = {"no", "cancelar", "restart"}
 
+CONTACT_KEYBOARD = {
+    "keyboard": [[{"text": "Compartir mi teléfono", "request_contact": True}]],
+    "resize_keyboard": True,
+    "one_time_keyboard": True,
+}
 
-@dataclass
-class Session:
-    """In-progress intake for one chat."""
+ASK_CONTACT = "Para validarte necesito tu teléfono: tocá el botón para compartirlo."
+NOT_REGISTERED = "Ese número no está registrado. Contactá al administrador del proyecto."
+ALREADY_BOUND = "Ese teléfono ya está vinculado a otro acceso. Avisale al administrador."
+DEACTIVATED = "Tu acceso está desactivado. Contactá al administrador."
 
-    step: int = 0  # index into STEPS; len(STEPS) = awaiting confirmation
-    answers: dict = field(default_factory=dict)
-    operator_id: int | None = None
+_DIGITS = re.compile(r"\D+")
 
-    @property
-    def awaiting_confirm(self) -> bool:
-        return self.step >= len(STEPS)
+
+def normalize_phone(raw: str | None) -> str:
+    """Digits only: the allowlist match ignores spaces and dashes."""
+    if not raw:
+        return ""
+    return _DIGITS.sub("", raw)
 
 
 def _display_name(from_user: dict) -> str:
@@ -77,11 +89,30 @@ def _display_name(from_user: dict) -> str:
     return f"user {from_user.get('id', '?')}"
 
 
-class Bot:
-    """Telegram long-polling loop plus the intake state machine.
+def utcnow() -> datetime:
+    return datetime.now(timezone.utc)
 
-    ``send`` and the Telegram call are overridable so the conversation
-    logic tests without network; ``db_factory`` is the session maker.
+
+@dataclass
+class Session:
+    """In-progress contact validation or intake, per chat."""
+
+    phase: str = "contact"  # 'contact' | 'intake'
+    step: int = 0  # index into STEPS; len(STEPS) = awaiting confirmation
+    answers: dict = field(default_factory=dict)
+    operator_id: int | None = None
+    invite_token: str | None = None
+
+    @property
+    def awaiting_confirm(self) -> bool:
+        return self.phase == "intake" and self.step >= len(STEPS)
+
+
+class Bot:
+    """Telegram long-polling loop plus the gated intake state machine.
+
+    ``send``/``_call`` are overridable so conversation tests run without
+    network; ``db_factory`` is the session maker.
     """
 
     def __init__(
@@ -107,7 +138,9 @@ class Bot:
 
     def _call(self, method: str, payload: dict | None = None) -> Any:
         response = self._client.post(
-            f"{self.api_base}/bot{self.token}/{method}", json=payload or {}, timeout=HTTP_TIMEOUT_S
+            f"{self.api_base}/bot{self.token}/{method}",
+            json=payload or {},
+            timeout=HTTP_TIMEOUT_S,
         )
         response.raise_for_status()
         body = response.json()
@@ -116,9 +149,12 @@ class Bot:
             return None
         return body.get("result")
 
-    def send(self, chat_id: int, text: str) -> None:
+    def send(self, chat_id: int, text: str, reply_markup: dict | None = None) -> None:
+        payload: dict = {"chat_id": chat_id, "text": text}
+        if reply_markup:
+            payload["reply_markup"] = reply_markup
         try:
-            self._call("sendMessage", {"chat_id": chat_id, "text": text})
+            self._call("sendMessage", payload)
         except Exception:  # noqa: BLE001 - a failed reply must not kill the loop
             logger.exception("sendMessage to %s failed", chat_id)
 
@@ -134,42 +170,37 @@ class Bot:
             self.offset = max(self.offset, update["update_id"] + 1)
         return updates
 
-    # -- conversation --------------------------------------------------------
+    # -- dispatch --------------------------------------------------------------
 
     def handle_update(self, update: dict) -> None:
         message = update.get("message") or {}
         chat_id = (message.get("chat") or {}).get("id")
         text = (message.get("text") or "").strip()
         from_user = message.get("from") or {}
-        if not chat_id or not text:
+        contact = message.get("contact") or {}
+        if not chat_id or (not text and not contact):
             return
         try:
-            self._handle(chat_id, text, from_user)
+            self._handle(chat_id, text, from_user, contact)
         except Exception:  # noqa: BLE001 - one bad update never kills the loop
             logger.exception("field bot failed handling chat %s", chat_id)
 
-    def _handle(self, chat_id: int, text: str, from_user: dict) -> None:
+    def _handle(self, chat_id: int, text: str, from_user: dict, contact: dict) -> None:
         lowered = text.lower()
         is_reset = lowered in {"/start", "/cancelar"} or lowered in CANCEL_WORDS
 
-        # Access gate: only operators with an ACTIVE alta get the intake.
-        # Unknown senders auto-register as pending; waiting reply every time
-        # (short, neutral) so the silence is never mistaken for a bug.
-        operator, created = self._resolve_operator(from_user)
-        if operator is None or not operator.active:
+        operator = self._operator_for_telegram(from_user.get("id"))
+        if operator is not None and not operator.active:
             self.sessions.pop(chat_id, None)
-            self.send(
-                chat_id,
-                "Gracias. Tu acceso quedó en lista de espera; te avisaremos "
-                "cuando esté activado." + (" (Registro nuevo.)" if created else ""),
-            )
+            self.send(chat_id, DEACTIVATED)
             return
 
         session = self.sessions.get(chat_id)
-        if session is None or is_reset:
-            self.sessions[chat_id] = Session(operator_id=operator.id)
-            self.send(chat_id, WELCOME)
-            self.send(chat_id, STEPS[0][1])
+
+        # Access phase: bound accounts flow straight to the intake; everyone
+        # else must pass the phone gate first.
+        if operator is None or session is None or session.phase == "contact" or is_reset:
+            self._handle_access(chat_id, session, text, from_user, contact, operator)
             return
 
         if session.awaiting_confirm:
@@ -185,6 +216,119 @@ class Bot:
         else:
             self.send(chat_id, STEPS[session.step][1])
 
+    # -- access: allowlist + phone match ---------------------------------------
+
+    def _handle_access(
+        self,
+        chat_id: int,
+        session: Session | None,
+        text: str,
+        from_user: dict,
+        contact: dict,
+        bound_operator: FieldOperator | None,
+    ) -> None:
+        invite_token = None
+        if text.startswith("/start") and " " in text:
+            invite_token = text.split(" ", 1)[1].strip() or None
+
+        phone = normalize_phone((contact or {}).get("phone_number"))
+        if phone:
+            self._finalize_access(chat_id, session, phone, from_user, invite_token)
+            return
+
+        if bound_operator is not None:
+            # Bound but landed here via /reset: straight back to intake.
+            self._restart_intake(chat_id, bound_operator.id)
+            return
+
+        fresh = session is None or session.phase != "contact"
+        if fresh:
+            self.sessions[chat_id] = Session(phase="contact", invite_token=invite_token)
+            self.send(
+                chat_id,
+                "Bienvenido a Reporte de Campo. El acceso es para operadores "
+                "registrados: validá tu teléfono para continuar.",
+            )
+        self.send(chat_id, ASK_CONTACT, CONTACT_KEYBOARD)
+
+    def _finalize_access(
+        self,
+        chat_id: int,
+        session: Session | None,
+        phone: str,
+        from_user: dict,
+        invite_token: str | None,
+    ) -> None:
+        operator, conflict = self._match_allowlist(phone, from_user.get("id"))
+        if operator is None:
+            self.sessions.pop(chat_id, None)
+            self.send(chat_id, ALREADY_BOUND if conflict else NOT_REGISTERED)
+            return
+
+        if not operator.active:
+            # Deactivated alta: recognized but gated; the admin re-enable
+            # plus a new contact share opens the intake. Nothing binds.
+            self.send(chat_id, DEACTIVATED)
+            return
+
+        with self.db_factory() as db:
+            attached = db.get(FieldOperator, operator.id)
+            attached.telegram_user_id = from_user.get("id")
+            attached.active = True
+            attached.accepted_at = utcnow()
+            db.commit()
+
+        self.sessions[chat_id] = Session(
+            phase="intake", operator_id=operator.id, invite_token=invite_token
+        )
+        logger.info(
+            "operator %s bound to telegram %s (chat %s)",
+            operator.id,
+            from_user.get("id"),
+            chat_id,
+        )
+        self.send(chat_id, f"Listo, {operator.display_name}: acceso validado.")
+        self.send(chat_id, WELCOME)
+        self.send(chat_id, STEPS[0][1])
+
+    def _operator_for_telegram(self, telegram_user_id) -> FieldOperator | None:
+        if not isinstance(telegram_user_id, int):
+            return None
+        with self.db_factory() as db:
+            operator = db.scalar(
+                select(FieldOperator).where(
+                    FieldOperator.client_id == self.client_id,
+                    FieldOperator.telegram_user_id == telegram_user_id,
+                )
+            )
+            if operator is None:
+                return None
+            db.expunge(operator)
+            return operator
+
+    def _match_allowlist(self, phone: str, telegram_user_id) -> tuple[FieldOperator | None, bool]:
+        """Phone against the allowlist. Returns (operator, conflict).
+
+        The decision is ALWAYS the phone; the invite token plays no role
+        here. Operators already bound to a DIFFERENT account conflict; the
+        same account rebinds silently.
+        """
+        wanted = normalize_phone(phone)
+        with self.db_factory() as db:
+            rows = db.query(FieldOperator).filter_by(client_id=self.client_id).all()
+            candidates = [
+                o for o in rows if normalize_phone(o.phone) and normalize_phone(o.phone) == wanted
+            ]
+            for operator in candidates:
+                if operator.telegram_user_id is None or (
+                    isinstance(telegram_user_id, int)
+                    and operator.telegram_user_id == telegram_user_id
+                ):
+                    return operator, False
+            return (None, True) if candidates else (None, False)
+
+    # -- intake lifecycle --------------------------------------------------------
+
     def _handle_confirm(self, chat_id: int, session: Session, lowered: str) -> None:
         if lowered in CONFIRM_WORDS:
             report_id = self._persist(chat_id, session, session.operator_id)
@@ -192,40 +336,20 @@ class Bot:
             self.send(chat_id, "Listo: el reporte quedó en revisión. Gracias.")
             self._enrich(report_id)  # best effort, after the ack
         elif lowered in CANCEL_WORDS:
-            self.sessions[chat_id] = Session()
-            self.send(chat_id, WELCOME)
-            self.send(chat_id, STEPS[0][1])
+            self._restart_intake(chat_id, session.operator_id)
         else:
             self.send(chat_id, CONFIRM_PROMPT)
 
-    def _summary(self, session: Session) -> str:
-        lines = [f"• {key.capitalize()}: {session.answers.get(key, '—')}" for key, _prompt in STEPS]
-        return "Repaso del reporte:\n" + "\n".join(lines)
+    def _restart_intake(self, chat_id: int, operator_id: int | None = None) -> None:
+        self.sessions[chat_id] = Session(phase="intake", operator_id=operator_id)
+        self.send(chat_id, WELCOME)
+        self.send(chat_id, STEPS[0][1])
 
-    def _resolve_operator(self, from_user: dict) -> tuple[FieldOperator | None, bool]:
-        """Access-gate lookup. Unknown senders land as INACTIVE pending —
-        the alta is an admin act (/campo), never a side effect of writing."""
-        telegram_id = from_user.get("id")
-        name = _display_name(from_user) if from_user else "operador"
-        with self.db_factory() as db:
-            if isinstance(telegram_id, int):
-                existing = db.scalar(
-                    select(FieldOperator).where(
-                        FieldOperator.client_id == self.client_id,
-                        FieldOperator.telegram_user_id == telegram_id,
-                    )
-                )
-                if existing is not None:
-                    return existing, False
-            operator = FieldOperator(
-                client_id=self.client_id,
-                telegram_user_id=telegram_id if isinstance(telegram_id, int) else None,
-                display_name=name,
-                active=False,
-            )
-            db.add(operator)
-            db.commit()
-            return operator, True
+    def _summary(self, session: Session) -> str:
+        lines = [
+            f"• {key.capitalize()}: {session.answers.get(key, '—')}" for key, _prompt in STEPS
+        ]
+        return "Repaso del reporte:\n" + "\n".join(lines)
 
     def _persist(self, chat_id: int, session: Session, operator_id: int | None) -> int | None:
         answers = session.answers

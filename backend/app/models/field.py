@@ -64,6 +64,11 @@ class FieldOperator(IntPk, Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
+    # --- invite flow (single-use token; phone-match binds the account) ---
+    invite_token: Mapped[str | None] = mapped_column(String(32), nullable=True, unique=True)
+    invited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
     __table_args__ = (
         # One identity per messaging account per client.
         Index("uq_field_operators_client_tg", "client_id", "telegram_user_id",
