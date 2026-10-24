@@ -758,3 +758,29 @@ def test_every_build_logs_a_narrative_revision(session):
     assert [revision.mode for revision in rows] == ["heuristic", "heuristic"]
     assert rows[0].narrative == first.narrative
     assert rows[1].narrative == second.narrative
+
+
+def test_apply_narrative_logs_skipped_entries(caplog):
+    # A mistyped entry is dropped (tolerant merge, unchanged) but no longer
+    # silently: the skip is logged with its path and reason.
+    import logging as _logging
+
+    from app.summaries.digest import apply_narrative
+
+    content = {
+        "schema": 2,
+        "coverage": {},
+        "noticias": [{"event_id": 1}],
+        "rectora": {},
+        "redes": {},
+        "personas": [],
+        "pendientes": [],
+    }
+    with caplog.at_level(_logging.WARNING, logger="app.summaries.digest"):
+        errors = apply_narrative(
+            content,
+            {"items": [{"index": "2", "summary": "mal tipado"}]},
+        )
+    assert errors == []
+    assert "summary" not in content["noticias"][0]
+    assert any("items[0]" in message for message in caplog.messages)

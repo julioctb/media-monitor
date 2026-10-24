@@ -17,7 +17,7 @@ El feed no distingue MEDIOS (e-consulta, La Jornada de Oriente…): `mentions.so
 - [x] T4 front load: parse `medium`, consulta directa (gana a pools de canal), `mediumCounts` + echo en filters; test del load.
 - [x] T5 front panel: sidebar «Medios» (top 10 + `<details>` fold, links con role=button/aria-pressed, param preservado en los 3 forms).
 - [x] T6 gates: pytest backend 469 ✓, svelte-check 0/0 ✓, vitest 143 ✓.
-- [ ] T7 deploy api+worker+dashboard (build secuencial en curso) + verificación servida + browser audit.
+- [x] T7 deploy api+worker+dashboard + verificación servida + browser audit (panel, filtro, móvil 390 sin overflow; stat «Medios con noticias» 83 tras f972fe60).
 
 ## Route
 Inline direct (mismo criterio que agenda-visual-parity: contexto ya cargado, un writer).

@@ -25,6 +25,19 @@ them and must read back unchanged.
 
 from datetime import datetime, timezone
 
+import logging
+
+from pydantic import ValidationError
+
+from app.summaries.digest_schema import (
+    ActivityEntry,
+    AgendaEntry,
+    CuentaEntry,
+    NarrativeItem,
+)
+
+LOGGER = logging.getLogger(__name__)
+
 DIGEST_SCHEMA_VERSION = 2
 
 #: Fixed confidence scale; never free-form (auditability over prose).
@@ -362,20 +375,19 @@ def _clean_str(value: object) -> str | None:
     return None
 
 
+def _warn_skip(where: str, exc: Exception) -> None:
+    """Skipped narrative entries are logged, never silent."""
+    LOGGER.warning("digest narrative %s skipped: %s", where, exc)
+
+
 def apply_narrative(content: dict, payload: object) -> list[str]:
     """Merge LLM narrative fields into ``content``; return digest errors.
 
-    Expected payload (anything missing or malformed is skipped; the
-    deterministic sections are never rewritten):
-
-        {"headline": str,
-         "items": [{"index": int, "summary": str, "why_it_matters": str,
-                    "confidence_note"?: str}],
-         "rectora": {"tone": str, "watch": str,
-                     "activity": [{"when?, status?, text, channel?}]},
-         "agenda": [{"when, status?, title, source?}],
-         "redes": {<source>: {"note": str,
-                              "cuentas"?: [{"cuenta": str, "nota": str}]} | str}}
+    The payload shape is declared in ``app/summaries/digest_schema.py``
+    (see docs/contrato-narrativa-del-digest.md): entries are validated with
+    those models, and a malformed entry is logged and skipped — the merge
+    stays tolerant, the deterministic sections are never rewritten. Only
+    section-level shape errors are fatal (the return value).
     """
     if not isinstance(content, dict) or not isinstance(payload, dict):
         return ["payload must be an object"]
@@ -384,25 +396,32 @@ def apply_narrative(content: dict, payload: object) -> list[str]:
     if items is not None:
         if not isinstance(items, list):
             return ["items must be a list"]
-        for entry in items:
-            if not isinstance(entry, dict) or not isinstance(noticias, list):
+        for pos, entry in enumerate(items):
+            try:
+                narrative_item = NarrativeItem.model_validate(entry)
+            except ValidationError as exc:
+                _warn_skip(f"items[{pos}]", exc)
                 continue
-            index = entry.get("index")
-            if not isinstance(index, int) or not 0 <= index < len(noticias):
+            if not isinstance(noticias, list):
                 continue
-            target = noticias[index]
+            if not 0 <= narrative_item.index < len(noticias):
+                _warn_skip(
+                    "items[%d]" % pos, IndexError(f"index {narrative_item.index} out of range")
+                )
+                continue
+            target = noticias[narrative_item.index]
             if not isinstance(target, dict):
                 continue
             for key in ("summary", "why_it_matters", "confidence_note"):
-                value = entry.get(key)
+                value = getattr(narrative_item, key)
                 if isinstance(value, str) and value.strip():
                     target[key] = value.strip()
     rectora = payload.get("rectora")
     if isinstance(rectora, dict) and isinstance(content.get("rectora"), dict):
         for key in ("tone", "watch"):
-            value = rectora.get(key)
-            if isinstance(value, str) and value.strip():
-                content["rectora"][key] = value.strip()
+            value = _clean_str(rectora.get(key))
+            if value:
+                content["rectora"][key] = value
         # home-digest-v2 follow-up entries; only into a seeded container so
         # pre-v2 rows keep their shape.
         activity = rectora.get("activity")
@@ -410,15 +429,18 @@ def apply_narrative(content: dict, payload: object) -> list[str]:
             content["rectora"].get("activity"), list
         ):
             entries = []
-            for entry in activity:
-                if not isinstance(entry, dict):
+            for pos, entry in enumerate(activity):
+                try:
+                    validated = ActivityEntry.model_validate(entry)
+                except ValidationError as exc:
+                    _warn_skip(f"rectora.activity[{pos}]", exc)
                     continue
-                text = _clean_str(entry.get("text"))
+                text = _clean_str(validated.text)
                 if not text:
                     continue
                 item: dict[str, str] = {"text": text}
                 for optional in ("when", "status", "channel"):
-                    value = _clean_str(entry.get(optional))
+                    value = _clean_str(getattr(validated, optional))
                     if value:
                         item[optional] = value
                 entries.append(item)
@@ -429,16 +451,19 @@ def apply_narrative(content: dict, payload: object) -> list[str]:
     agenda = payload.get("agenda")
     if isinstance(agenda, list) and isinstance(content.get("agenda"), list):
         entries = []
-        for entry in agenda:
-            if not isinstance(entry, dict):
+        for pos, entry in enumerate(agenda):
+            try:
+                validated = AgendaEntry.model_validate(entry)
+            except ValidationError as exc:
+                _warn_skip(f"agenda[{pos}]", exc)
                 continue
-            when = _clean_str(entry.get("when"))
-            title = _clean_str(entry.get("title"))
+            when = _clean_str(validated.when)
+            title = _clean_str(validated.title)
             if not when or not title:
                 continue
             item = {"when": when, "title": title}
             for optional in ("status", "source"):
-                value = _clean_str(entry.get(optional))
+                value = _clean_str(getattr(validated, optional))
                 if value:
                     item[optional] = value
             entries.append(item)
@@ -464,16 +489,18 @@ def apply_narrative(content: dict, payload: object) -> list[str]:
                 target["note"] = note
             if isinstance(cuentas, list):
                 entries = []
-                for entry in cuentas:
-                    if not isinstance(entry, dict):
+                for pos, entry in enumerate(cuentas):
+                    try:
+                        validated = CuentaEntry.model_validate(entry)
+                    except ValidationError as exc:
+                        _warn_skip(f"redes[{source!r}].cuentas[{pos}]", exc)
                         continue
-                    cuenta = _clean_str(entry.get("cuenta"))
-                    nota = _clean_str(entry.get("nota"))
+                    cuenta = _clean_str(validated.cuenta)
                     if not cuenta:
                         continue
                     item: dict[str, str] = {"cuenta": cuenta}
-                    if nota:
-                        item["nota"] = nota
+                    if validated.nota and validated.nota.strip():
+                        item["nota"] = validated.nota.strip()
                     entries.append(item)
                 if entries:
                     target["cuentas"] = entries
