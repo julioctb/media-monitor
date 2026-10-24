@@ -214,3 +214,15 @@ def _enum(name: str):
     from app.models import MentionSource
 
     return MentionSource(name)
+
+
+def test_cancel_mid_intake_acks_and_restarts(db):
+    _seed_operator(db, phone="222 123 4567", telegram_user_id=42)
+    bot = FakeBot(db)
+    bot.handle_update(_text_update("hola"))  # bound: intake opens
+    bot.handle_update(_text_update("respuesta 1"))
+
+    bot.handle_update(_text_update("cancelar"))
+
+    assert bot.replies[-2] == "Ok, cancelado. Empezamos de nuevo."
+    assert "1/4" in bot.replies[-1]

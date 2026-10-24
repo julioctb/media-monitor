@@ -243,7 +243,8 @@ class Bot:
 
         if bound_operator is not None:
             # Bound but landed here via /reset: straight back to intake.
-            self._restart_intake(chat_id, bound_operator.id)
+            cancelled = session is not None and text.lower() in CANCEL_WORDS
+            self._restart_intake(chat_id, bound_operator.id, cancelled=cancelled)
             return
 
         fresh = session is None or session.phase != "contact"
@@ -341,13 +342,20 @@ class Bot:
             self.send(chat_id, "Listo: el reporte quedó en revisión. Gracias.")
             self._enrich(report_id)  # best effort, after the ack
         elif lowered in CANCEL_WORDS:
-            self._restart_intake(chat_id, session.operator_id)
+            self._restart_intake(chat_id, session.operator_id, cancelled=True)
         else:
             self.send(chat_id, CONFIRM_PROMPT)
 
-    def _restart_intake(self, chat_id: int, operator_id: int | None = None) -> None:
+    def _restart_intake(
+        self, chat_id: int, operator_id: int | None = None, *, cancelled: bool = False
+    ) -> None:
         self.sessions[chat_id] = Session(phase="intake", operator_id=operator_id)
-        self.send(chat_id, WELCOME)
+        if cancelled:
+            # Visible ack: otherwise the restart is indistinguishable from
+            # the first run and reads as "ignored".
+            self.send(chat_id, "Ok, cancelado. Empezamos de nuevo.")
+        else:
+            self.send(chat_id, WELCOME)
         self.send(chat_id, STEPS[0][1])
 
     def _summary(self, session: Session) -> str:
