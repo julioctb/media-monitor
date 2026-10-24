@@ -51,6 +51,7 @@ def _report_out(report) -> dict:
         "place": report.place,
         "happened_at": report.happened_at.isoformat() if report.happened_at else None,
         "review_note": report.review_note,
+        "enrichment": report.enrichment,
         "mention_id": report.mention_id,
         "created_at": report.created_at.isoformat() if report.created_at else None,
         "published_at": report.published_at.isoformat() if report.published_at else None,

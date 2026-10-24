@@ -106,3 +106,71 @@ def test_no_empty_reports_even_without_text(db):
     bot = FakeBot(db)
     bot.handle_update({"update_id": 2, "message": {"chat": {"id": CHAT}}})
     assert bot.replies == []  # silence, no crash
+
+
+def test_enrichment_writes_suggestions_and_flags_duplicates(db, monkeypatch):
+    import json as _json
+
+    from app import field_enrich
+    from app.models import Mention
+    from app.models.field import FieldReportStatus
+
+    # one live mention whose normalized title matches the suggestion
+    db.add(
+        Mention(
+            client_id=1,
+            source=_enum("news_rss"),
+            url="https://a/x",
+            url_hash="h1",
+            title="Bache gigante en la 11 sur",
+        )
+    )
+    db.commit()
+
+    class FakeEnricher:
+        def complete(self, system, user, json_mode=False):
+            return _json.dumps(
+                {
+                    "suggested_title": "Bache Gigante En La 11 Sur",
+                    "summary": "Hundimiento fuerte.",
+                    "tone": "negative",
+                }
+            )
+
+    monkeypatch.setattr(field_enrich, "build_enricher", lambda session, client_id: FakeEnricher())
+
+    report = queries_create(db)
+    result = field_enrich.enrich_report(db, report)
+    assert result is not None
+    assert result["duplicate"] is True  # normalized-title match
+    assert result["tone"] == "negative"
+
+    db.expire_all()
+    # the by-id wrapper owns its session; same engine, fresh view
+    from sqlalchemy.orm import sessionmaker
+
+    factory = sessionmaker(bind=db.get_bind(), autoflush=False, expire_on_commit=False)
+    persisted = field_enrich.enrich_report_by_id(lambda: factory(), 1, report.id)
+    assert persisted is not None
+    db.expire_all()
+    stored = db.scalar(select(FieldReport))
+    assert stored.enrichment["suggested_title"] == "Bache Gigante En La 11 Sur"
+
+
+def queries_create(db):
+    from app.models import queries
+    from app.models.field import FieldReportStatus
+
+    return queries.create_field_report(
+        db,
+        client_id=1,
+        status=FieldReportStatus.REVIEW,
+        title="Bache",
+        content="Hundimiento",
+    )
+
+
+def _enum(name: str):
+    from app.models import MentionSource
+
+    return MentionSource(name)

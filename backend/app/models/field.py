@@ -101,6 +101,8 @@ class FieldReport(IntPk, Base):
     content: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     review_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    #: LLM suggestions (title/summary/tone/duplicate); never state.
+    enrichment: Mapped[dict | None] = mapped_column(JsonType, nullable=True)
     mention_id: Mapped[int | None] = mapped_column(
         ForeignKey("mentions.id", ondelete="SET NULL"), nullable=True, unique=True
     )

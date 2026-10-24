@@ -948,6 +948,13 @@ export interface FieldReportRecord {
 	place: string | null;
 	happened_at: string | null;
 	review_note: string | null;
+	/** LLM suggestions; null until the enrichment pass runs. */
+	enrichment: {
+		suggested_title?: string | null;
+		summary?: string | null;
+		tone?: string | null;
+		duplicate?: boolean;
+	} | null;
 	mention_id: number | null;
 	created_at: string | null;
 	published_at: string | null;

@@ -175,9 +175,10 @@ class Bot:
 
     def _handle_confirm(self, chat_id: int, session: Session, lowered: str) -> None:
         if lowered in CONFIRM_WORDS:
-            self._persist(chat_id, session, session.operator_id)
+            report_id = self._persist(chat_id, session, session.operator_id)
             self.sessions.pop(chat_id, None)
             self.send(chat_id, "Listo: el reporte quedó en revisión. Gracias.")
+            self._enrich(report_id)  # best effort, after the ack
         elif lowered in CANCEL_WORDS:
             self.sessions[chat_id] = Session()
             self.send(chat_id, WELCOME)
@@ -212,13 +213,13 @@ class Bot:
             db.commit()
             return operator.id
 
-    def _persist(self, chat_id: int, session: Session, operator_id: int | None) -> None:
+    def _persist(self, chat_id: int, session: Session, operator_id: int | None) -> int | None:
         answers = session.answers
         detail = answers.get("detail", "")
         when = answers.get("when", "")
         content = f"{detail}\nCuándo: {when}".strip()
         with self.db_factory() as db:
-            queries.create_field_report(
+            report = queries.create_field_report(
                 db,
                 client_id=self.client_id,
                 operator_id=operator_id,
@@ -229,7 +230,21 @@ class Bot:
                 intake=dict(answers),
             )
             db.commit()
-        logger.info("field report from chat %s -> review", chat_id)
+            logger.info("field report from chat %s -> review (#%s)", chat_id, report.id)
+            return report.id
+
+    def _enrich(self, report_id: int | None) -> None:
+        """LLM suggestions for the queue; silence on any failure."""
+        if report_id is None:
+            return
+        try:
+            from app.field_enrich import enrich_report_by_id
+
+            enrichment = enrich_report_by_id(self.db_factory, self.client_id, report_id)
+            if enrichment:
+                logger.info("field report %s enriched", report_id)
+        except Exception:  # noqa: BLE001 - suggestions are best effort
+            logger.exception("enrichment pass failed for report %s", report_id)
 
     def close(self) -> None:
         if self._owns_client:

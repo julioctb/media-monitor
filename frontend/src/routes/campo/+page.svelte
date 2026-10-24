@@ -65,6 +65,15 @@
 					<p class="revision-title">{report.title ?? '(sin título)'}</p>
 					<p class="revision-text">{report.content ?? '(sin contenido)'}</p>
 
+					{#if report.enrichment}
+						{@const suggestion = report.enrichment}
+						<p class="mt-2 text-xs text-success">
+							Sugerencia IA{#if suggestion.duplicate} · posible duplicado{/if}:
+							“{suggestion.suggested_title}” — {suggestion.summary}
+							{#if suggestion.tone}(tono: {suggestion.tone}){/if}
+						</p>
+					{/if}
+
 					<details class="campo-edit">
 						<summary>Editar</summary>
 						<form method="post" action="?/update" class="mt-2 grid gap-2">
