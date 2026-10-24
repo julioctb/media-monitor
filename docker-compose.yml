@@ -2,6 +2,7 @@ x-backend-env: &backend-env
   DATABASE_URL: postgresql+psycopg://media:media@db:5432/mediamonitor
   X_PROVIDER_API_KEY: ${X_PROVIDER_API_KEY:-}
   X_PROVIDER_BASE_URL: ${X_PROVIDER_BASE_URL:-https://api.twitterapi.io}
+  TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
   SMTP_HOST: ${SMTP_HOST:-}
   SMTP_PORT: ${SMTP_PORT:-587}
   SMTP_USER: ${SMTP_USER:-}
@@ -51,6 +52,19 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     command: ["python", "-m", "app.worker"]
+    environment: *backend-env
+    depends_on:
+      db:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  field-bot:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: ["python", "-m", "app.field_bot"]
     environment: *backend-env
     depends_on:
       db:
