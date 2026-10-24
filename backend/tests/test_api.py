@@ -215,6 +215,28 @@ def test_mentions_empty_state(api) -> None:
     assert response.json() == {"items": [], "total": 0}
 
 
+def test_mentions_filter_by_medium(api, db) -> None:
+    """medium matches the URL host (www-insensitive, '/' boundary)."""
+    client_id = first_client_id(db)
+    seed_mention(db, client_id, "https://www.e-consulta.com/noticia/1")
+    seed_mention(db, client_id, "https://e-consulta.com/noticia/2")
+    seed_mention(db, client_id, "https://e-consulta.com.mx/otra/3")
+    seed_mention(db, client_id, "https://lajornadadeoriente.com.mx/a/1")
+
+    same_host = api.get("/api/mentions", params={"medium": "e-consulta.com"}).json()
+    assert {item["url"] for item in same_host["items"]} == {
+        "https://www.e-consulta.com/noticia/1",
+        "https://e-consulta.com/noticia/2",
+    }
+    assert same_host["total"] == 2
+
+    with_www = api.get("/api/mentions", params={"medium": "www.e-consulta.com"}).json()
+    assert with_www["total"] == 2
+
+    no_match = api.get("/api/mentions", params={"medium": "nadie.com"}).json()
+    assert no_match == {"items": [], "total": 0}
+
+
 def test_mentions_include_canonical_event(api, db) -> None:
     """Feed rows carry event_id/event_title so the UI can chip the cluster."""
     client_id = first_client_id(db)
@@ -502,6 +524,7 @@ def test_stats_overview_shape(api, db) -> None:
     }
     assert body["last_24h"] == 2
     assert body["last_7d"] == 3
+    assert body["by_medium"] == {"a": 3}
     volume = body["daily_volume"]
     assert len(volume) == 30
     expected_today = sum(

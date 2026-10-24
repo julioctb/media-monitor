@@ -2000,6 +2000,22 @@ span.page-button {
 	padding: 0;
 	border: 0;
 }
+/* Medios panel (feed sidebar): fold for the long tail of outlets. */
+.medios-more summary {
+	display: flex;
+	align-items: center;
+	min-height: 44px;
+	color: var(--color-ink-2);
+	font-size: 14px;
+	font-weight: 600;
+	cursor: pointer;
+}
+.medios-more summary:hover {
+	color: var(--color-ink);
+}
+.medios-more .filter-group {
+	margin-top: 8px;
+}
 .filter-group legend {
 	padding: 0;
 	margin-bottom: 6px;

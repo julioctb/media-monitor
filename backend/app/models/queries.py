@@ -9,6 +9,7 @@ import re
 import unicodedata
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
+from typing import Any
 from urllib.parse import urlsplit
 from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
@@ -140,6 +141,7 @@ def _mention_filters(
     ingested_since: datetime | None = None,
     classifier: str | None = None,
     label: str | None = None,
+    medium: str | None = None,
 ):
     """Single WHERE builder for every mention read: client scope first, then
     the optional filters shared by list/count/aggregation helpers."""
@@ -149,6 +151,21 @@ def _mention_filters(
     if sources:
         # Multi-source saved searches; the values are tags, not enum members.
         stmt = stmt.where(Mention.source.in_(sources))
+    if medium:
+        # Outlet (URL host) filter: LIKE variants instead of a regex so the
+        # clause stays portable (tests run sqlite). The '/' boundary keeps
+        # e-consulta.com from matching e-consulta.com.mx.
+        m = medium.strip().lower().removeprefix("www.")
+        stmt = stmt.where(
+            or_(
+                Mention.url == f"https://{m}",
+                Mention.url == f"https://www.{m}",
+                Mention.url.like(f"https://{m}/%"),
+                Mention.url.like(f"https://www.{m}/%"),
+                Mention.url.like(f"http://{m}/%"),
+                Mention.url.like(f"http://www.{m}/%"),
+            )
+        )
     if sentiment is not None:
         stmt = stmt.where(Mention.sentiment == sentiment)
     if sentiment_null:
@@ -198,6 +215,7 @@ def list_mentions(
     ingested_since: datetime | None = None,
     classifier: str | None = None,
     label: str | None = None,
+    medium: str | None = None,
     limit: int = 100,
     offset: int = 0,
 ) -> Sequence[Mention]:
@@ -206,7 +224,8 @@ def list_mentions(
     sentiment filters on an exact value; sentiment_null selects rows without
     a classification yet; q is a case-insensitive substring match over
     title/content; ingested_since filters on the ingest watermark;
-    classifier/label require a matching mention_classifications row.
+    classifier/label require a matching mention_classifications row;
+    medium filters on the outlet host of the URL.
     """
     stmt = _mention_filters(
         select(Mention),
@@ -221,6 +240,7 @@ def list_mentions(
         ingested_since=ingested_since,
         classifier=classifier,
         label=label,
+        medium=medium,
     )
     # Eager-load classifications: the API serializes them on every row and
     # selectinload keeps it at two queries regardless of page size.
@@ -246,6 +266,7 @@ def count_mentions(
     ingested_since: datetime | None = None,
     classifier: str | None = None,
     label: str | None = None,
+    medium: str | None = None,
 ) -> int:
     """Count of mentions matching the exact same filters as list_mentions."""
     stmt = _mention_filters(
@@ -262,6 +283,7 @@ def count_mentions(
         ingested_since=ingested_since,
         classifier=classifier,
         label=label,
+        medium=medium,
     )
     return session.scalar(stmt)
 
@@ -297,6 +319,22 @@ def source_breakdown(session: Session, client_id: int) -> dict[str, int]:
     for value, count in session.execute(stmt).all():
         counts[value.value] = count
     return counts
+
+
+def medium_breakdown(session: Session, client_id: int) -> dict[str, int]:
+    """Mention counts per outlet (URL host via _outlet_of, author fallback).
+
+    The medium facet of the feed: sources are adapters (news_rss lumps every
+    RSS outlet), the outlet identity is the URL hostname. Count desc, then
+    name, so the sidebar panel renders a stable order.
+    """
+    rows = session.execute(
+        select(Mention.url, Mention.author).where(Mention.client_id == client_id)
+    ).all()
+    counts: dict[str, int] = defaultdict(int)
+    for url, author in rows:
+        counts[_outlet_of(url, author)] += 1
+    return dict(sorted(counts.items(), key=lambda kv: (-kv[1], kv[0])))
 
 
 # --- home day aggregates (home-digest-v2 T2) -------------------------------
@@ -411,7 +449,7 @@ def mention_timestamps(
     *,
     since: datetime | None = None,
     until: datetime | None = None,
-    **filters: object,
+    **filters: Any,
 ) -> list[datetime]:
     """Publication timestamps under the shared filters (client-side bucketing).
 

@@ -81,6 +81,25 @@
 		return `${page.url.pathname}${qs ? `?${qs}` : ''}`;
 	}
 
+	/* Medium facet (outlet host): links, not form posts — the panel sits
+	   outside the filter form and must preserve every other facet. */
+	function hrefWithMedium(value: string | null): string {
+		const params = new URLSearchParams(page.url.searchParams);
+		if (value === null) params.delete('medium');
+		else params.set('medium', value);
+		params.delete('offset'); // a new filter facet resets pagination
+		const qs = params.toString();
+		return `${page.url.pathname}${qs ? `?${qs}` : ''}`;
+	}
+
+	/** Sidebar «Medios» rows: count desc (server order), top 10 + fold. */
+	const MEDIUM_TOP = 10;
+	const mediumRows = $derived(
+		Object.entries(data.mediumCounts ?? {}).map(([medium, count]) => ({ medium, count }))
+	);
+	const mediumTop = $derived(mediumRows.slice(0, MEDIUM_TOP));
+	const mediumRest = $derived(mediumRows.slice(MEDIUM_TOP));
+
 	function hrefWithOffset(offset: number): string {
 		const params = new URLSearchParams(page.url.searchParams);
 		params.set('offset', String(offset));
@@ -153,6 +172,7 @@
 			<h2 id="filter-panel-title">Filtrar publicaciones</h2>
 			<form method="get" role="search" data-testid="feed-filter-main">
 				<input type="hidden" name="channel" value={filters.channel} />
+				<input type="hidden" name="medium" value={filters.medium} />
 				<input type="hidden" name="since" value={filters.since} />
 				<input type="hidden" name="until" value={filters.until} />
 				<div class="filter-bar">
@@ -239,6 +259,7 @@
 						<form method="get" class="per-page">
 							<!-- keep every active facet while changing the page size -->
 							<input type="hidden" name="channel" value={filters.channel} />
+							<input type="hidden" name="medium" value={filters.medium} />
 							<input type="hidden" name="sentiment" value={filters.sentiment} />
 							<input type="hidden" name="keyword_id" value={filters.keyword_id} />
 							<input type="hidden" name="q" value={filters.q} />
@@ -281,6 +302,7 @@
 				<input type="hidden" name="q" value={filters.q} />
 				<input type="hidden" name="sentiment" value={filters.sentiment} />
 				<input type="hidden" name="keyword_id" value={filters.keyword_id} />
+				<input type="hidden" name="medium" value={filters.medium} />
 
 				<fieldset class="filter-group" aria-label="Filtrar por tipo de contenido">
 					<button
@@ -354,6 +376,45 @@
 				</noscript>
 			</form>
 		</section>
+
+		{#if mediumRows.length > 0}
+			<section class="sidebar-section" aria-labelledby="medios-title">
+				<h2 id="medios-title">Medios</h2>
+				<p class="side-note">Outlet de cada mención</p>
+				<div class="filter-group medios-group" role="group" aria-label="Filtrar por medio">
+					{#if filters.medium}
+						<a class="filter" href={hrefWithMedium(null)}>Todos los medios</a>
+					{/if}
+					{#each mediumTop as row (row.medium)}
+						<a
+							class="filter"
+							role="button"
+							aria-pressed={filters.medium === row.medium}
+							href={hrefWithMedium(row.medium)}
+						>
+							{row.medium} · {row.count}
+						</a>
+					{/each}
+				</div>
+				{#if mediumRest.length > 0}
+					<details class="medios-more">
+						<summary>Más medios ({mediumRest.length})</summary>
+						<div class="filter-group medios-group" role="group" aria-label="Más medios">
+							{#each mediumRest as row (row.medium)}
+								<a
+									class="filter"
+									role="button"
+									aria-pressed={filters.medium === row.medium}
+									href={hrefWithMedium(row.medium)}
+								>
+									{row.medium} · {row.count}
+								</a>
+							{/each}
+						</div>
+					</details>
+				{/if}
+			</section>
+		{/if}
 
 		<section class="sidebar-section history-panel" aria-labelledby="historico-title">
 			<h2 id="historico-title">Histórico</h2>

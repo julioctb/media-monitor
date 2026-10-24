@@ -81,6 +81,7 @@ def stats_overview(session: SessionDep, client_id: ClientIdDep) -> StatsOverview
         total=queries.count_mentions(session, client_id),
         by_sentiment=queries.sentiment_breakdown(session, client_id),
         by_source=queries.source_breakdown(session, client_id),
+        by_medium=queries.medium_breakdown(session, client_id),
         last_24h=queries.count_mentions(session, client_id, since=now - timedelta(hours=24)),
         last_7d=queries.count_mentions(session, client_id, since=now - timedelta(days=7)),
         daily_volume=daily_volume,

@@ -51,3 +51,24 @@ it('keeps every channel pool call within the API limit at deep offsets', async (
 		expect(limit).toBeLessThanOrEqual(500);
 	}
 });
+
+it('forwards the medium facet as one direct query and echoes it in filters', async () => {
+	const fetchMock = stubFetch({
+		'/api/stats/overview': { by_source: {}, by_medium: { 'e-consulta.com': 3, 'x.com': 1 } },
+		'/api/keywords': [],
+		'/api/mentions': { items: [], total: 0 }
+	});
+
+	const url = new URL('http://localhost/?channel=news&medium=e-consulta.com');
+	const data = (await load({ url } as never)) as Record<string, Record<string, unknown>>;
+
+	const mentionCalls = fetchMock.mock.calls
+		.map((call) => new URL(String(call[0]), 'http://localhost'))
+		.filter((u) => u.pathname === '/api/mentions');
+	// medium wins over the channel pools: exactly one call, carrying medium.
+	expect(mentionCalls).toHaveLength(1);
+	expect(mentionCalls[0].searchParams.get('medium')).toBe('e-consulta.com');
+	expect(mentionCalls[0].searchParams.get('channel')).toBeNull();
+	expect((data.filters as Record<string, string>).medium).toBe('e-consulta.com');
+	expect(data.mediumCounts).toEqual({ 'e-consulta.com': 3, 'x.com': 1 });
+});

@@ -137,6 +137,7 @@ class StatsOverview(BaseModel):
     total: int
     by_sentiment: dict[str, int]
     by_source: dict[str, int]
+    by_medium: dict[str, int] = {}
     last_24h: int
     last_7d: int
     daily_volume: list[DailyVolume]

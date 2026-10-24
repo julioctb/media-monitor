@@ -122,20 +122,27 @@ export const load: PageServerLoad = async ({ url }) => {
 		]);
 
 		const groups = splitSources(Object.keys(stats.by_source).sort());
-		const mentions = rawSource
-			? await listMentions({ ...common, source: rawSource, limit, offset })
-			: channel === ''
-				? await listMentions({ ...common, limit, offset })
-				: await loadChannelPage(channelSources(channel, groups), common, limit, offset);
+		// medium (outlet host) narrows server-side; it wins over the channel
+		// pools the same way an explicit source does.
+		const rawMedium = params.get('medium')?.trim() || undefined;
+		const mentions = rawMedium
+			? await listMentions({ ...common, source: rawSource, medium: rawMedium, limit, offset })
+			: rawSource
+				? await listMentions({ ...common, source: rawSource, limit, offset })
+				: channel === ''
+					? await listMentions({ ...common, limit, offset })
+					: await loadChannelPage(channelSources(channel, groups), common, limit, offset);
 
 		return {
 			mentions,
 			keywords,
 			digest,
 			sourceCounts: stats.by_source,
+			mediumCounts: stats.by_medium ?? {},
 			channelGroups: groups,
 			filters: {
 				source: params.get('source') ?? '',
+				medium: params.get('medium') ?? '',
 				channel,
 				sentiment: params.get('sentiment') ?? '',
 				keyword_id: rawKeyword,

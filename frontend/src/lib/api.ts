@@ -100,6 +100,8 @@ export interface MentionQuery {
 	until?: string;
 	/** Substring search over title and content. */
 	q?: string;
+	/** Outlet (URL host) filter, e.g. www.e-consulta.com; www-insensitive. */
+	medium?: string;
 	limit?: number;
 	offset?: number;
 }
@@ -135,6 +137,8 @@ export interface StatsOverview {
 	by_sentiment: Record<string, number>;
 	/** Keys are source tags; open set, render generically. */
 	by_source: Record<string, number>;
+	/** Mention counts per outlet (URL host): the feed «Medios» facet. */
+	by_medium: Record<string, number>;
 	last_24h: number;
 	last_7d: number;
 	/** 30 ascending daily buckets, zero-filled. */
@@ -334,6 +338,7 @@ export async function listMentions(
 		since: query.since,
 		until: query.until,
 		q: query.q,
+		medium: query.medium,
 		limit: query.limit,
 		offset: query.offset
 	});

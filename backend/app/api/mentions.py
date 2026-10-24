@@ -29,14 +29,16 @@ def list_mentions(
     q: str | None = None,
     classifier: str | None = None,
     label: str | None = None,
+    medium: str | None = Query(default=None, max_length=200),
     limit: int = Query(default=50, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
 ) -> MentionPage:
     """Mention feed, newest first.
 
     Filters: source, sentiment (or 'none' for unclassified), keyword,
-    published-at window, `q` substring search over title/content, and a
-    classification probe (classifier, optionally narrowed to label).
+    published-at window, `q` substring search over title/content, a
+    classification probe (classifier, optionally narrowed to label), and
+    `medium` (outlet host of the URL, e.g. www.e-consulta.com).
     """
     sentiment_value = None
     sentiment_null = False
@@ -55,6 +57,7 @@ def list_mentions(
         "q": q,
         "classifier": classifier,
         "label": label,
+        "medium": medium,
     }
     items = queries.list_mentions(session, client_id, limit=limit, offset=offset, **common)
     total = queries.count_mentions(session, client_id, **common)
