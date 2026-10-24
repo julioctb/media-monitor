@@ -15,6 +15,7 @@ from app.api.schemas import (
     ToneSplit,
 )
 from app.models import queries
+from app.models.base import MentionSource
 from app.settings_runtime import resolve_effective_settings
 from app.summaries.builder import day_window, today_in
 
@@ -82,6 +83,13 @@ def stats_overview(session: SessionDep, client_id: ClientIdDep) -> StatsOverview
         by_sentiment=queries.sentiment_breakdown(session, client_id),
         by_source=queries.source_breakdown(session, client_id),
         by_medium=queries.medium_breakdown(session, client_id),
+        news_medium_count=len(
+            queries.medium_breakdown(
+                session,
+                client_id,
+                sources=[s for s in MentionSource if s.value not in queries.SOCIAL_SOURCES],
+            )
+        ),
         last_24h=queries.count_mentions(session, client_id, since=now - timedelta(hours=24)),
         last_7d=queries.count_mentions(session, client_id, since=now - timedelta(days=7)),
         daily_volume=daily_volume,

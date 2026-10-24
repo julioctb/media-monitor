@@ -107,7 +107,9 @@
 	}
 
 	/** Intro stat: news outlets with at least one mention. */
-	const newsOutlets = $derived(data.channelGroups.news.length);
+	// Real outlets with news coverage (backend counts hosts of non-social
+	// sources); the old channelGroups.news.length counted adapter types.
+	const newsOutlets = $derived(data.newsMediumCount ?? 0);
 	const newsTotal = $derived(
 		data.channelGroups.news.reduce((sum, source) => sum + (data.sourceCounts[source] ?? 0), 0)
 	);

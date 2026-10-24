@@ -139,6 +139,8 @@ export interface StatsOverview {
 	by_source: Record<string, number>;
 	/** Mention counts per outlet (URL host): the feed «Medios» facet. */
 	by_medium: Record<string, number>;
+	/** Distinct outlets with ≥1 news mention («Medios con noticias» stat). */
+	news_medium_count: number;
 	last_24h: number;
 	last_7d: number;
 	/** 30 ascending daily buckets, zero-filled. */

@@ -321,18 +321,21 @@ def source_breakdown(session: Session, client_id: int) -> dict[str, int]:
     return counts
 
 
-def medium_breakdown(session: Session, client_id: int) -> dict[str, int]:
+def medium_breakdown(
+    session: Session, client_id: int, *, sources: Sequence[MentionSource | str] | None = None
+) -> dict[str, int]:
     """Mention counts per outlet (URL host via _outlet_of, author fallback).
 
     The medium facet of the feed: sources are adapters (news_rss lumps every
     RSS outlet), the outlet identity is the URL hostname. Count desc, then
-    name, so the sidebar panel renders a stable order.
+    name, so the sidebar panel renders a stable order. `sources` narrows the
+    scan (e.g. news outlets only, excluding SOCIAL_SOURCES).
     """
-    rows = session.execute(
-        select(Mention.url, Mention.author).where(Mention.client_id == client_id)
-    ).all()
+    stmt = select(Mention.url, Mention.author).where(Mention.client_id == client_id)
+    if sources:
+        stmt = stmt.where(Mention.source.in_(sources))
     counts: dict[str, int] = defaultdict(int)
-    for url, author in rows:
+    for url, author in session.execute(stmt).all():
         counts[_outlet_of(url, author)] += 1
     return dict(sorted(counts.items(), key=lambda kv: (-kv[1], kv[0])))
 

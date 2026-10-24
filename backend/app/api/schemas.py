@@ -138,6 +138,9 @@ class StatsOverview(BaseModel):
     by_sentiment: dict[str, int]
     by_source: dict[str, int]
     by_medium: dict[str, int] = {}
+    #: Distinct outlets (hosts) with at least one news mention — the
+    #: «Medios con noticias» intro stat; social posts do not count.
+    news_medium_count: int = 0
     last_24h: int
     last_7d: int
     daily_volume: list[DailyVolume]

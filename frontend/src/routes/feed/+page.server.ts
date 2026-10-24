@@ -139,6 +139,7 @@ export const load: PageServerLoad = async ({ url }) => {
 			digest,
 			sourceCounts: stats.by_source,
 			mediumCounts: stats.by_medium ?? {},
+			newsMediumCount: stats.news_medium_count ?? 0,
 			channelGroups: groups,
 			filters: {
 				source: params.get('source') ?? '',

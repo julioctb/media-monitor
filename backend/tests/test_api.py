@@ -505,26 +505,30 @@ def test_stats_overview_shape(api, db) -> None:
                  source=MentionSource.x_twitter, published=now - timedelta(minutes=5))
     seed_mention(db, client_id, "https://a/3", sentiment=None,
                  source=MentionSource.gdelt, published=now - timedelta(hours=30))
+    # social-only host: counts in by_medium, not in news_medium_count
+    seed_mention(db, client_id, "https://b/9", source=MentionSource.facebook_page)
 
     body = api.get("/api/stats/overview").json()
-    assert body["total"] == 3
+    assert body["total"] == 4
     assert body["by_sentiment"] == {
         "positive": 1,
         "negative": 1,
         "neutral": 0,
-        "null": 1,
+        "null": 2,
     }
     assert body["by_source"] == {
         "news_rss": 1,
         "gdelt": 1,
         "x_twitter": 1,
-        "facebook_page": 0,
+        "facebook_page": 1,
         "rss_custom": 0,
         "scraper": 0,
     }
     assert body["last_24h"] == 2
     assert body["last_7d"] == 3
-    assert body["by_medium"] == {"a": 3}
+    assert body["by_medium"] == {"a": 3, "b": 1}
+    # news outlets exclude social adapters: a/2 is x_twitter on host a.
+    assert body["news_medium_count"] == 1
     volume = body["daily_volume"]
     assert len(volume) == 30
     expected_today = sum(
