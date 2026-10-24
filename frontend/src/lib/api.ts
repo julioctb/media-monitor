@@ -935,3 +935,67 @@ export function patchAgendaItem(
 export function deleteAgendaItem(id: number, options: RequestOptions = {}): Promise<void> {
 	return request<void>(`/api/clients/1/agenda-items/${id}`, { method: 'DELETE' }, options);
 }
+
+/* ----------------------------- field reports ----------------------------- */
+
+/** One field report (the human channel) as the admin queue consumes it. */
+export interface FieldReportRecord {
+	id: number;
+	status: 'draft' | 'review' | 'published' | 'rejected';
+	operator_id: number | null;
+	title: string | null;
+	content: string | null;
+	place: string | null;
+	happened_at: string | null;
+	review_note: string | null;
+	mention_id: number | null;
+	created_at: string | null;
+	published_at: string | null;
+}
+
+export function listFieldReports(
+	status?: 'draft' | 'review' | 'published' | 'rejected',
+	options: RequestOptions = {}
+): Promise<{ items: FieldReportRecord[] }> {
+	const qs = status ? `?status=${encodeURIComponent(status)}` : '';
+	return request<{ items: FieldReportRecord[] }>(
+		`/api/field-reports${qs}`,
+		{ method: 'GET' },
+		options
+	);
+}
+
+export function approveFieldReport(
+	id: number,
+	options: RequestOptions = {}
+): Promise<FieldReportRecord> {
+	return request<FieldReportRecord>(
+		`/api/field-reports/${id}/approve`,
+		{ method: 'POST' },
+		options
+	);
+}
+
+export function rejectFieldReport(
+	id: number,
+	note: string | null,
+	options: RequestOptions = {}
+): Promise<FieldReportRecord> {
+	return request<FieldReportRecord>(
+		`/api/field-reports/${id}/reject`,
+		jsonInit('POST', { note }),
+		options
+	);
+}
+
+export function updateFieldReport(
+	id: number,
+	patch: Partial<Pick<FieldReportRecord, 'title' | 'content' | 'place'>>,
+	options: RequestOptions = {}
+): Promise<FieldReportRecord> {
+	return request<FieldReportRecord>(
+		`/api/field-reports/${id}`,
+		jsonInit('PATCH', patch),
+		options
+	);
+}

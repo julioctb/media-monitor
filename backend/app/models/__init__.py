@@ -14,6 +14,7 @@ from app.models.client import Client
 from app.models.daily_summary import DailySummary
 from app.models.daily_summary_revision import DailySummaryRevision
 from app.models.event import Event
+from app.models.field import FieldOperator, FieldReport
 from app.models.ingest_cursor import IngestCursor
 from app.models.ingest_run import IngestRun
 from app.models.keyword import Keyword

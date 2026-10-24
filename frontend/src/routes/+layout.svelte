@@ -15,6 +15,7 @@
 	const navGroups: NavGroup[] = [
 		{ label: 'Resumen', href: '/' },
 		{ label: 'Feed', href: '/feed' },
+		{ label: 'Campo', href: '/campo' },
 		{ label: 'Eventos', href: '/events' },
 		{ label: 'Agenda', href: '/agenda' },
 		{ label: 'Actores', href: '/persons' },

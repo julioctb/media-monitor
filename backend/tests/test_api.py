@@ -526,6 +526,7 @@ def test_stats_overview_shape(api, db) -> None:
         "facebook_page": 1,
         "rss_custom": 0,
         "scraper": 0,
+        "field_report": 0,
     }
     assert body["last_24h"] == 2
     assert body["last_7d"] == 3

@@ -30,6 +30,7 @@ class MentionSource(str, enum.Enum):
     facebook_page = "facebook_page"
     rss_custom = "rss_custom"
     scraper = "scraper"
+    field_report = "field_report"
 
 
 class Sentiment(str, enum.Enum):

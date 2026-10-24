@@ -139,7 +139,7 @@ def test_event_grouping_carries_confidence(session):
     assert {s["source"] for s in noticias[0]["sources"]} == {"news_rss", "rss_custom"}
 
 
-def test_day_window_follows_settings_timezone(session):
+def test_day_window_follows_settings_timezone(session, monkeypatch):
     start, end = day_window(DAY.date(), MX_TZ)
     assert start.utcoffset().total_seconds() == -6 * 3600
     assert start.isoformat() == "2026-10-09T00:00:00-06:00"
@@ -159,6 +159,21 @@ def test_day_window_follows_settings_timezone(session):
         "Tarde UTC",
         datetime(2026, 10, 9, 5, 0, tzinfo=timezone.utc),
     )
+    # The morning rescue (before 12:00 local) widens the window into the
+    # previous evening and would count the 23:00 mention. Pin the hour so
+    # the assertion is time-of-day independent; the rescue has its own
+    # coverage in the window tests.
+    import app.summaries.builder as builder_module
+
+    real_datetime = builder_module.datetime
+
+    class _FixedNowDatetime(real_datetime):
+        @classmethod
+        def now(cls, tz=None):  # noqa: D102 - test shim
+            # 13:00 local: past the cutover, no rescue.
+            return real_datetime(2026, 10, 23, 13, 0, tzinfo=timezone.utc)
+
+    monkeypatch.setattr(builder_module, "datetime", _FixedNowDatetime)
     row = build_daily_summary(session, client_id=client.id, day=DAY.date())
     assert row.content["coverage"]["total"] == 1
     assert row.content["coverage"]["by_source"] == {"news_rss": 1}

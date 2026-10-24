@@ -11,8 +11,11 @@ from collections import defaultdict
 from collections.abc import Mapping, Sequence
 from typing import Any
 from urllib.parse import urlsplit
+
 from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
+
+from app.models.field import FieldOperator, FieldReport, FieldReportStatus
 
 from sqlalchemy import and_, delete, func, or_, select
 from sqlalchemy.exc import IntegrityError
@@ -1698,3 +1701,142 @@ def get_summary_revision(
         .filter_by(client_id=client_id, summary_date=day, seq=seq)
         .first()
     )
+
+
+# --- field reports (the human channel; see app/models/field.py) ------------
+
+
+def _clean_str(value: object) -> str | None:
+    """Stripped non-empty string, else None (the tolerant-entry filter)."""
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    return None
+
+
+def create_field_report(
+    session: Session,
+    *,
+    client_id: int,
+    operator_id: int | None = None,
+    status: str = FieldReportStatus.REVIEW,
+    title: str | None = None,
+    content: str | None = None,
+    place: str | None = None,
+    happened_at: datetime | None = None,
+    intake: dict | None = None,
+) -> FieldReport:
+    """Persist an intake; manual submissions default to review.
+
+    The bot layer creates drafts and walks them to review when the
+    conversation completes; the admin form creates review-ready rows.
+    """
+    if status not in (FieldReportStatus.DRAFT, FieldReportStatus.REVIEW):
+        raise ValueError("initial status must be draft or review")
+    report = FieldReport(
+        client_id=client_id,
+        operator_id=operator_id,
+        status=status,
+        title=_clean_str(title),
+        content=_clean_str(content),
+        place=_clean_str(place),
+        happened_at=happened_at,
+        intake=intake,
+    )
+    session.add(report)
+    session.flush()
+    return report
+
+
+def get_field_report(session: Session, client_id: int, report_id: int) -> FieldReport | None:
+    return (
+        session.query(FieldReport)
+        .filter_by(client_id=client_id, id=report_id)
+        .first()
+    )
+
+
+def list_field_reports(
+    session: Session,
+    client_id: int,
+    *,
+    status: str | None = None,
+    limit: int = 100,
+) -> list[FieldReport]:
+    """Review queue and history; newest first, optional status filter."""
+    stmt = session.query(FieldReport).filter_by(client_id=client_id)
+    if status is not None:
+        if status not in FieldReportStatus.ALL:
+            raise ValueError(f"unknown field report status {status!r}")
+        stmt = stmt.filter_by(status=status)
+    return list(stmt.order_by(FieldReport.id.desc()).limit(limit))
+
+
+def update_field_report(
+    session: Session, report: FieldReport, changes: dict
+) -> FieldReport:
+    """Review-time edits. Published rows are frozen (the Mention exists)."""
+    if report.status == FieldReportStatus.PUBLISHED:
+        raise ValueError("published reports are frozen; the feed holds the copy")
+    allowed = {"title", "content", "place", "happened_at", "operator_id", "intake"}
+    for key, value in changes.items():
+        if key not in allowed:
+            raise ValueError(f"field {key!r} is not editable")
+        if key in ("title", "content", "place") and value is not None:
+            value = _clean_str(value)
+        setattr(report, key, value)
+    session.flush()
+    return report
+
+
+def submit_field_report(session: Session, report: FieldReport) -> FieldReport:
+    """draft -> review once the intake conversation completes."""
+    if report.status != FieldReportStatus.DRAFT:
+        raise ValueError("only draft reports can be submitted for review")
+    report.status = FieldReportStatus.REVIEW
+    session.flush()
+    return report
+
+
+def reject_field_report(
+    session: Session, report: FieldReport, note: str | None = None
+) -> FieldReport:
+    if report.status not in (FieldReportStatus.DRAFT, FieldReportStatus.REVIEW):
+        raise ValueError("only pending reports can be rejected")
+    report.status = FieldReportStatus.REJECTED
+    report.review_note = _clean_str(note)
+    session.flush()
+    return report
+
+
+def publish_field_report(session: Session, report: FieldReport) -> FieldReport | None:
+    """Approve: freeze a copy into the feed as a ``field_report`` mention.
+
+    Returns the report; None when a sibling mention with the same title
+    already exists (insert_mention dedupe) — the caller decides whether to
+    surface that as an error. Idempotent for already-published reports.
+    """
+    if report.status == FieldReportStatus.PUBLISHED:
+        return report
+    if report.status != FieldReportStatus.REVIEW:
+        raise ValueError("only review reports can be published")
+    if not (report.title and report.content):
+        raise ValueError("title and content are required to publish")
+
+    operator = session.get(FieldOperator, report.operator_id) if report.operator_id else None
+    mention = insert_mention(
+        session,
+        client_id=report.client_id,
+        source=MentionSource.field_report,
+        url=f"field://report/{report.id}",
+        title=report.title,
+        content=report.content,
+        author=operator.display_name if operator else None,
+        published_at=report.happened_at,
+    )
+    if mention is None:
+        return None
+    report.status = FieldReportStatus.PUBLISHED
+    report.mention_id = mention.id
+    report.published_at = datetime.now(timezone.utc)
+    session.flush()
+    return report

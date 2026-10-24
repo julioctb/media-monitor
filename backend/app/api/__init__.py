@@ -7,6 +7,7 @@ from app.api import (
     ask,
     alerts,
     events,
+    field_reports,
     ingest,
     keywords,
     mentions,
@@ -33,3 +34,4 @@ api_router.include_router(events.router)
 api_router.include_router(events.coverage_router)
 api_router.include_router(persons.router)
 api_router.include_router(ask.router)
+api_router.include_router(field_reports.router)

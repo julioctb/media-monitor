@@ -418,6 +418,8 @@ CONTENT_FETCHERS: dict[MentionSource, Callable[[str], ArticleContent | None] | N
     MentionSource.rss_custom: _fetch_mention_content,
     # Scraper hits are article URLs: fetch their body like any news source.
     MentionSource.scraper: _fetch_mention_content,
+    # Field reports carry a field:// pseudo-URL: nothing to fetch.
+    MentionSource.field_report: None,
     MentionSource.x_twitter: None,
     MentionSource.facebook_page: None,
 }

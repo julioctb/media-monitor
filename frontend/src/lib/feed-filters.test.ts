@@ -11,7 +11,7 @@ describe('splitSources', () => {
 });
 
 describe('channelSources', () => {
-	const groups = { news: ['news_rss'], social: ['x_twitter'] };
+	const groups = { news: ['news_rss'], social: ['x_twitter'], field: ['field_report'] };
 
 	it('maps each channel to its source set', () => {
 		expect(channelSources('', groups)).toEqual([]);
@@ -19,8 +19,8 @@ describe('channelSources', () => {
 		expect(channelSources('social', groups)).toEqual(['x_twitter']);
 	});
 
-	it('field has no ingest sources yet', () => {
-		expect(channelSources('field', groups)).toEqual([]);
+	it('field maps to the field-prefixed sources', () => {
+		expect(channelSources('field', groups)).toEqual(['field_report']);
 	});
 });
 

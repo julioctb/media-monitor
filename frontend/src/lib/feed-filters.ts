@@ -1,5 +1,10 @@
 import { isNewsSource } from './digest-stats';
 
+/** Field-prefixed sources are the human channel (reportes de campo). */
+export function isFieldSource(source: string): boolean {
+	return source.startsWith('field');
+}
+
 /**
  * Feed channel filters (feed mockup pills): Todo / Noticias / Redes
  * sociales / Datos de campo. The API accepts a single source per query,
@@ -19,21 +24,27 @@ export function isFeedChannel(value: string | null | undefined): value is FeedCh
 	return value === '' || value === 'news' || value === 'social' || value === 'field';
 }
 
-/** Partition the known source tags into news vs social/field buckets. */
-export function splitSources(all: string[]): { news: string[]; social: string[] } {
-	const news = all.filter((source) => isNewsSource(source));
-	const social = all.filter((source) => !isNewsSource(source));
-	return { news, social };
+/** Partition the known source tags into news / social / field buckets. */
+export function splitSources(all: string[]): {
+	news: string[];
+	social: string[];
+	field: string[];
+} {
+	const news = all.filter((source) => isNewsSource(source) && !isFieldSource(source));
+	const social = all.filter((source) => !isNewsSource(source) && !isFieldSource(source));
+	const field = all.filter((source) => isFieldSource(source));
+	return { news, social, field };
 }
 
 /** Sources for a channel; empty array = channel has no ingest yet. */
 export function channelSources(
 	channel: FeedChannel,
-	sources: { news: string[]; social: string[] }
+	sources: { news: string[]; social: string[]; field: string[] }
 ): string[] {
 	if (channel === 'news') return sources.news;
 	if (channel === 'social') return sources.social;
-	return []; // 'field': no field-data ingest exists yet.
+	if (channel === 'field') return sources.field;
+	return [];
 }
 
 /** Inline validation for the always-visible date range. */

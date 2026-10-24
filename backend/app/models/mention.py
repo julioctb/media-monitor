@@ -69,7 +69,7 @@ class Mention(IntPk, Base):
         # is the only enforcement there.
         CheckConstraint(
             "source IN ('news_rss', 'gdelt', 'x_twitter', 'facebook_page', "
-            "'rss_custom', 'scraper')",
+            "'rss_custom', 'scraper', 'field_report')",
             name="ck_mentions_source",
         ),
     )
