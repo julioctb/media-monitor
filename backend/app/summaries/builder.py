@@ -193,6 +193,51 @@ def _heuristic_headline(
     return " ".join(parts)
 
 
+def digest_prompt_view(facts: dict) -> dict:
+    """Lean facts projection for the narrative prompt.
+
+    Everything the SYSTEM_PROMPT instructions can reference, nothing the
+    merge re-derives: no ids, no urls, no coverage/pendientes (deterministic
+    sections the model never writes). Order is the content's own, so
+    ``items[i].index`` keeps matching ``noticias[i]``.
+    """
+    noticias = []
+    for noticia in facts.get("noticias", []):
+        view = {
+            key: noticia[key]
+            for key in ("title", "summary", "topic", "confidence", "tone", "when_label")
+            if key in noticia
+        }
+        if "repeat" in noticia:
+            view["repeat"] = noticia["repeat"]
+        view["sources"] = [
+            {key: source[key] for key in ("source", "title") if key in source}
+            for source in noticia.get("sources", [])
+        ]
+        noticias.append(view)
+
+    rectora = {
+        key: value for key, value in facts.get("rectora", {}).items() if key != "person_id"
+    }
+    if "actions" in rectora:
+        rectora["actions"] = [
+            {key: action[key] for key in ("title", "sentiment", "role", "org") if key in action}
+            for action in rectora["actions"]
+        ]
+
+    personas = [
+        {key: person[key] for key in person if key != "person_id"}
+        for person in facts.get("personas", [])
+    ]
+
+    return {
+        "noticias": noticias,
+        "rectora": rectora,
+        "redes": facts.get("redes", {}),
+        "personas": personas,
+    }
+
+
 def _digest_prompt(day: date, facts: dict) -> str:
     repeats = any(n.get("repeat") for n in facts.get("noticias", []))
     extra = (
@@ -207,7 +252,7 @@ def _digest_prompt(day: date, facts: dict) -> str:
     return (
         f"Digest del {day.isoformat()} (todas las cifras y títulos son datos "
         f"verificados; el items[i].index corres a noticias[i]):\n"
-        f"{json.dumps(facts, ensure_ascii=False, default=str)}"
+        f"{json.dumps(digest_prompt_view(facts), ensure_ascii=False, default=str)}"
         f"{extra}"
     )
 

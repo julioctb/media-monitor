@@ -823,3 +823,55 @@ def test_digest_generator_sends_schema_then_plain_retry(monkeypatch):
     # NarrativeItem lands as a $ref; its required keys drive guided generation.
     assert schema["$defs"]["NarrativeItem"]["required"] == ["index"]
     assert "response_format" not in bodies[1]
+
+
+def test_digest_prompt_view_drops_non_narrative_weight():
+    from app.summaries.builder import digest_prompt_view
+
+    facts = {
+        "coverage": {"total": 9, "by_source": {"x": 9}},
+        "pendientes": ["k"],
+        "noticias": [
+            {
+                "title": "T",
+                "summary": None,
+                "topic": "t",
+                "event_id": 3,
+                "confidence": "alta",
+                "tone": {"negative": 2},
+                "person_ids": [1, 2],
+                "when_label": "10 a.m.",
+                "why_it_matters": None,
+                "sources": [{"source": "news_rss", "url": "http://x/a", "title": "a"}],
+            }
+        ],
+        "rectora": {
+            "person_id": 7,
+            "actions": [{"title": "a", "event_id": 3, "sentiment": "negative", "role": "R", "org": "U"}],
+            "name": "Alguien",
+        },
+        "redes": {"x": {"count": 3, "note": ""}},
+        "personas": [{"person_id": 1, "name": "P", "role": "r", "fact": "f"}],
+    }
+
+    view = digest_prompt_view(facts)
+    assert "coverage" not in view and "pendientes" not in view
+    noticia = view["noticias"][0]
+    for dropped in ("event_id", "person_ids", "why_it_matters"):
+        assert dropped not in noticia
+    assert noticia["tone"] == {"negative": 2}
+    assert noticia["sources"][0] == {"source": "news_rss", "title": "a"}
+    assert "person_id" not in view["rectora"]
+    assert "event_id" not in view["rectora"]["actions"][0]
+    assert view["rectora"]["name"] == "Alguien"  # identity stamp survives
+    assert "person_id" not in view["personas"][0]
+    assert view["redes"] == {"x": {"count": 3, "note": ""}}
+    # index alignment: order is the content's own
+    assert len(view["noticias"]) == 1
+
+
+def test_digest_prompt_view_empty_facts():
+    from app.summaries.builder import digest_prompt_view
+
+    view = digest_prompt_view({})
+    assert view == {"noticias": [], "rectora": {}, "redes": {}, "personas": []}
