@@ -75,10 +75,15 @@ _DIGITS = re.compile(r"\D+")
 
 
 def normalize_phone(raw: str | None) -> str:
-    """Digits only: the allowlist match ignores spaces and dashes."""
+    """Digits only, keyed by the last 10 (MX): +52/lada prefixes vanish.
+
+    The allowlist stores whatever the admin typed; the contact share adds
+    country codes. Comparing the 10-digit tail makes both shapes equal.
+    """
     if not raw:
         return ""
-    return _DIGITS.sub("", raw)
+    digits = _DIGITS.sub("", raw)
+    return digits[-10:] if len(digits) > 10 else digits
 
 
 def _display_name(from_user: dict) -> str:

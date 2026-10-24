@@ -75,6 +75,17 @@ def _run_intake(bot: FakeBot) -> None:
     bot.handle_update(_text_update("ok"))
 
 
+def test_phone_match_tolerates_country_code_forms(db):
+    """Stored 10-digit vs Telegram's +52-prefixed contact: same line."""
+    _seed_operator(db, phone="222 123 4567")
+    bot = FakeBot(db)
+
+    bot.handle_update(_text_update("/start"))
+    bot.handle_update(_contact_update("+52 222 123 4567"))
+
+    assert "1/4" in bot.replies[-1]
+
+
 def test_phone_match_binds_activates_and_intakes(db):
     operator = _seed_operator(db)
     bot = FakeBot(db)

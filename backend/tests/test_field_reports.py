@@ -188,7 +188,7 @@ def test_operator_create_invite_and_phone_allowlist(api, db, monkeypatch):
 
     # the allowlist now answers the bot phone match via plain query
     listed = api.get("/api/field-operators").json()["items"]
-    assert any(o["phone"] == "522229998877" for o in listed)
+    assert any(o["phone"] == "2229998877" for o in listed)
     assert listed[0]["invited_at"] is not None
 
     # deactivate cuts the bot access flag without deleting
