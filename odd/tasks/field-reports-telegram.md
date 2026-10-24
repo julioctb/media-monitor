@@ -55,7 +55,7 @@ descartado con el cambio de canal.
 
 ## Open points (resolver antes o durante implementación)
 
-1. Atribución en el feed: rol/alias vs nombre.
+1. ~~Atribución en el feed: rol/alias vs nombre~~ DECIDIDO (23/oct): **nombre del operador** — ya es el comportamiento: `publish_field_report` pone `author = display_name` y `MentionCard` lo muestra en la fuente. Sin cambios de código.
 2. Copy exacto del intake (preguntas y tono neutro).
 3. ~~Alta en Meta Business~~ Token del bot: crear con BotFather (2 min), pegar en `.env`. Sin verificación ni método de pago.
 4. Provider y costo del LLM de enriquecimiento (el enrichment chain existente puede reutilizarse).
