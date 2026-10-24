@@ -37,6 +37,7 @@ from app.summaries.digest import (
     build_digest_facts,
     render_plain_text,
 )
+from app.summaries.digest_schema import narrative_response_schema
 
 log = logging.getLogger("summaries.builder")
 
@@ -228,18 +229,30 @@ def _openai_generator(effective: EffectiveSettings) -> Callable[[str], str]:
         for attempt in range(ATTEMPTS):
             if attempt:
                 time.sleep(BACKOFF_S * attempt)
+            body: dict = {
+                "model": model,
+                "messages": [
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": prompt},
+                ],
+                "temperature": 0,
+            }
+            if attempt == 0:
+                # Guided generation (docs/contrato-narrativa-del-digest.md
+                # §4). Retries go plain: a provider without json_schema
+                # support degrades to the old behavior instead of failing.
+                body["response_format"] = {
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": "digest_narrative",
+                        "schema": narrative_response_schema(),
+                    },
+                }
             try:
                 resp = httpx.post(
                     f"{base_url}/chat/completions",
                     headers={"Authorization": f"Bearer {api_key}"},
-                    json={
-                        "model": model,
-                        "messages": [
-                            {"role": "system", "content": SYSTEM_PROMPT},
-                            {"role": "user", "content": prompt},
-                        ],
-                        "temperature": 0,
-                    },
+                    json=body,
                     timeout=TIMEOUT_S,
                 )
                 resp.raise_for_status()

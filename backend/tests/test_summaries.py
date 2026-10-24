@@ -784,3 +784,42 @@ def test_apply_narrative_logs_skipped_entries(caplog):
     assert errors == []
     assert "summary" not in content["noticias"][0]
     assert any("items[0]" in message for message in caplog.messages)
+
+
+def test_digest_generator_sends_schema_then_plain_retry(monkeypatch):
+    # Guided generation on the first attempt; retries go plain so a
+    # provider without json_schema support degrades instead of failing.
+    from app.summaries import builder
+
+    bodies: list[dict] = []
+    # 1st attempt fails (content None), 2nd ok.
+    contents = [None, json.dumps({"headline": "ok"})]
+
+    class FakeResponse:
+        def raise_for_status(self) -> None:
+            pass
+
+        def json(self) -> dict:
+            return {"choices": [{"message": {"content": contents[len(bodies) - 1]}}]}
+
+    def fake_post(url, *, headers=None, json=None, timeout=None):  # noqa: A002
+        bodies.append(json)
+        return FakeResponse()
+
+    monkeypatch.setattr(builder.httpx, "post", fake_post)
+    generate = builder._openai_generator(
+        EffectiveSettings(
+            client_id=1,
+            ai_provider="openai",
+            ai_api_key="sk",
+            ai_base_url="https://api.example.com/v1",
+            ai_model="m",
+        )
+    )
+    generate("{}")
+
+    assert "response_format" in bodies[0]
+    schema = bodies[0]["response_format"]["json_schema"]["schema"]
+    # NarrativeItem lands as a $ref; its required keys drive guided generation.
+    assert schema["$defs"]["NarrativeItem"]["required"] == ["index"]
+    assert "response_format" not in bodies[1]
