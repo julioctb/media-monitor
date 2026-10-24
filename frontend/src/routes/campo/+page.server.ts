@@ -1,7 +1,10 @@
 import { fail } from '@sveltejs/kit';
 import { errorStatus, errorMessage } from '$lib/server/api-error';
 import {
+	activateFieldOperator,
 	approveFieldReport,
+	deactivateFieldOperator,
+	listFieldOperators,
 	listFieldReports,
 	rejectFieldReport,
 	updateFieldReport
@@ -10,13 +13,20 @@ import type { Actions, PageServerLoad } from './$types';
 
 const ID_RE = /^\d+$/;
 
+function numericId(form: FormData): number | null {
+	const raw = String(form.get('id') ?? '');
+	return ID_RE.test(raw) ? Number(raw) : null;
+}
+
 export const load: PageServerLoad = async () => {
 	try {
-		const [pending, recent] = await Promise.all([
+		const [operators, pending, recent] = await Promise.all([
+			listFieldOperators(),
 			listFieldReports('review'),
 			listFieldReports()
 		]);
 		return {
+			operators: operators.items,
 			pending: pending.items,
 			recent: recent.items.filter((report) => report.status !== 'review').slice(0, 30)
 		};
@@ -29,11 +39,8 @@ export const load: PageServerLoad = async () => {
 
 export const actions: Actions = {
 	approve: async ({ request }) => {
-		const form = await request.formData();
-		const id = Number(form.get('id'));
-		if (!ID_RE.test(String(form.get('id')))) {
-			return fail(400, { message: 'Id inválido.' });
-		}
+		const id = numericId(await request.formData());
+		if (id === null) return fail(400, { message: 'Id inválido.' });
 		try {
 			await approveFieldReport(id);
 			return { ok: true, message: 'Reporte publicado en el feed.' };
@@ -46,10 +53,8 @@ export const actions: Actions = {
 
 	reject: async ({ request }) => {
 		const form = await request.formData();
-		const id = Number(form.get('id'));
-		if (!ID_RE.test(String(form.get('id')))) {
-			return fail(400, { message: 'Id inválido.' });
-		}
+		const id = numericId(form);
+		if (id === null) return fail(400, { message: 'Id inválido.' });
 		const note = String(form.get('note') ?? '').trim() || null;
 		try {
 			await rejectFieldReport(id, note);
@@ -63,10 +68,8 @@ export const actions: Actions = {
 
 	update: async ({ request }) => {
 		const form = await request.formData();
-		const id = Number(form.get('id'));
-		if (!ID_RE.test(String(form.get('id')))) {
-			return fail(400, { message: 'Id inválido.' });
-		}
+		const id = numericId(form);
+		if (id === null) return fail(400, { message: 'Id inválido.' });
 		const patch: Record<string, string> = {};
 		for (const key of ['title', 'content', 'place'] as const) {
 			const value = String(form.get(key) ?? '').trim();
@@ -81,6 +84,32 @@ export const actions: Actions = {
 		} catch (cause) {
 			return fail(errorStatus(cause, 502), {
 				message: errorMessage(cause, 'No se pudo actualizar el reporte.')
+			});
+		}
+	},
+
+	activateOperator: async ({ request }) => {
+		const id = numericId(await request.formData());
+		if (id === null) return fail(400, { message: 'Id inválido.' });
+		try {
+			await activateFieldOperator(id);
+			return { ok: true, message: 'Operador activado: ya puede reportar.' };
+		} catch (cause) {
+			return fail(errorStatus(cause, 502), {
+				message: errorMessage(cause, 'No se pudo activar al operador.')
+			});
+		}
+	},
+
+	deactivateOperator: async ({ request }) => {
+		const id = numericId(await request.formData());
+		if (id === null) return fail(400, { message: 'Id inválido.' });
+		try {
+			await deactivateFieldOperator(id);
+			return { ok: true, message: 'Operador desactivado: acceso al bot bloqueado.' };
+		} catch (cause) {
+			return fail(errorStatus(cause, 502), {
+				message: errorMessage(cause, 'No se pudo desactivar al operador.')
 			});
 		}
 	}

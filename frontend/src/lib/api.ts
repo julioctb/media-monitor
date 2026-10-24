@@ -1006,3 +1006,43 @@ export function updateFieldReport(
 		options
 	);
 }
+
+export interface FieldOperatorRecord {
+	id: number;
+	display_name: string;
+	telegram_user_id: number | null;
+	phone: string | null;
+	active: boolean;
+}
+
+export function listFieldOperators(options: RequestOptions = {}): Promise<{
+	items: FieldOperatorRecord[];
+}> {
+	return request<{ items: FieldOperatorRecord[] }>(
+		'/api/field-operators',
+		{ method: 'GET' },
+		options
+	);
+}
+
+export function activateFieldOperator(
+	id: number,
+	options: RequestOptions = {}
+): Promise<{ id: number; active: boolean }> {
+	return request(
+		`/api/field-operators/${id}/activate`,
+		{ method: 'POST' },
+		options
+	);
+}
+
+export function deactivateFieldOperator(
+	id: number,
+	options: RequestOptions = {}
+): Promise<{ id: number; active: boolean }> {
+	return request(
+		`/api/field-operators/${id}/deactivate`,
+		{ method: 'POST' },
+		options
+	);
+}

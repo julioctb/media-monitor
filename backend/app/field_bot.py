@@ -152,10 +152,22 @@ class Bot:
         lowered = text.lower()
         is_reset = lowered in {"/start", "/cancelar"} or lowered in CANCEL_WORDS
 
+        # Access gate: only operators with an ACTIVE alta get the intake.
+        # Unknown senders auto-register as pending; waiting reply every time
+        # (short, neutral) so the silence is never mistaken for a bug.
+        operator, created = self._resolve_operator(from_user)
+        if operator is None or not operator.active:
+            self.sessions.pop(chat_id, None)
+            self.send(
+                chat_id,
+                "Gracias. Tu acceso quedó en lista de espera; te avisaremos "
+                "cuando esté activado." + (" (Registro nuevo.)" if created else ""),
+            )
+            return
+
         session = self.sessions.get(chat_id)
         if session is None or is_reset:
-            self.sessions[chat_id] = Session()
-            self.sessions[chat_id].operator_id = self._ensure_operator(from_user)
+            self.sessions[chat_id] = Session(operator_id=operator.id)
             self.send(chat_id, WELCOME)
             self.send(chat_id, STEPS[0][1])
             return
@@ -190,8 +202,9 @@ class Bot:
         lines = [f"• {key.capitalize()}: {session.answers.get(key, '—')}" for key, _prompt in STEPS]
         return "Repaso del reporte:\n" + "\n".join(lines)
 
-    def _ensure_operator(self, from_user: dict) -> int | None:
-        """Identity for the admin side; created on first contact."""
+    def _resolve_operator(self, from_user: dict) -> tuple[FieldOperator | None, bool]:
+        """Access-gate lookup. Unknown senders land as INACTIVE pending —
+        the alta is an admin act (/campo), never a side effect of writing."""
         telegram_id = from_user.get("id")
         name = _display_name(from_user) if from_user else "operador"
         with self.db_factory() as db:
@@ -203,15 +216,16 @@ class Bot:
                     )
                 )
                 if existing is not None:
-                    return existing.id
+                    return existing, False
             operator = FieldOperator(
                 client_id=self.client_id,
                 telegram_user_id=telegram_id if isinstance(telegram_id, int) else None,
                 display_name=name,
+                active=False,
             )
             db.add(operator)
             db.commit()
-            return operator.id
+            return operator, True
 
     def _persist(self, chat_id: int, session: Session, operator_id: int | None) -> int | None:
         answers = session.answers

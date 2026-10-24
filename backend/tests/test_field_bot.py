@@ -43,7 +43,17 @@ def _update(text: str, chat: int = CHAT) -> dict:
     return {"update_id": 1, "message": {"chat": {"id": chat}, "text": text, "from": dict(FROM)}}
 
 
+def _seed_operator(db, tg_id: int = 42, active: bool = True) -> FieldOperator:
+    operator = FieldOperator(
+        client_id=1, telegram_user_id=tg_id, display_name="Julio", active=active
+    )
+    db.add(operator)
+    db.commit()
+    return operator
+
+
 def test_full_intake_lands_review_with_verbatim_answers(db):
+    _seed_operator(db)
     bot = FakeBot(db)
 
     bot.handle_update(_update("/start"))
@@ -78,6 +88,7 @@ def test_full_intake_lands_review_with_verbatim_answers(db):
 
 
 def test_cancel_restarts_conversation(db):
+    _seed_operator(db)
     bot = FakeBot(db)
     bot.handle_update(_update("/start"))
     bot.handle_update(_update("Bache"))
@@ -89,6 +100,7 @@ def test_cancel_restarts_conversation(db):
 
 
 def test_confirm_rejects_unknown_and_reprompts(db):
+    _seed_operator(db)
     bot = FakeBot(db)
     for answer in ("/start", "T", "D", "L", "W"):
         bot.handle_update(_update(answer))
@@ -103,9 +115,50 @@ def test_confirm_rejects_unknown_and_reprompts(db):
 
 
 def test_no_empty_reports_even_without_text(db):
+    _seed_operator(db)
     bot = FakeBot(db)
     bot.handle_update({"update_id": 2, "message": {"chat": {"id": CHAT}}})
     assert bot.replies == []  # silence, no crash
+
+
+def test_unknown_sender_goes_to_waitlist_not_intake(db):
+    """The access gate: no operator row => pending registration, no intake.
+
+    The unknown sender canNOT generate reports until the admin activates
+    them from /campo; the waiting reply is neutral and repeats.
+    """
+    bot = FakeBot(db)  # no operator seeded
+    bot.handle_update(_update("/start"))
+    assert "lista de espera" in bot.replies[-1]
+
+    # they try to answer anyway: still gated, nothing captured
+    bot.handle_update(_update("Bache gigante"))
+    assert "lista de espera" in bot.replies[-1]
+    assert db.scalar(select(FieldReport)) is None
+
+    # the admin activates: same sender, now the intake opens. The bot closes
+    # the shared session on each turn (correct in prod), so re-fetch fresh.
+    operator = db.get(FieldOperator, db.scalar(select(FieldOperator)).id)
+    operator.active = True
+    db.commit()
+
+    bot.handle_update(_update("/start"))
+    assert "1/4" in bot.replies[-1]
+    bot.handle_update(_update("Bache"))
+    assert "2/4" in bot.replies[-1]
+
+
+def test_deactivated_operator_is_gated_again(db):
+    operator = _seed_operator(db)
+    bot = FakeBot(db)
+    bot.handle_update(_update("/start"))
+    assert "1/4" in bot.replies[-1]
+
+    operator = db.get(FieldOperator, operator.id)  # re-attach post-close
+    operator.active = False
+    db.commit()
+    bot.handle_update(_update("Bache"))
+    assert "lista de espera" in bot.replies[-1]
 
 
 def test_enrichment_writes_suggestions_and_flags_duplicates(db, monkeypatch):

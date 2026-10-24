@@ -13,7 +13,7 @@ from pydantic import BaseModel
 
 from app.api.deps import ClientIdDep, SessionDep
 from app.models import queries
-from app.models.field import FieldReportStatus
+from app.models.field import FieldOperator, FieldReportStatus
 
 router = APIRouter(tags=["field-reports"])
 
@@ -63,6 +63,52 @@ def _load(session, client_id: int, report_id: int):
     if report is None:
         raise HTTPException(status_code=404, detail="field report not found")
     return report
+
+
+@router.get("/field-operators")
+def list_field_operators(session: SessionDep, client_id: ClientIdDep):
+    """Operators for the /campo access panel: pending activations first."""
+    rows = (
+        session.query(FieldOperator)
+        .filter_by(client_id=client_id)
+        .order_by(FieldOperator.active, FieldOperator.id.desc())
+        .all()
+    )
+    return {
+        "items": [
+            {
+                "id": operator.id,
+                "display_name": operator.display_name,
+                "telegram_user_id": operator.telegram_user_id,
+                "phone": operator.phone,
+                "active": operator.active,
+            }
+            for operator in rows
+        ]
+    }
+
+
+@router.post("/field-operators/{operator_id}/activate")
+def activate_field_operator(operator_id: int, session: SessionDep, client_id: ClientIdDep):
+    operator = _load_operator(session, client_id, operator_id)
+    operator.active = True
+    session.commit()
+    return {"id": operator.id, "active": True}
+
+
+@router.post("/field-operators/{operator_id}/deactivate")
+def deactivate_field_operator(operator_id: int, session: SessionDep, client_id: ClientIdDep):
+    operator = _load_operator(session, client_id, operator_id)
+    operator.active = False
+    session.commit()
+    return {"id": operator.id, "active": False}
+
+
+def _load_operator(session, client_id: int, operator_id: int) -> FieldOperator:
+    operator = session.query(FieldOperator).filter_by(client_id=client_id, id=operator_id).first()
+    if operator is None:
+        raise HTTPException(status_code=404, detail="field operator not found")
+    return operator
 
 
 @router.post("/field-reports")
