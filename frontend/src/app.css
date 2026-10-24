@@ -2773,8 +2773,6 @@ span.page-button {
 	margin: 0;
 	color: var(--color-ink-2);
 	font-size: 14px;
-}
-.edit-context {
 	line-height: 1.5;
 }
 .form-grid {
