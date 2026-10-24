@@ -106,7 +106,7 @@ export interface MentionQuery {
 	offset?: number;
 }
 
-type KeywordLanguage = 'es' | 'en';
+export type KeywordLanguage = 'es' | 'en' | 'other';
 
 export interface Keyword {
 	id: number;

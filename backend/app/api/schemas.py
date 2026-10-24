@@ -88,14 +88,14 @@ class KeywordOut(BaseModel):
 
 class KeywordCreate(BaseModel):
     text: str = Field(max_length=500)
-    language: Literal["es", "en"] = "es"
+    language: Literal["es", "en", "other"] = "es"
 
     _normalize = field_validator("text")(_clean_text)
 
 
 class KeywordUpdate(BaseModel):
     text: str | None = Field(default=None, max_length=500)
-    language: Literal["es", "en"] | None = None
+    language: Literal["es", "en", "other"] | None = None
     is_active: bool | None = None
 
     _normalize = field_validator("text")(_clean_text)

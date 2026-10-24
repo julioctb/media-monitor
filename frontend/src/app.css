@@ -2432,32 +2432,287 @@ span.page-button {
 	color: var(--color-muted);
 	font-size: 12px;
 }
-.digest-hour-chip {
-	display: inline-flex;
-	align-items: center;
-	gap: 4px;
-	padding: 2px 4px 2px 8px;
-	border: 1px solid var(--color-line, #e2e2e2);
-	border-radius: 999px;
-	background: #fff;
-}
-.digest-hour-input {
-	width: 44px;
-	border: 0;
-	background: transparent;
-	text-align: center;
-	font-size: 13px;
-	font-weight: 600;
-	color: var(--color-ink, #111);
-}
-.digest-hour-input:focus {
-	outline: none;
-}
 .field-grid {
 	display: grid;
 	grid-template-columns: repeat(2, minmax(0, 1fr));
 	gap: 16px;
 }
+/* --- Configuración v2: schedule, source lists, social platforms --- */
+.schedule-block {
+	margin-top: 20px;
+	padding-top: 16px;
+	border-top: 1px solid var(--color-line-soft);
+}
+.schedule-block h3 {
+	margin: 0 0 8px;
+	font-size: 16px;
+	font-weight: 600;
+}
+.schedule-line {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+}
+.schedule-item {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 6px 4px 10px;
+	border: 1px solid var(--color-line-soft);
+	border-radius: 12px;
+	background: var(--color-surface-warm);
+}
+.schedule-item label {
+	font-size: 13px;
+	font-weight: 600;
+	white-space: nowrap;
+}
+.schedule-item select {
+	width: 104px;
+	font-variant-numeric: tabular-nums;
+}
+.source-list-head {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 16px;
+}
+.source-list-head .btn,
+.source-list-head button {
+	flex: none;
+}
+.source-list {
+	border-top: 1px solid var(--color-line-soft);
+}
+.source-item {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	min-width: 0;
+	padding: 11px 0;
+	border-bottom: 1px solid var(--color-line-soft);
+}
+.source-item-main {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	min-width: 0;
+}
+.source-item-url {
+	min-width: 0;
+	overflow-wrap: anywhere;
+	font-size: 14px;
+	font-weight: 600;
+}
+.source-item-actions {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	gap: 8px;
+}
+.source-empty {
+	margin: 0;
+	padding: 18px 0;
+	color: var(--color-muted);
+	font-size: 14px;
+}
+.source-check {
+	padding: 11px 0;
+	border-bottom: 1px solid var(--color-line-soft);
+}
+.source-check:last-of-type {
+	border-bottom: 0;
+}
+.social-section {
+	grid-column: 1 / -1;
+	min-width: 0;
+}
+.social-section > h3 {
+	margin: 0 0 4px;
+	font-size: 18px;
+	font-weight: 600;
+}
+.social-section > .panel-note {
+	margin: 0 0 14px;
+}
+.social-stack {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 16px;
+}
+.social-platform {
+	min-width: 0;
+	padding: 18px;
+	border: 1px solid var(--color-line-soft);
+	border-radius: 12px;
+	background: var(--color-surface-warm);
+}
+.social-platform:nth-child(-n + 2) {
+	grid-column: 1 / -1;
+}
+.social-platform h4 {
+	margin: 0 0 4px;
+	font-size: 17px;
+	font-weight: 600;
+}
+.social-platform > p {
+	margin: 0 0 14px;
+	color: var(--color-muted);
+	font-size: 13px;
+}
+.social-platform--planned .status-chip {
+	display: inline-flex;
+	margin-bottom: 10px;
+}
+.x-mode-note {
+	padding: 13px;
+	border: 1px solid var(--color-line);
+	border-radius: 8px;
+	background: #fff;
+	color: var(--color-ink-2);
+	font-size: 14px;
+}
+.x-api-field {
+	max-width: 520px;
+	margin-top: 14px;
+}
+.facebook-toolbar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	flex-wrap: wrap;
+	gap: 10px;
+	margin: 14px 0;
+}
+.facebook-count {
+	margin: 0;
+	color: var(--color-ink);
+	font-size: 14px;
+	font-weight: 600;
+}
+.facebook-search {
+	margin-bottom: 14px;
+}
+.facebook-search-controls {
+	display: flex;
+	gap: 8px;
+	max-width: 480px;
+}
+.facebook-search-controls input {
+	min-width: 0;
+}
+.facebook-table {
+	width: 100%;
+	border-collapse: collapse;
+	table-layout: fixed;
+	text-align: left;
+	font-size: 14px;
+}
+.facebook-table th {
+	padding: 9px 8px;
+	border-bottom: 1px solid var(--color-line);
+	color: var(--color-ink-2);
+	font-size: 12px;
+	text-transform: uppercase;
+}
+.facebook-table th:first-child {
+	width: 27%;
+}
+.facebook-table th:last-child {
+	width: 190px;
+}
+.facebook-table td {
+	padding: 10px 8px;
+	border-bottom: 1px solid var(--color-line-soft);
+	vertical-align: middle;
+	overflow-wrap: anywhere;
+}
+.facebook-table td:first-child {
+	font-weight: 600;
+}
+.facebook-table td:last-child {
+	white-space: nowrap;
+}
+.facebook-table .empty-row {
+	color: var(--color-muted);
+	font-weight: 400;
+	text-align: center;
+}
+.facebook-pagination {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	flex-wrap: wrap;
+	gap: 10px;
+	margin-top: 12px;
+}
+.facebook-pagination p {
+	margin: 0;
+	font-size: 13px;
+	color: var(--color-ink-2);
+}
+.facebook-page-actions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+.facebook-page-actions span {
+	font-size: 13px;
+	color: var(--color-ink-2);
+	white-space: nowrap;
+}
+.settings-dialog {
+	width: min(92vw, 480px);
+	max-width: 480px;
+	padding: 24px;
+	border: 1px solid var(--color-line);
+	border-radius: 18px;
+	background: #fff;
+	color: var(--color-ink);
+	box-shadow: 0 18px 50px rgb(0 0 0 / 25%);
+}
+.settings-dialog::backdrop {
+	background: rgb(29 29 31 / 40%);
+}
+.settings-dialog h5 {
+	margin: 0 0 6px;
+	font-size: 21px;
+	font-weight: 600;
+}
+.settings-dialog p {
+	margin: 0 0 14px;
+	color: var(--color-muted);
+	font-size: 14px;
+}
+.settings-dialog .field-label {
+	margin-top: 14px;
+}
+.dialog-actions {
+	display: flex;
+	justify-content: flex-end;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-top: 18px;
+}
+.keyword-focus-badge {
+	display: inline-flex;
+	margin-left: 6px;
+	padding: 3px 8px;
+	border: 1px solid var(--color-line);
+	border-radius: 999px;
+	background: var(--color-surface);
+	color: var(--color-ink);
+	font-size: 12px;
+	font-weight: 600;
+	vertical-align: middle;
+}
+.keyword-actions {
+	flex-wrap: wrap;
+}
+
 .keyword-form {
 	display: grid;
 	grid-template-columns: minmax(0, 1fr) 180px auto;
@@ -2541,6 +2796,11 @@ span.page-button {
 }
 /* FB sources span the full row: the tokenless table needs the width. */
 .source-card--wide {
+	grid-column: 1 / -1;
+}
+/* v2: every direct source card stacks full-width; social lives in its own
+   two-column sub-grid. */
+.source-grid > .source-card {
 	grid-column: 1 / -1;
 }
 .source-card h3 {
@@ -2647,6 +2907,50 @@ span.page-button {
 		content: attr(data-label) ': ';
 		color: var(--color-muted);
 		font-weight: 600;
+	}
+	.social-stack {
+		grid-template-columns: 1fr;
+	}
+	.social-platform:nth-child(-n + 2) {
+		grid-column: auto;
+	}
+	.source-list-head,
+	.source-item {
+		align-items: flex-start;
+		flex-direction: column;
+	}
+	.source-item-actions {
+		justify-content: flex-start;
+	}
+	.source-list-head button {
+		width: 100%;
+	}
+	.facebook-table thead {
+		display: none;
+	}
+	.facebook-table,
+	.facebook-table tbody,
+	.facebook-table tr,
+	.facebook-table td {
+		display: block;
+		width: 100%;
+	}
+	.facebook-table tr {
+		padding: 10px 0;
+		border-bottom: 1px solid var(--color-line-soft);
+	}
+	.facebook-table td {
+		padding: 3px 0;
+		border: 0;
+		white-space: normal;
+	}
+	.facebook-table td::before {
+		content: attr(data-label) ': ';
+		color: var(--color-muted);
+		font-weight: 600;
+	}
+	.facebook-table .empty-row::before {
+		display: none;
 	}
 	.keywords td:first-child::before {
 		display: none;

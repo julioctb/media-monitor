@@ -109,19 +109,32 @@ function readDigestHours(form: FormData): number[] | null {
 	return hours.length >= 1 && hours.length <= 8 ? hours : null;
 }
 
-/** Zip the repeated row inputs by DOM order; normalize, dedupe, drop junk. */
+/**
+ * Facebook sources from the page's serialized draft (JSON `facebook_pages`):
+ * normalize every ref, dedupe, drop junk. The label travels as-is (trimmed).
+ */
 function readFacebookPages(form: FormData): { page_id: string; label: string }[] {
-	const urls = form.getAll('fb_url').map((value) => String(value));
-	const labels = form.getAll('fb_label').map((value) => String(value));
+	const raw = text(form, 'facebook_pages');
+	if (raw === '') return [];
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(raw);
+	} catch {
+		return [];
+	}
+	if (!Array.isArray(parsed)) return [];
 	const pages: { page_id: string; label: string }[] = [];
 	const seen = new Set<string>();
-	for (let index = 0; index < urls.length; index += 1) {
-		const page_id = normalizeFacebookPageRef(urls[index] ?? '');
+	for (const entry of parsed) {
+		if (typeof entry !== 'object' || entry === null) continue;
+		const record = entry as Record<string, unknown>;
+		const page_id = normalizeFacebookPageRef(String(record.page_id ?? ''));
 		// Empty and unparseable rows drop silently; a repeated ref keeps its
 		// first label.
 		if (page_id === null || seen.has(page_id)) continue;
 		seen.add(page_id);
-		pages.push({ page_id, label: (labels[index] ?? '').trim() });
+		const label = record.label;
+		pages.push({ page_id, label: typeof label === 'string' ? label.trim() : '' });
 	}
 	return pages;
 }

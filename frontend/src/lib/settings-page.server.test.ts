@@ -187,8 +187,10 @@ it('persists facebook rows from urls, normalized tokenless', async () => {
 		digest_hour: ['21'],
 		enrich_max_per_cycle: '40',
 		fetch_max_per_cycle: '120',
-		fb_url: ['https://www.facebook.com/105335348671635/posts/1?ref=page', ''],
-		fb_label: ['Despierta BUAP', '']
+		facebook_pages: JSON.stringify([
+			{ page_id: 'facebook.com/105335348671635', label: 'Despierta BUAP' },
+			{ page_id: '', label: 'Vacía' }
+		])
 	});
 
 	expect(result['ok']).toBe(true);
@@ -205,13 +207,12 @@ it('dedupes facebook refs keeping the first label, dropping invalid rows', async
 		digest_hour: ['21'],
 		enrich_max_per_cycle: '40',
 		fetch_max_per_cycle: '120',
-		fb_url: [
-			'facebook.com/econsulta',
-			'https://www.facebook.com/econsulta?sk=wall', // same ref: dropped
-			'https://ejemplo.com/nope', // foreign domain: dropped
-			'https://www.facebook.com/profile.php?id=987'
-		],
-		fb_label: ['Primera', 'Segunda', 'Otro', 'Perfil']
+		facebook_pages: JSON.stringify([
+			{ page_id: 'facebook.com/econsulta', label: 'Primera' },
+			{ page_id: 'https://www.facebook.com/econsulta?sk=wall', label: 'Segunda' }, // same ref: dropped
+			{ page_id: 'https://ejemplo.com/nope', label: 'Otro' }, // foreign domain: dropped
+			{ page_id: 'https://www.facebook.com/profile.php?id=987', label: 'Perfil' }
+		])
 	});
 
 	const body = savedBodies[0] as { facebook_pages?: Record<string, string>[] };

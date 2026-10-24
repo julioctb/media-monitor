@@ -113,3 +113,63 @@ it('reveals the API key field only under paid, without saving', () => {
 	expect(text()).toContain('API key guardada');
 	expect(text()).not.toContain(BANNER_HEAD);
 });
+
+
+it('renders the v2 schedule selects and preserves hidden settings', () => {
+	const { text } = renderPage(
+		pageSettings({ digest_hours: [8, 21], gdelt_enabled: true, enrich_max_per_cycle: 40 })
+	);
+
+	expect(text()).toContain('Horarios del resumen diario');
+	const selects = [
+		...document.querySelectorAll('select[name="digest_hour"]')
+	] as HTMLSelectElement[];
+	expect(selects.map((select) => select.value)).toEqual(['8', '21']);
+	expect(text()).toContain('Los horarios usan la hora de Ciudad de México');
+
+	// Preserved fields travel hidden on every save.
+	const hidden = (name: string) =>
+		document.querySelector(`input[name="${name}"]`) as HTMLInputElement | null;
+	expect(hidden('timezone')?.value).toBe('America/Mexico_City');
+	expect(hidden('enrich_max_per_cycle')?.value).toBe('40');
+	expect(hidden('gdelt_enabled')?.value).toBe('1');
+	expect(hidden('facebook_pages')).toBeInstanceOf(HTMLInputElement);
+});
+
+it('renders facebook draft rows with count and pagination chrome', () => {
+	renderPage(
+		pageSettings({
+			facebook_pages: [
+				{ page_id: '61593006365773', label: 'Buapachosos' },
+				{ page_id: '10006932572555', label: '' }
+			]
+		})
+	);
+
+	const rows = [...document.querySelectorAll('.facebook-table tbody tr')];
+	expect(rows.length).toBe(2);
+	expect(rows[0].textContent).toContain('Buapachosos');
+	expect(rows[1].textContent).toContain('Sin etiqueta');
+	expect(document.querySelector('.facebook-count')?.textContent?.replace(/\s+/g, ' ').trim()).toBe(
+		'2 fuentes'
+	);
+	expect(document.querySelector('.facebook-pagination')?.textContent).toContain('Página 1 de 1');
+	// The serialized payload carries normalized refs for the save action.
+	const payload = JSON.parse(
+		(document.querySelector('input[name="facebook_pages"]') as HTMLInputElement).value
+	) as { page_id: string }[];
+	expect(payload.map((page) => page.page_id)).toEqual(['61593006365773', '10006932572555']);
+});
+
+it('renders planned social cards and the rss source list', () => {
+	renderPage(pageSettings({ rss_feeds: ['https://ejemplo.com/feed.xml'] }));
+
+	const text = () => document.body.textContent ?? '';
+	expect(text()).toContain('TikTok');
+	expect(text()).toContain('Instagram');
+	expect(document.querySelector('.source-item-url')?.textContent).toBe(
+		'https://ejemplo.com/feed.xml'
+	);
+	const rssList = document.querySelector('[aria-label="Feeds RSS"]');
+	expect(rssList?.querySelector('.source-empty')).toBeNull();
+});

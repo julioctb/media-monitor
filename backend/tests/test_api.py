@@ -444,6 +444,10 @@ def test_keywords_empty_then_create(api) -> None:
 def test_keywords_create_validations(api) -> None:
     assert api.post("/api/keywords", json={"text": "   "}).status_code == 422
     assert (
+        api.post("/api/keywords", json={"text": "x", "language": "other"}).status_code
+        == 201
+    )
+    assert (
         api.post("/api/keywords", json={"text": "x", "language": "fr"}).status_code
         == 422
     )
