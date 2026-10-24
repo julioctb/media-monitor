@@ -1,6 +1,10 @@
-# field-reports-whatsapp
+# field-reports-telegram
 
-**Estado:** diseño consolidado y aprobado por Julio (22/oct 2026). Implementación NO iniciada — sin código escrito; este documento captura decisiones, no trabajo hecho.
+**Estado:** diseño consolidado y aprobado por Julio (22/oct 2026). Canal
+cambiado de WhatsApp a **Telegram** (23/oct 2026, decisión de Julio) — el
+core del diseño no cambia, solo el transporte; el análisis de WhatsApp
+queda abajo como registro de la decisión descartada. Implementación NO
+iniciada — sin código escrito.
 
 ## Objective
 
@@ -8,7 +12,7 @@ Tercera fuente del feed de media-monitor: reportes de campo cargados por persona
 
 ## Decisiones (cerradas)
 
-1. **Canal: WhatsApp Cloud API** (no Telegram). Razón: adopción cero para gente de campo que ya usa WhatsApp. Costo verificado (Meta, pricing per-message desde jul-2025): mensajes entrantes de usuarios (service) gratis; respuestas free-form dentro de ventana 24h: primeras 1,000/mes por número gratis, después ~USD 0.0034 c/u (North America). Para el patrón "el humano escribe, el bot casi no responde" el costo operacional es ~0. Lo caro es el alta: verificación de business, webhook, token, método de pago en Meta Business.
+1. **Canal: Telegram Bot API** (cambio 23/oct; antes WhatsApp Cloud API). Razón: misma adopción cero para gente de campo, sin fricción de alta — bot en BotFather en minutos, sin verificación de business ni método de pago; bots gratis (sin contadores ni ventanas 24 h). **Long polling en vez de webhook**: sin URL pública, sin HTTPS, sin firma — un proceso del compose pregunta por mensajes. Además teclados de respuesta nativos para el intake guiado. Único requerimiento: token del bot en `.env`. El análisis de WhatsApp (costos Cloud API, alta Meta) queda al final como registro.
 2. **Intake guiado, no texto libre**: el bot conduce el reporte por preguntas (qué pasó / dónde / cuándo / nota opcional). Datos semi-estructurados desde el origen; el parsing se hace barato.
 3. **LLM intermediario, NO portero**: normaliza texto, clasifica, deduplica contra lo ya publicado, marca inconsistencias ("esta obra cerró el martes según nota X"). No aprueba solo: un LLM sin fuente verificable no es árbitro de hechos; su valor es estructurar y cruzar.
 4. **Cola de revisión humana** antes del feed. Un reporte de campo mal cargado contamina el feed igual que una noticia falsa.
@@ -22,19 +26,22 @@ Tercera fuente del feed de media-monitor: reportes de campo cargados por persona
 ## Arquitectura prevista
 
 ```
-Operador (WhatsApp) ──> Cloud API webhook ──> servicio whatsapp-webhook (compose, 5º svc)
-    │                                            ├─ verificación firma X-Hub-Signature
-    │                                            ├─ máquina de estados de conversación por número (intake guiado)
-    │                                            └─ persist field_report (estado: draft)
+Operador (Telegram) <──long polling── bot worker (compose, svc dedicado o thread del worker)
+    │                                      ├─ máquina de estados de conversación por chat id (intake guiado, reply keyboards)
+    │                                      └─ persist field_report (estado: draft)
     ──> enriquecimiento LLM (normaliza/dedupe/marca) ──> cola de revisión (admin UI)
     ──> aprobación humana ──> feed (tercera fuente, junto a RSS/scraper y social)
+
+Nota: sin webhook ni URL pública; el bot hace getUpdate s long-poll contra
+telegram. El servicio de WhatsApp+Cloud API (5° svc con firma X-Hub) quedó
+descartado con el cambio de canal.
 ```
 
 ## Tasks tentativas (al arrancar; RED first donde aplique)
 
 - [ ] T1 backend: modelo `field_reports` + `field_operators` (número, nombre, activo) + estado del reporte (`draft/review/published/rejected`). Diseño fino de schema pendiente al arrancar.
-- [ ] T2 backend: servicio `whatsapp-webhook` en compose — verificación de firma, recepción idempotente (Meta reintenta), guardado draft. Cred Meta en `.env`, nunca commiteada.
-- [ ] T3 backend: máquina de conversación del intake guiado (por número; timeout/reset de sesión).
+- [ ] T2 bot: polling worker de Telegram (`getUpdates` long-poll) — idempotencia por update_id, token en `.env`, nunca commiteada. Sin URL pública ni webhook.
+- [ ] T3 bot: máquina de conversación del intake guiado (por chat id; timeout/reset de sesión; reply keyboards por paso).
 - [ ] T4 backend: paso de enriquecimiento LLM (provider a definir; normaliza, clasifica, dedupe, flags) — escribe sugerencias, no cambia estado a published.
 - [ ] T5 frontend: cola de revisión en admin — lista con identidad del operador, diff de lo sugerido por LLM, aprobar/editar/rechazar.
 - [ ] T6 integración feed: reporte publicado entra al feed marcado como fuente `field`.
@@ -44,14 +51,13 @@ Operador (WhatsApp) ──> Cloud API webhook ──> servicio whatsapp-webhook 
 
 - No tocar el pipeline existente (RSS/scraper/X/FB) más allá del punto de publicación.
 - Dominio de field reports aislado en su propio módulo (extracción futura barata).
-- Número dedicado nuevo (no reutilizar líneas reconocibles); copy del bot neutro.
-- Toda cred de Meta Business / tokens por `.env`; el webhook debe validar firma.
+- Número/chat dedicados; copy del bot neutro. Token de Telegram por `.env`.
 
 ## Open points (resolver antes o durante implementación)
 
 1. Atribución en el feed: rol/alias vs nombre.
 2. Copy exacto del intake (preguntas y tono neutro).
-3. Alta en Meta Business: quién la hace, chip dedicado, verificación.
+3. ~~Alta en Meta Business~~ Token del bot: crear con BotFather (2 min), pegar en `.env`. Sin verificación ni método de pago.
 4. Provider y costo del LLM de enriquecimiento (el enrichment chain existente puede reutilizarse).
 5. Plan de session states: qué pasa si el operador abandone a media conversación.
 
