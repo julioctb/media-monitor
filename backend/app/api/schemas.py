@@ -198,6 +198,7 @@ class ClientSettingsOut(BaseModel):
     digest_hour: int
     digest_hours: list[int]
     digest_focus_person_id: int | None
+    watchlist: list[int]
     gdelt_enabled: bool
     # Paid-mode X key is masked: x_api_key is ALWAYS "" on the wire; only
     # x_api_key_set tells the UI a key is stored.
@@ -243,6 +244,8 @@ class ClientSettingsUpdate(BaseModel):
     digest_hour: int | None = Field(default=None, ge=0, le=23)
     digest_hours: list[int] | None = Field(default=None)
     digest_focus_person_id: int | None = Field(default=None, ge=1)
+    # F7 vigilancia: additional watched person_ids; deduped positive ints.
+    watchlist: list[int] | None = Field(default=None)
     gdelt_enabled: bool | None = None
     # X source mode; x_api_key: non-empty stores, ''/null keeps the stored
     # key (the GET never returns it, so the masked UI sends '' to keep).

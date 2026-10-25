@@ -42,10 +42,23 @@ function v3Content(): Record<string, unknown> {
         { index: 0, categoria: "decision", razon: "Impacto presupuestal" },
       ],
       riesgos: [
-        { index: 1, categoria: "riesgo", razon: "tono negativo dominante" },
+        {
+          index: 1,
+          categoria: "riesgo",
+          razon: "tono negativo dominante",
+          afectacion: { quien: ["Rectora Cedillo"], trayectoria: "el tono pasa de mixto a negativo" },
+        },
       ],
       ruido: [],
       a_favor: [],
+      vigilancia: [
+        {
+          persona: "Lilia Cedillo",
+          nota: "Critican la gestión de becas",
+          fecha: "2026-10-09T13:00:00-06:00",
+          afectacion: { quien: ["Lilia Cedillo"] },
+        },
+      ],
       fechas: [
         {
           title: "Cierre",
@@ -88,9 +101,16 @@ it("renders brief and evidencia; campo stays out of the digest (F4)", () => {
   expect(copy).toContain("Titular del día");
   expect(copy).toContain("Qué cambió");
   expect(copy).toContain("Nueva historia: A");
-  // F5: el riesgo encabeza los picks del brief.
+  // F5: el riesgo encabeza los picks del brief, con su afectación.
   expect(copy).toContain("Riesgo");
   expect(copy).toContain("B — tono negativo dominante");
+  expect(copy).toContain("Quién: Rectora Cedillo");
+  expect(copy).toContain("Trayectoria: el tono pasa de mixto a negativo");
+  // F7: la línea de vigilancia con su fecha y afectación.
+  expect(copy).toContain("Vigilancia");
+  expect(copy).toContain("Lilia Cedillo");
+  expect(copy).toContain("Critican la gestión de becas");
+  expect(copy).toContain("Quién: Lilia Cedillo");
   expect(copy).toContain("Decisión / atención");
   expect(copy).toContain("A — Impacto presupuestal");
   expect(copy).toContain("Fechas que obligan");

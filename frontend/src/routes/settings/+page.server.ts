@@ -194,6 +194,17 @@ export const actions: Actions = {
 			digest_focus_person_id = Number.parseInt(focusRaw, 10);
 		}
 
+		// F7 vigilancia: checkbox ids; parsed like the focus id, dedupe at the
+		// API. Empty selection = clear the list (explicit []).
+		const watchlist = [
+			...new Set(
+				form
+					.getAll('watchlist')
+					.map((value) => Number.parseInt(String(value), 10))
+					.filter((value) => Number.isInteger(value) && value > 0)
+			)
+		];
+
 		try {
 			// Full-object PUT: the API keeps server-side fields (id, client_id,
 			// updated_at) and validates the rest, mirroring the stored row.
@@ -202,6 +213,7 @@ export const actions: Actions = {
 				retention_days,
 				digest_hours,
 				digest_focus_person_id,
+				watchlist,
 				enrich_max_per_cycle,
 				fetch_max_per_cycle,
 				gdelt_enabled: form.get('gdelt_enabled') === '1',

@@ -8,6 +8,8 @@
  * per key, so a partial row renders only the sections it actually has.
  */
 
+import { formatDisplayDateTime } from "$lib/format";
+
 import type {
   DailySummaryContent,
   DigestBriefFecha,
@@ -33,6 +35,15 @@ function hasEntries(value: unknown): value is unknown[] {
 export interface BriefEntryView {
   titulo: string;
   razon: string | null;
+  /** F6 structured afectacion, humanized; null when the entry carries none. */
+  afectacion: string | null;
+}
+
+export interface VigilanciaView {
+  persona: string;
+  nota: string | null;
+  fecha: string;
+  afectacion: string | null;
 }
 
 export interface BriefFechaView {
@@ -54,16 +65,17 @@ export interface TarjetaView {
 }
 
 export interface DigestV3View {
-	headline: string | null;
-	delta: string[];
-	decisiones: BriefEntryView[];
-	riesgos: BriefEntryView[];
-	ruido: BriefEntryView[];
-	aFavor: BriefEntryView[];
-	fechas: BriefFechaView[];
-	tarjetas: TarjetaView[];
-	/** F3 visible discard line; null when the row reports no descarte. */
-	descarte: string | null;
+  headline: string | null;
+  delta: string[];
+  decisiones: BriefEntryView[];
+  riesgos: BriefEntryView[];
+  ruido: BriefEntryView[];
+  aFavor: BriefEntryView[];
+  fechas: BriefFechaView[];
+  vigilancia: VigilanciaView[];
+  tarjetas: TarjetaView[];
+  /** F3 visible discard line; null when the row reports no descarte. */
+  descarte: string | null;
 }
 
 const FECHA_ESTADO_LABELS: Record<string, string> = {
@@ -83,13 +95,51 @@ function textOrNull(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
-/** Brief picks resolved to `{titulo, razon}` against the tarjetas. */
+/** F6 afectacion as one muted line; null when there is nothing to show. */
+function afectacionLabel(afectacion: unknown): string | null {
+  if (!afectacion || typeof afectacion !== "object") return null;
+  const record = afectacion as Record<string, unknown>;
+  const partes: string[] = [];
+  if (Array.isArray(record.quien) && record.quien.length > 0) {
+    const names = record.quien.filter(
+      (n): n is string => typeof n === "string",
+    );
+    if (names.length > 0) partes.push(`Quién: ${names.join(", ")}`);
+  }
+  if (typeof record.trayectoria === "string" && record.trayectoria.trim()) {
+    partes.push(`Trayectoria: ${record.trayectoria.trim()}`);
+  }
+  if (record.ventana && typeof record.ventana === "object") {
+    const ventana = record.ventana as Record<string, unknown>;
+    const cuando = typeof ventana.cuando === "string" ? ventana.cuando : "";
+    const titulo = typeof ventana.titulo === "string" ? ventana.titulo : "";
+    if (cuando || titulo)
+      partes.push(`Ventana: ${[cuando, titulo].filter(Boolean).join(" — ")}`);
+  }
+  return partes.length > 0 ? partes.join(" · ") : null;
+}
+
+function vigiliaView(entry: unknown): VigilanciaView | null {
+  if (!entry || typeof entry !== "object") return null;
+  const record = entry as Record<string, unknown>;
+  const persona = textOrNull(record.persona);
+  if (!persona) return null;
+  const fechaRaw = textOrNull(record.fecha);
+  return {
+    persona,
+    nota: textOrNull(record.nota),
+    fecha: fechaRaw ? formatDisplayDateTime(fechaRaw) : "",
+    afectacion: afectacionLabel(record.afectacion),
+  };
+}
+
+/** Brief picks resolved to `{titulo, razon, afectacion}` against the tarjetas. */
 function seleccionView(
   entries: unknown,
   tarjetas: DigestTarjeta[],
-): { titulo: string; razon: string | null }[] {
+): BriefEntryView[] {
   if (!hasEntries(entries)) return [];
-  const view: { titulo: string; razon: string | null }[] = [];
+  const view: BriefEntryView[] = [];
   for (const entry of entries) {
     if (!entry || typeof entry !== "object") continue;
     const record = entry as Record<string, unknown>;
@@ -103,8 +153,9 @@ function seleccionView(
       typeof index === "number" ? `#${index}` : "Nota",
     );
     const razon = textOrNull(record.razon);
-    if (!titulo && !razon) continue;
-    view.push({ titulo, razon });
+    const afectacion = afectacionLabel(record.afectacion);
+    if (!titulo && !razon && !afectacion) continue;
+    view.push({ titulo, razon, afectacion });
   }
   return view;
 }
@@ -198,6 +249,11 @@ export function digestV3View(
     ruido: seleccionView(brief.ruido, tarjetas),
     aFavor: seleccionView(brief.a_favor, tarjetas),
     fechas,
+    vigilancia: hasEntries(brief.vigilancia)
+      ? (brief.vigilancia as unknown[])
+          .map(vigiliaView)
+          .filter((linea): linea is VigilanciaView => linea !== null)
+      : [],
     tarjetas: tarjetas.filter(Boolean).map(tarjetaView),
     descarte: descarteLabel(brief.descarte),
   };

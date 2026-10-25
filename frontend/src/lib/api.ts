@@ -181,6 +181,8 @@ export interface ClientSettings {
   digest_hours: number[];
   /** Person highlighted in the digest rectora section; null = no focus. */
   digest_focus_person_id: number | null;
+  /** F7: extra person ids under vigilance; the focus person is principal. */
+  watchlist: number[];
   /** Worker per-cycle caps (1..1000; backend validates the range). */
   enrich_max_per_cycle: number;
   fetch_max_per_cycle: number;
@@ -211,6 +213,8 @@ export interface ClientSettingsInput {
   digest_hours?: number[];
   /** null clears the focus person; absent keeps the stored value. */
   digest_focus_person_id?: number | null;
+  /** F7 vigilancia list; absent keeps the stored value. */
+  watchlist?: number[];
   enrich_max_per_cycle?: number;
   fetch_max_per_cycle?: number;
   gdelt_enabled?: boolean;
@@ -897,10 +901,25 @@ export interface DailySummaryContent {
 }
 
 /** One brief pick: the tarjeta index it references, never new data. */
+export interface DigestAfectacion {
+	quien?: string[];
+	trayectoria?: string;
+	ventana?: { cuando: string; titulo: string };
+}
+
 export interface DigestBriefSeleccion {
 	index: number;
 	categoria: 'decision' | 'riesgo' | 'ruido' | 'a_favor';
 	razon?: string | null;
+	afectacion?: DigestAfectacion;
+}
+
+/** F7: one vigilance line over a watched person's negative. */
+export interface DigestVigilanciaEntry {
+	persona: string;
+	nota?: string | null;
+	fecha: string;
+	afectacion?: DigestAfectacion;
 }
 
 /** The v3 brief: fixed sections, CODE-built; the LLM only picks and writes prose. */
@@ -913,6 +932,8 @@ export interface DigestBrief {
 	ruido?: DigestBriefSeleccion[];
 	a_favor?: DigestBriefSeleccion[];
 	fechas?: DigestBriefFecha[];
+	/** F7 vigilance lines; absent when no watched person qualifies. */
+	vigilancia?: DigestVigilanciaEntry[];
 	/** F3: pre-card discard counters; absent when nothing was discarded. */
 	descarte?: DigestDescarte;
 }

@@ -4,6 +4,15 @@
 	interface BriefEntry {
 		titulo: string;
 		razon: string | null;
+		/** F6 afectacion line; null when the entry carries none. */
+		afectacion: string | null;
+	}
+
+	interface VigilanciaLinea {
+		persona: string;
+		nota: string | null;
+		fecha: string;
+		afectacion: string | null;
 	}
 
 	/**
@@ -19,6 +28,7 @@
 		ruido = [],
 		aFavor = [],
 		fechas = [],
+		vigilancia = [],
 		descarte = null
 	}: {
 		headline?: string | null;
@@ -28,38 +38,47 @@
 		ruido?: BriefEntry[];
 		aFavor?: BriefEntry[];
 		fechas?: BriefFechaView[];
+		vigilancia?: VigilanciaLinea[];
 		/** F3 visible-discard line; null renders nothing. */
 		descarte?: string | null;
 	} = $props();
 
-	const secciones: { titulo: string; entradas: { principal: string; secundario: string | null }[] }[] =
-		$derived.by(() => {
-			const pick = (entries: BriefEntry[]) =>
-				entries.map((entry) => ({ principal: entry.titulo, secundario: entry.razon }));
-			const bloques: { titulo: string; entradas: { principal: string; secundario: string | null }[] }[] =
-				[];
-			if (delta.length > 0) {
-				bloques.push({
-					titulo: 'Qué cambió',
-					entradas: delta.map((linea) => ({ principal: linea, secundario: null }))
-				});
-			}
-			// F5: riesgo primero, luego decisión; el resto por impacto y el
-			// ruido al final vive en el orden de las tarjetas.
-			if (riesgos.length > 0) {
-				bloques.push({ titulo: 'Riesgo', entradas: pick(riesgos) });
-			}
-			if (decisiones.length > 0) {
-				bloques.push({ titulo: 'Decisión / atención', entradas: pick(decisiones) });
-			}
-			if (aFavor.length > 0) {
-				bloques.push({ titulo: 'A favor', entradas: pick(aFavor) });
-			}
-			if (ruido.length > 0) {
-				bloques.push({ titulo: 'Ruido', entradas: pick(ruido) });
-			}
-			return bloques;
-		});
+	const secciones: {
+		titulo: string;
+		entradas: { principal: string; secundario: string | null; extra: string | null }[];
+	}[] = $derived.by(() => {
+		const pick = (entries: BriefEntry[]) =>
+			entries.map((entry) => ({
+				principal: entry.titulo,
+				secundario: entry.razon,
+				extra: entry.afectacion
+			}));
+		const bloques: {
+			titulo: string;
+			entradas: { principal: string; secundario: string | null; extra: string | null }[];
+		}[] = [];
+		if (delta.length > 0) {
+			bloques.push({
+				titulo: 'Qué cambió',
+				entradas: delta.map((linea) => ({ principal: linea, secundario: null, extra: null }))
+			});
+		}
+		// F5: riesgo primero, luego decisión; el resto por impacto y el
+		// ruido al final vive en el orden de las tarjetas.
+		if (riesgos.length > 0) {
+			bloques.push({ titulo: 'Riesgo', entradas: pick(riesgos) });
+		}
+		if (decisiones.length > 0) {
+			bloques.push({ titulo: 'Decisión / atención', entradas: pick(decisiones) });
+		}
+		if (aFavor.length > 0) {
+			bloques.push({ titulo: 'A favor', entradas: pick(aFavor) });
+		}
+		if (ruido.length > 0) {
+			bloques.push({ titulo: 'Ruido', entradas: pick(ruido) });
+		}
+		return bloques;
+	});
 </script>
 
 <section class="digest-brief" aria-labelledby="digest-brief-heading">
@@ -76,11 +95,27 @@
 						<li>
 							<strong>{entrada.principal}</strong>
 							{#if entrada.secundario}<span> — {entrada.secundario}</span>{/if}
+							{#if entrada.extra}<span class="digest-brief-afectacion">{entrada.extra}</span>{/if}
 						</li>
 					{/each}
 				</ul>
 			</div>
 		{/each}
+		{#if vigilancia.length > 0}
+			<div class="digest-brief-block">
+				<h3>Vigilancia</h3>
+				<ul>
+					{#each vigilancia as linea, i (`vigilancia-${i}`)}
+						<li>
+							<strong>{linea.persona}</strong>
+							{#if linea.nota}: {linea.nota}{/if}
+							{#if linea.fecha} <span class="digest-brief-estado">{linea.fecha}</span>{/if}
+							{#if linea.afectacion}<span class="digest-brief-afectacion">{linea.afectacion}</span>{/if}
+						</li>
+					{/each}
+				</ul>
+			</div>
+		{/if}
 		{#if fechas.length > 0}
 			<div class="digest-brief-block">
 				<h3>Fechas que obligan</h3>

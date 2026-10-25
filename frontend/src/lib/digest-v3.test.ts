@@ -28,9 +28,24 @@ function v3Content(): DailySummaryContent {
       headline: "Titular del día",
       delta: ["Nueva historia: A", "B: el tono pasa de positivo a negativo"],
       decisiones: [{ index: 0, categoria: "decision", razon: "Impacto presupuestal" }],
-      riesgos: [{ index: 0, categoria: "riesgo", razon: "tono negativo dominante" }],
+      riesgos: [
+        {
+          index: 0,
+          categoria: "riesgo",
+          razon: "tono negativo dominante",
+          afectacion: { quien: ["Rectora Cedillo"] },
+        },
+      ],
       ruido: [{ index: 1, categoria: "ruido" }],
       a_favor: [],
+      vigilancia: [
+        {
+          persona: "Lilia Cedillo",
+          nota: "Critican la gestión de becas",
+          fecha: "2026-10-09T13:00:00-06:00",
+          afectacion: { quien: ["Lilia Cedillo"] },
+        },
+      ],
       descarte: { cosmeticas: 2, fundadas: 1 },
       fechas: [
         {
@@ -107,10 +122,10 @@ describe("digestV3View", () => {
     expect(view?.headline).toBe("Titular del día");
     expect(view?.delta).toHaveLength(2);
     expect(view?.decisiones).toEqual([
-      { titulo: "A", razon: "Impacto presupuestal" },
+      { titulo: "A", razon: "Impacto presupuestal", afectacion: null },
     ]);
     // Index 1 has no titulo: the fallback keeps the pick renderable.
-    expect(view?.ruido).toEqual([{ titulo: "#1", razon: null }]);
+    expect(view?.ruido).toEqual([{ titulo: "#1", razon: null, afectacion: null }]);
     expect(view?.aFavor).toEqual([]);
     expect(view?.fechas.map((fecha) => fecha.estado)).toEqual([
       "Próxima",
@@ -129,13 +144,34 @@ describe("digestV3View", () => {
   });
 
   it("projects the F5 riesgo bucket alongside the picks", () => {
-  	const view = digestV3View(v3Content());
-  	expect(view?.riesgos).toEqual([
-  		{ titulo: "A", razon: "tono negativo dominante" }
-  	]);
-  	// Legacy rows without the key degrade to empty, never error.
-  	const legacy = digestV3View({ ...v2Content(), brief: {}, tarjetas: [] });
-  	expect(legacy?.riesgos).toEqual([]);
+    const view = digestV3View(v3Content());
+    expect(view?.riesgos).toEqual([
+      {
+        titulo: "A",
+        razon: "tono negativo dominante",
+        afectacion: "Quién: Rectora Cedillo"
+      }
+    ]);
+    // Legacy rows without the key degrade to empty, never error.
+    const legacy = digestV3View({ ...v2Content(), brief: {}, tarjetas: [] });
+    expect(legacy?.riesgos).toEqual([]);
+  });
+
+  it("projects F7 vigilancia lines with humanized fecha", () => {
+    const view = digestV3View(v3Content());
+    expect(view?.vigilancia).toHaveLength(1);
+    const linea = view?.vigilancia[0];
+    expect(linea?.persona).toBe("Lilia Cedillo");
+    expect(linea?.nota).toBe("Critican la gestión de becas");
+    expect(linea?.afectacion).toBe("Quién: Lilia Cedillo");
+    expect(linea?.fecha).toContain("2026");
+    // Malformed entries never break the view.
+    const roto = digestV3View({
+      ...v2Content(),
+      brief: { vigilancia: [{ nota: "sin persona" }, "x"] } as never,
+      tarjetas: []
+    });
+    expect(roto?.vigilancia).toEqual([]);
   });
 
   it("projects the F3 descarte line, never fabricated", () => {

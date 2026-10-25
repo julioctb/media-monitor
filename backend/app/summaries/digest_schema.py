@@ -78,7 +78,7 @@ BRIEF_CATEGORIES = ("riesgo", "decision", "ruido", "a_favor")
 
 #: content keys carrying the esqueleto's fixed section names, for the
 #: shape validator below and the builder that fills them.
-BRIEF_SECTIONS = ("delta", "decisiones", "riesgos", "ruido", "a_favor", "fechas")
+BRIEF_SECTIONS = ("delta", "decisiones", "riesgos", "ruido", "a_favor", "fechas", "vigilancia")
 
 #: The plural content keys of the selection buckets (index-bearing entries).
 #: EVERY bucket iteration — builder post-pases, order remap, shape check —

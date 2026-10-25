@@ -788,6 +788,19 @@ def _validate_focus_person(value: object) -> int | None:
     return value
 
 
+def _validate_watchlist(value: object) -> list[int]:
+    """F7: person_ids under vigilance; positive ints, deduped, order kept."""
+    if not isinstance(value, list):
+        raise ValueError("watchlist must be a list of person ids")
+    ids: list[int] = []
+    for entry in value:
+        if isinstance(entry, bool) or not isinstance(entry, int) or entry < 1:
+            raise ValueError("watchlist entries must be positive person ids")
+        if entry not in ids:
+            ids.append(entry)
+    return ids
+
+
 def _validate_bool(value: object, field: str) -> bool:
     if not isinstance(value, bool):
         raise ValueError(f"{field} must be a boolean")
@@ -912,6 +925,7 @@ _VALIDATORS = {
     "digest_hour": _validate_digest_hour,
     "digest_hours": _validate_digest_hours,
     "digest_focus_person_id": _validate_focus_person,
+    "watchlist": _validate_watchlist,
     "gdelt_enabled": lambda v: _validate_bool(v, "gdelt_enabled"),
     "x_mode": _validate_x_mode,
     "x_api_key": _validate_x_api_key,

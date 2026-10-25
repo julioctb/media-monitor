@@ -27,6 +27,7 @@
 			view.ruido.length === 0 &&
 			view.aFavor.length === 0 &&
 			view.fechas.length === 0 &&
+			view.vigilancia.length === 0 &&
 			!view.descarte;
 		return empty
 			? null
@@ -38,6 +39,7 @@
 					ruido: view.ruido,
 					aFavor: view.aFavor,
 					fechas: view.fechas,
+					vigilancia: view.vigilancia,
 					descarte: view.descarte
 				};
 	});
@@ -53,6 +55,7 @@
 			ruido={brief.ruido}
 			aFavor={brief.aFavor}
 			fechas={brief.fechas}
+			vigilancia={brief.vigilancia}
 			descarte={brief.descarte}
 		/>
 	{/if}

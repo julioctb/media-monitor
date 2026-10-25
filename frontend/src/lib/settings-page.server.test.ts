@@ -106,6 +106,7 @@ it('persists focus person and per-cycle caps on the save PUT', async () => {
 		retention_days: '30',
 		digest_hour: ['21'],
 		digest_focus_person_id: '7',
+		watchlist: ['3', '5', '3'],
 		enrich_max_per_cycle: '40',
 		fetch_max_per_cycle: '120'
 	});
@@ -113,8 +114,26 @@ it('persists focus person and per-cycle caps on the save PUT', async () => {
 	expect(result['ok']).toBe(true);
 	const body = savedBodies[0] as Record<string, unknown>;
 	expect(body['digest_focus_person_id']).toBe(7);
+	// F7: watchlist dedupes to positive ints on the wire.
+	expect(body['watchlist']).toEqual([3, 5]);
 	expect(body['enrich_max_per_cycle']).toBe(40);
 	expect(body['fetch_max_per_cycle']).toBe(120);
+});
+
+it('persists an empty watchlist when no person is checked', async () => {
+	stubFetch(SETTINGS_ROW);
+
+	const result = await save({
+		timezone: 'America/Mexico_City',
+		retention_days: '30',
+		digest_hour: ['21'],
+		enrich_max_per_cycle: '40',
+		fetch_max_per_cycle: '120'
+	});
+
+	expect(result['ok']).toBe(true);
+	const body = savedBodies[0] as Record<string, unknown>;
+	expect(body['watchlist']).toEqual([]);
 });
 
 it('clears the focus person when the select is empty', async () => {

@@ -18,8 +18,11 @@ from app.models import (
     Client,
     ClientSettings,
     Event,
+    MentionPerson,
+    Person,
     Keyword,
     MentionSource,
+    Sentiment,
     queries,
 )
 from app.settings_runtime import EffectiveSettings
@@ -2285,3 +2288,285 @@ def test_brief_shape_flags_malformed_descarte():
     assert "brief.descarte must be an object" in brief_shape_errors(content)
     ok = {"brief": {"descarte": {"cosmeticas": 1, "fundadas": 0}}, "noticias": []}
     assert brief_shape_errors(ok) == []
+
+
+# ------------------------------------------------- F6/F7 watchlist y vigilia
+
+
+def _person_link(session, client_id: int, name: str, mention) -> Person:
+    """Get-or-create person by folded key and link the mention to it."""
+    from app.ingest.matching import fold_text
+
+    key = fold_text(name)
+    person = session.query(Person).filter_by(client_id=client_id, name_key=key).first()
+    if person is None:
+        person = Person(client_id=client_id, name=name, name_key=key)
+        session.add(person)
+        session.flush()
+    session.add(MentionPerson(mention_id=mention.id, person_id=person.id))
+    session.commit()
+    return person
+
+
+def _negative_mention(session, client_id: int, title, when, **kw):
+    mention = add_mention(session, client_id, title, when, **kw)
+    mention.sentiment = Sentiment.negative
+    session.commit()
+    return mention
+
+
+def test_vigilancia_focus_principal_basta_con_una_negativa(session):
+    """F7: 1 negativa del focus => línea, aunque la tarjeta sea positiva."""
+    client = add_client(session)
+    event = _event(client.id, "BUAP anuncia ampliation de becas")
+    session.add(event)
+    session.flush()
+    add_mention(session, client.id, "BUAP amplía becas", DAY, event_id=event.id).sentiment = (
+        Sentiment.positive
+    )
+    second = add_mention(
+        session, client.id, "Becas ampliadas", DAY, source=MentionSource.rss_custom, event_id=event.id
+    )
+    second.sentiment = Sentiment.positive
+    negative = _negative_mention(
+        session, client.id, "Critican la gestión de becas de la BUAP", DAY, event_id=event.id
+    )
+    _person_link(session, client.id, "Lilia Cedillo", negative)
+    queries.upsert_settings(session, client.id, {"digest_focus_person_id": 1})
+    session.commit()
+
+    row = build_daily_summary(session, client_id=client.id, day=DAY.date())
+    vigilia = row.content["brief"].get("vigilancia")
+    assert vigilia and len(vigilia) == 1
+    linea = vigilia[0]
+    assert linea["persona"] == "Lilia Cedillo"
+    assert "Critican" in linea["nota"]
+    assert linea["fecha"].startswith("2026-10-09")
+    # La tarjeta del evento es positiva: el piso riesgo no la toma y la
+    # mención negativa no está representada ahí.
+    assert row.content["tarjetas"][0]["tono"] == "positivo"
+    assert row.content["brief"]["riesgos"] == []
+    assert validate_digest(row.content) == []
+
+
+def test_vigilancia_anti_dup_la_tarjeta_riesgo_gana(session):
+    """La negativa representada por una tarjeta de riesgo no emite línea."""
+    client = add_client(session)
+    event = _event(client.id, "BUAP recorta becas")
+    session.add(event)
+    session.flush()
+    first = _negative_mention(
+        session, client.id, "BUAP recorta becas", DAY, event_id=event.id
+    )
+    _negative_mention(
+        session,
+        client.id,
+        "Recorte de becas confirmado",
+        DAY,
+        source=MentionSource.rss_custom,
+        event_id=event.id,
+    )
+    _person_link(session, client.id, "Rectora Cedillo", first)
+    # Una historia ajena de mayor impacto existe: el fallback de cobertura
+    # la toma como decision y la negativa queda libre para el piso riesgo.
+    big = _event(client.id, "Congreso aprueba el presupuesto federal")
+    session.add(big)
+    session.flush()
+    for titulo in (
+        "Congreso aprueba presupuesto",
+        "Aprueban el presupuesto federal",
+        "El presupuesto sigue adelante",
+    ):
+        add_mention(
+            session,
+            client.id,
+            titulo,
+            DAY,
+            source=MentionSource.news_rss,
+            event_id=big.id,
+        )
+    queries.upsert_settings(session, client.id, {"digest_focus_person_id": 1})
+    session.commit()
+
+    row = build_daily_summary(session, client_id=client.id, day=DAY.date())
+    brief = row.content["brief"]
+    # El piso lleva la tarjeta negativa a riesgo; el anti-dup la representa.
+    riesgo_indexes = {entry["index"] for entry in brief["riesgos"]}
+    assert riesgo_indexes, "la negativa del día entra al piso"
+    for index in riesgo_indexes:
+        assert row.content["noticias"][index]["event_id"] == event.id
+    assert "vigilancia" not in brief
+
+
+def test_vigilancia_watchlist_exige_eco_de_fuentes(session):
+    """No-principal: 1 negativa no basta; 2 fuentes distintas sí."""
+    client = add_client(session)
+
+    def evento_con_negativa(titulo, neg_title, source):
+        event = _event(client.id, titulo)
+        session.add(event)
+        session.flush()
+        pos = add_mention(session, client.id, titulo, DAY, event_id=event.id)
+        pos.sentiment = Sentiment.positive
+        neg = _negative_mention(
+            session, client.id, neg_title, DAY, source=source, event_id=event.id
+        )
+        return event, neg
+
+    _, neg_a = evento_con_negativa(
+        "Universidad estrena laboratorio",
+        "Protesta por el laboratorio",
+        MentionSource.news_rss,
+    )
+    _, neg_b = evento_con_negativa(
+        "Congreso aprueba presupuesto",
+        "Critican el presupuesto",
+        MentionSource.rss_custom,
+    )
+    vigilada = _person_link(session, client.id, "Lilia Cedillo", neg_a)
+    _person_link(session, client.id, "Lilia Cedillo", neg_b)
+    # Una segunda vigilada con una sola negativa no alcanza el eco: el
+    # umbral se verifica por persona dentro del mismo build.
+    solo = _event(client.id, "Recorte docente anuncio")
+    session.add(solo)
+    session.flush()
+    solo_pos = add_mention(session, client.id, "Recorte docente anuncio", DAY, event_id=solo.id)
+    solo_pos.sentiment = Sentiment.positive
+    solo_neg = _negative_mention(
+        session,
+        client.id,
+        "Queja docente por el recorte",
+        DAY,
+        source=MentionSource.x_twitter,
+        event_id=solo.id,
+    )
+    jefe = _person_link(session, client.id, "Jefe de docencia", solo_neg)
+    queries.upsert_settings(session, client.id, {"watchlist": [vigilada.id, jefe.id]})
+    session.commit()
+
+    row = build_daily_summary(session, client_id=client.id, day=DAY.date())
+    vigilia = row.content["brief"].get("vigilancia") or []
+    # Dos negativas de fuentes distintas => línea; una sola => nada.
+    assert [linea["persona"] for linea in vigilia] == ["Lilia Cedillo"]
+
+
+def test_vigilancia_buffer_excluya_viejas(session):
+    """published fuera de ventana+14d no cuenta; el fallback es ingested."""
+    client = add_client(session)
+    event = _event(client.id, "BUAP presenta informe")
+    session.add(event)
+    session.flush()
+    add_mention(session, client.id, "BUAP presenta informe", DAY, event_id=event.id)
+    # Re-scrape viejo: published hace 30 días, dentro de la ventana de ingesta.
+    old = add_mention(
+        session,
+        client.id,
+        "BUAP presenta informe",
+        DAY - timedelta(days=30),
+        source=MentionSource.x_twitter,
+        event_id=event.id,
+    )
+    old.sentiment = Sentiment.negative
+    old.ingested_at = DAY
+    person = _person_link(session, client.id, "Rectora Cedillo", old)
+    # Fallback: published NULL, ingested en ventana.
+    naked = add_mention(session, client.id, "BUAP genera polémica", DAY, event_id=event.id)
+    naked.sentiment = Sentiment.negative
+    naked.published_at = None
+    naked.ingested_at = DAY
+    session.add(MentionPerson(mention_id=naked.id, person_id=person.id))
+    queries.upsert_settings(session, client.id, {"digest_focus_person_id": person.id})
+    session.commit()
+
+    row = build_daily_summary(session, client_id=client.id, day=DAY.date())
+    notas = [
+        linea.get("nota") for linea in row.content["brief"].get("vigilancia") or []
+    ]
+    # La de hace 30 días queda fuera; la sin published entra por fallback.
+    assert len(notas) == 1
+    assert "polémica" in notas[0]
+    assert row.content["brief"]["vigilancia"][0]["fecha"].startswith("2026-10-09")
+
+
+def test_vigilancia_sin_configuracion_no_llave(session):
+    client = add_client(session)
+    event = _event(client.id, "BUAP publica")
+    session.add(event)
+    session.flush()
+    mention = add_mention(session, client.id, "BUAP publica", DAY, event_id=event.id)
+    mention.sentiment = Sentiment.negative
+    session.commit()
+
+    row = build_daily_summary(session, client_id=client.id, day=DAY.date())
+    assert "vigilancia" not in row.content["brief"]
+
+
+def test_afectacion_en_riesgo_quien_y_trayectoria(session):
+    """F6: la entrada de riesgo lleva quien y la dirección del delta."""
+    client = add_client(session)
+    event = _event(client.id, "BUAP replantea el calendario escolar")
+    session.add(event)
+    session.flush()
+    prev_day = DAY - timedelta(days=1)
+    positive = add_mention(session, client.id, "Calendario escolar", prev_day, event_id=event.id)
+    positive.sentiment = Sentiment.positive
+    session.commit()
+    # Día previo: la historia era positiva.
+    build_daily_summary(session, client_id=client.id, day=prev_day.date())
+
+    negative = _negative_mention(
+        session, client.id, "BUAP replantea calendario y genera incertidumbre", DAY, event_id=event.id
+    )
+    _negative_mention(
+        session,
+        client.id,
+        "Incertidumbre por el calendario",
+        DAY,
+        source=MentionSource.rss_custom,
+        event_id=event.id,
+    )
+    _person_link(session, client.id, "Lilia Cedillo", negative)
+    # Historia ajena más fuerte: el fallback de cobertura no roba el riesgo.
+    big = _event(client.id, "Congreso aprueba el presupuesto federal")
+    session.add(big)
+    session.flush()
+    for titulo in (
+        "Congreso aprueba presupuesto",
+        "Aprueban el presupuesto federal",
+        "El presupuesto sigue adelante",
+    ):
+        add_mention(
+            session,
+            client.id,
+            titulo,
+            DAY,
+            source=MentionSource.news_rss,
+            event_id=big.id,
+        )
+    session.commit()
+
+    row = build_daily_summary(session, client_id=client.id, day=DAY.date())
+    riesgos = row.content["brief"]["riesgos"]
+    assert riesgos, "la negativa del día entra al piso"
+    afect = riesgos[0].get("afectacion")
+    assert afect is not None
+    assert "Lilia Cedillo" in afect["quien"]
+    assert afect["trayectoria"] == "el tono pasa de positivo a negativo"
+
+
+def test_ventana_por_titulo_y_por_fecha():
+    """F6 ventana: cruce por título normalizado o por día."""
+    from datetime import date
+
+    from app.summaries.builder import _ventana_from_fechas
+
+    fechas = [
+        {"title": "Consulta de pensiones", "when": "28 de octubre", "fecha": "2026-10-28"},
+        {"title": "Entrega de informe", "when": "30 de octubre", "fecha": "2026-10-30"},
+    ]
+    cruz = _ventana_from_fechas(fechas, "La consulta de pensiones sigue en pie", None)
+    assert cruz == {"cuando": "28 de octubre", "titulo": "Consulta de pensiones"}
+    por_dia = _ventana_from_fechas(fechas, "Tema sin relación", date(2026, 10, 30))
+    assert por_dia["titulo"] == "Entrega de informe"
+    assert _ventana_from_fechas(fechas, "Tema sin relación", date(2026, 5, 1)) is None
+    assert _ventana_from_fechas(None, "x", None) is None

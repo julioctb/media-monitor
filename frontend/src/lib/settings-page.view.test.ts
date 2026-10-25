@@ -21,6 +21,7 @@ const SETTINGS_VIEW: ClientSettings = {
 	retention_days: 30,
 	digest_hours: [21],
 	digest_focus_person_id: null,
+	watchlist: [2, 5],
 	enrich_max_per_cycle: 40,
 	fetch_max_per_cycle: 120,
 	gdelt_enabled: true,

@@ -3514,10 +3514,17 @@ span.page-button {
   line-height: 1.5;
   color: var(--color-ink-2);
 }
+.digest-brief-afectacion {
+	display: block;
+	margin: 2px 0 0;
+	font-size: 12px;
+	line-height: 1.5;
+	color: var(--color-ink-2);
+}
 @media (max-width: 600px) {
-  .digest-brief {
-    padding: 20px 18px 22px;
-  }
+	.digest-brief {
+		padding: 20px 18px 22px;
+	}
   .digest-brief-grid {
     grid-template-columns: 1fr;
   }

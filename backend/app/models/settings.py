@@ -89,6 +89,12 @@ class ClientSettings(IntPk, Base):
         # The digest's RECTORA section tracks this person (nullable = none).
         mapped_column(Integer, nullable=True)
     )
+    watchlist: Mapped[list] = (
+        # F7 vigilancia: additional person_ids under watch, BEYOND the focus
+        # person (who is always the principal entry with the lowest
+        # threshold). JSON array of positive ints; deduped at validation.
+        mapped_column(JsonType, nullable=False, default=list, server_default="[]")
+    )
     gdelt_enabled: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default="1"
     )

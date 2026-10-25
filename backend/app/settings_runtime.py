@@ -39,6 +39,8 @@ class EffectiveSettings:
     # stored CSV; digest_hour above mirrors the first cut for compat.
     digest_hours: list[int] = field(default_factory=lambda: [21])
     digest_focus_person_id: int | None = None
+    # F7: watched person_ids BEYOND the focus principal (higher threshold).
+    watchlist: tuple[int, ...] = ()
     gdelt_enabled: bool = True
     # X source mode + paid-mode key (see models.settings.X_MODES); free
     # mode ignores the key, paid without key falls back to the index.
@@ -129,6 +131,11 @@ def resolve_effective_settings(session: Session, client_id: int) -> EffectiveSet
         digest_hour=digest_hours[0],
         digest_hours=digest_hours,
         digest_focus_person_id=row.digest_focus_person_id,
+        watchlist=tuple(
+            pid
+            for pid in (row.watchlist or [])
+            if isinstance(pid, int) and not isinstance(pid, bool) and pid > 0
+        ),
         gdelt_enabled=row.gdelt_enabled,
         x_mode=row.x_mode,
         x_api_key=row.x_api_key,

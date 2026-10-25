@@ -25,12 +25,21 @@ from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 import httpx
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, or_, select
 
 from app.enrich.llm import strip_code_fence
 
 from app.ingest.events import similarity_with_suffix_variants, strip_outlet_suffix
-from app.models import AgendaItem, DailySummary, FieldReport, Mention, queries
+from app.models import (
+    AgendaItem,
+    DailySummary,
+    FieldReport,
+    Mention,
+    MentionPerson,
+    Person,
+    Sentiment,
+    queries,
+)
 from app.models.settings import DEFAULT_OPENAI_BASE_URL
 from app.settings_runtime import EffectiveSettings, resolve_effective_settings
 from app.summaries.agenda_detect import normalize_title, parse_spanish_date
@@ -932,6 +941,279 @@ def ensure_riesgos(content: dict) -> None:
         riesgos.append({"index": index, "razon": RIESGO_RAZON})
 
 
+# ------------------------------------------------ F6/F7 riesgo estructurado
+
+#: Días de gracia para la fecha efectiva de vigilancia (published o
+#: ingested): fuera de ventana+buffer no cuenta — re-scrapes viejos tipo
+#: FB 2025 jamás disparan una línea.
+VIGILANCIA_BUFFER_DIAS = 14
+
+#: Umbral F7: la persona principal (focus) basta con 1 negativa; el resto
+#: de la watchlist exige eco de fuentes distintas.
+VIGILANCIA_ECO_FUENTES = 2
+
+
+def _prev_by_key(noticias: list) -> dict:
+    """Dedup key -> primera noticia, el matching de :func:`brief_delta`."""
+    prev_by_key: dict = {}
+    for nota in noticias or []:
+        if not isinstance(nota, dict):
+            continue
+        key = _delta_key(nota)
+        if key is not None:
+            prev_by_key.setdefault(key, nota)
+    return prev_by_key
+
+
+def _cross_title(a: object, b: object) -> bool:
+    """Normalized-title containment, in either direction."""
+    na, nb = normalize_title(str(a or "")), normalize_title(str(b or ""))
+    return bool(na) and bool(nb) and (na in nb or nb in na)
+
+
+def _person_names(session, client_id: int, person_ids: list) -> dict:
+    """id -> display name; empty mapping when there is nothing to load."""
+    ids = sorted({p for p in person_ids if isinstance(p, int)})
+    if not ids:
+        return {}
+    rows = session.execute(
+        select(Person.id, Person.name).where(
+            Person.client_id == client_id, Person.id.in_(ids)
+        )
+    ).all()
+    return {row[0]: row[1] for row in rows}
+
+
+def _event_tone_today(noticias: list, event_id: int) -> str | None:
+    """Aggregate tone of the card carrying this event today, if any."""
+    for nota in noticias:
+        if not isinstance(nota, dict):
+            continue
+        ids = set(nota.get("event_ids") or [])
+        if nota.get("event_id") is not None:
+            ids.add(nota["event_id"])
+        if event_id in ids:
+            return tone_label(nota.get("tone"))
+    return None
+
+
+def _ventana_from_fechas(fechas: object, title: object, day: date | None) -> dict | None:
+    """Agenda que cruza con la historia: mismo título o mismo día (F6)."""
+    if not isinstance(fechas, list):
+        return None
+    for fecha in fechas:
+        if not isinstance(fecha, dict):
+            continue
+        f_title, f_when = fecha.get("title"), fecha.get("when")
+        if not f_title or not f_when:
+            continue
+        if _cross_title(title, f_title):
+            return {"cuando": str(f_when), "titulo": str(f_title)}
+        raw = fecha.get("fecha")
+        if day is not None and isinstance(raw, str):
+            try:
+                if date.fromisoformat(raw) == day:
+                    return {"cuando": str(f_when), "titulo": str(f_title)}
+            except ValueError:
+                continue
+    return None
+
+
+def annotate_afectacion(session, client_id: int, content: dict, prev_noticias: list, day: date) -> None:
+    """F6: quien/trayectoria/ventana sobre las entradas de riesgo.
+
+    Solo campos, cero prosa nueva: nombres via person_ids, dirección del
+    delta cuando la historia matchea la jornada previa, y la fecha de
+    agenda que cruza por título o día. Cada campo se omite si vacío.
+    """
+    brief = content.get("brief")
+    noticias = content.get("noticias")
+    if not (isinstance(brief, dict) and isinstance(noticias, list)):
+        return
+    riesgos = brief.get("riesgos")
+    if not isinstance(riesgos, list) or not riesgos:
+        return
+    fechas = brief.get("fechas")
+    prev_by_key = _prev_by_key(prev_noticias)
+    names = _person_names(
+        session,
+        client_id,
+        [p for nota in noticias if isinstance(nota, dict) for p in nota.get("person_ids") or []],
+    )
+    for entry in riesgos:
+        index = entry.get("index") if isinstance(entry, dict) else None
+        if not isinstance(index, int) or not 0 <= index < len(noticias):
+            continue
+        nota = noticias[index]
+        if not isinstance(nota, dict):
+            continue
+        afect: dict = {}
+        quien = sorted({names[p] for p in nota.get("person_ids") or [] if p in names})
+        if quien:
+            afect["quien"] = quien
+        prev = prev_by_key.get(_delta_key(nota))
+        before = tone_label((prev or {}).get("tone"))
+        after = tone_label(nota.get("tone"))
+        if before and after and before != after:
+            afect["trayectoria"] = f"el tono pasa de {before} a {after}"
+        when_label = nota.get("when_label")
+        parsed = parse_spanish_date(when_label, day.year) if when_label else None
+        ventana = _ventana_from_fechas(fechas, nota.get("title"), parsed)
+        if ventana:
+            afect["ventana"] = ventana
+        if afect:
+            entry["afectacion"] = afect
+
+
+def _riesgo_repr(content: dict) -> tuple[set, list[str]]:
+    """Event ids y títulos normalizados representados en tarjetas de riesgo."""
+    raw_brief = content.get("brief")
+    brief: dict = raw_brief if isinstance(raw_brief, dict) else {}
+    raw_noticias = content.get("noticias")
+    noticias: list = raw_noticias if isinstance(raw_noticias, list) else []
+    entries = brief.get("riesgos") if isinstance(brief, dict) else None
+    event_ids: set = set()
+    titles: list[str] = []
+    for entry in entries or []:
+        index = entry.get("index") if isinstance(entry, dict) else None
+        if not isinstance(index, int) or not 0 <= index < len(noticias):
+            continue
+        nota = noticias[index]
+        if not isinstance(nota, dict):
+            continue
+        if nota.get("event_id") is not None:
+            event_ids.add(nota["event_id"])
+        event_ids.update(e for e in nota.get("event_ids") or [] if e is not None)
+        if nota.get("title"):
+            titles.append(normalize_title(nota["title"]))
+    return event_ids, titles
+
+
+def _mention_representada(mention: Mention, event_ids: set, titles: list[str]) -> bool:
+    """F7 anti-dup: la tarjeta de riesgo gana sobre la línea (event id o título)."""
+    if mention.event_id is not None and mention.event_id in event_ids:
+        return True
+    if mention.title:
+        normalized = normalize_title(mention.title)
+        return any(normalized in titulo or titulo in normalized for titulo in titles)
+    return False
+
+
+def build_vigilancia(
+    session,
+    effective: EffectiveSettings,
+    content: dict,
+    utc_start,
+    utc_end,
+    prev_noticias: list,
+) -> list[dict]:
+    """Líneas de vigilancia F7: negativas de la watchlist, nunca tarjetas.
+
+    La persona focal (principal) basta con 1 negativa; el resto de la
+    watchlist exige eco de :data:`VIGILANCIA_ECO_FUENTES` fuentes. La
+    fecha efectiva es published_at con fallback a ingested_at, y queda
+    fuera si no cae en ventana + buffer. Lo ya representado por una
+    tarjeta de riesgo no emite línea: la tarjeta gana.
+    """
+    focus = effective.digest_focus_person_id
+    watch = [pid for pid in effective.watchlist if pid != focus]
+    targets = ([focus] if focus is not None else []) + watch
+    if not targets:
+        return []
+    window_start = utc_start - timedelta(days=VIGILANCIA_BUFFER_DIAS)
+    published_ok = and_(
+        Mention.published_at.is_not(None),
+        Mention.published_at >= window_start,
+        Mention.published_at < utc_end,
+    )
+    fallback_ok = and_(
+        Mention.published_at.is_(None),
+        Mention.ingested_at >= window_start,
+        Mention.ingested_at < utc_end,
+    )
+    rows = session.execute(
+        select(Mention, MentionPerson.person_id, Person.name)
+        .join(MentionPerson, MentionPerson.mention_id == Mention.id)
+        .join(Person, Person.id == MentionPerson.person_id)
+        .where(
+            Mention.client_id == effective.client_id,
+            Mention.sentiment == Sentiment.negative,
+            MentionPerson.person_id.in_(targets),
+            or_(published_ok, fallback_ok),
+        )
+    ).all()
+
+    tz = _zone(effective.timezone)
+    per_person: dict[int, dict] = {}
+    for mention, person_id, name in rows:
+        if is_cosmetic_story(mention.title):
+            continue
+        effective_dt = mention.published_at or mention.ingested_at
+        if effective_dt.tzinfo is None:
+            effective_dt = effective_dt.replace(tzinfo=timezone.utc)
+        entry = per_person.setdefault(person_id, {"name": name, "rows": []})
+        entry["rows"].append((mention, effective_dt))
+
+    event_ids, titles = _riesgo_repr(content)
+    prev_by_key = _prev_by_key(prev_noticias)
+    brief = content.get("brief") if isinstance(content.get("brief"), dict) else {}
+    fechas = brief.get("fechas")
+    lines: list[dict] = []
+    for person_id, data in sorted(per_person.items()):
+        keep = [
+            (mention, dt)
+            for mention, dt in data["rows"]
+            if not _mention_representada(mention, event_ids, titles)
+        ]
+        if person_id == focus:
+            enough = bool(keep)
+        else:
+            enough = len({mention.source for mention, _ in keep}) >= VIGILANCIA_ECO_FUENTES
+        if not enough:
+            continue
+        chosen, chosen_dt = max(keep, key=lambda row: (row[1], row[0].id))
+        local_day = chosen_dt.astimezone(tz).date()
+        line: dict = {"persona": data["name"]}
+        nota = display_title(chosen.title) if chosen.title else None
+        if nota:
+            line["nota"] = nota
+        line["fecha"] = chosen_dt.isoformat()
+        afect: dict = {}
+        # Quien: todas las personas de la mención elegida (la vigilada
+        # incluida); la consulta es puntual, hay pocas líneas.
+        linked = (
+            session.scalars(
+                select(Person.name)
+                .join(MentionPerson, MentionPerson.person_id == Person.id)
+                .where(MentionPerson.mention_id == chosen.id)
+            ).all()
+        )
+        quien = sorted({n for n in linked if n})
+        if quien:
+            afect["quien"] = quien
+        # Trayectoria: transición del delta cuando la historia matchea.
+        if chosen.event_id is not None:
+            key = ("id", chosen.event_id)
+            after = _event_tone_today(content.get("noticias") or [], chosen.event_id) or "negativo"
+        elif chosen.title:
+            key = ("titulo", normalize_title(chosen.title))
+            after = "negativo"
+        else:
+            key = None
+            after = None
+        prev = prev_by_key.get(key) if key else None
+        before = tone_label((prev or {}).get("tone"))
+        if before and after and before != after:
+            afect["trayectoria"] = f"el tono pasa de {before} a {after}"
+        ventana = _ventana_from_fechas(fechas, chosen.title, local_day)
+        if ventana:
+            afect["ventana"] = ventana
+        if afect:
+            line["afectacion"] = afect
+        lines.append(line)
+    return lines
+
+
 def digest_prompt_view(facts: dict, dia_previo: list | None = None) -> dict:
     """Lean facts projection for the narrative prompt.
 
@@ -1350,13 +1632,12 @@ def build_daily_summary(
     # heuristic fills the buckets by tono/conteo; a valid LLM selection
     # replaces them wholesale (same esqueleto, one render path).
     content["tarjetas"] = build_tarjetas(content["noticias"])
+    prev_noticias = previous_day_noticias(session, client_id, day)
     heu_decisiones, heu_ruido, heu_a_favor = _heuristic_brief_sections(
         content["noticias"]
     )
     content["brief"] = {
-        "delta": brief_delta(
-            previous_day_noticias(session, client_id, day), content["noticias"]
-        ),
+        "delta": brief_delta(prev_noticias, content["noticias"]),
         "decisiones": heu_decisiones,
         "riesgos": [],
         "ruido": heu_ruido,
@@ -1375,6 +1656,15 @@ def build_daily_summary(
     ensure_riesgos(content)
     # T8.D: piso de densidad — mínimo tres decisiones cuando haya candidatas.
     ensure_decision_density(content)
+    # F6/F7: afectación estructurada en las entradas de riesgo y líneas de
+    # vigilancia (post-pases determinísticos, cero LLM). La vigilancia corre
+    # DESPUÉS del piso: el anti-dup lee el bucket riesgo final.
+    annotate_afectacion(session, client_id, content, prev_noticias, day)
+    vigilancia = build_vigilancia(
+        session, effective, content, utc_start, utc_end, prev_noticias
+    )
+    if vigilancia:
+        content["brief"]["vigilancia"] = vigilancia
     content["brief"]["headline"] = narrative
     if descartes_cosmeticas + historias_fundadas > 0:
         content["brief"]["descarte"] = {
