@@ -115,16 +115,60 @@ def touch_event(event: Event, mention: Mention) -> None:
     event.title_tokens = " ".join(sorted(_tokens(event.title)))
 
 
+#: T1 (event-identity): the assigner scores the incoming title against the
+#: canonical AND the distinct titles the event has already grouped (capped).
+#: The canonical alone drifts — `touch_event` keeps the longest title — and
+#: measured splits (finanzas 23-24: 0.636 on stored titles) were lost because
+#: the assignment-time comparison used a different string than today's.
+EVENT_TITLE_POOL_CAP = 10
+
+
+def event_title_pool(session: Session, events: list[Event]) -> dict[int, list[str]]:
+    """Distinct mention titles per event (longest first, capped).
+
+    The drift-proof comparison pool: a new headline matching ANY wording the
+    event already grouped scores against it, not just against the canonical.
+    """
+    ids = [e.id for e in events]
+    if not ids:
+        return {}
+    rows = session.execute(
+        select(Mention.event_id, Mention.title).where(
+            Mention.event_id.in_(ids), Mention.title.is_not(None)
+        )
+    ).all()
+    pool: dict[int, set[str]] = {}
+    for event_id, title in rows:
+        if title:
+            pool.setdefault(event_id, set()).add(title)
+    return {
+        event_id: sorted(titles, key=len, reverse=True)[:EVENT_TITLE_POOL_CAP]
+        for event_id, titles in pool.items()
+    }
+
+
+def _event_best_score(title: str, event: Event, pool: list[str]) -> float:
+    """Best suffix-variant Jaccard of `title` vs canonical + pool titles."""
+    score = similarity_with_suffix_variants(title, event.title)
+    for alt in pool:
+        if alt == event.title:
+            continue
+        alt_score = similarity_with_suffix_variants(title, alt)
+        if alt_score > score:
+            score = alt_score
+    return score
+
+
 def find_or_create_event(
     session: Session, *, client_id: int, title: str, when: datetime
 ) -> Event:
     """Assign `title` to the best event of the client inside the window.
 
     Candidates: same client with first/last_seen within +/- 48h of `when`.
-    Ranked by token-Jaccard against the canonical title (best of the plain
-    and suffix-stripped variants), ties broken by id (deterministic).
-    Below threshold (or no candidates) a new event is created. Does not
-    commit; the caller owns the transaction.
+    Ranked by token-Jaccard against the canonical title and the event's
+    title pool (best of the plain and suffix-stripped variants), ties
+    broken by id (deterministic). Below threshold (or no candidates) a new
+    event is created. Does not commit; the caller owns the transaction.
     """
     window_start = when - timedelta(hours=WINDOW_HOURS)
     window_end = when + timedelta(hours=WINDOW_HOURS)
@@ -137,10 +181,11 @@ def find_or_create_event(
             )
         )
     )
+    pools = event_title_pool(session, candidates)
     best: Event | None = None
     best_score = 0.0
     for event in sorted(candidates, key=lambda e: e.id):
-        score = similarity_with_suffix_variants(title, event.title)
+        score = _event_best_score(title, event, pools.get(event.id, []))
         if score > best_score:
             best, best_score = event, score
     if best is not None and best_score >= SIMILARITY_THRESHOLD:

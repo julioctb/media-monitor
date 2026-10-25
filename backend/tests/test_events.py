@@ -183,3 +183,57 @@ def test_mention_counters_and_sources_update_on_assign(session) -> None:
     session.expire(event)
     assert event.mention_count == 2
     assert event.source_count == 2
+
+
+def test_assign_recovers_when_canonical_drifts(session) -> None:
+    """T1 (drift fix): a new headline matching an OLD pool title joins the
+    event even when the canonical has drifted to a longer, differently
+    worded variant (the finanzas 23-24 split, measured 0.636 on titles)."""
+    client_id = _client(session)
+    first = _assign(
+        session, client_id,
+        "Trabajadores de la BUAP pagan por estacionamiento",
+        T0,
+    )
+    # A longer paraphrase joins (0.5 exactly) and becomes the canonical.
+    second = _assign(
+        session, client_id,
+        "Trabajadores de la BUAP pagan por estacionamiento tras convenio"
+        " con rectoría y Sindicato",
+        T0 + timedelta(hours=3),
+    )
+    assert second.id == first.id
+    # A third outlet repeats the ORIGINAL wording: scores ~0.4 against the
+    # drifted canonical but ~0.67 against the original pool title.
+    third = _assign(
+        session, client_id,
+        "Trabajadores de la BUAP pagan por estacionamiento en Ciudad"
+        " Universitaria - Diario Cambio",
+        T0 + timedelta(hours=5),
+    )
+    assert third.id == first.id
+    assert session.query(Event).count() == 1
+
+
+def test_pool_matching_keeps_distinct_stories_apart(session) -> None:
+    """The pool only widens matching for SAME-story variants: a distinct
+    story sharing one token (BUAP) still gets its own event."""
+    client_id = _client(session)
+    _assign(
+        session, client_id,
+        "Trabajadores de la BUAP pagan por estacionamiento",
+        T0,
+    )
+    _assign(
+        session, client_id,
+        "Trabajadores de la BUAP pagan por estacionamiento tras convenio"
+        " con rectoría y Sindicato",
+        T0 + timedelta(hours=3),
+    )
+    other = _assign(
+        session, client_id,
+        "Lobos BUAP conquista el titulo nacional de baloncesto - El Popular",
+        T0 + timedelta(hours=6),
+    )
+    assert session.query(Event).count() == 2
+    assert other.id != 1
