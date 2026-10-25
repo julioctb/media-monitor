@@ -1291,3 +1291,110 @@ def test_plain_text_renders_campo_section(session):
     assert "CAMPO" in plain
     assert "Obra del puente parada" in plain
     assert "en revisión" in plain
+
+
+# ------------------------------------------------------- digest-brief-v3 (T4)
+
+
+def test_legacy_v2_row_without_brief_still_validates_and_renders():
+    """Rows authored before brief-v3 carry none of the new keys: unchanged."""
+    from app.summaries.digest import render_plain_text
+
+    legacy = {
+        "schema": 2,
+        "window": {"from": "2026-10-09T00:00-06:00", "to": "2026-10-10T00:00-06:00"},
+        "coverage": {"total": 1, "by_source": {}, "by_topic": {}, "gaps": []},
+        "noticias": [
+            {
+                "title": "BUAP publica",
+                "summary": "Síntesis previa.",
+                "confidence": "alta",
+                "sources": [{"source": "news_rss", "url": "u", "title": "t"}],
+            }
+        ],
+        "rectora": {"tone": "neutral"},
+        "redes": {"x": {"count": 0, "note": ""}},
+        "personas": [],
+        "pendientes": [],
+    }
+    assert validate_digest(legacy) == []
+    plain = render_plain_text(legacy, "Narrativa previa.")
+    assert "NOTICIAS" in plain and "PENDIENTES" in plain
+    assert "Síntesis previa." in plain
+    # No phantom sections on legacy rows.
+    assert "BRIEF" not in plain and "CAMPO" not in plain
+
+
+def test_failed_regen_preserves_llm_prose_in_tarjetas(session):
+    """The inheritance path flows into the cards: hecho/por_que survive."""
+    client = add_client(session)
+    event = _event(client.id, "BUAP publica resultados")
+    session.add(event)
+    session.flush()
+    add_mention(session, client.id, "BUAP publica resultados", DAY, event_id=event.id)
+
+    def good(prompt: str) -> str:
+        return json.dumps(
+            {
+                "headline": "Titular con prosa.",
+                "items": [
+                    {
+                        "index": 0,
+                        "summary": "Síntesis del modelo.",
+                        "why_it_matters": "Porque importa.",
+                    }
+                ],
+            }
+        )
+
+    first = build_daily_summary(session, client_id=client.id, day=DAY.date(), generate=good)
+    assert first.mode == "llm"
+    assert first.content["tarjetas"][0]["hecho"] == "Síntesis del modelo."
+
+    def boom(prompt: str) -> str:
+        raise RuntimeError("provider down")
+
+    second = build_daily_summary(session, client_id=client.id, day=DAY.date(), generate=boom)
+    assert second.id == first.id
+    # Prose inherited end to end: noticia, tarjeta and headline.
+    assert second.mode == "llm"
+    assert second.content["noticias"][0]["summary"] == "Síntesis del modelo."
+    assert second.content["tarjetas"][0]["hecho"] == "Síntesis del modelo."
+    assert second.content["tarjetas"][0]["por_que"] == "Porque importa."
+    assert second.content["brief"]["headline"].startswith("Titular con prosa.")
+    # Esqueleto keys intact after the inheritance merge.
+    assert set(second.content["brief"].keys()) == {
+        "headline",
+        "delta",
+        "decisiones",
+        "ruido",
+        "a_favor",
+        "fechas",
+    }
+    assert validate_digest(second.content) == []
+
+
+def test_regen_refreshes_deterministic_sections(session):
+    """Regen recomputes tarjetas/brief/campo; revisions keep appending."""
+    from sqlalchemy import select
+
+    from app.models import DailySummaryRevision
+
+    client = add_client(session)
+    add_mention(session, client.id, "Nota primera del día", DAY)
+    first = build_daily_summary(session, client_id=client.id, day=DAY.date())
+    add_mention(session, client.id, "Nota segunda del día", DAY)
+    second = build_daily_summary(session, client_id=client.id, day=DAY.date())
+
+    assert second.id == first.id
+    assert second.content["coverage"]["total"] == 2
+    assert len(second.content["tarjetas"]) == 2
+    # The brief/campo sections are present and re-derived, not stale copies.
+    assert second.content["brief"]["headline"] == second.narrative
+    assert second.content["campo"] == []
+    seqs = session.scalars(
+        select(DailySummaryRevision.seq).where(
+            DailySummaryRevision.client_id == client.id
+        )
+    ).all()
+    assert sorted(seqs) == [1, 2]
