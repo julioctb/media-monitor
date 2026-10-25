@@ -53,16 +53,106 @@ Garantias de comportamiento que NO cambian (pinneadas en
   index se descarta; asi sigue siendo — pydantic lax lo aceptaria y seria
   un cambio de contrato silencioso).
 
-## 4. Paso siguiente: `response_format` (pendiente)
+## 4. `response_format` (implementado)
 
-El mismo schema exporta su json schema (`Model.model_json_schema()`). Cuando
-el server de inference lo soporte bien, el builder puede pedirle al LLM
-generar contra esa planilla (`response_format: json_schema`) en vez de
-confinarse a `json_object`. Menos respuestas descartadas. La validar
-post-proceso de `apply_narrative` se mantiene igual: corrobora, no confia.
+`digest_schema.narrative_response_schema()` exporta el JSON Schema que
+`builder._openai_generator` envía en el primer intento como
+`response_format: json_schema`. Los reintentos usan JSON simple para
+proveedores sin soporte de generación guiada. La validación posterior de
+`apply_narrative` se conserva: cumplir el schema no acredita veracidad ni
+correspondencia factual entre una reseña y su noticia.
 
 ## 5. Que NO se hace
 
 - No se divide la narrativa en una llamada por seccion (mas llamadas, menos
   coherencia editorial, mas complejidad de orquestacion).
 - No se abstrae mas el core determinista: ya esta factorizado y es el activo.
+
+## 6. Contrato editorial y persona principal bajo seguimiento
+
+**Contrato objetivo:** la voz integral de asesoría y la trazabilidad por
+aseveración dependen de las fases posteriores de
+`odd/tasks/political-analysis-traceability.md`. Documentarlas no significa
+que estén implementadas, ni que los datos recibidos estén verificados.
+
+### Identidad, búsqueda y lectura
+
+`digest_focus_person_id` identifica a la **persona principal bajo
+seguimiento**, no necesariamente a quien lee el informe. Las palabras
+clave recuperan noticias y contexto; `Person` conserva identidad, cargo,
+institución y variantes. La watchlist identifica personas adicionales bajo
+vigilancia. Ninguno de esos conceptos debe sustituirse por otro.
+
+Para seguir a otra personalidad se cambia la configuración y las búsquedas,
+no el código ni nombres dentro del prompt. Una noticia institucional puede
+ser pertinente aunque no mencione literalmente a la persona principal.
+La falta de mención tampoco acredita participación, responsabilidad o
+perjuicio: la relación debe explicarse o declararse no establecida.
+
+### Voz y separación de niveles
+
+El lector recibe criterio político: actores, posiciones documentadas,
+gobernabilidad, legitimidad, negociación, costos reputacionales y margen de
+maniobra cuando la evidencia permita esa lectura. El informe puede ser
+incómodo para la persona seguida y su equipo; no es un alegato a su favor.
+No atribuir intenciones privadas, apoyo público ni facultades a partir de
+una cobertura favorable o de un cargo. Un candidato no tiene por ello las
+atribuciones de una autoridad en ejercicio.
+
+Distinguir siempre tres niveles:
+
+1. **Hecho reportado:** quién afirma qué, cuándo y con qué respaldo.
+2. **Lectura política:** interpretación y mecanismo que la sostiene, con
+   sus límites; los escenarios son posibilidades, no hechos ocurridos.
+3. **Atención recomendada:** qué verificar, coordinar o resolver, bajo qué
+   condición y con qué plazo documentado, si existe.
+
+Estas capas son editoriales. La fase 1 no añade campos de respuesta ni
+componentes de presentación para renderizarlas.
+
+### Categorías objetivo y ejemplos de aceptación
+
+| Categoría | Requiere | No se demuestra con |
+|---|---|---|
+| Riesgo | Consecuencia adversa plausible vinculada a la persona seguida | Tono negativo o mera mención |
+| Decisión / atención | Necesidad concreta de verificar, coordinar, fijar postura o resolver | Cantidad de publicaciones |
+| A favor | Desarrollo favorable sustentado y pertinente | Suponer respaldo ciudadano |
+| Ruido | Baja relevancia decisional explicada | Incomodidad o un solo origen |
+| Vigilancia | Señal pertinente sobre una persona configurada | Atribuirle todo el tono de la noticia |
+
+Mantener la regla de tres cuando existan tres candidatas sustantivas. Los
+pisos deterministas actuales se revisarán en fases posteriores; este
+contrato no afirma que ya distingan todas estas dimensiones.
+
+| Entrada sintética | Lectura aceptable | No afirmar |
+|---|---|---|
+| Denuncia de gasto irregular, sin contraste documental | Frente de escrutinio que requiere verificar la documentación | Desvío demostrado |
+| Consulta aplazada, sin nueva fecha ni acuerdo | Margen para negociar e incertidumbre sobre el proceso | Conflicto resuelto |
+| Aniversario reproducido por siete medios | Visibilidad institucional, sin decisión pendiente documentada | Urgencia por volumen |
+| Vencimiento próximo en una nota neutral | Atención por el plazo acreditado | Ausencia de riesgo por tono |
+| Denuncia grave con un solo origen | Gravedad potencial separada de corroboración insuficiente | Ruido por tener una fuente |
+| Candidato mencionado en un asunto municipal | Pertinencia para su posición pública, sin mando gubernamental | Ordenar a la policía |
+
+### Ejemplo sintético de asesoría
+
+**Hecho reportado:** una publicación informa el aplazamiento de una consulta,
+sin nueva fecha ni acuerdo entre las partes.
+
+**Lectura política:** el aplazamiento abre margen para negociar, pero
+prolonga la incertidumbre sobre la conducción del proceso. Si el siguiente
+paso no se aclara, la discusión puede desplazarse del contenido de la
+propuesta a su legitimidad.
+
+**Atención recomendada:** confirmar el alcance del aplazamiento y las
+condiciones de participación antes de comunicar otro calendario.
+
+**Límite:** no se acredita resolución del desacuerdo ni una nueva fecha.
+La posible disputa de legitimidad es una interpretación condicionada.
+
+Sobre una movilización universitaria reportada, la lectura para una rectoría
+puede examinar continuidad académica e interlocución; para un gobernante,
+coordinación y efectos documentados en servicios dentro de su competencia;
+para un candidato, pertinencia de su posición pública y verificación previa.
+No adjudicarle al candidato capacidad de ejecución gubernamental. Estos
+son ejemplos de revisión humana, no resultados demostrados por un
+proveedor real ni por un generador falso de pruebas.
