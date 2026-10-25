@@ -962,12 +962,7 @@ def ensure_riesgos(content: dict) -> None:
         riesgos.append({"index": index, "razon": RIESGO_RAZON})
 
 
-# ------------------------------------------------ F6/F7 riesgo estructurado
-
-#: Días de gracia para la fecha efectiva de vigilancia (published o
-#: ingested): fuera de ventana+buffer no cuenta — re-scrapes viejos tipo
-#: FB 2025 jamás disparan una línea.
-VIGILANCIA_BUFFER_DIAS = 14
+# ------------------------------------------------ F6/F7 riesgo estructural
 
 #: Umbral F7: la persona principal (focus) basta con 1 negativa; el resto
 #: de la watchlist exige eco de fuentes distintas.
@@ -1133,7 +1128,7 @@ def build_vigilancia(
     La persona focal (principal) basta con 1 negativa; el resto de la
     watchlist exige eco de :data:`VIGILANCIA_ECO_FUENTES` fuentes. La
     fecha efectiva es published_at con fallback a ingested_at, y queda
-    fuera si no cae en ventana + buffer. Lo ya representado por una
+    fuera si no cae dentro de la ventana. Lo ya representado por una
     tarjeta de riesgo no emite línea: la tarjeta gana.
     """
     focus = effective.digest_focus_person_id
@@ -1141,15 +1136,14 @@ def build_vigilancia(
     targets = ([focus] if focus is not None else []) + watch
     if not targets:
         return []
-    window_start = utc_start - timedelta(days=VIGILANCIA_BUFFER_DIAS)
     published_ok = and_(
         Mention.published_at.is_not(None),
-        Mention.published_at >= window_start,
+        Mention.published_at >= utc_start,
         Mention.published_at < utc_end,
     )
     fallback_ok = and_(
         Mention.published_at.is_(None),
-        Mention.ingested_at >= window_start,
+        Mention.ingested_at >= utc_start,
         Mention.ingested_at < utc_end,
     )
     rows = session.execute(

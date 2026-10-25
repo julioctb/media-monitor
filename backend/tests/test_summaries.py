@@ -2453,8 +2453,8 @@ def test_vigilancia_watchlist_exige_eco_de_fuentes(session):
     assert [linea["persona"] for linea in vigilia] == ["Lilia Cedillo"]
 
 
-def test_vigilancia_buffer_excluya_viejas(session):
-    """published fuera de ventana+14d no cuenta; el fallback es ingested."""
+def test_vigilancia_solo_la_ventana_cuenta(session):
+    """Fuera de ventana no cuenta (ni a 2 ni a 30 dias); fallback ingested."""
     client = add_client(session)
     event = _event(client.id, "BUAP presenta informe")
     session.add(event)
@@ -2478,6 +2478,18 @@ def test_vigilancia_buffer_excluya_viejas(session):
     naked.published_at = None
     naked.ingested_at = DAY
     session.add(MentionPerson(mention_id=naked.id, person_id=person.id))
+    # Publicada 2 dias antes de la ventana: con el viejo buffer de 14 dias
+    # entraria y duplicaria entre dias; con ventana estricta, no.
+    recent_old = add_mention(
+        session,
+        client.id,
+        "BUAP genera polémica adicional",
+        DAY - timedelta(days=2),
+        event_id=event.id,
+    )
+    recent_old.sentiment = Sentiment.negative
+    recent_old.ingested_at = DAY
+    session.add(MentionPerson(mention_id=recent_old.id, person_id=person.id))
     queries.upsert_settings(session, client.id, {"digest_focus_person_id": person.id})
     session.commit()
 
