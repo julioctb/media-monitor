@@ -34,6 +34,7 @@ from app.summaries.digest_schema import (
     AgendaEntry,
     CuentaEntry,
     NarrativeItem,
+    brief_shape_errors,
 )
 
 LOGGER = logging.getLogger(__name__)
@@ -629,4 +630,7 @@ def validate_digest(content: object) -> list[str]:
                 errors.append(f"noticias[{index}].sources must be a list of objects")
     elif "noticias" in content:
         errors.append("noticias must be a list")
+    # digest-brief-v3 keys are optional: absent = legacy row (no errors);
+    # present-but-malformed means the build path regressed.
+    errors.extend(brief_shape_errors(content))
     return errors
