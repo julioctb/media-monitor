@@ -71,6 +71,59 @@ def test_relative_label_fallback(monkeypatch):
     assert _parse_relative("mañana", now) is None
 
 
+def test_strip_fb_chrome_removes_ui_tail():
+    from app.ingest.facebook_public import strip_fb_chrome
+
+    dirty = (
+        "Verdades Buap CRS actualizó su foto de portada. "
+        "hace 14 minutos 14 min · Compartido con: Público "
+        "Todas las reacciones: 1 Me gusta Comentar"
+    )
+    assert strip_fb_chrome(dirty) == "Verdades Buap CRS actualizó su foto de portada."
+
+
+def test_strip_fb_chrome_is_idempotent_and_keeps_clean_titles():
+    from app.ingest.facebook_public import strip_fb_chrome
+
+    clean = "La BUAP anuncio algo"
+    assert strip_fb_chrome(clean) == clean
+    dirty = "Verdades Buap CRS actualizó su foto de portada. hace 33 minutos 33 min · Compartido con: Público Todas las reacciones: 1 Me gusta Comentar"
+    once = strip_fb_chrome(dirty)
+    assert strip_fb_chrome(once) == once
+
+
+def test_strip_fb_chrome_variants():
+    from app.ingest.facebook_public import strip_fb_chrome
+
+    # Dash-separated chrome without the middot.
+    assert (
+        strip_fb_chrome("BUAP emite comunicado hace 2 horas 2 h - Compartido con: Público")
+        == "BUAP emite comunicado"
+    )
+    # Reactions block alone.
+    assert (
+        strip_fb_chrome("Nota universitaria Todas las reacciones: 12 Me gusta Comentar")
+        == "Nota universitaria"
+    )
+    assert strip_fb_chrome("") == ""
+    assert strip_fb_chrome(None) is None
+
+
+def test_to_raw_mentions_strips_chrome_from_title():
+    from app.ingest.facebook_public import to_raw_mentions
+
+    posts = [
+        {
+            "url": "https://www.facebook.com/foo/posts/1",
+            "external_id": "1",
+            "text": "Verdades Buap CRS actualizó su foto de portada. hace 5 min 5 min · Compartido con: Público Todas las reacciones: 1 Me gusta Comentar",
+            "created_at": None,
+        }
+    ]
+    (row,) = to_raw_mentions(posts, "42", "Pagina", ["BUAP"])
+    assert row.title == "Verdades Buap CRS actualizó su foto de portada."
+
+
 def test_to_raw_mentions_maps_fields():
     from app.ingest.facebook_public import to_raw_mentions
 

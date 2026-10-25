@@ -137,6 +137,7 @@ def build_digest_facts(
     from sqlalchemy import select
 
     from app.models import Event, Mention, Person
+    from app.ingest.facebook_public import strip_fb_chrome
     from app.summaries.builder import day_window
 
     if window_start is not None:
@@ -195,14 +196,17 @@ def build_digest_facts(
                 noticias.append(
                     {
                         "event_id": None,
-                        "title": mention.title,
+                        # Read-side chrome strip: rows ingested before the
+                        # ingest-side normalization keep FB UI tails; the
+                        # digest must render clean titles without a backfill.
+                        "title": strip_fb_chrome(mention.title),
                         "summary": None,
                         "topic": _single_topic(mention),
                         "sources": [
                             {
                                 "source": mention.source.value,
                                 "url": mention.url,
-                                "title": mention.title,
+                                "title": strip_fb_chrome(mention.title),
                             }
                         ],
                         "confidence": "baja",
@@ -230,11 +234,13 @@ def build_digest_facts(
         noticias.append(
             {
                 "event_id": event_id,
-                "title": event.title,
+                # Read-side chrome strip (see the loose branch): the event
+                # title inherits the longest mention title, chrome included.
+                "title": strip_fb_chrome(event.title),
                 "summary": event.summary,
                 "topic": topic,
                 "sources": [
-                    {"source": m.source.value, "url": m.url, "title": m.title}
+                    {"source": m.source.value, "url": m.url, "title": strip_fb_chrome(m.title)}
                     for m in items
                 ],
                 "confidence": confidence_for(len({m.source for m in items})),

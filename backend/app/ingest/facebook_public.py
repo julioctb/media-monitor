@@ -60,6 +60,43 @@ _EXTERNAL_ID_RE = re.compile(r"/(?:posts|permalink|videos)/(?:[^/?#]*?[pbmid]\.)
 
 _TRAILING_CHROME_RE = re.compile(r"\s*Ver más\s*$")
 
+# Facebook UI chrome that leaks into scraped titles, tail-first: relative
+# stamps (with their duplicated-count echo, "14 minutos 14 min"), audience
+# scope, reaction counters and the action verbs. Each pattern anchors at the
+# end so repeated strips converge (idempotent by construction).
+_CHROME_TAIL_TOKENS = (
+    re.compile(r"\s*·?\s*Comentar\s*$"),
+    re.compile(r"\s*·?\s*Me gusta\b\s*$"),
+    re.compile(r"\s*·?\s*Todas las reacciones:.*$", re.I),
+    re.compile(r"\s*·?\s*Compartido con:.*$", re.I),
+    re.compile(
+        r"\s*hace\s+\d+\s*(?:minutos?|min|horas?|h|d[ií]as?|d|semanas?|s)\b"
+        r"(?:\s+\d+\s*(?:minutos?|min|horas?|h|d|sem)\b)?\s*\.?\s*$",
+        re.I,
+    ),
+    re.compile(r"\s*·?\s*Ver más\s*$", re.I),
+    re.compile(r"[\s·\-–—]+$"),
+)
+
+_CHROME_STRIP_PASSES = 8  # bounded: tokens shrink the tail monotonically
+
+
+def strip_fb_chrome(text: str | None) -> str | None:
+    """Strip Facebook UI chrome (stamps, scope, reactions, actions) off the
+    tail of a scraped title. Deterministic and idempotent: clean titles come
+    back untouched, so the read side can re-apply it to already-stored rows."""
+    if not text:
+        return text
+    out = text.strip()
+    for _ in range(_CHROME_STRIP_PASSES):
+        new = out
+        for token in _CHROME_TAIL_TOKENS:
+            new = token.sub("", new)
+        if new == out:
+            break
+        out = new.strip()
+    return out
+
 _RELATIVE_UNITS = {
     "min": "minutes",
     "minuto": "minutes",
@@ -166,7 +203,9 @@ def to_raw_mentions(
     mentions: list[RawMention] = []
     for post in posts:
         text = post.get("text") or ""
-        title = text.split("\n", 1)[0].strip() or None
+        # Title chrome (stamps, scope, reactions) never reaches the DB: the
+        # wall DOM nests the UI labels inside the same text span.
+        title = strip_fb_chrome(text.split("\n", 1)[0].strip()) or None
         mentions.append(
             RawMention(
                 source=MentionSource.facebook_page,

@@ -1083,6 +1083,36 @@ def test_tarjetas_mirror_noticias_with_tone_and_repeat(session):
     ]
 
 
+def test_digest_titles_strip_facebook_chrome(session):
+    """Read-side normalization: chrome already stored heals at digest build."""
+    from app.ingest.facebook_public import strip_fb_chrome
+
+    client = add_client(session)
+    dirty = (
+        "Verdades Buap CRS actualizó su foto de portada. "
+        "hace 14 minutos 14 min · Compartido con: Público "
+        "Todas las reacciones: 1 Me gusta Comentar"
+    )
+    event = _event(client.id, dirty)
+    session.add(event)
+    session.flush()
+    add_mention(session, client.id, dirty, DAY, event_id=event.id, source=MentionSource.facebook_page)
+    loose = add_mention(
+        session, client.id, dirty + " (variante)", DAY, source=MentionSource.facebook_page
+    )
+    session.commit()
+
+    from app.summaries.digest import build_digest_facts
+
+    facts = build_digest_facts(session, client_id=client.id, day=DAY.date(), tz=MX_TZ)
+    by_title = {n["title"] for n in facts["noticias"]}
+    assert strip_fb_chrome(dirty) in by_title
+    assert strip_fb_chrome(loose.title) in by_title
+    for noticia in facts["noticias"]:
+        for fuente in noticia["sources"]:
+            assert "Compartido con" not in (fuente["title"] or "")
+
+
 def test_brief_fechas_caduca_y_proxima():
     from datetime import date
 
