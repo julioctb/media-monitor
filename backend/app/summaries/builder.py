@@ -85,12 +85,16 @@ SYSTEM_PROMPT = (
     "Eres editor de monitoreo de medios. Recibes los HECHOS verificados del "
     "día en JSON (noticias, rectora, redes, personas). Devuelve EXCLUSIVAMENTE "
     "un objeto JSON con: headline (1-3 oraciones que tejen el día; el tono "
-    "de cada noticia via facts.noticias[i].tone — dedica énfasis explícito "
-    "a las de tono negativo dominante: nómbralas y explica la razón de su "
-    "tono según sus hechos; las positivas y neutras se subordinan), items "
+    "de cada noticia via facts.noticias[i].tone — refleja la postura de la "
+    "cobertura hacia el protagonista del evento, no la gravedad del hecho; "
+    "dedica énfasis explícito a las de tono negativo dominante cuando sean "
+    "relevantes para la decisión (riesgo político o institucional): "
+    "nómbralas y explica la razón de su tono según sus hechos; el deporte "
+    "y la cultura con tono negativo se subordinan como continuidad, igual "
+    "que las positivas y neutras), items "
     "[{index, summary, why_it_matters, confidence_note}] para las noticias "
     "que lo requieran: summary es el HECHO en 1 oración y why_it_matters el "
-    "POR QUÉ IMPORTA en 1 oración; confidence_note justifica la confianza en"
+    "POR QUÉ IMPORTA en 1 oración; confidence_note justifica la confianza en "
     "<=6 palabras (ej. «fuente oficial directa») y es opcional; y seleccion: "
     "[{index, categoria, razon}] para el brief, eligiendo SOLO tarjetas ya "
     "existentes por su índice en noticias, con categoria decision (exige "
@@ -119,7 +123,7 @@ SYSTEM_PROMPT = (
     "Nota vacía o ausente cuando nada sea fechable, y omite cuentas "
     "sin nada que decir. Prohibido inventar datos, fuentes o títulos: usa "
     "únicamente los hechos. Español periodístico, máximo 2 oraciones por "
-    "campo."
+    "campo (el headline admite hasta 3)."
 )
 
 
@@ -1342,16 +1346,15 @@ def _digest_prompt(day: date, facts: dict, dia_previo: list | None = None) -> st
     repeats = any(n.get("repeat") for n in facts.get("noticias", []))
     extra = (
         "\nLas notas con repeat=true ya fueron cubiertas en ediciones "
-        "anteriores: trátalas como reiteración breve, destacando solo el "
-        "ángulo nuevo. En el summary de esas notas indica explícitamente que "
-        "la historia se repite nuevamente respecto a ediciones previas. "
+        "anteriores: el summary nombra explícitamente la repetición y "
+        "destaca el ángulo nuevo respecto a ediciones previas. "
         "Destaca explícitamente los cambios de tono negativos del día."
         if repeats
         else ""
     )
     return (
         f"Digest del {day.isoformat()} (todas las cifras y títulos son datos "
-        f"verificados; el items[i].index corres a noticias[i]):\n"
+        f"verificados; el items[i].index corresponde a noticias[i]):\n"
         f"{json.dumps(digest_prompt_view(facts, dia_previo), ensure_ascii=False, default=str)}"
         f"{extra}"
     )
