@@ -3452,6 +3452,14 @@ span.page-button {
 .digest-brief-block span {
   color: rgba(255, 255, 255, 0.78);
 }
+/* Titles travel full in the data (delta fix 25/oct); the visual trim is
+   CSS-only — two tidy lines, never a mid-word data cut. */
+.digest-brief-block li strong {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 .digest-brief-estado {
   margin-right: 2px;
   font-size: 11px;
