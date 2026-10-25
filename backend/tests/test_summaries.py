@@ -1617,6 +1617,60 @@ def test_failed_regen_inherits_prose_across_merged_events(session):
     assert second.content["tarjetas"][0]["por_que"] == "Define el recorte 2027."
 
 
+# --------------------------------------------------- T8.C títulos sobrios
+
+
+def test_display_title_strips_chrome_and_is_idempotent():
+    from app.summaries.builder import display_title
+
+    raw = "🙌🏻 ¡BUAP confirma becas! Postulate https://t.co/xYz #BecasBUAP @BUAPoficial"
+    clean = display_title(raw)
+    assert clean == "¡BUAP confirma becas! Postulate"
+    assert display_title(clean) == clean  # idempotente
+    assert display_title(None) == ""
+    assert display_title("   ") == ""
+    # Un título solo-emoji nunca se vuelve vacío.
+    assert display_title("🎓") == "🎓"
+
+
+def test_tarjetas_title_sobrio_raw_survives_in_noticias(session):
+    client = add_client(session)
+    event = _event(client.id, "🎓 ¡BUAP abre convocatoria! https://t.co/a1")
+    session.add(event)
+    session.flush()
+    add_mention(session, client.id, event.title, DAY, event_id=event.id)
+
+    row = build_daily_summary(session, client_id=client.id, day=DAY.date())
+    content = row.content
+    # La tarjeta muestra el título sobrio...
+    assert content["tarjetas"][0]["titulo"] == "¡BUAP abre convocatoria!"
+    # ...el crudo sobrevive en la noticia y sus fuentes.
+    assert content["noticias"][0]["title"].startswith("🎓")
+    assert content["noticias"][0]["sources"][0]["title"].startswith("🎓")
+    # El texto plano (RAG/lectura) también presentacional: sin chrome.
+    plain = content["plain_text"]
+    assert "¡BUAP abre convocatoria!" in plain
+    assert "https://t.co/a1" not in plain
+
+
+def test_prompt_view_carries_sobrio_titles():
+    from app.summaries.builder import digest_prompt_view
+
+    facts = {
+        "noticias": [
+            {
+                "title": "🎓 Título con chrome https://x.co/a",
+                "sources": [{"source": "x", "title": "🗳 Raw de la fuente"}],
+            }
+        ],
+        "rectora": {},
+    }
+
+    view = digest_prompt_view(facts)
+    assert view["noticias"][0]["title"] == "Título con chrome"
+    assert view["noticias"][0]["sources"][0]["title"] == "Raw de la fuente"
+
+
 # --------------------------------------------------- T8.B orden y cola
 
 

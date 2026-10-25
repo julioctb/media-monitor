@@ -308,6 +308,7 @@ TWIN_STORY_SIMILARITY = 0.22
 
 _URL_RE = re.compile(r"https?://\S+|www\.\S+", re.I)
 HANDLE_RE = re.compile(r"(?<![a-z0-9])@[a-z0-9_]+", re.I)
+HASHTAG_RE = re.compile(r"#\w+")
 _EMOJI_RE = re.compile(
     "["
     "\U0001F000-\U0001FAFF"  # symbols, pictographs, emoji blocks
@@ -331,7 +332,7 @@ def display_title(title: str | None) -> str:
     out = _URL_RE.sub(" ", title)
     out = HANDLE_RE.sub(" ", out)
     out = _EMOJI_RE.sub(" ", out)
-    out = out.replace("#", " ")
+    out = HASHTAG_RE.sub(" ", out)  # el hashtag completo se va, es metadata
     out = re.sub(r"\s+", " ", out).strip()
     return out or title.strip()
 
@@ -626,7 +627,9 @@ def build_tarjetas(noticias: list) -> list[dict]:
             continue
         tarjetas.append(
             {
-                "titulo": nota.get("title"),
+                # T8.C: título sobrio para presentación; el crudo vive en la
+                # noticia y en las fuentes.
+                "titulo": display_title(nota.get("title")) or nota.get("title"),
                 "hecho": nota.get("summary"),
                 "por_que": nota.get("why_it_matters"),
                 "fuentes": [
@@ -721,7 +724,8 @@ def _heuristic_headline(
         if dominant is None or _impact(nota) > _impact(dominant):
             dominant = nota
     if dominant is not None:
-        parts.append(f"{dominant['title']} encabeza la cobertura del día.")
+        sobrio = display_title(dominant["title"]) or dominant["title"]
+        parts.append(f"{sobrio} encabeza la cobertura del día.")
     parts.append(f"Se registraron {total} {_noun(total)}.")
     if by_source:
         dominant_source = max(by_source.items(), key=lambda kv: (kv[1], kv[0]))[0]
@@ -795,10 +799,16 @@ def digest_prompt_view(facts: dict) -> dict:
             for key in ("title", "summary", "topic", "confidence", "tone", "when_label")
             if key in noticia
         }
+        if "title" in view:
+            view["title"] = display_title(view["title"]) or view["title"]
         if "repeat" in noticia:
             view["repeat"] = noticia["repeat"]
         view["sources"] = [
-            {key: source[key] for key in ("source", "title") if key in source}
+            {
+                key: (display_title(source[key]) or source[key]) if key == "title" else source[key]
+                for key in ("source", "title")
+                if key in source
+            }
             for source in noticia.get("sources", [])
         ]
         noticias.append(view)

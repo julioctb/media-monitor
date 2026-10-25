@@ -566,6 +566,10 @@ def apply_brief(content: dict, payload: object) -> None:
 
 def render_plain_text(content: dict, narrative: str) -> str:
     """Sectioned plain text (RAG chunk + readable fallback), es mirrors UI."""
+    # Late import: presentation helper vive en builder (T8.C) y el import
+    # module-level sería cycle builder->digest->builder.
+    from app.summaries.builder import display_title
+
     lines = [narrative, ""]
     lines.append("NOTICIAS")
     for item in content.get("noticias") or []:
@@ -573,7 +577,9 @@ def render_plain_text(content: dict, narrative: str) -> str:
         repeat_tag = " (se repite nuevamente)" if item.get("repeat") else ""
         when = item.get("when_label")
         when_tag = f" ({when})" if when else ""
-        lines.append(f"- [{confidence}]{when_tag}{repeat_tag} {item.get('title') or '(sin título)'}")
+        # T8.C: el texto plano es capa de presentación — título sobrio.
+        title = display_title(item.get("title")) or item.get("title") or "(sin título)"
+        lines.append(f"- [{confidence}]{when_tag}{repeat_tag} {title}")
         if item.get("summary"):
             note = f" ({item['confidence_note']})" if item.get("confidence_note") else ""
             lines.append(f"  {item['summary']}{note}")
@@ -661,9 +667,9 @@ def render_plain_text(content: dict, narrative: str) -> str:
             if isinstance(pool, list) and 0 <= index < len(pool):
                 entry = pool[index]
                 if isinstance(entry, dict) and entry.get("titulo"):
-                    return entry["titulo"]
+                    return display_title(entry["titulo"]) or entry["titulo"]
                 if isinstance(entry, dict) and entry.get("title"):
-                    return entry["title"]
+                    return display_title(entry["title"]) or entry["title"]
             return f"#{index}"
 
         secciones = (
