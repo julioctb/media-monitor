@@ -890,3 +890,218 @@ def test_digest_prompt_view_empty_facts():
 
     view = digest_prompt_view({})
     assert view == {"noticias": [], "rectora": {}, "redes": {}, "personas": []}
+
+
+# ------------------------------------------------------- digest-brief-v3 (T2)
+
+
+def _event(client_id, title, tokens=None):
+    return Event(
+        client_id=client_id,
+        title=title,
+        title_tokens=tokens or title.lower(),
+        mention_count=1,
+        source_count=1,
+        first_seen_at=DAY,
+        last_seen_at=DAY,
+    )
+
+
+def test_brief_delta_flags_new_story_against_previous_day(session):
+    from app.summaries.builder import brief_delta
+
+    client = add_client(session)
+    kept = _event(client.id, "BUAP abre convocatoria")
+    session.add(kept)
+    session.flush()
+    add_mention(session, client.id, "BUAP abre convocatoria", DAY, event_id=kept.id)
+    build_daily_summary(session, client_id=client.id, day=DAY.date())
+
+    fresh = _event(client.id, "Rectora anuncia nuevos horarios")
+    session.add(fresh)
+    session.flush()
+    next_day = DAY + timedelta(days=1)
+    add_mention(session, client.id, "BUAP abre convocatoria", next_day, event_id=kept.id)
+    add_mention(
+        session, client.id, "Rectora anuncia nuevos horarios", next_day, event_id=fresh.id
+    )
+    row = build_daily_summary(session, client_id=client.id, day=next_day.date())
+
+    # The carried-over story is NOT new; only the fresh event enters delta.
+    assert row.content["brief"]["delta"] == ["Nueva historia: Rectora anuncia nuevos horarios"]
+    # The pure matcher agrees when fed the two days' noticias.
+    prev = queries.get_daily_summary(session, client.id, DAY.date()).content["noticias"]
+    assert brief_delta(prev, row.content["noticias"]) == [
+        "Nueva historia: Rectora anuncia nuevos horarios"
+    ]
+
+
+def test_brief_delta_matches_by_normalized_title_without_event_id():
+    from app.summaries.builder import brief_delta
+
+    prev = [{"event_id": None, "title": "Puma explota pedido", "tone": {}}]
+    cur = [{"event_id": None, "title": "puma explota pedido", "tone": {}}]
+    assert brief_delta(prev, cur) == []
+    cur[0]["title"] = "Nota completamente nueva"
+    assert brief_delta(prev, cur) == ["Nueva historia: Nota completamente nueva"]
+
+
+def test_brief_delta_reports_tone_flips():
+    from app.summaries.builder import brief_delta
+
+    prev = [{"event_id": 3, "title": "Cambio de rectoría", "tone": {"positive": 2}}]
+    cur = [{"event_id": 3, "title": "Cambio de rectoría", "tone": {"negative": 3}}]
+    delta = brief_delta(prev, cur)
+    assert delta == ["Cambio de rectoría: el tono pasa de positivo a negativo"]
+    # Same tone: no entry.
+    assert brief_delta(prev, prev) == []
+
+
+def test_tone_label_dominance():
+    from app.summaries.builder import tone_label
+
+    assert tone_label({}) is None
+    assert tone_label({"negative": 2}) == "negativo"
+    assert tone_label({"positive": 3, "neutral": 1}) == "positivo"
+    assert tone_label({"neutral": 2}) == "neutral"
+    assert tone_label({"positive": 1, "negative": 1}) == "mixto"
+
+
+def test_campo_lists_published_and_review_only(session):
+    from app.models import FieldReport
+
+    client = add_client(session)
+    in_day = datetime(2026, 10, 9, 15, 0, tzinfo=timezone.utc)
+    day_before = datetime(2026, 10, 8, 15, 0, tzinfo=timezone.utc)
+    session.add(
+        FieldReport(
+            client_id=client.id,
+            status="published",
+            title="Fuga en la central",
+            content="Sin servicio desde las 9.",
+            place="Central Camionera",
+            created_at=in_day,
+            published_at=in_day,
+        )
+    )
+    session.add(
+        FieldReport(
+            client_id=client.id,
+            status="review",
+            title="Obra del puente parada",
+            content="Lleva tres días sin avanzar.",
+            created_at=in_day,
+        )
+    )
+    # draft/rejected and another day: never in the section.
+    session.add(
+        FieldReport(client_id=client.id, status="draft", title="borrador", created_at=in_day)
+    )
+    session.add(
+        FieldReport(client_id=client.id, status="rejected", title="rechazado", created_at=in_day)
+    )
+    session.add(
+        FieldReport(
+            client_id=client.id,
+            status="published",
+            title="De ayer",
+            created_at=day_before,
+            published_at=day_before,
+        )
+    )
+    session.commit()
+
+    row = build_daily_summary(session, client_id=client.id, day=DAY.date())
+    campo = row.content["campo"]
+    assert sorted((c["titulo"], c["estado"]) for c in campo) == [
+        ("Fuga en la central", "publicada"),
+        ("Obra del puente parada", "en revisión"),
+    ]
+    fuga = next(c for c in campo if c["titulo"] == "Fuga en la central")
+    assert fuga["lugar"] == "Central Camionera"
+    assert fuga["contenido"].startswith("Sin servicio")
+
+
+def test_tarjetas_mirror_noticias_with_tone_and_repeat(session):
+    from app.summaries.builder import build_tarjetas
+
+    client = add_client(session)
+    event = _event(client.id, "BUAP pierde el clásico")
+    session.add(event)
+    session.flush()
+    # Previous-day mention -> repeat on the digest day.
+    add_mention(
+        session, client.id, "BUAP pierde el clásico", DAY - timedelta(days=1), event_id=event.id
+    )
+    # Negative-dominant day tone: the same-day news mention is negative; the
+    # rss one stays unclassified (None) and the previous-day one is outside
+    # the window (it only drives `repeat`).
+    from app.models import Sentiment
+
+    # Distinct title: insert_mention dedupes same client+source+normalized
+    # title, and the previous-day mention already used the event title.
+    day_news = add_mention(
+        session, client.id, "BUAP cae en el clásico en casa", DAY, event_id=event.id
+    )
+    m2 = add_mention(
+        session,
+        client.id,
+        "Derrota buzca en casa",
+        DAY,
+        source=MentionSource.rss_custom,
+        event_id=event.id,
+    )
+    day_news.sentiment = Sentiment.negative
+    m2.sentiment = None
+    session.commit()
+
+    row = build_daily_summary(session, client_id=client.id, day=DAY.date())
+    noticias = row.content["noticias"]
+    assert len(noticias) == 1
+    tono = noticias[0]["tone"]
+    assert tono.get("negative", 0) >= 1
+
+    tarjetas = row.content["tarjetas"]
+    assert len(tarjetas) == len(noticias)
+    tarjeta = tarjetas[0]
+    assert tarjeta["titulo"] == "BUAP pierde el clásico"
+    assert tarjeta["hecho"] is None and tarjeta["por_que"] is None  # prose is T3
+    assert tarjeta["repeat"] is True
+    assert tarjeta["tono"] == "negativo"
+    assert set(tarjeta["fuentes"]) == {"news_rss", "rss_custom"}
+    # The projection helper is pure and index-aligned.
+    assert build_tarjetas([{"title": "X", "sources": []}]) == [
+        {
+            "titulo": "X",
+            "hecho": None,
+            "por_que": None,
+            "fuentes": [],
+            "tono": None,
+            "repeat": False,
+            "angulo_nuevo": None,
+        }
+    ]
+
+
+def test_brief_fechas_caduca_y_proxima():
+    from datetime import date
+
+    from app.summaries.builder import brief_fechas
+
+    day = date(2026, 10, 9)
+    agenda = [
+        {"when": "12 de octubre", "title": "Cierre de registro"},
+        {"when": "1 de octubre", "title": "Venció el plazo"},
+        {"when": "30 de octubre", "title": "Muy lejos"},
+        {"when": "sin fecha precisa", "title": "Inparseable"},
+        {"when": "9 de octubre", "title": "Hoy mismo"},
+    ]
+    fechas = brief_fechas(agenda, day)
+    by_title = {f["title"]: f["estado"] for f in fechas}
+    assert by_title == {
+        "Cierre de registro": "proxima",
+        "Venció el plazo": "caducada",
+        "Hoy mismo": "caducada",
+    }
+    # Every entry keeps the raw when label for the UI.
+    assert all("when" in f for f in fechas)

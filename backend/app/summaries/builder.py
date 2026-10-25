@@ -28,9 +28,10 @@ from sqlalchemy import func, select
 
 from app.enrich.llm import strip_code_fence
 
-from app.models import Mention, queries
+from app.models import DailySummary, FieldReport, Mention, queries
 from app.models.settings import DEFAULT_OPENAI_BASE_URL
 from app.settings_runtime import EffectiveSettings, resolve_effective_settings
+from app.summaries.agenda_detect import normalize_title, parse_spanish_date
 from app.summaries.digest import (
     DIGEST_SCHEMA_VERSION,
     apply_narrative,
@@ -164,6 +165,186 @@ def _noun(count: int) -> str:
 
 def _human_day(day: date) -> str:
     return f"{day.day} de {MONTHS_ES[day.month - 1]} de {day.year}"
+
+
+# ----------------------------------------------------------- digest-brief-v3
+# T2 facts: everything the brief esqueleto shows is DERIVED here (delta,
+# tono, fechas, campo); the model only writes prose and picks indices.
+
+
+#: A future date within this many days counts as «próxima»; at/before the
+#: digest day it already «caducó».
+FECHAS_PROXIMAS_DIAS = 7
+
+#: Field-report statuses the campo section shows, with their UI label.
+CAMPO_ESTADOS = {"published": "publicada", "review": "en revisión"}
+
+
+def tone_label(tone: dict | None) -> str | None:
+    """Aggregated story tone: the dominant sentiment, never a raw count."""
+    if not isinstance(tone, dict):
+        return None
+    neg = tone.get("negative", 0) or 0
+    pos = tone.get("positive", 0) or 0
+    neu = tone.get("neutral", 0) or 0
+    if neg <= 0 and pos <= 0 and neu <= 0:
+        return None
+    if neg > max(pos, neu, 0):
+        return "negativo"
+    if pos > max(neg, neu, 0):
+        return "positivo"
+    if neg == 0 and pos == 0:
+        return "neutral"
+    return "mixto"
+
+
+def _delta_key(noticia: dict):
+    """Match key for the day-over-day comparison: event id, else title."""
+    event_id = noticia.get("event_id")
+    if event_id is not None:
+        return ("id", event_id)
+    title = noticia.get("title")
+    if title:
+        return ("titulo", normalize_title(title))
+    return None
+
+
+def brief_delta(prev_noticias: list, noticias: list) -> list[str]:
+    """Qué cambió vs el día hábil previo: nuevas historias y giros de tono.
+
+    Matching by event id first, normalized title as fallback (loose rows
+    carry no id). Stories absent from the previous digest are new; matched
+    stories whose dominant tone flipped are reported too.
+    """
+    prev_by_key: dict = {}
+    for noticia in prev_noticias or []:
+        if not isinstance(noticia, dict):
+            continue
+        key = _delta_key(noticia)
+        if key is not None:
+            prev_by_key.setdefault(key, noticia)
+    delta: list[str] = []
+    for noticia in noticias or []:
+        if not isinstance(noticia, dict):
+            continue
+        title = noticia.get("title") or "(sin título)"
+        prev = prev_by_key.get(_delta_key(noticia)) if _delta_key(noticia) else None
+        if prev is None:
+            delta.append(f"Nueva historia: {title}")
+            continue
+        before = tone_label(prev.get("tone"))
+        after = tone_label(noticia.get("tone"))
+        if before and after and before != after:
+            delta.append(f"{title}: el tono pasa de {before} a {after}")
+    return delta
+
+
+def brief_fechas(agenda: list, day: date) -> list[dict]:
+    """Fechas que obligan, por regla: caducó (<= hoy) o próxima (<= 7 días).
+
+    Parsed with the agenda detector's Spanish parser against the DIGEST day
+    (never now(), so regenerating an old day stays stable). Undatable whens
+    and far-future dates stay out of the section.
+    """
+    fechas: list[dict] = []
+    for item in agenda or []:
+        if not isinstance(item, dict):
+            continue
+        when, title = item.get("when"), item.get("title")
+        if not when or not title:
+            continue
+        parsed = parse_spanish_date(when, day.year)
+        if parsed is None:
+            continue
+        if parsed <= day:
+            estado = "caducada"
+        elif (parsed - day).days <= FECHAS_PROXIMAS_DIAS:
+            estado = "proxima"
+        else:
+            continue
+        fechas.append(
+            {"title": title, "when": when, "estado": estado, "fecha": parsed.isoformat()}
+        )
+    return fechas
+
+
+def build_tarjetas(noticias: list) -> list[dict]:
+    """One tarjeta per noticia, index-aligned; prose fields mirror the row.
+
+    ``hecho``/``por_que`` read the narrative fields so the inheritance path
+    (failed regen keeps previous prose) flows into the card for free. The
+    heuristic esqueleto and the LLM fill the SAME shape.
+    """
+    tarjetas: list[dict] = []
+    for nota in noticias or []:
+        if not isinstance(nota, dict):
+            continue
+        tarjetas.append(
+            {
+                "titulo": nota.get("title"),
+                "hecho": nota.get("summary"),
+                "por_que": nota.get("why_it_matters"),
+                "fuentes": [
+                    fuente.get("source")
+                    for fuente in nota.get("sources") or []
+                    if isinstance(fuente, dict) and fuente.get("source")
+                ],
+                "tono": tone_label(nota.get("tone")),
+                "repeat": bool(nota.get("repeat")),
+                # The new angle of a repeated story is narrative (T3); the
+                # esqueleto always carries the key so the render is fixed.
+                "angulo_nuevo": None,
+            }
+        )
+    return tarjetas
+
+
+def previous_day_noticias(session, client_id: int, day: date) -> list[dict]:
+    """Noticias of the latest summary STRICTLY before ``day`` (día hábil previo).
+
+    Weekends/holidays with no summary are skipped by construction: the
+    comparison is against the last published editorial cut.
+    """
+    row = session.scalar(
+        select(DailySummary)
+        .where(
+            DailySummary.client_id == client_id,
+            DailySummary.summary_date < day,
+        )
+        .order_by(DailySummary.summary_date.desc())
+        .limit(1)
+    )
+    if row is None:
+        return []
+    noticias = (row.content or {}).get("noticias")
+    return noticias if isinstance(noticias, list) else []
+
+
+def build_campo(session, client_id: int, utc_start, utc_end) -> list[dict]:
+    """Field reports of the window: published siempre; review, marcado.
+
+    Window over ``created_at`` (the intake instant); draft/rejected never
+    show. Absence of rows degrades to an empty list — the section is
+    gated on real data, never rendered empty.
+    """
+    rows = session.scalars(
+        select(FieldReport).where(
+            FieldReport.client_id == client_id,
+            FieldReport.status.in_(tuple(CAMPO_ESTADOS)),
+            FieldReport.created_at >= utc_start,
+            FieldReport.created_at < utc_end,
+        )
+    ).all()
+    return [
+        {
+            "titulo": row.title,
+            "contenido": row.content,
+            "lugar": row.place,
+            "cuando": row.happened_at.isoformat() if row.happened_at else None,
+            "estado": CAMPO_ESTADOS[row.status],
+        }
+        for row in rows
+    ]
 
 
 def _heuristic_headline(
@@ -499,6 +680,21 @@ def build_daily_summary(
             if prev_plain:
                 narrative = prev_plain
             mode = "llm"
+
+    # digest-brief-v3: the deterministic esqueleto. Tarjetas mirror noticias
+    # (index-aligned, prose included); delta/fechas/campo are pure facts. The
+    # LLM only adds the selection buckets and headline (T3) on top.
+    content["tarjetas"] = build_tarjetas(content["noticias"])
+    content["brief"] = {
+        "delta": brief_delta(
+            previous_day_noticias(session, client_id, day), content["noticias"]
+        ),
+        "decisiones": [],
+        "ruido": [],
+        "a_favor": [],
+        "fechas": brief_fechas(content.get("agenda") or [], day),
+    }
+    content["campo"] = build_campo(session, client_id, utc_start, utc_end)
 
     content["plain_text"] = render_plain_text(content, narrative)
     row = queries.upsert_daily_summary(
