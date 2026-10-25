@@ -29,15 +29,18 @@ from sqlalchemy import func, select
 
 from app.enrich.llm import strip_code_fence
 
+from app.ingest.events import similarity_with_suffix_variants
 from app.models import DailySummary, FieldReport, Mention, queries
 from app.models.settings import DEFAULT_OPENAI_BASE_URL
 from app.settings_runtime import EffectiveSettings, resolve_effective_settings
 from app.summaries.agenda_detect import normalize_title, parse_spanish_date
 from app.summaries.digest import (
+    CONFIDENCE_SCALE,
     DIGEST_SCHEMA_VERSION,
     apply_brief,
     apply_narrative,
     build_digest_facts,
+    confidence_for,
     render_plain_text,
 )
 from app.summaries.digest_schema import narrative_response_schema
@@ -292,6 +295,148 @@ def is_cosmetic_story(title: str | None) -> bool:
     if not title:
         return False
     return bool(COSMETIC_TITLE_RE.search(title))
+
+
+# --------------------------------------------------- T8.A merge editorial
+# Umbral del merge en la capa digest: MÁS agresivo que el de ingest (0.5,
+# events.py) porque aquí solo se juega la presentación — la clusterización
+# canónica sigue en ingest. Una misma historia parafraseada por outlets
+# distintos diluye el Jaccard; calibrado con la regen 24-oct: la saga
+# consulta/pensiones (8 notas) colapsa a UNA tarjeta y ningún par entre
+# historias distintas alcanza el umbral.
+TWIN_STORY_SIMILARITY = 0.22
+
+_URL_RE = re.compile(r"https?://\S+|www\.\S+", re.I)
+HANDLE_RE = re.compile(r"(?<![a-z0-9])@[a-z0-9_]+", re.I)
+_EMOJI_RE = re.compile(
+    "["
+    "\U0001F000-\U0001FAFF"  # symbols, pictographs, emoji blocks
+    "\U00002600-\U000027BF"  # misc symbols and dingbats
+    "\U0001F1E6-\U0001F1FF"  # flags
+    "\U00002B00-\U00002BFF"  # arrows and stars
+    "\U0000FE00-\U0000FE0F"  # variation selectors
+    "\U0000200D"  # zero-width joiner
+    "]+"
+)
+
+
+def display_title(title: str | None) -> str:
+    """Sobrio presentation title: sin emojis, hashtags, URLs ni @handles.
+
+    The RAW title always survives on the sources; this is the presentation
+    (and twin-comparison) layer. Idempotent, like strip_fb_chrome.
+    """
+    if not title:
+        return ""
+    out = _URL_RE.sub(" ", title)
+    out = HANDLE_RE.sub(" ", out)
+    out = _EMOJI_RE.sub(" ", out)
+    out = out.replace("#", " ")
+    out = re.sub(r"\s+", " ", out).strip()
+    return out or title.strip()
+
+
+def _noticia_strength(nota: dict) -> tuple:
+    """Best-source ranking: more outlets first, then confidence scale."""
+    confidence = nota.get("confidence")
+    rank = (
+        CONFIDENCE_SCALE.index(confidence)
+        if confidence in CONFIDENCE_SCALE
+        else len(CONFIDENCE_SCALE)
+    )
+    return (-len(nota.get("sources") or []), rank)
+
+
+def merge_twin_noticias(noticias: list) -> list:
+    """Post-agregación editorial: misma historia, UNA tarjeta (T8.A).
+
+    Single-linkage sobre la similitud de títulos limpios de chrome con
+    umbral digest (:data:`TWIN_STORY_SIMILARITY`); la tarjeta fundida hereda
+    hecho/por_que de la mejor fuente (más outlets, mejor confianza) y lista
+    TODAS las fuentes de los miembros. El resto de los agregados es la
+    unión: tono se suma, ``repeat`` es OR, ``person_ids`` se combina, y los
+    ids de evento persisten en ``event_ids`` (``event_id`` queda el de la
+    mejor fuente) para el delta y la herencia de prosa. Determinista.
+    """
+    notas = [n for n in noticias or [] if isinstance(n, dict)]
+    total = len(notas)
+    parent = list(range(total))
+
+    def find(x: int) -> int:
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    cleaned = [display_title(nota.get("title")) for nota in notas]
+    for a in range(total):
+        if not cleaned[a]:
+            continue
+        for b in range(a + 1, total):
+            if not cleaned[b]:
+                continue
+            if (
+                similarity_with_suffix_variants(cleaned[a], cleaned[b])
+                >= TWIN_STORY_SIMILARITY
+            ):
+                ra, rb = find(a), find(b)
+                if ra != rb:
+                    parent[max(ra, rb)] = min(ra, rb)
+
+    groups: dict[int, list[int]] = {}
+    for index in range(total):
+        groups.setdefault(find(index), []).append(index)
+    merged: list[dict] = []
+    for root in sorted(groups):
+        members = groups[root]
+        if len(members) == 1:
+            merged.append(notas[members[0]])
+            continue
+        by_strength = sorted(members, key=lambda i: (_noticia_strength(notas[i]), i))
+        card = dict(notas[by_strength[0]])
+        event_ids: list = []
+        for index in members:
+            event_id = notas[index].get("event_id")
+            if event_id is not None and event_id not in event_ids:
+                event_ids.append(event_id)
+        if event_ids:
+            card["event_ids"] = event_ids
+        seen: set = set()
+        fuentes: list = []
+        for index in members:
+            for source in notas[index].get("sources") or []:
+                key = (source.get("source"), source.get("url"))
+                if key in seen:
+                    continue
+                seen.add(key)
+                fuentes.append(source)
+        card["sources"] = fuentes
+        # hecho/por_que from the best source that has them.
+        for field in ("summary", "why_it_matters"):
+            if not card.get(field):
+                fallback = next(
+                    (notas[i].get(field) for i in by_strength if notas[i].get(field)),
+                    None,
+                )
+                if fallback:
+                    card[field] = fallback
+        tone: dict = {}
+        for index in members:
+            for key, value in (notas[index].get("tone") or {}).items():
+                tone[key] = tone.get(key, 0) + (value or 0)
+        card["tone"] = tone
+        card["confidence"] = confidence_for(len({s.get("source") for s in fuentes}))
+        card["person_ids"] = sorted(
+            {p for i in members for p in notas[i].get("person_ids") or []}
+        )
+        card["repeat"] = any(notas[i].get("repeat") for i in members)
+        if not card.get("topic"):
+            card["topic"] = next(
+                (notas[i].get("topic") for i in by_strength if notas[i].get("topic")),
+                None,
+            )
+        merged.append(card)
+    return merged
 
 
 def build_tarjetas(noticias: list) -> list[dict]:
@@ -707,6 +852,10 @@ def build_daily_summary(
         for nota in content["noticias"]
         if not is_cosmetic_story(nota.get("title"))
     ]
+    # T8.A: la fusión editorial de gemelas va ANTES de prompt/tarjetas/brief
+    # (índice noticias↔tarjetas↔brief único) — el resto del pipeline lee
+    # historias, no menciones gemelas.
+    content["noticias"] = merge_twin_noticias(content["noticias"])
 
     # Events whose mentions read negative-dominant, for the narrative emphasis
     # (the LLM gets tone per noticia; the heuristic names the count).
@@ -751,13 +900,25 @@ def build_daily_summary(
         previous = queries.get_daily_summary(session, client_id, day)
         if previous is not None and previous.mode == "llm":
             prev_content = previous.content or {}
-            prev_by_event = {
-                n.get("event_id"): n
-                for n in prev_content.get("noticias") or []
-                if n.get("event_id") is not None
-            }
+            # Merged cards (T8.A) carry several event ids: index and match by
+            # ALL of them, so prose survives regens regardless of the split.
+            prev_by_event: dict = {}
+            for prev_nota in prev_content.get("noticias") or []:
+                if not isinstance(prev_nota, dict):
+                    continue
+                lookup = list(prev_nota.get("event_ids") or [])
+                if prev_nota.get("event_id") is not None:
+                    lookup.append(prev_nota["event_id"])
+                for event_id in lookup:
+                    prev_by_event.setdefault(event_id, prev_nota)
             for nota in content["noticias"]:
-                old = prev_by_event.get(nota.get("event_id"))
+                lookup = list(nota.get("event_ids") or [])
+                if nota.get("event_id") is not None:
+                    lookup.append(nota["event_id"])
+                old = next(
+                    (prev_by_event[eid] for eid in lookup if eid in prev_by_event),
+                    None,
+                )
                 if old is None:
                     continue
                 if not nota.get("summary") and old.get("summary"):

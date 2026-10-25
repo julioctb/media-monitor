@@ -1453,9 +1453,9 @@ def test_regen_refreshes_deterministic_sections(session):
     from app.models import DailySummaryRevision
 
     client = add_client(session)
-    add_mention(session, client.id, "Nota primera del día", DAY)
+    add_mention(session, client.id, "BUAP abre convocatoria de becas", DAY)
     first = build_daily_summary(session, client_id=client.id, day=DAY.date())
-    add_mention(session, client.id, "Nota segunda del día", DAY)
+    add_mention(session, client.id, "Cedillo encabeza mesa de análisis", DAY)
     second = build_daily_summary(session, client_id=client.id, day=DAY.date())
 
     assert second.id == first.id
@@ -1470,3 +1470,142 @@ def test_regen_refreshes_deterministic_sections(session):
         )
     ).all()
     assert sorted(seqs) == [1, 2]
+
+
+# ----------------------------------------------- digest-brief-v3 T8 (calidad)
+
+
+def _twin_events(session, client_id):
+    """Two single-source events telling the same pensiones story."""
+    e1 = _event(client_id, "BUAP pospone consulta sobre reforma de pensiones y jubilaciones")
+    e2 = _event(client_id, "Se pospone consulta sobre reforma de pensiones de la BUAP, anuncia rectora")
+    session.add_all([e1, e2])
+    session.flush()
+    return e1, e2
+
+
+def test_twin_stories_merge_into_one_card(session):
+    """Same editorial story from different outlets: ONE card, all sources."""
+    client = add_client(session)
+    e1, e2 = _twin_events(session, client.id)
+    e1.summary = "La BUAP movió la consulta para revisar el aumento salarial."
+    add_mention(session, client.id, e1.title, DAY, event_id=e1.id)
+    add_mention(
+        session,
+        client.id,
+        e2.title,
+        DAY,
+        source=MentionSource.rss_custom,
+        event_id=e2.id,
+    )
+
+    row = build_daily_summary(session, client_id=client.id, day=DAY.date())
+    noticias = row.content["noticias"]
+    assert len(noticias) == 1
+    nota = noticias[0]
+    assert {s["source"] for s in nota["sources"]} == {"news_rss", "rss_custom"}
+    # The best source carries the facts; both events traceable.
+    assert nota["summary"] == "La BUAP movió la consulta para revisar el aumento salarial."
+    assert nota["event_id"] in (e1.id, e2.id)
+    assert set(nota["event_ids"]) == {e1.id, e2.id}
+    # Two independent outlets -> media confidence for the merged story.
+    assert nota["confidence"] == "media"
+
+    tarjetas = row.content["tarjetas"]
+    assert len(tarjetas) == 1
+    assert set(tarjetas[0]["fuentes"]) == {"news_rss", "rss_custom"}
+    assert validate_digest(row.content) == []
+
+
+def test_twin_merge_keeps_distinct_stories_apart(session):
+    """Below the digest threshold, unrelated stories never fuse."""
+    client = add_client(session)
+    e1 = _event(client.id, "BUAP pospone consulta sobre reforma de pensiones")
+    e2 = _event(client.id, "Taller gratuito de dibujo para personas sordas")
+    session.add_all([e1, e2])
+    session.flush()
+    add_mention(session, client.id, e1.title, DAY, event_id=e1.id)
+    add_mention(
+        session,
+        client.id,
+        e2.title,
+        DAY,
+        source=MentionSource.rss_custom,
+        event_id=e2.id,
+    )
+
+    row = build_daily_summary(session, client_id=client.id, day=DAY.date())
+    assert len(row.content["noticias"]) == 2
+    assert len(row.content["tarjetas"]) == 2
+
+
+def test_twin_merge_sums_tone_and_flags_repeat(session):
+    """Aggregates are the union: tone counters add, repeat is OR."""
+    client = add_client(session)
+    e1, e2 = _twin_events(session, client.id)
+    neg = add_mention(session, client.id, e1.title, DAY, event_id=e1.id)
+    add_mention(
+        session,
+        client.id,
+        "BUAP reprograma la consulta de pensiones",
+        DAY - timedelta(days=1),
+        event_id=e1.id,
+    )  # earlier mention -> repeat
+    pos = add_mention(
+        session,
+        client.id,
+        e2.title,
+        DAY,
+        source=MentionSource.rss_custom,
+        event_id=e2.id,
+    )
+    from app.models import Sentiment
+
+    neg.sentiment = Sentiment.negative
+    pos.sentiment = Sentiment.positive
+    session.commit()
+
+    row = build_daily_summary(session, client_id=client.id, day=DAY.date())
+    nota = row.content["noticias"][0]
+    assert nota["tone"] == {"negative": 1, "positive": 1}
+    assert nota["repeat"] is True
+    assert row.content["tarjetas"][0]["repeat"] is True
+
+
+def test_failed_regen_inherits_prose_across_merged_events(session):
+    """The inheritance path matches ANY event id of the merged card."""
+    client = add_client(session)
+    e1, e2 = _twin_events(session, client.id)
+    add_mention(session, client.id, e1.title, DAY, event_id=e1.id)
+    add_mention(
+        session,
+        client.id,
+        e2.title,
+        DAY,
+        source=MentionSource.rss_custom,
+        event_id=e2.id,
+    )
+
+    def good(prompt: str) -> str:
+        return json.dumps(
+            {
+                "headline": "Una sola historia.",
+                "items": [
+                    {
+                        "index": 0,
+                        "summary": "Consulta pospuesta.",
+                        "why_it_matters": "Define el recorte 2027.",
+                    }
+                ],
+            }
+        )
+
+    first = build_daily_summary(session, client_id=client.id, day=DAY.date(), generate=good)
+    assert first.mode == "llm"
+
+    def boom(prompt: str) -> str:
+        raise RuntimeError("provider down")
+
+    second = build_daily_summary(session, client_id=client.id, day=DAY.date(), generate=boom)
+    assert second.content["noticias"][0]["summary"] == "Consulta pospuesta."
+    assert second.content["tarjetas"][0]["por_que"] == "Define el recorte 2027."
