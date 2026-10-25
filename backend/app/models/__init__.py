@@ -14,6 +14,7 @@ from app.models.client import Client
 from app.models.daily_summary import DailySummary
 from app.models.daily_summary_revision import DailySummaryRevision
 from app.models.event import Event
+from app.models.event_merge import EventMerge
 from app.models.field import FieldOperator, FieldReport
 from app.models.ingest_cursor import IngestCursor
 from app.models.ingest_run import IngestRun
@@ -36,6 +37,7 @@ __all__ = [
     "DailySummary",
     "DailySummaryRevision",
     "Event",
+    "EventMerge",
     "IngestCursor",
     "IngestRun",
     "Keyword",

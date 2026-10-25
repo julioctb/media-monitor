@@ -232,6 +232,19 @@ def ingest_job() -> dict[str, int]:
                     log.info("enrich sweep: %s", sweep)
             except Exception:  # noqa: BLE001 - best-effort by design
                 log.exception("enrichment sweep failed")
+        try:
+            # Event-identity arbitrator (T2b): judge the lexical gray band
+            # with the fast model, merge/record, all best-effort. Judge
+            # failure leaves identity untouched — the deterministic floor.
+            from app.ingest.arbitrator import reconcile_gray_pairs
+
+            arbitrated = reconcile_gray_pairs(
+                session, client_id=client.id, now=cycle_started
+            )
+            if arbitrated.get("candidates"):
+                log.info("event arbiter: %s", arbitrated)
+        except Exception:  # noqa: BLE001 - best-effort by design
+            log.exception("event arbiter failed")
         return counts
     finally:
         session.close()

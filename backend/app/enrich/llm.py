@@ -284,6 +284,14 @@ class LLMEnricher:
     def completions_url(self) -> str:
         return f"{self._base_url}/chat/completions"
 
+    def ask_json(self, system: str, user: str) -> str | None:
+        """One JSON-mode completion, None once retries are exhausted.
+
+        Thin public shell over the retry policy for callers that only need
+        raw JSON text (event arbiter); parsing/validation stays with them.
+        """
+        return self._with_retries(lambda: self._chat(system, user, json_mode=True))
+
     def _chat(self, system: str, user: str, *, json_mode: bool) -> str:
         """One attempt; raises on transport/shape errors."""
         payload: dict = {
