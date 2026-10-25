@@ -177,3 +177,19 @@ schema de respuesta ni las revisiones almacenadas. Las llamadas existentes
 sin foco conservan su proyección y mensaje. Las pruebas con generador falso
 acreditan este transporte y sus límites, no calidad editorial, facultades
 legales ni verdad factual. El reemplazo integral del prompt es posterior.
+
+### Configuración persistida única
+
+En Configuración → Operación, «Persona principal bajo seguimiento» usa el
+setting existente `digest_focus_person_id`. Elegir otra persona y guardar
+cambia el contexto de futuras generaciones; no cambia automáticamente las
+keywords, la watchlist ni resúmenes históricos. Elegir «Sin persona
+principal» permite conservar un resumen general sin inventar otro foco.
+
+Si la persona guardada no está en el catálogo cargado, una opción explícita
+conserva su ID hasta que el operador decida cambiarlo. El antiguo foco local
+de palabras clave ya no compite con esta selección; no se convierte texto
+de localStorage en identidad ni se modifica el valor persistido por ello.
+Para una personalidad aún no identificada se pueden configurar keywords y
+seleccionar después su perfil registrado; no existe un alta manual nueva
+ni una inferencia automática del sujeto principal en esta fase.

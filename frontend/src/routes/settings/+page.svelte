@@ -37,7 +37,7 @@
 		retention_days: string;
 		/** Daily digest cut hours, 1..8 entries in 0..23. */
 		digest_hours: number[];
-		/** Selected focus-person id as text; '' = none (null on the API). */
+		/** Principal monitored person id as text; '' = none (null on the API). */
 		focus_person_id: string;
 		/** F7: extra watched person ids; the focus person is the principal. */
 		watchlist: number[];
@@ -369,8 +369,8 @@
 			<div class="panel-head">
 				<h2 id="palabras-clave-title">Palabras clave</h2>
 				<p class="panel-note">
-					Términos que activan el monitoreo, asociados a su idioma. Puedes fijar una palabra
-					activa como foco del resumen.
+					Términos que activan el monitoreo, asociados a su idioma. Son independientes de la
+					persona principal bajo seguimiento.
 				</p>
 			</div>
 			<KeywordsPanel keywords={data.keywords} form={form} />
@@ -389,9 +389,8 @@
 
 			<!-- Preserved settings without a v2 UI: hidden inputs keep the stored
 				values traveling on every save (timezone is fixed by the contract,
-				the caps/focus/gdelt keep their server-side values). -->
+				the caps/gdelt keep their server-side values). -->
 			<input type="hidden" name="timezone" value={draft.timezone} />
-			<input type="hidden" name="digest_focus_person_id" value={draft.focus_person_id} />
 			<input type="hidden" name="enrich_max_per_cycle" value={draft.enrich_max} />
 			<input type="hidden" name="fetch_max_per_cycle" value={draft.fetch_max} />
 			<input type="hidden" name="gdelt_enabled" value={draft.gdelt_enabled ? '1' : '0'} />
@@ -418,11 +417,41 @@
 						/>
 						<p class="field-hint">0 desactiva la purga automática.</p>
 					</div>
+					<div>
+						<label for="set-focus-person" class={LABEL_CLS}>
+							Persona principal bajo seguimiento
+						</label>
+						<select
+							id="set-focus-person"
+							name="digest_focus_person_id"
+							bind:value={draft.focus_person_id}
+							onchange={markDirty}
+							disabled={submitting}
+							class={INPUT_CLS}
+							aria-describedby="set-focus-person-hint"
+						>
+							<option value="">Sin persona principal</option>
+							{#if draft.focus_person_id && !data.persons.some((person) => String(person.id) === draft.focus_person_id)}
+								<option value={draft.focus_person_id}>
+									Persona configurada no disponible en la lista
+								</option>
+							{/if}
+							{#each data.persons as person (person.id)}
+								<option value={String(person.id)}>
+									{person.name}{person.role ? ` · ${person.role}` : ''}{person.org ? ` · ${person.org}` : ''}
+								</option>
+							{/each}
+						</select>
+						<p id="set-focus-person-hint" class="field-hint">
+							Define a quién se da seguimiento. Las palabras clave amplían la búsqueda; esta persona
+							no tiene que aparecer en todas las noticias.
+						</p>
+					</div>
 				</div>
 				<div class="schedule-block">
 					<h3 id="watchlist-title">Vigilancia</h3>
 					<p class="field-hint" id="watchlist-hint">
-						Personas adicionales bajo vigilancia de riesgo; la persona focal del resumen
+						Personas adicionales bajo vigilancia de riesgo; la persona principal bajo seguimiento
 						queda incluida siempre.
 					</p>
 					<div

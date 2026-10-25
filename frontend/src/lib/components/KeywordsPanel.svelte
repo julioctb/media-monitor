@@ -4,9 +4,6 @@
 	import { INPUT_CLS } from '$lib/ui';
 	import type { Keyword, KeywordLanguage } from '$lib/api';
 
-	/** Client-side focus preference (browser-stored; not wired to the digest yet). */
-	const FOCUS_KEY = 'media-monitor-keyword-focus';
-
 	const LANGUAGE_LABEL: Record<KeywordLanguage, string> = {
 		es: 'Español',
 		en: 'Inglés',
@@ -27,40 +24,6 @@
 	}
 
 	let { keywords, form = null }: Props = $props();
-
-	/** Term holding the focus badge; '' = none. Hydration-safe via $effect. */
-	let focusTerm = $state('');
-	let focusMessage = $state('');
-
-	$effect(() => {
-		try {
-			focusTerm = localStorage.getItem(FOCUS_KEY) ?? '';
-		} catch {
-			focusTerm = '';
-		}
-	});
-
-	function storeFocus(term: string): boolean {
-		try {
-			if (term === '') localStorage.removeItem(FOCUS_KEY);
-			else localStorage.setItem(FOCUS_KEY, term);
-			return true;
-		} catch {
-			return false;
-		}
-	}
-
-	function toggleFocus(keyword: Keyword): void {
-		const next = focusTerm === keyword.text ? '' : keyword.text;
-		if (storeFocus(next)) {
-			focusTerm = next;
-			focusMessage = next
-				? `«${next}» es el foco del resumen en este navegador. La generación aún no está conectada.`
-				: 'Foco del resumen retirado en este navegador.';
-		} else {
-			focusMessage = 'No se pudo guardar la preferencia en este navegador.';
-		}
-	}
 
 	/** Gates the create submit while its action is in flight. */
 	let creating = $state(false);
@@ -132,9 +95,6 @@
 					<tr>
 						<td data-label="Palabra clave">
 							{keyword.text}
-							{#if focusTerm === keyword.text}
-								<span class="keyword-focus-badge">Foco del resumen</span>
-							{/if}
 						</td>
 						<td data-label="Idioma">{LANGUAGE_LABEL[keyword.language] ?? keyword.language}</td>
 						<td data-label="Creación">{formatDisplayDateTime(keyword.created_at)}</td>
@@ -145,15 +105,6 @@
 						</td>
 						<td data-label="Acciones">
 							<div class="row-actions keyword-actions">
-								<button
-									type="button"
-									aria-pressed={focusTerm === keyword.text}
-									disabled={!keyword.is_active}
-									onclick={() => toggleFocus(keyword)}
-									class={`${btn} btn-small border-line text-ink-2 hover:bg-surface-warm`}
-								>
-									{focusTerm === keyword.text ? 'Quitar foco' : 'Fijar como foco'}
-								</button>
 								<form method="POST" action="?/toggle" use:enhance>
 									<input type="hidden" name="id" value={keyword.id} />
 									<input type="hidden" name="is_active" value={keyword.is_active ? '0' : '1'} />
@@ -181,4 +132,3 @@
 		</table>
 	{/if}
 </div>
-<p class="field-hint" role="status">{focusMessage}</p>

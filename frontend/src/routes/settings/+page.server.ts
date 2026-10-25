@@ -183,13 +183,13 @@ export const actions: Actions = {
 			return failure('save', 400, 'Configura los máximos por ciclo entre 1 y 1000.');
 		}
 
-		// '' = Sin persona focus -> null clears the stored id; anything else
-		// must be a positive integer (the select only emits known ids).
+		// An empty principal selection clears the stored id with null; any other
+		// value must be a positive integer, including a preserved unavailable id.
 		const focusRaw = text(form, 'digest_focus_person_id');
 		let digest_focus_person_id: number | null = null;
 		if (focusRaw !== '') {
 			if (!FOCUS_ID_RE.test(focusRaw)) {
-				return failure('save', 400, 'Persona focus inválida.');
+				return failure('save', 400, 'Persona principal inválida.');
 			}
 			digest_focus_person_id = Number.parseInt(focusRaw, 10);
 		}
