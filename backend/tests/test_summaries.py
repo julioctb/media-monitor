@@ -1227,11 +1227,21 @@ def test_heuristic_brief_sections_by_tone_and_count(session):
     brief = row.content["brief"]
     # F5: los negativos ya no compiten por decision; el top-impacto manda
     # ahí (fallback) y el piso lleva TODA negativa no referenciada a riesgos.
-    assert brief["decisiones"] == [{"index": 0, "razon": "mayor cobertura del día"}]
+    assert brief["decisiones"] == [
+        {
+            "index": 0,
+            "razon": (
+                "«BUAP anuncia recorte de becas» marcó el día por su cobertura"
+                " (2 fuentes, tono negativo); entra al brief por impacto."
+            ),
+        }
+    ]
     assert brief["riesgos"] == []
     assert len(brief["a_favor"]) == 1
     assert brief["a_favor"][0]["index"] == 1
-    assert brief["a_favor"][0]["razon"] == "tono positivo dominante"
+    razon = brief["a_favor"][0]["razon"]
+    assert razon.startswith("«") and "tono positivo" in razon
+    assert len(razon.split()) >= 8  # oración compuesta, no etiqueta
     assert brief["ruido"] == []
 
 
@@ -2578,3 +2588,19 @@ def test_ventana_por_titulo_y_por_fecha():
     assert por_dia["titulo"] == "Entrega de informe"
     assert _ventana_from_fechas(fechas, "Tema sin relación", date(2026, 5, 1)) is None
     assert _ventana_from_fechas(None, "x", None) is None
+
+
+def test_decision_density_never_promotes_single_source_cards():
+    """D4: el piso promueve solo cobertura multi-fuente — una tarjeta de
+    una sola fuente no entra como Decisión en día callado."""
+    pares = [
+        _card(0, fuentes=1, tone="negative"),
+        _card(1, fuentes=1),
+        _card(2, fuentes=1),
+        _card(3, fuentes=3),
+    ]
+    content = _ordered_content([p[0] for p in pares], [p[1] for p in pares])
+    content["brief"]["decisiones"] = [{"index": 2, "razon": "del modelo"}]
+    ensure_decision_density(content)
+    decisiones = content["brief"]["decisiones"]
+    assert [e["index"] for e in decisiones] == [2, 3]  # solo la multi-fuente

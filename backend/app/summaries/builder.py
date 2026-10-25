@@ -950,13 +950,34 @@ def _fill_razon_decision(nota: dict) -> str:
     )
 
 
+def _fill_razon_a_favor(nota: dict) -> str:
+    """Razón heurística de a_favor compuesta desde la tarjeta (D6)."""
+    raw_tone = nota.get("tone")
+    tone = raw_tone if isinstance(raw_tone, dict) else {}
+    pos = tone.get("positive") or 0
+    total = sum(v for v in tone.values() if isinstance(v, int))
+    title = display_title(nota.get("title")) or "La historia del día"
+    return f"«{title}»: {pos} de {total} menciones con tono positivo en el día."
+
+
+def _fill_razon_ruido(nota: dict) -> str:
+    """Razón heurística de ruido compuesta desde la tarjeta (D6)."""
+    title = display_title(nota.get("title")) or "La historia del día"
+    fuentes = len(nota.get("sources") or [])
+    return (
+        f"«{title}» reitera cobertura previa sin datos nuevos"
+        f" ({fuentes} fuente{'s' if fuentes != 1 else ''})."
+    )
+
+
 def _heuristic_brief_sections(noticias: list) -> tuple[list, list, list]:
     """Heuristic fill of the SAME esqueleto the LLM completes: tono/conteo.
 
     Positive-dominant stories go to a_favor; repeated single-source items
     are ruido. The negative floor is NOT here anymore (F5): :func:`ensure_riesgos`
     owns every negative-dominant card in BOTH paths, so positives and the
-    top-impact fallback shape the decision bucket.
+    top-impact fallback shape the decision bucket. Razones compuestas desde
+    la tarjeta (D6): jamás etiquetas enlatadas, mismo estándar del prompt.
     """
     decisiones: list[dict] = []
     ruido: list[dict] = []
@@ -967,12 +988,12 @@ def _heuristic_brief_sections(noticias: list) -> tuple[list, list, list]:
         label = tone_label(nota.get("tone"))
         fuentes = len(nota.get("sources") or [])
         if label == "positivo":
-            a_favor.append({"index": index, "razon": "tono positivo dominante"})
+            a_favor.append({"index": index, "razon": _fill_razon_a_favor(nota)})
         elif nota.get("repeat") and fuentes < 2 and len(ruido) < MAX_RUIDO:
-            ruido.append({"index": index, "razon": "reiteración sin datos nuevos"})
+            ruido.append({"index": index, "razon": _fill_razon_ruido(nota)})
     if not decisiones and noticias:
         top = max(range(len(noticias)), key=lambda i: _impact(noticias[i]))
-        decisiones.append({"index": top, "razon": "mayor cobertura del día"})
+        decisiones.append({"index": top, "razon": _fill_razon_decision(noticias[top])})
     return decisiones, ruido, a_favor
 
 
@@ -1360,11 +1381,20 @@ def ensure_decision_density(content: dict) -> None:
         for entry in brief.get(bucket) or []:
             if isinstance(entry, dict) and isinstance(entry.get("index"), int):
                 marked.add(entry["index"])
-    candidatos = [i for i in range(total) if i not in marked]
+    # D4 (digest-coherence 25/oct): el topup solo promueve SUSTANCIA —
+    # cobertura multi-fuente. Un aniversario cultural de una sola fuente
+    # no es «Decisión / atención» en un domingo callado: menos decisiones,
+    # honestas, antes que piso muerto.
+    def _substanciosa(noticia: object) -> bool:
+        return isinstance(noticia, dict) and len(noticia.get("sources") or []) >= 2
+
+    candidatos = [
+        i
+        for i in range(total)
+        if i not in marked and _substanciosa(noticias[i])
+    ]
     candidatos.sort(
         key=lambda i: _impact_rank(noticias[i])
-        if isinstance(noticias[i], dict)
-        else (0, 0, 0)
     )
     for index in candidatos[: DECISION_MIN - len(decisiones)]:
         decisiones.append(

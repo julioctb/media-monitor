@@ -31,8 +31,8 @@ from app.ingest.events import (
     Event,
     _aware,
     _event_best_score,
-    _tokens,
     event_title_pool,
+    recompute_canonical,
 )
 from app.models import EventMerge, Mention
 from app.settings_runtime import resolve_effective_settings
@@ -256,9 +256,10 @@ def merge_events(session: Session, *, from_id: int, to_id: int) -> bool:
     to_event.last_seen_at = max(
         _aware(to_event.last_seen_at), _aware(from_event.last_seen_at)
     )
-    if len(from_event.title) > len(to_event.title):
-        to_event.title = from_event.title
-    to_event.title_tokens = " ".join(sorted(_tokens(to_event.title)))
+    # D2 discipline: the merged canonical re-derives from ALL mentions
+    # (media-first), never longest-social-wins.
+    session.expire(to_event, ["mentions"])
+    recompute_canonical(to_event)
 
     session.delete(from_event)
     session.flush()

@@ -126,11 +126,6 @@ class ClientSettings(IntPk, Base):
     # JSON-strict calls. Falls back to ai_model when unset — one provider,
     # two model classes (odd/tasks/event-identity-llm-arbitrator.md).
     ai_model_fast: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    # Legacy (laya removal): the local-fallback toggle is no longer exposed
-    # nor read; the column stays to avoid a migration in this pass.
-    ai_fallback_local: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=True, server_default="1"
-    )
     # F2c: max LLM enrichments per ingest cycle; the overflow is backfill work.
     enrich_max_per_cycle: Mapped[int] = mapped_column(
         Integer, nullable=False, default=50, server_default="50"

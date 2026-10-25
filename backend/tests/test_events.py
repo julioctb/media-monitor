@@ -237,3 +237,62 @@ def test_pool_matching_keeps_distinct_stories_apart(session) -> None:
     )
     assert session.query(Event).count() == 2
     assert other.id != 1
+
+
+def test_front_page_showcase_posts_are_quarantined(session) -> None:
+    """D1: a portada post aggregates SEVERAL stories' headlines — it must
+    never join an event (it bridged presupuesto+pensiones into one)."""
+    from app.ingest.events import is_aggregate_title
+
+    client_id = _client(session)
+    assert is_aggregate_title(
+        "¡Feliz viernes! ☀️ Esta es la PORTADA de @MTPNoticias 🧑‍🏫 Lilia Cedillo"
+    )
+    assert not is_aggregate_title("Presentan la portada del libro universitario")
+
+    portada_mention = Mention(
+        client_id=client_id,
+        source=MentionSource.x_twitter,
+        url="https://x.com/portada",
+        url_hash="portada-hash",
+        title=(
+            "¡Feliz viernes! Esta es la PORTADA de @MTPNoticias Lilia Cedillo"
+            " busca subir sueldo Armenta y Chedraui se reúnen"
+        ),
+        published_at=T0,
+    )
+    session.add(portada_mention)
+    session.flush()
+    assign_mention_to_event(session, portada_mention)
+    session.commit()
+    # The mention carries no event at all.
+    assert portada_mention.event_id is None
+
+    # The two REAL stories the portada mentions stay separate events.
+    a = _assign(session, client_id, "Lilia Cedillo busca subir sueldo a maestros de la BUAP", T0 + timedelta(hours=1))
+    b = _assign(session, client_id, "Armenta y Chedraui se reúnen por la alcaldía", T0 + timedelta(hours=2))
+    assert a.id != b.id
+    assert session.query(Event).filter(Event.client_id == client_id).count() == 2
+
+
+def test_canonical_prefers_media_over_longer_social(session) -> None:
+    """D2: media headlines outrank social mega-titles for the canonical."""
+    client_id = _client(session)
+    first = _assign(session, client_id, "BUAP pospone consulta de pensiones", T0)
+    # A longer SOCIAL title joins the same event (pool match)…
+    social = Mention(
+        client_id=client_id,
+        source=MentionSource.x_twitter,
+        url="https://x.com/1",
+        url_hash="social-hash",
+        title="BUAP pospone consulta de pensiones y anuncia aumento salarial",
+        published_at=T0 + timedelta(hours=3),
+    )
+    session.add(social)
+    session.flush()
+    assign_mention_to_event(session, social)
+    session.commit()
+    session.expire(first)
+    assert social.event_id == first.id
+    # …but the canonical stays the MEDIA headline, not the social mega-title.
+    assert first.title == "BUAP pospone consulta de pensiones"

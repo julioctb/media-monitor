@@ -14,9 +14,21 @@ from sqlalchemy.orm import Session
 
 from app.ingest.matching import fold_text
 from app.models import Event, Mention
+from app.models.base import MentionSource
 
 WINDOW_HOURS = 48
 SIMILARITY_THRESHOLD = 0.5
+#: Media sources carry editorial headlines; social/field do not. The event
+#: canonical prefers media titles (D2): a longer social mega-title must not
+#: become the face of a story (the «Feliz viernes» portada case).
+MEDIA_EVENT_SOURCES = frozenset(
+    {
+        MentionSource.news_rss,
+        MentionSource.gdelt,
+        MentionSource.rss_custom,
+        MentionSource.scraper,
+    }
+)
 STOPWORDS = frozenset(
     "de en la por a el y del los las un una con para al su sus".split()
 )
@@ -57,6 +69,20 @@ def similarity(a: str, b: str) -> float:
 
 _OUTLET_SUFFIX_RE = re.compile(r"\s+[-|]\s+[^-|]+$")
 
+#: Front-page showcase posts (portadas) quote a whole front page: their
+#: title carries SEVERAL stories' headlines. They are a showcase, not a
+#: story — quarantined from event identity (D1, digest-coherence 25/oct:
+#: one such post bridged presupuesto+pensiones into a single mega-event).
+_AGGREGATE_TITLE_RE = re.compile(
+    r"(esta es la portada|portada de @|portada de hoy|portada del d[ií]a)",
+    re.IGNORECASE,
+)
+
+
+def is_aggregate_title(title: str | None) -> bool:
+    """True for front-page showcase titles that aggregate several stories."""
+    return bool(title and _AGGREGATE_TITLE_RE.search(title))
+
 
 def strip_outlet_suffix(title: str) -> str:
     """Drop the trailing outlet signature (`... - El Popular`, `... | X`).
@@ -92,13 +118,35 @@ def _aware(dt: datetime) -> datetime:
     return dt
 
 
+def recompute_canonical(event: Event) -> None:
+    """D2: canonical = longest MEDIA headline; social only with no media;
+    aggregate showcase titles never. Recomputed from linked mentions, so
+    backfills and merges converge (idempotent like the counters)."""
+    titles = [
+        m.title for m in event.mentions if m.title and not is_aggregate_title(m.title)
+    ]
+    media_titles = [
+        m.title
+        for m in event.mentions
+        if m.title
+        and not is_aggregate_title(m.title)
+        and m.source in MEDIA_EVENT_SOURCES
+    ]
+    best = max(media_titles or titles, key=len, default=None)
+    if best is not None:
+        event.title = best
+    event.title_tokens = " ".join(sorted(_tokens(event.title)))
+
+
 def touch_event(event: Event, mention: Mention) -> None:
     """Recompute the event aggregates once `mention` is linked to it.
 
     Counts derive from the linked mentions (not increments) so the
     recomputation is idempotent: backfills and re-assignments converge to
-    the same totals. The seen-window stretches to cover the mention and the
-    canonical title becomes the longest seen (plan: longest title wins).
+    the same totals. The seen-window stretches to cover the mention. The
+    canonical title (D2) is the longest MEDIA headline among the grouped
+    mentions — social titles only when no media headline exists, and
+    aggregate showcase titles never (D1).
     """
     event.mention_count = len(event.mentions)
     event.source_count = len({m.source for m in event.mentions})
@@ -110,9 +158,7 @@ def touch_event(event: Event, mention: Mention) -> None:
             event.first_seen_at = when
         if last is None or when > last:
             event.last_seen_at = when
-    if mention.title and len(mention.title) > len(event.title):
-        event.title = mention.title
-    event.title_tokens = " ".join(sorted(_tokens(event.title)))
+    recompute_canonical(event)
 
 
 #: T1 (event-identity): the assigner scores the incoming title against the
@@ -206,10 +252,12 @@ def find_or_create_event(
 def assign_mention_to_event(session: Session, mention: Mention) -> None:
     """Find-or-create the event for `mention` and link + recount it.
 
-    Mentions without a title carry no event (NULL event_id). No commit:
-    the caller owns the transaction, as everywhere in the pipeline.
+    Mentions without a title carry no event (NULL event_id), and so do
+    aggregate showcase titles (D1: portadas bridge stories and hijack
+    canonicals — they are coverage, not identity). No commit: the caller
+    owns the transaction, as everywhere in the pipeline.
     """
-    if not mention.title:
+    if not mention.title or is_aggregate_title(mention.title):
         return
     when = mention.published_at or mention.ingested_at
     event = find_or_create_event(
