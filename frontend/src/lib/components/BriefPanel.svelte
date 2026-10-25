@@ -17,7 +17,8 @@
 		decisiones = [],
 		ruido = [],
 		aFavor = [],
-		fechas = []
+		fechas = [],
+		descarte = null
 	}: {
 		headline?: string | null;
 		delta?: string[];
@@ -25,6 +26,8 @@
 		ruido?: BriefEntry[];
 		aFavor?: BriefEntry[];
 		fechas?: BriefFechaView[];
+		/** F3 visible-discard line; null renders nothing. */
+		descarte?: string | null;
 	} = $props();
 
 	const secciones: { titulo: string; entradas: { principal: string; secundario: string | null }[] }[] =
@@ -86,4 +89,7 @@
 			</div>
 		{/if}
 	</div>
+	{#if descarte}
+		<p class="digest-brief-descarte">{descarte}</p>
+	{/if}
 </section>

@@ -2079,3 +2079,90 @@ def test_augment_fechas_en_duda_desde_notas(session):
     fechas = augment_fechas_from_agenda(session, client.id, day, [])
     assert len(fechas) == 1
     assert fechas[0]["estado"] == "en duda"
+
+
+# --------------------------------------------------- F3 descarte visible
+
+
+def test_brief_descarte_counts_cosmeticas_and_fundadas(session):
+    """F3: el descarte pre-tarjeta es visible; sin descarte no hay clave."""
+    client = add_client(session)
+    e1, e2 = _twin_events(session, client.id)
+    add_mention(session, client.id, e1.title, DAY, event_id=e1.id)
+    add_mention(
+        session,
+        client.id,
+        e2.title,
+        DAY,
+        source=MentionSource.rss_custom,
+        event_id=e2.id,
+    )
+    cosmetic = add_mention(
+        session, client.id, "BUAP actualizó su foto de portada", DAY
+    )
+    session.commit()
+
+    row = build_daily_summary(session, client_id=client.id, day=DAY.date())
+    brief = row.content["brief"]
+    assert brief["descarte"] == {"cosmeticas": 1, "fundadas": 1}
+    # La tarjeta fundida y la cosmetica nunca llegan a noticias.
+    assert len(row.content["noticias"]) == 1
+    assert validate_digest(row.content) == []
+
+
+def test_brief_without_descarte_omits_the_key(session):
+    client = add_client(session)
+    event = _event(client.id, "BUAP anuncia becas nuevas")
+    session.add(event)
+    session.flush()
+    add_mention(session, client.id, event.title, DAY, event_id=event.id)
+    session.commit()
+
+    row = build_daily_summary(session, client_id=client.id, day=DAY.date())
+    assert "descarte" not in row.content["brief"]
+
+
+def test_descarte_label_clauses():
+    from app.summaries.builder import descarte_label
+
+    assert (
+        descarte_label({"cosmeticas": 2, "fundadas": 1})
+        == "Descartado: 2 actualizaciones cosméticas, 1 historia fundida"
+    )
+    assert descarte_label({"cosmeticas": 1, "fundadas": 0}) == (
+        "Descartado: 1 actualización cosmética"
+    )
+    assert descarte_label({"cosmeticas": 0, "fundadas": 3}) == (
+        "Descartado: 3 historias fundidas"
+    )
+    assert descarte_label({"cosmeticas": 0, "fundadas": 0}) is None
+    assert descarte_label(None) is None
+    assert descarte_label("x") is None
+
+
+def test_plain_text_carries_the_descarte_line(session):
+    client = add_client(session)
+    e1, e2 = _twin_events(session, client.id)
+    add_mention(session, client.id, e1.title, DAY, event_id=e1.id)
+    add_mention(
+        session,
+        client.id,
+        e2.title,
+        DAY,
+        source=MentionSource.rss_custom,
+        event_id=e2.id,
+    )
+    session.commit()
+
+    row = build_daily_summary(session, client_id=client.id, day=DAY.date())
+    plain = row.content["plain_text"]
+    assert "Descartado: 1 historia fundida" in plain
+
+
+def test_brief_shape_flags_malformed_descarte():
+    from app.summaries.digest_schema import brief_shape_errors
+
+    content = {"brief": {"descarte": ["no"]}, "noticias": []}
+    assert "brief.descarte must be an object" in brief_shape_errors(content)
+    ok = {"brief": {"descarte": {"cosmeticas": 1, "fundadas": 0}}, "noticias": []}
+    assert brief_shape_errors(ok) == []

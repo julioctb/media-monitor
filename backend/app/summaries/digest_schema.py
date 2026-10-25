@@ -128,6 +128,8 @@ def brief_shape_errors(content: object) -> list[str]:
         for section in BRIEF_SECTIONS:
             if section in brief and not isinstance(brief[section], list):
                 errors.append(f"brief.{section} must be a list")
+        if "descarte" in brief and not isinstance(brief["descarte"], dict):
+            errors.append("brief.descarte must be an object")
         for section in ("decisiones", "ruido", "a_favor"):
             entries = brief.get(section)
             if not isinstance(entries, list):

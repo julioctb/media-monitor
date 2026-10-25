@@ -203,6 +203,31 @@ def fecha_en_duda(*textos: object) -> bool:
     return any(stem in haystack for stem in FECHA_DUDA_STEMS)
 
 
+def descarte_label(descarte: object) -> str | None:
+    """«Descartado: N actualizaciones cosméticas, M historias fundidas».
+
+    F3: the pre-card discard is visible, never silent. Only the clauses
+    with actual discards render; None when there is nothing to report.
+    """
+    if not isinstance(descarte, dict):
+        return None
+    cosmeticas = descarte.get("cosmeticas") or 0
+    fundadas = descarte.get("fundadas") or 0
+    if not isinstance(cosmeticas, int) or not isinstance(fundadas, int):
+        return None
+    if cosmeticas <= 0 and fundadas <= 0:
+        return None
+    partes: list[str] = []
+    if cosmeticas > 0:
+        partes.append(
+            f"{cosmeticas} "
+            + ("actualización cosmética" if cosmeticas == 1 else "actualizaciones cosméticas")
+        )
+    if fundadas > 0:
+        partes.append(f"{fundadas} " + ("historia fundida" if fundadas == 1 else "historias fundidas"))
+    return f"Descartado: {', '.join(partes)}"
+
+
 #: Field-report statuses the campo section shows, with their UI label.
 CAMPO_ESTADOS = {"published": "publicada", "review": "en revisión"}
 
@@ -1176,16 +1201,21 @@ def build_daily_summary(
     # social (foto de portada/perfil sin texto editorial) no genera tarjeta.
     # Se funde en el log por fuente de redes —el conteo de cobertura la
     # incluye igual— y sale de noticias ANTES de prompt/tarjetas/brief para
-    # mantener el índice noticias↔tarjetas alineado.
+    # mantener el índice noticias↔tarjetas alineado. F3: el descarte es
+    # visible — los contadores viajan en brief.descarte.
+    pre_cosmetic = len(content["noticias"])
     content["noticias"] = [
         nota
         for nota in content["noticias"]
         if not is_cosmetic_story(nota.get("title"))
     ]
+    descartes_cosmeticas = pre_cosmetic - len(content["noticias"])
     # T8.A: la fusión editorial de gemelas va ANTES de prompt/tarjetas/brief
     # (índice noticias↔tarjetas↔brief único) — el resto del pipeline lee
     # historias, no menciones gemelas.
+    pre_merge = len(content["noticias"])
     content["noticias"] = merge_twin_noticias(content["noticias"])
+    historias_fundadas = pre_merge - len(content["noticias"])
 
     # Events whose mentions read negative-dominant, for the narrative emphasis
     # (the LLM gets tone per noticia; the heuristic names the count).
@@ -1307,6 +1337,11 @@ def build_daily_summary(
     # T8.D: piso de densidad — mínimo tres decisiones cuando haya candidatas.
     ensure_decision_density(content)
     content["brief"]["headline"] = narrative
+    if descartes_cosmeticas + historias_fundadas > 0:
+        content["brief"]["descarte"] = {
+            "cosmeticas": descartes_cosmeticas,
+            "fundadas": historias_fundadas,
+        }
     content["campo"] = build_campo(session, client_id, utc_start, utc_end)
 
     # T8.B: orden editorial (decision -> impacto -> ruido) y fusión de la

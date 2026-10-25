@@ -659,6 +659,8 @@ def render_plain_text(content: dict, narrative: str) -> str:
         )
     brief = content.get("brief")
     if isinstance(brief, dict):
+        from app.summaries.builder import descarte_label
+
         tarjetas = content.get("tarjetas")
         noticias = content.get("noticias") or []
         pool = tarjetas if isinstance(tarjetas, list) else noticias
@@ -680,6 +682,9 @@ def render_plain_text(content: dict, narrative: str) -> str:
         )
         lines.append("")
         lines.append("BRIEF")
+        descarte = descarte_label(brief.get("descarte"))
+        if descarte:
+            lines.append(descarte)
         for header, entries, razon_key in secciones:
             if not entries:
                 continue

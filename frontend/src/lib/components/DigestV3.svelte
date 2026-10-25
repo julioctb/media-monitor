@@ -3,13 +3,13 @@
 
 	import { digestV3View } from '$lib/digest-v3';
 	import BriefPanel from '$lib/components/BriefPanel.svelte';
-	import CampoPanel from '$lib/components/CampoPanel.svelte';
 	import TarjetaCard from '$lib/components/TarjetaCard.svelte';
 
 	/**
 	 * Container for the digest-brief-v3 render: detects the v3 keys on the
-	 * stored content and composes brief + evidencia + campo. Legacy v2 rows
-	 * produce no view and this renders nothing — the home keeps its layout.
+	 * stored content and composes brief + evidencia. Legacy v2 rows produce
+	 * no view and this renders nothing — the home keeps its layout. Campo
+	 * lives in its own surface (/campo); the digest no longer renders it (F4).
 	 */
 	let { content }: { content: DailySummaryContent } = $props();
 
@@ -25,7 +25,8 @@
 			view.decisiones.length === 0 &&
 			view.ruido.length === 0 &&
 			view.aFavor.length === 0 &&
-			view.fechas.length === 0;
+			view.fechas.length === 0 &&
+			!view.descarte;
 		return empty
 			? null
 			: {
@@ -34,7 +35,8 @@
 					decisiones: view.decisiones,
 					ruido: view.ruido,
 					aFavor: view.aFavor,
-					fechas: view.fechas
+					fechas: view.fechas,
+					descarte: view.descarte
 				};
 	});
 </script>
@@ -48,6 +50,7 @@
 			ruido={brief.ruido}
 			aFavor={brief.aFavor}
 			fechas={brief.fechas}
+			descarte={brief.descarte}
 		/>
 	{/if}
 	{#if tarjetas.length > 0}
@@ -65,8 +68,5 @@
 				{/each}
 			</div>
 		</section>
-	{/if}
-	{#if view.campo.length > 0}
-		<CampoPanel entradas={view.campo} />
 	{/if}
 {/if}
