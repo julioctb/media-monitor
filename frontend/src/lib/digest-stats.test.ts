@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { categoryRows, focusPersonLabel, monogram, negativeNewsItems, toneRows } from './digest-stats';
+import { categoryRows, monogram, negativeNewsItems, toneRows } from './digest-stats';
 
 describe('toneRows', () => {
 	it('falls back to the given label without counts', () => {
@@ -96,19 +96,6 @@ describe('negativeNewsItems', () => {
 			{ event_id: 6, sentiment: null, title: 'sin tono', source: 'news_rss' }
 		]);
 		expect(items).toEqual([]);
-	});
-});
-
-describe('focusPersonLabel', () => {
-	it('prefers the content stamp and falls back to the persona chain', () => {
-		const content = {
-			rectora: { person_id: 7 },
-			personas: [{ person_id: 7, name: 'Lilia Cedillo Ramírez' }]
-		};
-		expect(focusPersonLabel({ rectora: { name: 'Estampada' } })).toBe('Estampada');
-		expect(focusPersonLabel(content)).toBe('Lilia Cedillo Ramírez');
-		expect(focusPersonLabel({ rectora: {} })).toBeNull();
-		expect(focusPersonLabel(undefined)).toBeNull();
 	});
 });
 

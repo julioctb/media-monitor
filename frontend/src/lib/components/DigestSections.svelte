@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { sourceLabel, topicLabel, cleanDigestText } from '$lib/format';
 
-	import { focusPersonLabel, toneRows, type ToneCounts } from '$lib/digest-stats';
+	import { toneRows, type ToneCounts } from '$lib/digest-stats';
 	import type { DailySummaryContent, DigestNewsItem } from '$lib/api';
 
 	let {
@@ -25,7 +25,6 @@
 	} = $props();
 
 	const agenda = $derived(content.agenda ?? []);
-	const activity = $derived(content.rectora?.activity ?? []);
 	const pendientes = $derived(content.pendientes ?? []);
 	const redes = $derived(Object.entries(content.redes ?? {}));
 
@@ -115,17 +114,10 @@
 	/** Active keywords without mentions: the «sin novedades» theme rows. */
 	const temasSinNota = $derived(content.temas_sin_nota ?? []);
 
-	/** Detail h3: focus person when identified, generic label otherwise. */
-	const rectoraHeading = $derived.by(() => {
-		const name = focusPersonLabel(content);
-		return name ? `Rectora ${name}` : 'Rectora';
-	});
-
 	const hasDetail = $derived(
 		newsByTopic.length > 0 ||
 			temasSinNota.length > 0 ||
 			agenda.length > 0 ||
-			activity.length > 0 ||
 			pendientes.length > 0 ||
 			redesEntries.length > 0
 	);
@@ -255,19 +247,6 @@
 						<li>
 							<strong>{[item.when, item.status].filter(Boolean).join(' · ')}</strong>
 							{item.title}{item.source ? ` Fuente: ${item.source}` : ''}
-						</li>
-					{/each}
-				</ul>
-			</div>
-		{/if}
-		{#if activity.length > 0}
-			<div class="daily-detail-block">
-				<h3>{rectoraHeading}</h3>
-				<ul class="daily-detail-list">
-					{#each activity as item, i (`activity-${i}`)}
-						<li>
-							<strong>{[item.when, item.status].filter(Boolean).join(' · ')}</strong>
-							{item.text}{item.channel ? ` (${item.channel})` : ''}
 						</li>
 					{/each}
 				</ul>

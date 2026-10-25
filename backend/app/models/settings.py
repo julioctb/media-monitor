@@ -86,7 +86,8 @@ class ClientSettings(IntPk, Base):
         mapped_column(String(50), nullable=False, default="21", server_default="21")
     )
     digest_focus_person_id: Mapped[int | None] = (
-        # The digest's RECTORA section tracks this person (nullable = none).
+        # Report recipient and watchlist principal (vigilancia F7); legacy
+        # digest-rectora consumption removed 25/oct (nullable = none).
         mapped_column(Integer, nullable=True)
     )
     watchlist: Mapped[list] = (

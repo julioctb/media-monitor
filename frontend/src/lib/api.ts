@@ -179,7 +179,7 @@ export interface ClientSettings {
   retention_days: number;
   /** Daily digest cut hours (0..23, ascending); legacy digest_hour = first. */
   digest_hours: number[];
-  /** Person highlighted in the digest rectora section; null = no focus. */
+  /** Report recipient and watchlist principal (vigilancia F7); null = none. */
   digest_focus_person_id: number | null;
   /** F7: extra person ids under vigilance; the focus person is principal. */
   watchlist: number[];
@@ -854,29 +854,10 @@ export interface DailySummaryContent {
   noticias?: DigestNewsItem[];
   /** Agenda v2: LLM-authored upcoming items (home-digest-v2). */
   agenda?: { when: string; title: string; status?: string; source?: string }[];
-  rectora?: {
-    person_id?: number | null;
-    /** Identity stamp (rectora-identity-stamp): absent on pre-stamp digests. */
-    name?: string | null;
-    role?: string | null;
-    org?: string | null;
-    actions?: {
-      title?: string;
-      event_id?: number | null;
-      sentiment?: string | null;
-    }[];
-    /** Activity log v2: dated items, channel optional (home-digest-v2). */
-    activity?: {
-      text: string;
-      when?: string;
-      status?: string;
-      channel?: string;
-    }[];
-    mention_count?: number;
-    tone?: string | null;
-    watch?: string | null;
-    gaps?: string;
-  };
+  /**
+   * Legacy rows may still carry a `rectora` key in their stored JSON; the
+   * section was removed 25/oct and the key is ignored at render time.
+   */
   redes?: Record<
     string,
     {

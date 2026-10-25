@@ -4,10 +4,10 @@ Pipeline, always run:
 
   1. day window in the settings timezone (zoneinfo) over mentions.published_at,
   2. deterministic facts via summaries.digest.build_digest_facts (events,
-     personas, topics, rectora slice, redes counts, gaps),
+     personas, topics, redes counts, gaps),
   3. silent keywords become the PENDIENTES section,
   4. LLM narrative pass: the model ONLY fills headline / per-item
-     summary+why_it_matters / rectora tone+watch, merged by
+     summary+why_it_matters, merged by
      digest.apply_narrative; any failure keeps the heuristic mode,
   5. digest.render_plain_text stores the sectioned plain text as
      content["plain_text"] for RAG and quick reading.
@@ -83,7 +83,7 @@ BACKOFF_S = 0.5
 
 SYSTEM_PROMPT = (
     "Eres editor de monitoreo de medios. Recibes los HECHOS verificados del "
-    "día en JSON (noticias, rectora, redes, personas). Devuelve EXCLUSIVAMENTE "
+    "día en JSON (noticias, redes, personas). Devuelve EXCLUSIVAMENTE "
     "un objeto JSON con: headline (1-3 oraciones que tejen el día; el tono "
     "de cada noticia via facts.noticias[i].tone — refleja la postura de la "
     "cobertura hacia el protagonista del evento, no la gravedad del hecho; "
@@ -106,10 +106,7 @@ SYSTEM_PROMPT = (
     "nunca una etiqueta de tres o cuatro palabras. El bloque dia_previo "
     "lista en compacto el día previo: úsalo para calibrar qué continúa y "
     "qué es ángulo nuevo; lo ya conocido se trata como continuidad. "
-    "Además rectora {tone, watch, "
-    "activity}: activity es el seguimiento narrativo de la persona focal, "
-    "lista [{when, status, text, channel}] con cuándo/qué, estado y canal "
-    "cuando aplique (omítela si no hay nada que vigilar). Incluye además "
+    "Incluye además "
     "agenda: lista [{when, status, title, source}] de eventos o citas futuras "
     "visibles en los datos (when y title literales, sin inventar fechas), y "
     "redes: {<fuente>: {note, cuentas}} donde note es la nota narrativa de la "
@@ -1264,15 +1261,6 @@ def digest_prompt_view(facts: dict, dia_previo: list | None = None) -> dict:
         ]
         noticias.append(view)
 
-    rectora = {
-        key: value for key, value in facts.get("rectora", {}).items() if key != "person_id"
-    }
-    if "actions" in rectora:
-        rectora["actions"] = [
-            {key: action[key] for key in ("title", "sentiment", "role", "org") if key in action}
-            for action in rectora["actions"]
-        ]
-
     personas = [
         {key: person[key] for key in person if key != "person_id"}
         for person in facts.get("personas", [])
@@ -1280,7 +1268,6 @@ def digest_prompt_view(facts: dict, dia_previo: list | None = None) -> dict:
 
     view = {
         "noticias": noticias,
-        "rectora": rectora,
         "redes": facts.get("redes", {}),
         "personas": personas,
     }
@@ -1492,7 +1479,6 @@ def build_daily_summary(
         client_id=client_id,
         day=day,
         tz=effective.timezone,
-        focus_person_id=effective.digest_focus_person_id,
         mentions=mentions,
         window_start=start if window_extended else None,
     )
@@ -1623,18 +1609,10 @@ def build_daily_summary(
                     nota["summary"] = old["summary"]
                 if not nota.get("why_it_matters") and old.get("why_it_matters"):
                     nota["why_it_matters"] = old["why_it_matters"]
-            prev_rectora = prev_content.get("rectora") or {}
-            rectora = content.get("rectora") or {}
-            for key in ("tone", "watch"):
-                if not rectora.get(key) and prev_rectora.get(key):
-                    rectora[key] = prev_rectora[key]
             # home-digest-v2: the narrative blocks travel with the prose.
             prev_agenda = prev_content.get("agenda")
             if not content.get("agenda") and prev_agenda:
                 content["agenda"] = prev_agenda
-            prev_activity = prev_rectora.get("activity")
-            if not rectora.get("activity") and prev_activity:
-                rectora["activity"] = prev_activity
             for source, prev_data in (prev_content.get("redes") or {}).items():
                 prev_note = prev_data.get("note") if isinstance(prev_data, dict) else None
                 target = (content.get("redes") or {}).get(source)

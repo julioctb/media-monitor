@@ -100,7 +100,7 @@ def test_heuristic_builder_shape_v2(session):
         "BUAP abre convocatoria",
         "Cedillo encabeza mesa",
     }
-    assert content["rectora"]["person_id"] is None
+    assert "rectora" not in content
     assert content["redes"]["x"]["count"] == 0
     # The silent keyword feeds the temas block; limitaciones = coverage gaps.
     assert content["temas_sin_nota"] == ["sin datos"]
@@ -108,7 +108,7 @@ def test_heuristic_builder_shape_v2(session):
     # Plain text render for RAG: sectioned, deterministic.
     plain = content["plain_text"]
     assert "NOTICIAS" in plain
-    assert "RECTORA" in plain
+    assert "RECTORA" not in plain  # legacy section removed
     assert "REDES" in plain
     assert "PERSONAS" in plain
     assert "PENDIENTES" in plain
@@ -213,15 +213,6 @@ _V2_AGENDA = [
     {"when": "Hasta el 15 nov.", "title": "Exposición «Bestias Eternas»"},
 ]
 
-_V2_ACTIVITY = [
-    {
-        "when": "22 oct.",
-        "text": "Inauguración de la ofrenda en la Casa de la Bóveda.",
-        "channel": "Acto público",
-    },
-    {"text": "Sin publicaciones fechables en la ventana.", "channel": "X propio"},
-]
-
 _V2_REDES_NOTE = "Sin novedades fechables en la ventana."
 
 
@@ -232,11 +223,6 @@ def _digest_payload_v2() -> str:
             "items": [
                 {"index": 0, "summary": "Síntesis del modelo.", "why_it_matters": "Porque sí."}
             ],
-            "rectora": {
-                "tone": "neutral",
-                "watch": "votación del 28",
-                "activity": _V2_ACTIVITY,
-            },
             "agenda": _V2_AGENDA,
             "redes": {"x": {"note": _V2_REDES_NOTE}},
         }
@@ -270,19 +256,15 @@ def test_llm_mode_fields_applied_and_fallback(session):
     assert row.narrative == "Titular del modelo."
     assert row.content["noticias"][0]["summary"] == "Síntesis del modelo."
     assert row.content["noticias"][0]["why_it_matters"] == "Porque sí."
-    assert row.content["rectora"]["tone"] == "neutral"
-    assert row.content["rectora"]["watch"] == "votación del 28"
-    # v2 blocks: agenda, rectora activity and per-network note.
+    assert "rectora" not in row.content
+    # v2 blocks: agenda and per-network note.
     assert row.content["agenda"] == _V2_AGENDA
-    assert row.content["rectora"]["activity"] == _V2_ACTIVITY
     assert row.content["redes"]["x"]["note"] == _V2_REDES_NOTE
     assert validate_digest(row.content) == []
     # The v2 blocks render into the plain text (RAG) as their own sections.
     plain = row.content["plain_text"]
     assert "AGENDA" in plain
     assert "Plática «Conectados pero solos»" in plain
-    assert "Inauguración de la ofrenda" in plain
-    assert "Acto público" in plain
     assert _V2_REDES_NOTE in plain
     # The prompt asks for the v2 narrative blocks by name.
     assert "agenda" in SYSTEM_PROMPT
@@ -302,7 +284,6 @@ def test_llm_mode_fields_applied_and_fallback(session):
     assert "Titular del modelo." in row.narrative
     assert row.content["noticias"][0]["summary"] == "Síntesis del modelo."
     assert row.content["agenda"] == _V2_AGENDA
-    assert row.content["rectora"]["activity"] == _V2_ACTIVITY
     assert row.content["redes"]["x"]["note"] == _V2_REDES_NOTE
 
 
@@ -341,7 +322,7 @@ def test_llm_v2_malformed_blocks_tolerated(session):
     content = row.content
     # Malformed entries drop silently; the seeded defaults remain.
     assert content["agenda"] == []
-    assert content["rectora"]["activity"] == []
+    assert "rectora" not in content  # legacy payload key ignored wholesale
     assert content["redes"]["x"]["note"] == ""
     assert "desconocida" not in content["redes"]
     assert validate_digest(content) == []
@@ -377,7 +358,9 @@ def test_apply_narrative_v2_blocks_tolerate_legacy_content():
         },
     )
     assert errors == []
-    assert content["rectora"]["tone"] == "neutral"
+    # Legacy row: the rectora key survives UNTOUCHED (the narrative merge no
+    # longer knows the section; legacy keys pass through unchanged).
+    assert content["rectora"]["tone"] is None
     assert content["redes"]["x"]["note"] == "n"
     assert content["redes"]["x"]["cuentas"] == [{"cuenta": "@BUAPoficial", "nota": "sin novedades"}]
     assert "agenda" not in content  # legacy shape untouched
@@ -870,11 +853,6 @@ def test_digest_prompt_view_drops_non_narrative_weight():
                 "sources": [{"source": "news_rss", "url": "http://x/a", "title": "a"}],
             }
         ],
-        "rectora": {
-            "person_id": 7,
-            "actions": [{"title": "a", "event_id": 3, "sentiment": "negative", "role": "R", "org": "U"}],
-            "name": "Alguien",
-        },
         "redes": {"x": {"count": 3, "note": ""}},
         "personas": [{"person_id": 1, "name": "P", "role": "r", "fact": "f"}],
     }
@@ -886,9 +864,7 @@ def test_digest_prompt_view_drops_non_narrative_weight():
         assert dropped not in noticia
     assert noticia["tone"] == {"negative": 2}
     assert noticia["sources"][0] == {"source": "news_rss", "title": "a"}
-    assert "person_id" not in view["rectora"]
-    assert "event_id" not in view["rectora"]["actions"][0]
-    assert view["rectora"]["name"] == "Alguien"  # identity stamp survives
+    assert "rectora" not in view  # section removed from the projection
     assert "person_id" not in view["personas"][0]
     assert view["redes"] == {"x": {"count": 3, "note": ""}}
     # index alignment: order is the content's own
@@ -899,7 +875,7 @@ def test_digest_prompt_view_empty_facts():
     from app.summaries.builder import digest_prompt_view
 
     view = digest_prompt_view({})
-    assert view == {"noticias": [], "rectora": {}, "redes": {}, "personas": []}
+    assert view == {"noticias": [], "redes": {}, "personas": []}
 
 
 # ------------------------------------------------------- digest-brief-v3 (T2)

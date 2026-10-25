@@ -27,7 +27,7 @@ def test_valid_digest_has_no_errors() -> None:
 def test_missing_sections_and_wrong_schema_fail() -> None:
     errors = validate_digest({"schema": 1})
     assert any("schema" in e for e in errors)
-    for section in ("coverage", "noticias", "rectora", "redes", "personas", "pendientes"):
+    for section in ("coverage", "noticias", "redes", "personas", "pendientes"):
         assert any(section in e for e in errors)
 
 

@@ -30,21 +30,6 @@ class NarrativeItem(_Strict):
     confidence_note: str | None = None
 
 
-class ActivityEntry(_Strict):
-    """Rectora activity line; ``text`` is the only required field."""
-
-    text: str
-    when: str | None = None
-    status: str | None = None
-    channel: str | None = None
-
-
-class RectoraSection(_Strict):
-    tone: str | None = None
-    watch: str | None = None
-    activity: list[ActivityEntry] | None = None
-
-
 class AgendaEntry(_Strict):
     """Agenda guess from the day's facts; ``when`` + ``title`` required."""
 
@@ -106,7 +91,6 @@ class NarrativePayload(BaseModel):
 
     headline: str | None = None
     items: list[NarrativeItem] = []
-    rectora: RectoraSection | None = None
     agenda: list[AgendaEntry] = []
     redes: dict[str, str | RedesSourceNote] = {}
     seleccion: list[SeleccionEntry] = []

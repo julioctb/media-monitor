@@ -8,19 +8,19 @@
     noticias    [{topic, event_id, title, sources[{source,url,title}],
                   summary, why_it_matters, confidence, person_ids}]
     agenda      [{when, status?, title, source?}] - LLM narrative
-    rectora     {actions[], activity[], tone, watch, gaps} - focus person;
-                activity [{when?, status?, text, channel?}] is LLM narrative
     redes       {<source>: {count, note}} - social sources; note carries the
                 LLM narrative when the day has data
     personas    [{person_id, name, role, fact}]
     pendientes  [str] - silent keywords / uncovered events
 
-Only the narrative fields (summary, why_it_matters, tone, watch, activity,
-agenda, redes note) are LLM-authored; everything else is deterministic (see
+Only the narrative fields (summary, why_it_matters, agenda, redes note) are
+LLM-authored; everything else is deterministic (see
 build_digest_facts and confidence_for). validate_digest gates the LLM output:
 any error falls back to the heuristic render, mirroring builder.py's mode
 contract. Every v2 key is optional: rows authored before home-digest-v2 lack
-them and must read back unchanged.
+them and must read back unchanged. Legacy rows that still carry a ``rectora``
+key in their stored JSON are tolerated: the section is gone, the key is
+ignored at read/render time.
 """
 
 from datetime import datetime, timezone
@@ -31,7 +31,6 @@ from pydantic import ValidationError
 
 from app.summaries.digest_schema import (
     BRIEF_CATEGORIES,
-    ActivityEntry,
     AgendaEntry,
     CuentaEntry,
     NarrativeItem,
@@ -46,7 +45,7 @@ DIGEST_SCHEMA_VERSION = 2
 #: Fixed confidence scale; never free-form (auditability over prose).
 CONFIDENCE_SCALE = ("alta", "media", "baja")
 
-REQUIRED_SECTIONS = ("coverage", "noticias", "rectora", "redes", "personas", "pendientes")
+REQUIRED_SECTIONS = ("coverage", "noticias", "redes", "personas", "pendientes")
 
 #: Spanish short months for the per-news date label («17 oct.»).
 ES_SHORT_MONTHS = (
@@ -119,7 +118,6 @@ def build_digest_facts(
     client_id: int,
     day,
     tz: str,
-    focus_person_id: int | None = None,
     mentions: list | None = None,
     window_start: datetime | None = None,
 ) -> dict:
@@ -265,50 +263,6 @@ def build_digest_facts(
         )
     )
 
-    # --- rectora: focus person slice.
-    rectora: dict = {
-        "person_id": focus_person_id,
-        "actions": [],
-        "activity": [],  # narrative follow-up, LLM-authored (home-digest-v2)
-        "mention_count": 0,
-    }
-    if focus_person_id is not None:
-        focus_links = [
-            (m, link)
-            for m in mentions
-            for link in m.person_links
-            if link.person_id == focus_person_id
-        ]
-        rectora["mention_count"] = len(focus_links)
-        rectora["actions"] = [
-            {
-                "title": m.title,
-                "event_id": m.event_id,
-                "sentiment": m.sentiment.value if m.sentiment else None,
-                # As extracted on THIS mention (the aggregated view lives on
-                # the person row); the digest shows the mention-level stance.
-                "role": link.role,
-                "org": link.org,
-            }
-            for m, link in focus_links
-        ]
-        tones = Counter(
-            m.sentiment.value for m, _link in focus_links if m.sentiment is not None
-        )
-        rectora["tone"] = tones.most_common(1)[0][0] if tones else None
-        if not focus_links:
-            rectora["gaps"] = "sin menciones de la persona focal en la ventana"
-        # Identity stamp (rectora-identity-stamp T1): same source the
-        # personas entries use — link role/org as extracted on the mention,
-        # falling back to the aggregated Person row. Absent when the focus
-        # id has no person row (never invented).
-        focus_person = session.get(Person, focus_person_id)
-        if focus_person is not None:
-            link = next((link for _m, link in focus_links), None)
-            rectora["name"] = focus_person.name
-            rectora["role"] = (link.role if link and link.role else None) or focus_person.role
-            rectora["org"] = (link.org if link and link.org else None) or focus_person.org
-
     # --- personas: everyone linked to the day's mentions, by volume.
     person_counts: Counter[int] = Counter(
         link.person_id for m in mentions for link in m.person_links
@@ -370,7 +324,6 @@ def build_digest_facts(
         "coverage": coverage,
         "noticias": noticias,
         "agenda": [],  # narrative, LLM-authored (home-digest-v2)
-        "rectora": rectora,
         "redes": redes,
         "personas": personas,
         "pendientes": [],  # composed at T5: silent keywords + coverage gaps
@@ -425,36 +378,6 @@ def apply_narrative(content: dict, payload: object) -> list[str]:
                 value = getattr(narrative_item, key)
                 if isinstance(value, str) and value.strip():
                     target[key] = value.strip()
-    rectora = payload.get("rectora")
-    if isinstance(rectora, dict) and isinstance(content.get("rectora"), dict):
-        for key in ("tone", "watch"):
-            value = _clean_str(rectora.get(key))
-            if value:
-                content["rectora"][key] = value
-        # home-digest-v2 follow-up entries; only into a seeded container so
-        # pre-v2 rows keep their shape.
-        activity = rectora.get("activity")
-        if isinstance(activity, list) and isinstance(
-            content["rectora"].get("activity"), list
-        ):
-            entries = []
-            for pos, entry in enumerate(activity):
-                try:
-                    validated = ActivityEntry.model_validate(entry)
-                except ValidationError as exc:
-                    _warn_skip(f"rectora.activity[{pos}]", exc)
-                    continue
-                text = _clean_str(validated.text)
-                if not text:
-                    continue
-                item: dict[str, str] = {"text": text}
-                for optional in ("when", "status", "channel"):
-                    value = _clean_str(getattr(validated, optional))
-                    if value:
-                        item[optional] = value
-                entries.append(item)
-            if entries:
-                content["rectora"]["activity"] = entries
     # agenda: upcoming items gleaned from the day's facts; when+title
     # required (the mockup's strong-led fields), status/source optional.
     agenda = payload.get("agenda")
@@ -610,21 +533,12 @@ def render_plain_text(content: dict, narrative: str) -> str:
                 line += f" Fuente: {item['source']}"
             lines.append(line)
     lines.append("")
-    lines.append("RECTORA")
-    rectora = content.get("rectora") or {}
-    if rectora.get("mention_count"):
-        for action in rectora.get("actions") or []:
-            lines.append(f"- {action.get('title')}")
-        if rectora.get("tone"):
-            lines.append(f"  Tono: {rectora['tone']}")
-        if rectora.get("watch"):
-            lines.append(f"  Vigilar: {rectora['watch']}")
-    else:
-        lines.append("- Sin menciones de la persona focal en la ventana.")
-    for source, info in (content.get("redes") or {}).items():
-        if isinstance(info, dict) and info.get("note"):
-            lines.append(f"  {source}: {info['note']}")
-        cuentas = info.get("cuentas") if isinstance(info, dict) else None
+    lines.append("REDES")
+    for source, data in (content.get("redes") or {}).items():
+        note = f" — {data['note']}" if isinstance(data, dict) and data.get("note") else ""
+        count = data.get("count") if isinstance(data, dict) else data
+        lines.append(f"- {source}: {count}{note}")
+        cuentas = data.get("cuentas") if isinstance(data, dict) else None
         for entry in cuentas or []:
             cuenta = entry.get("cuenta")
             nota = entry.get("nota")
@@ -633,22 +547,6 @@ def render_plain_text(content: dict, narrative: str) -> str:
                 line += f": {nota}"
             if line:
                 lines.append(line)
-    for entry in rectora.get("activity") or []:
-        if not isinstance(entry, dict) or not entry.get("text"):
-            continue
-        head = " · ".join(p for p in (entry.get("when"), entry.get("status")) if p)
-        line = f"- {head}: {entry['text']}" if head else f"- {entry['text']}"
-        if entry.get("channel"):
-            line += f" ({entry['channel']})"
-        lines.append(line)
-    if rectora.get("gaps"):
-        lines.append(f"  Gap: {rectora['gaps']}")
-    lines.append("")
-    lines.append("REDES")
-    for source, data in (content.get("redes") or {}).items():
-        note = f" — {data['note']}" if isinstance(data, dict) and data.get("note") else ""
-        count = data.get("count") if isinstance(data, dict) else data
-        lines.append(f"- {source}: {count}{note}")
     lines.append("")
     lines.append("PERSONAS")
     for person in content.get("personas") or []:

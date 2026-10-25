@@ -150,42 +150,6 @@ def test_out_of_window_mention_ignored_and_gaps_listed(session) -> None:
     assert any("X" in g for g in facts["coverage"]["gaps"])
 
 
-def test_rectora_section_from_focus_person(session) -> None:
-    from app import persons as persons_mod
-    from app.models import Sentiment
-
-    client_id = _client(session)
-    mention = _mention(
-        session,
-        client_id,
-        "https://a/rec",
-        title="Rectora inaugura",
-        sentiment=Sentiment.positive,
-    )
-    mention.raw_enrichment = {
-        "summary": "s",
-        "sentiment": "positive",
-        "sentiment_score": 0.9,
-        "persons": [{"name": "Lilia Cedillo Ramírez"}],
-        "topics": [],
-    }
-    persons_mod.persist_persons_from_enrichment(session, mention)
-    session.commit()
-    from app.models import Person
-
-    person = session.query(Person).one()
-    upsert_settings(session, client_id, {})
-
-    facts = build_digest_facts(
-        session, client_id=client_id, day=DAY, tz=TZ, focus_person_id=person.id
-    )
-
-    assert facts["rectora"]["person_id"] == person.id
-    assert facts["rectora"]["mention_count"] == 1
-    assert facts["rectora"]["tone"] == "positive"
-    assert facts["personas"][0]["person_id"] == person.id
-
-
 def test_person_ids_are_person_not_link_ids(session) -> None:
     """Regression: person_links are MentionPerson rows; ids diverge quickly.
 
@@ -223,48 +187,3 @@ def test_person_ids_are_person_not_link_ids(session) -> None:
     assert ids == {p.id for p in session.query(Person).all()}
     uno_row = next(p for p in facts["personas"] if p["person_id"] == uno.id)
     assert uno_row["mention_count"] == 2
-
-
-def test_rectora_stamps_identity_from_person_row(session) -> None:
-    """T1 rectora-identity-stamp: name/role/org from the personas source row."""
-    from app import persons as persons_mod
-
-    client_id = _client(session)
-    mention = _mention(session, client_id, "https://a/rec", title="Rectora inaugura")
-    mention.raw_enrichment = {
-        "summary": "s",
-        "sentiment": "positive",
-        "sentiment_score": 0.9,
-        "persons": [{"name": "Lilia Cedillo Ramírez", "role": "Rectora", "org": "BUAP"}],
-        "topics": [],
-    }
-    persons_mod.persist_persons_from_enrichment(session, mention)
-    session.commit()
-    from app.models import Person
-
-    person = session.query(Person).one()
-
-    facts = build_digest_facts(
-        session, client_id=client_id, day=DAY, tz=TZ, focus_person_id=person.id
-    )
-
-    rectora = facts["rectora"]
-    assert rectora["name"] == "Lilia Cedillo Ramírez"
-    assert rectora["role"] == "Rectora"
-    assert rectora["org"] == "BUAP"
-
-
-def test_rectora_identity_absent_tolerant(session) -> None:
-    """No focus person / unknown id: no identity keys, builder unharmed."""
-    client_id = _client(session)
-    _mention(session, client_id, "https://a/x")
-
-    facts = build_digest_facts(session, client_id=client_id, day=DAY, tz=TZ)
-
-    assert "name" not in facts["rectora"]
-    assert facts["rectora"]["mention_count"] == 0
-
-    orphan = build_digest_facts(
-        session, client_id=client_id, day=DAY, tz=TZ, focus_person_id=99999
-    )
-    assert "name" not in orphan["rectora"]

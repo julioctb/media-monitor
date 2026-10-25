@@ -175,17 +175,3 @@ export function negativeNewsItems<T extends NegativeInput>(items: T[]): T[] {
 	ranked.sort((a, b) => b[1].negative - a[1].negative || a[0] - b[0]);
 	return ranked.map(([, entry]) => entry.rep as T);
 }
-
-/**
- * Focus-person display name: content stamp first, persona lookup for
- * pre-stamp digests. null = caller renders its own fallback («BUAP»).
- */
-export function focusPersonLabel(
-	content: { rectora?: { person_id?: number | null; name?: string | null }; personas?: { person_id: number; name: string }[] } | null | undefined
-): string | null {
-	const rectora = content?.rectora;
-	if (!rectora) return null;
-	if (rectora.name) return rectora.name;
-	const persona = content?.personas?.find((person) => person.person_id === rectora.person_id);
-	return persona?.name ?? null;
-}

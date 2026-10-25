@@ -45,11 +45,6 @@ function digestFixture(): DailySummaryContent {
 		agenda: [
 			{ when: '27 oct.', status: 'Nueva, sin nota aún', title: 'Plática sobre redes de apoyo', source: 'X, @BUAPoficial' }
 		],
-		rectora: {
-			person_id: 88,
-			name: 'Lilia Cedillo Ramírez',
-			activity: [{ when: '22 oct.', text: 'Inauguró la ofrenda en la Casa de la Bóveda.', channel: 'X' }]
-		},
 		redes: {
 			x: { count: 0 },
 			facebook_page: { count: 3, note: 'Vista previa limitada por inicio de sesión.' }
@@ -166,15 +161,12 @@ describe('DigestSections v2', () => {
 		expect(cuenta?.textContent).toContain('@BUAPoficial — solo recapitulaciones');
 	});
 
-	it('renders agenda, rectora activity and limitations', () => {
+	it('renders agenda and limitations', () => {
 		const host = renderSection(digestFixture());
 		const text = host.textContent ?? '';
 		expect(text).toContain('27 oct. · Nueva, sin nota aún');
 		expect(text).toContain('Plática sobre redes de apoyo');
 		expect(text).toContain('Fuente: X, @BUAPoficial');
-		expect(text).toContain('Rectora Lilia Cedillo Ramírez');
-		expect(text).toContain('22 oct.');
-		expect(text).toContain('Inauguró la ofrenda en la Casa de la Bóveda. (X)');
 		expect(text).toContain('Limitaciones de cobertura');
 		expect(text).toContain('Sin notas nuevas fechables en e-consulta.');
 	});
@@ -197,11 +189,19 @@ describe('DigestSections v2', () => {
 		expect((host.textContent ?? '')).not.toContain('Resumen detallado del día');
 	});
 
-	it('falls back to the generic rectora heading without identity', () => {
-		const content = digestFixture();
-		content.rectora = { activity: [{ text: 'Actividad suelta' }] };
+	it('tolerates legacy rows that still carry a rectora key (section removed)', () => {
+		const content = {
+			...digestFixture(),
+			rectora: {
+				person_id: 88,
+				name: 'Lilia Cedillo Ramírez',
+				activity: [{ when: '22 oct.', text: 'Inauguró la ofrenda en la Casa de la Bóveda.', channel: 'X' }]
+			}
+		} as unknown as DailySummaryContent;
 		const host = renderSection(content);
-		expect(host.textContent).toContain('Rectora');
-		expect(host.textContent).not.toContain('Rectora Lilia');
+		// Old row shape: the stored key rides along, the section never renders.
+		expect(host.textContent).not.toContain('Rectora Lilia Cedillo Ramírez');
+		expect(host.textContent).not.toContain('Casa de la Bóveda');
+		expect(host.textContent).toContain('Limitaciones de cobertura');
 	});
 });
