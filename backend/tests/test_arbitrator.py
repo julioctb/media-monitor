@@ -150,3 +150,32 @@ def test_reconcile_without_provider_reports_and_skips(session) -> None:
     assert result["candidates"] == 1
     assert result["error"]
     assert session.query(EventMerge).count() == 0
+
+
+def test_deterministic_pass_merges_legacy_drift_pairs(session) -> None:
+    """Pairs that TODAY score >= the floor merge without judgment — the
+    finanzas 23-24 shape (0.636 on stored titles, split at assign time)."""
+    from app.ingest.arbitrator import merge_deterministic_pairs
+    from app.ingest.events import _tokens
+
+    client_id = _client(session)
+    a = _assign(session, client_id, PENSIONES_A, T0)
+    # Direct insert: the drift-era twin the assigner never saw together.
+    twin_title = PENSIONES_A + " - El Popular"
+    twin = Event(
+        client_id=client_id,
+        title=twin_title,
+        title_tokens=" ".join(sorted(_tokens(twin_title))),
+        first_seen_at=T0 + timedelta(hours=4),
+        last_seen_at=T0 + timedelta(hours=4),
+    )
+    session.add(twin)
+    session.commit()
+
+    result = merge_deterministic_pairs(session, client_id=client_id)
+    assert result == {"deterministic_merged": 1}
+    survivor = session.query(Event).filter(Event.client_id == client_id).one()
+    assert survivor.id == a.id
+    audit = session.query(EventMerge).one()
+    assert audit.verdict == "misma"
+    assert "determinista" in audit.reason

@@ -20,6 +20,7 @@ from app.db import SessionLocal
 from app.ingest.arbitrator import (
     build_default_judge,
     find_gray_pairs,
+    merge_deterministic_pairs,
     reconcile_gray_pairs,
 )
 
@@ -36,6 +37,15 @@ def main() -> int:
     session = SessionLocal()
     try:
         window_hours = args.days * 24
+        # Deterministic pre-pass: legacy pairs that TODAY score >= the floor
+        # (assignment-time drift) merge without judgment — same rule as the
+        # live assigner, applied to history.
+        if args.apply:
+            deterministic = merge_deterministic_pairs(
+                session, client_id=args.client_id, window_hours=window_hours
+            )
+            if deterministic["deterministic_merged"]:
+                print(f"heal deterministic: {deterministic}")
         pairs = find_gray_pairs(
             session,
             client_id=args.client_id,

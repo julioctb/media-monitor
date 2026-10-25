@@ -29,6 +29,7 @@ from app.ingest.events import (
     SIMILARITY_THRESHOLD,
     WINDOW_HOURS,
     Event,
+    _aware,
     _event_best_score,
     _tokens,
     event_title_pool,
@@ -91,6 +92,71 @@ def _pair_score(
         _event_best_score(a.title, b, pools.get(b.id, [])),
         _event_best_score(b.title, a, pools.get(a.id, [])),
     )
+
+
+def merge_deterministic_pairs(
+    session: Session,
+    *,
+    client_id: int,
+    now: datetime | None = None,
+    window_hours: int = WINDOW_HOURS,
+) -> dict[str, int]:
+    """Retroactively apply the >= threshold rule to split legacy pairs.
+
+    Assignment-time drift left pairs that TODAY score >= SIMILARITY_THRESHOLD
+    living as two events (measured: finanzas 23-24 at 0.636). No judgment
+    needed — same rule the live assigner trusts, applied to history. Used
+    by the healing script only: the live cycle never produces these (T1's
+    pool closes the drift cause at assignment time).
+    """
+    now = now or datetime.now(tz=timezone.utc)
+    cutoff = now - timedelta(hours=window_hours)
+    events = [
+        e
+        for e in session.scalars(
+            select(Event)
+            .where(
+                Event.client_id == client_id,
+                Event.last_seen_at >= cutoff,
+            )
+            .order_by(Event.id)
+        )
+        if e.mention_count > 0
+    ]
+    pools = event_title_pool(session, events)
+    seen = adjudicated_pairs(session, client_id)
+    merged = 0
+    for i, a in enumerate(events):
+        for b in events[i + 1 :]:
+            if frozenset((a.id, b.id)) in seen:
+                continue
+            score = _pair_score(a, b, pools)
+            if score < SIMILARITY_THRESHOLD:
+                continue
+            if (b.mention_count, -b.id) > (a.mention_count, -a.id):
+                anchor, going = b, a
+            else:
+                anchor, going = a, b
+            if merge_events(session, from_id=going.id, to_id=anchor.id):
+                merged += 1
+                session.add(
+                    EventMerge(
+                        client_id=client_id,
+                        event_from=going.id,
+                        event_to=anchor.id,
+                        score=score,
+                        verdict="misma",
+                        reason=f"score {score:.3f} >= piso determinista",
+                        model=None,
+                    )
+                )
+                seen.add(frozenset((a.id, b.id)))
+                # Pools are stale after a merge (the anchor's pool grew);
+                # a re-run catches residual chain pairs — the script loops
+                # until empty by design.
+    if merged:
+        session.commit()
+    return {"deterministic_merged": merged}
 
 
 def adjudicated_pairs(session: Session, client_id: int) -> set[frozenset[int]]:
@@ -182,8 +248,14 @@ def merge_events(session: Session, *, from_id: int, to_id: int) -> bool:
     )
     to_event.mention_count = len(mentions)
     to_event.source_count = len({m.source for m in mentions})
-    to_event.first_seen_at = min(to_event.first_seen_at, from_event.first_seen_at)
-    to_event.last_seen_at = max(to_event.last_seen_at, from_event.last_seen_at)
+    # SQLite roundtrips naive datetimes — normalize before min/max
+    # (same discipline as touch_event).
+    to_event.first_seen_at = min(
+        _aware(to_event.first_seen_at), _aware(from_event.first_seen_at)
+    )
+    to_event.last_seen_at = max(
+        _aware(to_event.last_seen_at), _aware(from_event.last_seen_at)
+    )
     if len(from_event.title) > len(to_event.title):
         to_event.title = from_event.title
     to_event.title_tokens = " ".join(sorted(_tokens(to_event.title)))
