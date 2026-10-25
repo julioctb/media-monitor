@@ -1251,11 +1251,14 @@ def test_riesgo_floor_covers_every_unreferenced_negative():
 
     ensure_riesgos(content)
 
-    # 3 y 4 son negativas no referenciadas: ambas entran, sin cap.
-    assert content["brief"]["riesgos"] == [
-        {"index": 3, "razon": "tono negativo dominante"},
-        {"index": 4, "razon": "tono negativo dominante"},
-    ]
+    # 3 y 4 son negativas no referenciadas: ambas entran, sin cap. La razón
+    # se compone desde los hechos de la tarjeta — ya no es etiqueta enlatada.
+    riesgos = content["brief"]["riesgos"]
+    assert [e["index"] for e in riesgos] == [3, 4]
+    assert riesgos[0]["razon"] == (
+        "«D»: 5 de 5 menciones con tono negativo; cobertura adversa que exige seguimiento."
+    )
+    assert riesgos[1]["razon"].startswith("«E»")
     # Idempotente: una segunda pasada no duplica.
     ensure_riesgos(content)
     assert len(content["brief"]["riesgos"]) == 2
@@ -1297,7 +1300,11 @@ def test_riesgo_floor_respects_the_model_selection(session):
     content["brief"]["ruido"] = []
     content["brief"]["riesgos"] = []
     ensure_riesgos(content)
-    assert content["brief"]["riesgos"] == [{"index": 0, "razon": "tono negativo dominante"}]
+    riesgos = content["brief"]["riesgos"]
+    assert [e["index"] for e in riesgos] == [0]
+    razon = riesgos[0]["razon"]
+    assert razon.startswith("«") and "tono negativo" in razon
+    assert len(razon.split()) >= 8  # oración completa, no etiqueta de 3 palabras
 
 
 def test_brief_selection_merge_replaces_heuristic_buckets(session):
@@ -1827,7 +1834,11 @@ def test_decision_density_floor_tops_up_unmarked():
     assert decisiones[0] == {"index": 2, "razon": "del modelo"}  # el modelo primero
     topped = {e["index"] for e in decisiones[1:]}
     assert topped == {0, 1}  # los de mayor impacto no marcados
-    assert all(e["razon"] == "mayor impacto del día" for e in decisiones[1:])
+    # Relleno fundamentado: el why de la propia tarjeta ancla la razón.
+    assert [e["razon"] for e in decisiones[1:]] == [
+        "«Historia 0» — x",
+        "«Historia 1» — x",
+    ]
 
 
 def test_decision_density_floor_is_noop_when_model_complies():

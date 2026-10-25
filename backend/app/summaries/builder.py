@@ -902,10 +902,46 @@ def _impact(nota: dict) -> tuple[int, int]:
 #: Bucket caps keep the heuristic brief as short as the LLM one.
 MAX_RUIDO = 3
 
-#: Razón estándar del piso de riesgo (F5). El cap de decisiones es solo del
-#: bucket decisión: los negativos dejan de competir ahí y llenan el suyo,
-#: sin tope — el piso cubre TODAS las negativas no referenciadas.
-RIESGO_RAZON = "tono negativo dominante"
+
+def _fill_razon_riesgo(nota: dict) -> str:
+    """Razón del piso de riesgo (F5) compuesta desde los hechos de la tarjeta.
+
+    Nunca etiqueta enlatada: título, menciones negativas y fuentes son los
+    datos de la propia tarjeta — el mismo estándar de densidad que el
+    SYSTEM_PROMPT exige a la selección del modelo.
+    """
+    raw_tone = nota.get("tone")
+    tone = raw_tone if isinstance(raw_tone, dict) else {}
+    neg = tone.get("negative") or 0
+    total = sum(v for v in tone.values() if isinstance(v, int))
+    title = display_title(nota.get("title")) or "La historia del día"
+    fuentes = len(nota.get("sources") or [])
+    en_fuentes = ""
+    if fuentes:
+        en_fuentes = f" en {fuentes} fuente" + ("s" if fuentes != 1 else "")
+    return (
+        f"«{title}»: {neg} de {total} menciones con tono negativo{en_fuentes}; "
+        "cobertura adversa que exige seguimiento."
+    )
+
+
+def _fill_razon_decision(nota: dict) -> str:
+    """Razón del topup de decisiones (T8.D) compuesta desde la tarjeta.
+
+    Con ``why_it_matters`` del modelo disponible, ese por-qué ES la razón;
+    sin él, la oración ancla en cobertura (fuentes/tono/reiteración).
+    """
+    title = display_title(nota.get("title")) or "La historia del día"
+    why = nota.get("why_it_matters")
+    if isinstance(why, str) and why.strip():
+        return f"«{title}» — {why.strip()}"
+    fuentes = len(nota.get("sources") or [])
+    label = tone_label(nota.get("tone")) or "neutro"
+    rep = ", reiteración" if nota.get("repeat") else ""
+    return (
+        f"«{title}» marcó el día por su cobertura ({fuentes} fuentes, "
+        f"tono {label}{rep}); entra al brief por impacto."
+    )
 
 
 def _heuristic_brief_sections(noticias: list) -> tuple[list, list, list]:
@@ -960,7 +996,7 @@ def ensure_riesgos(content: dict) -> None:
             continue
         if tone_label(nota.get("tone")) != "negativo":
             continue
-        riesgos.append({"index": index, "razon": RIESGO_RAZON})
+        riesgos.append({"index": index, "razon": _fill_razon_riesgo(nota)})
 
 
 # ------------------------------------------------ F6/F7 riesgo estructural
@@ -1293,7 +1329,6 @@ DIA_PREVIO_MAX = 12
 #: candidatas. El modelo marca; el builder completa el piso con las de mayor
 #: impacto NO marcadas (la selección del modelo nunca se recorta).
 DECISION_MIN = 3
-DECISION_TOPUP_RAZON = "mayor impacto del día"
 
 
 def ensure_decision_density(content: dict) -> None:
@@ -1326,7 +1361,9 @@ def ensure_decision_density(content: dict) -> None:
         else (0, 0, 0)
     )
     for index in candidatos[: DECISION_MIN - len(decisiones)]:
-        decisiones.append({"index": index, "razon": DECISION_TOPUP_RAZON})
+        decisiones.append(
+            {"index": index, "razon": _fill_razon_decision(noticias[index])}
+        )
 
 
 def _digest_prompt(day: date, facts: dict, dia_previo: list | None = None) -> str:
