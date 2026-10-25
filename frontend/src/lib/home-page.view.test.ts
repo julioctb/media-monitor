@@ -119,3 +119,40 @@ it('falls back to Resumen diario / BUAP without active keywords', () => {
 
 	expect(text()).toContain('Resumen diario / BUAP');
 });
+
+it('renders the v3 brief and hides the plain narrative on digest-brief-v3 rows', () => {
+	const v3Summary: DailySummary = {
+		...summaryFixture(),
+		content: {
+			...summaryFixture().content,
+			brief: {
+				headline: 'Narrativa editorial del día.',
+				delta: ['Nueva historia: A'],
+				decisiones: [{ index: 0, categoria: 'decision', razon: 'Impacto' }],
+				ruido: [],
+				a_favor: [],
+				fechas: []
+			},
+			tarjetas: [
+				{ titulo: 'A', hecho: 'Hecho uno', fuentes: ['news_rss'], repeat: false }
+			],
+			campo: [{ titulo: 'Reporte', estado: 'publicada' }]
+		}
+	};
+	const { text } = renderPage({ ...emptyDayData(), summary: v3Summary });
+	const copy = text();
+
+	// The brief replaces the plain narrative block (same prose, promoted).
+	expect(copy).toContain('Brief del día');
+	expect(copy).toContain('Narrativa editorial del día.');
+	expect(copy).not.toContain('Sintesis del día');
+	expect(copy).toContain('Hecho uno');
+	expect(copy).toContain('publicada');
+});
+
+it('keeps the legacy narrative on v2 rows without brief keys', () => {
+	const { text } = renderPage({ ...emptyDayData(), summary: summaryFixture() });
+
+	expect(text()).toContain('Sintesis del día');
+	expect(text()).not.toContain('Brief del día');
+});
