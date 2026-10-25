@@ -34,6 +34,7 @@ from app.settings_runtime import EffectiveSettings, resolve_effective_settings
 from app.summaries.agenda_detect import normalize_title, parse_spanish_date
 from app.summaries.digest import (
     DIGEST_SCHEMA_VERSION,
+    apply_brief,
     apply_narrative,
     build_digest_facts,
     render_plain_text,
@@ -75,8 +76,14 @@ SYSTEM_PROMPT = (
     "a las de tono negativo dominante: nómbralas y explica la razón de su "
     "tono según sus hechos; las positivas y neutras se subordinan), items "
     "[{index, summary, why_it_matters, confidence_note}] para las noticias "
-    "que lo requieran; confidence_note justifica la confianza en<=6 palabras "
-    "(ej. «fuente oficial directa») y es opcional; y rectora {tone, watch, "
+    "que lo requieran: summary es el HECHO en 1 oración y why_it_matters el "
+    "POR QUÉ IMPORTA en 1 oración; confidence_note justifica la confianza en"
+    "<=6 palabras (ej. «fuente oficial directa») y es opcional; y seleccion: "
+    "[{index, categoria, razon}] para el brief, eligiendo SOLO tarjetas ya "
+    "existentes por su índice en noticias, con categoria decision (exige "
+    "decisión o atención), ruido o a_favor y una razon de <=6 palabras: la "
+    "selección nunca introduce datos nuevos, solo referencia índices. "
+    "Además rectora {tone, watch, "
     "activity}: activity es el seguimiento narrativo de la persona focal, "
     "lista [{when, status, text, channel}] con cuándo/qué, estado y canal "
     "cuando aplique (omítela si no hay nada que vigilar). Incluye además "
@@ -348,9 +355,18 @@ def build_campo(session, client_id: int, utc_start, utc_end) -> list[dict]:
 
 
 def _heuristic_headline(
-    day: date, total: int, silent: list[str], by_source: dict, negative_events: int = 0
+    day: date,
+    total: int,
+    silent: list[str],
+    by_source: dict,
+    negative_events: int = 0,
+    noticias: list | None = None,
 ) -> str:
-    """Fixed-template Spanish headline; deterministic for a given input."""
+    """Fixed-template Spanish headline; deterministic for a given input.
+
+    digest-brief-v3: the lead names the dominant event by COMPUTED impact
+    (sources, then classified mentions) — never mere volume ordering.
+    """
     human = _human_day(day)
     if total == 0:
         sentence = f"Hoy {human} no se registraron menciones."
@@ -359,10 +375,19 @@ def _heuristic_headline(
             sentence += f" Sin cobertura para: {shown}."
         return sentence
 
-    parts = [f"Hoy {human} se registraron {total} {_noun(total)}."]
+    parts = []
+    dominant = None
+    for nota in noticias or []:
+        if not isinstance(nota, dict) or not nota.get("title"):
+            continue
+        if dominant is None or _impact(nota) > _impact(dominant):
+            dominant = nota
+    if dominant is not None:
+        parts.append(f"{dominant['title']} encabeza la cobertura del día.")
+    parts.append(f"Se registraron {total} {_noun(total)}.")
     if by_source:
-        dominant = max(by_source.items(), key=lambda kv: (kv[1], kv[0]))[0]
-        parts.append(f"La fuente con más notas fue {dominant}.")
+        dominant_source = max(by_source.items(), key=lambda kv: (kv[1], kv[0]))[0]
+        parts.append(f"La fuente con más notas fue {dominant_source}.")
     if negative_events:
         parts.append(
             f"{negative_events} {'nota' if negative_events == 1 else 'notas'} con tono "
@@ -372,6 +397,49 @@ def _heuristic_headline(
         shown = ", ".join(silent[:MAX_KEYWORDS_NARRATIVE])
         parts.append(f"Sin menciones: {shown}.")
     return " ".join(parts)
+
+
+def _impact(nota: dict) -> tuple[int, int]:
+    """Editorial impact: reach (sources) first, classified volume second."""
+    if not isinstance(nota, dict):
+        return (0, 0)
+    tone = nota.get("tone")
+    classified = (
+        sum(v or 0 for v in tone.values()) if isinstance(tone, dict) else 0
+    )
+    return (len(nota.get("sources") or []), classified)
+
+
+#: Bucket caps keep the heuristic brief as short as the LLM one.
+MAX_DECISIONES = 3
+MAX_RUIDO = 3
+
+
+def _heuristic_brief_sections(noticias: list) -> tuple[list, list, list]:
+    """Heuristic fill of the SAME esqueleto the LLM completes: tono/conteo.
+
+    Negative-dominant stories are the decision/atention pile (capped);
+    positive-dominant ones go to a_favor; repeated single-source items are
+    ruido. With no negative story at all the top-impact card leads.
+    """
+    decisiones: list[dict] = []
+    ruido: list[dict] = []
+    a_favor: list[dict] = []
+    for index, nota in enumerate(noticias or []):
+        if not isinstance(nota, dict):
+            continue
+        label = tone_label(nota.get("tone"))
+        fuentes = len(nota.get("sources") or [])
+        if label == "negativo" and len(decisiones) < MAX_DECISIONES:
+            decisiones.append({"index": index, "razon": "tono negativo dominante"})
+        elif label == "positivo":
+            a_favor.append({"index": index, "razon": "tono positivo dominante"})
+        elif nota.get("repeat") and fuentes < 2 and len(ruido) < MAX_RUIDO:
+            ruido.append({"index": index, "razon": "reiteración sin datos nuevos"})
+    if not decisiones and noticias:
+        top = max(range(len(noticias)), key=lambda i: _impact(noticias[i]))
+        decisiones.append({"index": top, "razon": "mayor cobertura del día"})
+    return decisiones, ruido, a_favor
 
 
 def digest_prompt_view(facts: dict) -> dict:
@@ -620,10 +688,16 @@ def build_daily_summary(
             negative_events += 1
 
     narrative = _heuristic_headline(
-        day, total, silent, content["coverage"]["by_source"], negative_events
+        day,
+        total,
+        silent,
+        content["coverage"]["by_source"],
+        negative_events,
+        content["noticias"],
     )
     mode = "heuristic"
     llm_ok = False
+    brief_payload: dict | None = None
     if generate is None:
         generate = summary_generator(effective)
     if generate is not None and total > 0:
@@ -636,6 +710,7 @@ def build_daily_summary(
             headline = payload.get("headline") if isinstance(payload, dict) else None
             if not errors and isinstance(headline, str) and headline.strip():
                 narrative, mode, llm_ok = headline.strip(), "llm", True
+                brief_payload = payload
             else:
                 log.warning("digest llm payload rejected for %s: %s", day, errors)
 
@@ -683,17 +758,24 @@ def build_daily_summary(
 
     # digest-brief-v3: the deterministic esqueleto. Tarjetas mirror noticias
     # (index-aligned, prose included); delta/fechas/campo are pure facts. The
-    # LLM only adds the selection buckets and headline (T3) on top.
+    # heuristic fills the buckets by tono/conteo; a valid LLM selection
+    # replaces them wholesale (same esqueleto, one render path).
     content["tarjetas"] = build_tarjetas(content["noticias"])
+    heu_decisiones, heu_ruido, heu_a_favor = _heuristic_brief_sections(
+        content["noticias"]
+    )
     content["brief"] = {
         "delta": brief_delta(
             previous_day_noticias(session, client_id, day), content["noticias"]
         ),
-        "decisiones": [],
-        "ruido": [],
-        "a_favor": [],
+        "decisiones": heu_decisiones,
+        "ruido": heu_ruido,
+        "a_favor": heu_a_favor,
         "fechas": brief_fechas(content.get("agenda") or [], day),
     }
+    if brief_payload is not None:
+        apply_brief(content, brief_payload)
+    content["brief"]["headline"] = narrative
     content["campo"] = build_campo(session, client_id, utc_start, utc_end)
 
     content["plain_text"] = render_plain_text(content, narrative)

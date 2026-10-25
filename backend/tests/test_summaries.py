@@ -1105,3 +1105,189 @@ def test_brief_fechas_caduca_y_proxima():
     }
     # Every entry keeps the raw when label for the UI.
     assert all("when" in f for f in fechas)
+
+
+# ------------------------------------------------------- digest-brief-v3 (T3)
+
+
+def test_heuristic_headline_leads_with_dominant_event(session):
+    from app.models import Sentiment
+
+    client = add_client(session)
+    big = _event(client.id, "BUAP anuncia recorte de becas")
+    session.add(big)
+    session.flush()
+    for title in ("Recorte buzca", "Recorte confirmado"):
+        mention = add_mention(
+            session, client.id, title, DAY, event_id=big.id
+        )
+        mention.sentiment = Sentiment.negative
+    small = _event(client.id, "Expo ciencias")  # one source, no tone
+    session.add(small)
+    session.flush()
+    add_mention(session, client.id, "Expo ciencias", DAY, event_id=small.id)
+    session.commit()
+
+    row = build_daily_summary(session, client_id=client.id, day=DAY.date())
+    # Impacto computado: el evento de 2 fuentes con tono negativo domina.
+    assert row.narrative.startswith("BUAP anuncia recorte de becas encabeza")
+    assert "1 nota con tono negativo dominante" in row.narrative
+    # The brief headline IS the narrative: one single source of headline.
+    assert row.content["brief"]["headline"] == row.narrative
+
+
+def test_heuristic_brief_sections_by_tone_and_count(session):
+    from app.models import Sentiment
+
+    client = add_client(session)
+    neg = _event(client.id, "BUAP anuncia recorte de becas")
+    session.add(neg)
+    session.flush()
+    m = add_mention(session, client.id, "Recorte buzca", DAY, event_id=neg.id)
+    m2 = add_mention(
+        session,
+        client.id,
+        "Recorte confirmado",
+        DAY,
+        source=MentionSource.rss_custom,
+        event_id=neg.id,
+    )
+    m.sentiment = Sentiment.negative
+    m2.sentiment = Sentiment.negative
+    pos = _event(client.id, "BUAP gana fondos")
+    session.add(pos)
+    session.flush()
+    mp = add_mention(session, client.id, "Fuentes extra", DAY, event_id=pos.id)
+    mp.sentiment = Sentiment.positive
+    session.commit()
+
+    row = build_daily_summary(session, client_id=client.id, day=DAY.date())
+    brief = row.content["brief"]
+    # noticias[0] es el evento negativo de 2 fuentes; index-aligned buckets.
+    assert brief["decisiones"] == [
+        {"index": 0, "razon": "tono negativo dominante"}
+    ]
+    assert len(brief["a_favor"]) == 1
+    assert brief["a_favor"][0]["index"] == 1
+    assert brief["a_favor"][0]["razon"] == "tono positivo dominante"
+    assert brief["ruido"] == []
+
+
+def test_brief_selection_merge_replaces_heuristic_buckets(session):
+    client = add_client(session)
+    add_mention(session, client.id, "BUAP publica", DAY)
+
+    def payload(prompt: str) -> str:
+        return json.dumps(
+            {
+                "headline": "Titular.",
+                "items": [{"index": 0, "summary": "hecho", "why_it_matters": "porque"}],
+                "seleccion": [
+                    {"index": 0, "categoria": "decision", "razon": "afecta presupuesto"},
+                    {"index": 0, "categoria": "ruido"},
+                ],
+            }
+        )
+
+    row = build_daily_summary(session, client_id=client.id, day=DAY.date(), generate=payload)
+    brief = row.content["brief"]
+    # Valid selection: the buckets are EXACTLY the model's picks.
+    assert brief["decisiones"] == [{"index": 0, "razon": "afecta presupuesto"}]
+    assert brief["ruido"] == [{"index": 0}]
+    assert brief["a_favor"] == []
+    # Prosa viaja igual en tarjeta y noticia (un solo camino de render).
+    assert row.content["tarjetas"][0]["hecho"] == "hecho"
+    assert row.content["tarjetas"][0]["por_que"] == "porque"
+
+
+def test_brief_selection_tolerates_bad_entries(session):
+    client = add_client(session)
+    add_mention(session, client.id, "BUAP publica", DAY)
+    payload = json.dumps(
+        {
+            "headline": "Titular.",
+            "seleccion": [
+                {"index": "0", "categoria": "decision"},  # strict: dropped
+                {"index": 9, "categoria": "ruido"},  # out of range
+                {"index": 0, "categoria": "importante"},  # unknown bucket
+                {"index": 0, "categoria": "a_favor", "razon": "recupera espacios"},
+            ],
+        }
+    )
+
+    def generate(prompt: str) -> str:
+        return payload
+
+    row = build_daily_summary(session, client_id=client.id, day=DAY.date(), generate=generate)
+    brief = row.content["brief"]
+    # Only the healthy entry lands; the rest never breaks the merge.
+    assert brief["a_favor"] == [{"index": 0, "razon": "recupera espacios"}]
+    assert brief["decisiones"] == []
+    assert validate_digest(row.content) == []
+
+
+def test_brief_esqueleto_golden_keys():
+    """Heuristic and LLM fill the SAME esqueleto: identical key structure."""
+    from app.summaries.builder import build_tarjetas
+
+    def esqueleto_keys(content: dict) -> dict:
+        return {
+            "top": sorted(content["brief"].keys()),
+            "tarjeta": sorted(content["tarjetas"][0].keys()) if content["tarjetas"] else [],
+            "has_campo": "campo" in content,
+        }
+
+    assert esqueleto_keys(
+        {
+            "brief": {
+                "headline": "h",
+                "delta": [],
+                "decisiones": [],
+                "ruido": [],
+                "a_favor": [],
+                "fechas": [],
+            },
+            "tarjetas": [build_tarjetas([{"title": "X"}])[0]],
+            "campo": [],
+        }
+    ) == {
+        "top": ["a_favor", "decisiones", "delta", "fechas", "headline", "ruido"],
+        "tarjeta": [
+            "angulo_nuevo",
+            "fuentes",
+            "hecho",
+            "por_que",
+            "repeat",
+            "titulo",
+            "tono",
+        ],
+        "has_campo": True,
+    }
+
+
+def test_system_prompt_carries_brief_contract():
+    assert "seleccion" in SYSTEM_PROMPT
+    assert "categoria" in SYSTEM_PROMPT
+    # The brief never introduces data: picks reference existing indexes.
+    assert "index" in SYSTEM_PROMPT
+
+
+def test_plain_text_renders_campo_section(session):
+    from app.models import FieldReport
+
+    client = add_client(session)
+    session.add(
+        FieldReport(
+            client_id=client.id,
+            status="review",
+            title="Obra del puente parada",
+            content="Lleva tres días sin avanzar.",
+            created_at=datetime(2026, 10, 9, 15, 0, tzinfo=timezone.utc),
+        )
+    )
+    session.commit()
+    row = build_daily_summary(session, client_id=client.id, day=DAY.date())
+    plain = row.content["plain_text"]
+    assert "CAMPO" in plain
+    assert "Obra del puente parada" in plain
+    assert "en revisión" in plain

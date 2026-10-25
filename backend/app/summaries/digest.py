@@ -30,10 +30,12 @@ import logging
 from pydantic import ValidationError
 
 from app.summaries.digest_schema import (
+    BRIEF_CATEGORIES,
     ActivityEntry,
     AgendaEntry,
     CuentaEntry,
     NarrativeItem,
+    SeleccionEntry,
     brief_shape_errors,
 )
 
@@ -508,6 +510,54 @@ def apply_narrative(content: dict, payload: object) -> list[str]:
     return validate_digest(content)
 
 
+def apply_brief(content: dict, payload: object) -> None:
+    """Merge the brief ``seleccion`` into the esqueleto's fixed buckets.
+
+    The selection only REFERENCEStarjetas by index (the model never invents
+    structure): each valid entry lands in its categoria bucket. One healthy
+    entry switches the buckets to the model's picks wholesale; a payload
+    with no valid selection keeps the heuristic buckets. Tolerant by
+    contract: malformed entries are logged and skipped.
+    """
+    if not isinstance(content, dict) or not isinstance(content.get("brief"), dict):
+        return
+    if not isinstance(payload, dict):
+        return
+    entradas = payload.get("seleccion")
+    if not isinstance(entradas, list):
+        return
+    tarjetas = content.get("tarjetas")
+    if isinstance(tarjetas, list):
+        total = len(tarjetas)
+    else:
+        noticias = content.get("noticias")
+        total = len(noticias) if isinstance(noticias, list) else 0
+    buckets: dict[str, list] = {categoria: [] for categoria in BRIEF_CATEGORIES}
+    got = False
+    for pos, entry in enumerate(entradas):
+        try:
+            validated = SeleccionEntry.model_validate(entry)
+        except ValidationError as exc:
+            _warn_skip(f"seleccion[{pos}]", exc)
+            continue
+        if not 0 <= validated.index < total:
+            _warn_skip(
+                "seleccion[%d]" % pos, IndexError(f"index {validated.index} out of range")
+            )
+            continue
+        item: dict = {"index": validated.index}
+        razon = _clean_str(validated.razon)
+        if razon:
+            item["razon"] = razon
+        buckets[validated.categoria].append(item)
+        got = True
+    if not got:
+        return
+    content["brief"]["decisiones"] = buckets["decision"]
+    content["brief"]["ruido"] = buckets["ruido"]
+    content["brief"]["a_favor"] = buckets["a_favor"]
+
+
 def render_plain_text(content: dict, narrative: str) -> str:
     """Sectioned plain text (RAG chunk + readable fallback), es mirrors UI."""
     lines = [narrative, ""]
@@ -595,6 +645,66 @@ def render_plain_text(content: dict, narrative: str) -> str:
         lines.append(
             f"- {person.get('name')}{suffix} — {person.get('mention_count', 0)} menciones{fact}"
         )
+    brief = content.get("brief")
+    if isinstance(brief, dict):
+        tarjetas = content.get("tarjetas")
+        noticias = content.get("noticias") or []
+        pool = tarjetas if isinstance(tarjetas, list) else noticias
+
+        def _titulo(index: int) -> str:
+            if isinstance(pool, list) and 0 <= index < len(pool):
+                entry = pool[index]
+                if isinstance(entry, dict) and entry.get("titulo"):
+                    return entry["titulo"]
+                if isinstance(entry, dict) and entry.get("title"):
+                    return entry["title"]
+            return f"#{index}"
+
+        secciones = (
+            ("Qué cambió", brief.get("delta"), None),
+            ("Decisión / atención", brief.get("decisiones"), "razon"),
+            ("Ruido", brief.get("ruido"), "razon"),
+            ("A favor", brief.get("a_favor"), "razon"),
+        )
+        lines.append("")
+        lines.append("BRIEF")
+        for header, entries, razon_key in secciones:
+            if not entries:
+                continue
+            lines.append(header)
+            for entry in entries:
+                if not isinstance(entry, dict):
+                    continue
+                if razon_key is None:
+                    lines.append(f"- {entry}")
+                    continue
+                index = entry.get("index")
+                title = _titulo(index) if isinstance(index, int) else "?"
+                razon = entry.get(razon_key)
+                suffix = f" — {razon}" if razon else ""
+                lines.append(f"- {title}{suffix}")
+        fechas = brief.get("fechas") or []
+        if fechas:
+            lines.append("Fechas que obligan")
+            for fecha in fechas:
+                if not isinstance(fecha, dict):
+                    continue
+                estado = fecha.get("estado") or "?"
+                lines.append(
+                    f"- [{estado}] {fecha.get('title')} ({fecha.get('when')})"
+                )
+    campo = content.get("campo")
+    if isinstance(campo, list) and campo:
+        lines.append("")
+        lines.append("CAMPO")
+        for entry in campo:
+            if not isinstance(entry, dict):
+                continue
+            estado = entry.get("estado") or "?"
+            head = f"- ({estado}) {entry.get('titulo') or '(sin título)'}"
+            if entry.get("contenido"):
+                head += f": {entry['contenido']}"
+            lines.append(head)
     lines.append("")
     lines.append("PENDIENTES")
     for pending in content.get("pendientes") or []:
