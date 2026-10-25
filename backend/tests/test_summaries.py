@@ -28,6 +28,7 @@ from app.summaries.builder import (
     SYSTEM_PROMPT,
     apply_impact_order,
     compile_tail_cards,
+    ensure_decision_density,
     day_window,
     summary_generator,
 )
@@ -1671,7 +1672,136 @@ def test_prompt_view_carries_sobrio_titles():
     assert view["noticias"][0]["sources"][0]["title"] == "Raw de la fuente"
 
 
-# --------------------------------------------------- T8.B orden y cola
+# --------------------------------------------------- T8.D brief denso
+
+
+def test_brief_delta_caps_at_five_and_never_raw_titles():
+    from app.summaries.builder import brief_delta
+
+    prev = [
+        {"title": "Historia estable", "tone": {"negative": 2}},
+        {"title": "Historia que mejora", "tone": {"negative": 2}},
+    ]
+    noticias = [
+        {"title": "Historia estable", "tone": {"negative": 2}},
+        # giro de tono
+        {"title": "Historia que mejora", "tone": {"positive": 2}},
+    ] + [
+        # siete nuevas: el delta queda en 5 entradas
+        {"title": f"Nova historia completamente distinta numero {i}", "tone": {}}
+        for i in range(7)
+    ]
+
+    delta = brief_delta(prev, noticias)
+    assert len(delta) == 5
+    # giro primero (es el delta verdad), luego nuevas por impacto.
+    assert delta[0].startswith("Historia que mejora")
+    assert "positivo" in delta[0]
+    nuevas = [d for d in delta if d.startswith("Nueva historia:")]
+    assert len(nuevas) == 4
+    # prosa corta, nunca el title crudo con chrome
+    for entry in delta:
+        assert "https" not in entry and "@" not in entry
+        assert len(entry) <= 90
+
+
+def test_brief_fechas_takes_last_valid_on_ranges():
+    from datetime import date
+
+    from app.summaries.builder import brief_fechas
+
+    day = date(2026, 10, 24)
+    fechas = brief_fechas(
+        [{"when": "Del 21 al 28 de octubre", "title": "Ventana de consulta"}],
+        day,
+    )
+    assert len(fechas) == 1
+    assert fechas[0]["fecha"] == "2026-10-28"
+    assert fechas[0]["estado"] == "proxima"
+
+
+def test_brief_fechas_augments_from_agenda_table(session):
+    from datetime import date
+
+    from app.models import AgendaItem
+    from app.summaries.builder import augment_fechas_from_agenda
+
+    client = add_client(session)
+    day = date(2026, 10, 24)
+    session.add(
+        AgendaItem(
+            client_id=client.id,
+            title="Votación de la reforma de pensiones",
+            kind="deadline",
+            event_date=date(2026, 10, 28),  # a 4 días
+            date_label="28 de octubre",
+        )
+    )
+    session.commit()
+
+    # ya viene de content.agenda un entry homónimo: no se duplica
+    fechas = augment_fechas_from_agenda(
+        session,
+        client.id,
+        day,
+        [{"title": "votacion de la reforma de pensiones", "when": "28 oct", "estado": "proxima", "fecha": "2026-10-28"}],
+    )
+    # el entry de content.agenda gana; la fila homonima de la tabla no duplica
+    assert len(fechas) == 1
+    assert fechas[0]["title"] == "votacion de la reforma de pensiones"
+
+    session.delete(session.query(AgendaItem).one())
+    session.commit()
+    vacias = augment_fechas_from_agenda(session, client.id, day, [])
+    assert vacias == []
+
+
+def test_system_prompt_demands_dense_selection():
+    assert "mínimo tres" in SYSTEM_PROMPT
+    assert "oración" in SYSTEM_PROMPT  # razon con lectura, no topic de 4 palabras
+    assert "día previo" in SYSTEM_PROMPT
+
+
+def test_decision_density_floor_tops_up_unmarked():
+    pares = [_card(i, fuentes=3, tone="negative", why="x") for i in range(4)]
+    content = _ordered_content([p[0] for p in pares], [p[1] for p in pares])
+    content["brief"]["decisiones"] = [{"index": 2, "razon": "del modelo"}]
+
+    ensure_decision_density(content)
+
+    decisiones = content["brief"]["decisiones"]
+    assert len(decisiones) == 3
+    assert decisiones[0] == {"index": 2, "razon": "del modelo"}  # el modelo primero
+    topped = {e["index"] for e in decisiones[1:]}
+    assert topped == {0, 1}  # los de mayor impacto no marcados
+    assert all(e["razon"] == "mayor impacto del día" for e in decisiones[1:])
+
+
+def test_decision_density_floor_is_noop_when_model_complies():
+    pares = [_card(i, fuentes=2) for i in range(4)]
+    content = _ordered_content([p[0] for p in pares], [p[1] for p in pares])
+    content["brief"]["decisiones"] = [
+        {"index": 0},
+        {"index": 1},
+        {"index": 2},
+    ]
+
+    ensure_decision_density(content)
+
+    assert len(content["brief"]["decisiones"]) == 3
+
+
+def test_prompt_view_carries_compact_previous_day():
+    from app.summaries.builder import digest_prompt_view
+
+    view = digest_prompt_view(
+        {"noticias": [], "rectora": {}},
+        dia_previo=[{"title": "Historia de ayer 🎓", "tone": {"negative": 1}}],
+    )
+    previo = view["dia_previo"]
+    assert len(previo) == 1
+    assert previo[0]["title"] == "Historia de ayer"
+    assert previo[0]["tono"] == "negativo"
 
 
 def _card(i, fuentes=1, tone=None, why=None, titulo=None):

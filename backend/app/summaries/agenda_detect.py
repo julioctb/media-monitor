@@ -91,18 +91,19 @@ def parse_spanish_date(text: str, year: int) -> date | None:
             return date(int(iso.group(1)), int(iso.group(2)), int(iso.group(3)))
         except ValueError:
             return None
-    match = _MONTH_RE.search(text)
-    if not match:
-        return None
-    day = int(match.group(1))
-    month = _month_from(match.group(2))
-    if month is None or not 1 <= day <= 31:
-        return None
-    resolved_year = int(match.group(3)) if match.group(3) else year
-    try:
-        return date(resolved_year, month, day)
-    except ValueError:
-        return None
+    # T8.D: rangos («Del 21 al 24 de octubre») y prefijos con basura — el
+    # primer par día+mes VÁLIDO gana, no el primer match crudo.
+    for match in _MONTH_RE.finditer(text):
+        day = int(match.group(1))
+        month = _month_from(match.group(2))
+        if month is None or not 1 <= day <= 31:
+            continue
+        resolved_year = int(match.group(3)) if match.group(3) else year
+        try:
+            return date(resolved_year, month, day)
+        except ValueError:
+            continue
+    return None
 
 
 def detect_kind(title: str | None, status: str | None) -> str:

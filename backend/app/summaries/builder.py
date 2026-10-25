@@ -30,7 +30,7 @@ from sqlalchemy import func, select
 from app.enrich.llm import strip_code_fence
 
 from app.ingest.events import similarity_with_suffix_variants
-from app.models import DailySummary, FieldReport, Mention, queries
+from app.models import AgendaItem, DailySummary, FieldReport, Mention, queries
 from app.models.settings import DEFAULT_OPENAI_BASE_URL
 from app.settings_runtime import EffectiveSettings, resolve_effective_settings
 from app.summaries.agenda_detect import normalize_title, parse_spanish_date
@@ -85,8 +85,13 @@ SYSTEM_PROMPT = (
     "<=6 palabras (ej. «fuente oficial directa») y es opcional; y seleccion: "
     "[{index, categoria, razon}] para el brief, eligiendo SOLO tarjetas ya "
     "existentes por su índice en noticias, con categoria decision (exige "
-    "decisión o atención), ruido o a_favor y una razon de <=6 palabras: la "
-    "selección nunca introduce datos nuevos, solo referencia índices. "
+    "decisión o atención), ruido o a_favor: la selección nunca introduce "
+    "datos nuevos, solo referencia índices. Densidad editorial: marca "
+    "mínimo tres decisiones cuando haya candidatas, y cada razon es una "
+    "oración completa que explique la lectura editorial y su consecuencia, "
+    "nunca una etiqueta de tres o cuatro palabras. El bloque dia_previo "
+    "lista en compacto el día previo: úsalo para calibrar qué continúa y "
+    "qué es ángulo nuevo; lo ya conocido se trata como continuidad. "
     "Además rectora {tone, watch, "
     "activity}: activity es el seguimiento narrativo de la persona focal, "
     "lista [{when, status, text, channel}] con cuándo/qué, estado y canal "
@@ -220,12 +225,28 @@ def _delta_key(noticia: dict):
     return None
 
 
+def _delta_label(title: str | None) -> str:
+    """Sobrio, clipped label for a delta entry — never a raw dumped title."""
+    clean = display_title(title)
+    if not clean:
+        return "(sin título)"
+    if len(clean) <= DELTA_CLIP:
+        return clean
+    return f"{clean[:DELTA_CLIP].rsplit(' ', 1)[0]}…"
+
+
+#: Tope duro del delta (T8.D) y recorte de la etiqueta sobria.
+DELTA_MAX = 5
+DELTA_CLIP = 60
+
+
 def brief_delta(prev_noticias: list, noticias: list) -> list[str]:
     """Qué cambió vs el día hábil previo: nuevas historias y giros de tono.
 
     Matching by event id first, normalized title as fallback (loose rows
-    carry no id). Stories absent from the previous digest are new; matched
-    stories whose dominant tone flipped are reported too.
+    carry no id). Densa por contrato (T8.D): los giros van primero (son el
+    delta verdad), las nuevas después; tope duro :data:`DELTA_MAX` y
+    etiqueta sobria recortada — nunca el volcado de titles crudos.
     """
     prev_by_key: dict = {}
     for noticia in prev_noticias or []:
@@ -234,20 +255,22 @@ def brief_delta(prev_noticias: list, noticias: list) -> list[str]:
         key = _delta_key(noticia)
         if key is not None:
             prev_by_key.setdefault(key, noticia)
-    delta: list[str] = []
+    giros: list[str] = []
+    nuevas: list[str] = []
     for noticia in noticias or []:
         if not isinstance(noticia, dict):
             continue
-        title = noticia.get("title") or "(sin título)"
-        prev = prev_by_key.get(_delta_key(noticia)) if _delta_key(noticia) else None
+        label = _delta_label(noticia.get("title"))
+        key = _delta_key(noticia)
+        prev = prev_by_key.get(key) if key else None
         if prev is None:
-            delta.append(f"Nueva historia: {title}")
+            nuevas.append(f"Nueva historia: {label}")
             continue
         before = tone_label(prev.get("tone"))
         after = tone_label(noticia.get("tone"))
         if before and after and before != after:
-            delta.append(f"{title}: el tono pasa de {before} a {after}")
-    return delta
+            giros.append(f"{label}: el tono pasa de {before} a {after}")
+    return (giros + nuevas)[:DELTA_MAX]
 
 
 def brief_fechas(agenda: list, day: date) -> list[dict]:
@@ -279,6 +302,46 @@ def brief_fechas(agenda: list, day: date) -> list[dict]:
     return fechas
 
 
+def augment_fechas_from_agenda(session, client_id: int, day: date, fechas: list) -> list:
+    """Fechas que obligan desde la tabla agenda_items (T8.D).
+
+    El brief nunca dependió de que el narrador recuerde listar la agenda:
+    las filas reales con ``event_date`` en ``[day, day + FECHAS_PROXIMAS_DIAS]``
+    entran como «proxima» con su date_label. Homónimas (título normalizado)
+    ya presentes en la ventana narrativa no se duplican. Determinista.
+    """
+    out = list(fechas or [])
+    known = set()
+    for f in out:
+        if isinstance(f, dict) and f.get("title"):
+            known.add(normalize_title(f["title"]))
+    limit = day + timedelta(days=FECHAS_PROXIMAS_DIAS)
+    rows = session.scalars(
+        select(AgendaItem)
+        .where(
+            AgendaItem.client_id == client_id,
+            AgendaItem.event_date.is_not(None),
+            AgendaItem.event_date >= day,
+            AgendaItem.event_date <= limit,
+        )
+        .order_by(AgendaItem.event_date, AgendaItem.id)
+    ).all()
+    for row in rows:
+        key = normalize_title(row.title or "")
+        if not key or key in known:
+            continue
+        known.add(key)
+        out.append(
+            {
+                "title": row.title,
+                "when": row.date_label or row.event_date.isoformat(),
+                "estado": "proxima",
+                "fecha": row.event_date.isoformat(),
+            }
+        )
+    return out
+
+
 #: Piso de calidad (digest-brief-v3): una historia cuyo único contenido es una
 #: actualización cosmética de red social (foto de portada/perfil, avatar) no
 #: merece tarjeta. Heurística determinística sobre el título; la mención sigue
@@ -302,13 +365,13 @@ def is_cosmetic_story(title: str | None) -> bool:
 # events.py) porque aquí solo se juega la presentación — la clusterización
 # canónica sigue en ingest. Una misma historia parafraseada por outlets
 # distintos diluye el Jaccard; calibrado con la regen 24-oct: la saga
-# consulta/pensiones (8 notas) colapsa a UNA tarjeta y ningún par entre
-# historias distintas alcanza el umbral.
-TWIN_STORY_SIMILARITY = 0.22
+# consulta/pensiones colapsa a UNA tarjeta, los posts X de la misma noticia
+# se fundan entre sí, y ningún par entre historias distintas alcanza el
+# umbral.
+TWIN_STORY_SIMILARITY = 0.2
 
 _URL_RE = re.compile(r"https?://\S+|www\.\S+", re.I)
 HANDLE_RE = re.compile(r"(?<![a-z0-9])@[a-z0-9_]+", re.I)
-HASHTAG_RE = re.compile(r"#\w+")
 _EMOJI_RE = re.compile(
     "["
     "\U0001F000-\U0001FAFF"  # symbols, pictographs, emoji blocks
@@ -319,6 +382,7 @@ _EMOJI_RE = re.compile(
     "\U0000200D"  # zero-width joiner
     "]+"
 )
+HASHTAG_RE = re.compile(r"#\w+")
 
 
 def display_title(title: str | None) -> str:
@@ -784,13 +848,15 @@ def _heuristic_brief_sections(noticias: list) -> tuple[list, list, list]:
     return decisiones, ruido, a_favor
 
 
-def digest_prompt_view(facts: dict) -> dict:
+def digest_prompt_view(facts: dict, dia_previo: list | None = None) -> dict:
     """Lean facts projection for the narrative prompt.
 
     Everything the SYSTEM_PROMPT instructions can reference, nothing the
     merge re-derives: no ids, no urls, no coverage/pendientes (deterministic
     sections the model never writes). Order is the content's own, so
-    ``items[i].index`` keeps matching ``noticias[i]``.
+    ``items[i].index`` keeps matching ``noticias[i]``. Titles travel sobrios
+    (T8.C): the chrome never reaches the model. ``dia_previo`` (T8.D) is the
+    compact previous-day context the density rules calibrate against.
     """
     noticias = []
     for noticia in facts.get("noticias", []):
@@ -827,15 +893,71 @@ def digest_prompt_view(facts: dict) -> dict:
         for person in facts.get("personas", [])
     ]
 
-    return {
+    view = {
         "noticias": noticias,
         "rectora": rectora,
         "redes": facts.get("redes", {}),
         "personas": personas,
     }
+    if dia_previo:
+        compacto = []
+        for nota in dia_previo[:DIA_PREVIO_MAX]:
+            if not isinstance(nota, dict):
+                continue
+            compacto.append(
+                {
+                    "title": display_title(nota.get("title")),
+                    "tono": tone_label(nota.get("tone")),
+                }
+            )
+        view["dia_previo"] = compacto
+    return view
 
 
-def _digest_prompt(day: date, facts: dict) -> str:
+#: Tope del resumen compacto del día previo en el prompt (T8.D).
+DIA_PREVIO_MAX = 12
+
+#: Densidad (T8.D): el brief muestra mínimo tres decisiones cuando hay
+#: candidatas. El modelo marca; el builder completa el piso con las de mayor
+#: impacto NO marcadas (la selección del modelo nunca se recorta).
+DECISION_MIN = 3
+DECISION_TOPUP_RAZON = "mayor impacto del día"
+
+
+def ensure_decision_density(content: dict) -> None:
+    """Completa el piso de decisiones del brief (T8.D) sin tocar el modelo.
+
+    Con menos de :data:`DECISION_MIN` decisiones marcadas y tarjetas sin
+    marcar disponibles, las de mayor impacto entran como decisión con la
+    razón estándar del heurístico. Las entradas del modelo van primero y
+    jamás se recortan: el piso es aditivo. Determinista.
+    """
+    brief = content.get("brief")
+    noticias = content.get("noticias")
+    if not (isinstance(brief, dict) and isinstance(noticias, list)):
+        return
+    decisiones = brief.get("decisiones")
+    if not isinstance(decisiones, list):
+        return
+    total = len(noticias)
+    if len(decisiones) >= DECISION_MIN or total < DECISION_MIN:
+        return
+    marked: set = set()
+    for bucket in ("decisiones", "ruido", "a_favor"):
+        for entry in brief.get(bucket) or []:
+            if isinstance(entry, dict) and isinstance(entry.get("index"), int):
+                marked.add(entry["index"])
+    candidatos = [i for i in range(total) if i not in marked]
+    candidatos.sort(
+        key=lambda i: _impact_rank(noticias[i])
+        if isinstance(noticias[i], dict)
+        else (0, 0, 0)
+    )
+    for index in candidatos[: DECISION_MIN - len(decisiones)]:
+        decisiones.append({"index": index, "razon": DECISION_TOPUP_RAZON})
+
+
+def _digest_prompt(day: date, facts: dict, dia_previo: list | None = None) -> str:
     repeats = any(n.get("repeat") for n in facts.get("noticias", []))
     extra = (
         "\nLas notas con repeat=true ya fueron cubiertas en ediciones "
@@ -849,7 +971,7 @@ def _digest_prompt(day: date, facts: dict) -> str:
     return (
         f"Digest del {day.isoformat()} (todas las cifras y títulos son datos "
         f"verificados; el items[i].index corres a noticias[i]):\n"
-        f"{json.dumps(digest_prompt_view(facts), ensure_ascii=False, default=str)}"
+        f"{json.dumps(digest_prompt_view(facts, dia_previo), ensure_ascii=False, default=str)}"
         f"{extra}"
     )
 
@@ -1065,7 +1187,10 @@ def build_daily_summary(
         generate = summary_generator(effective)
     if generate is not None and total > 0:
         try:
-            payload = json.loads(generate(_digest_prompt(day, content)))
+            prompt = _digest_prompt(
+                day, content, dia_previo=previous_day_noticias(session, client_id, day)
+            )
+            payload = json.loads(generate(prompt))
         except Exception as exc:  # noqa: BLE001 - heuristic is the contract
             log.warning("digest llm failed for %s (%s); heuristic fallback", day, exc)
         else:
@@ -1148,8 +1273,15 @@ def build_daily_summary(
         "a_favor": heu_a_favor,
         "fechas": brief_fechas(content.get("agenda") or [], day),
     }
+    # T8.D: la agenda REAL (tabla) alimenta fechas que obligan — el 28-oct a
+    # 4 días entra aunque el narrador no haya listado agenda.
+    content["brief"]["fechas"] = augment_fechas_from_agenda(
+        session, client_id, day, content["brief"]["fechas"]
+    )
     if brief_payload is not None:
         apply_brief(content, brief_payload)
+    # T8.D: piso de densidad — mínimo tres decisiones cuando haya candidatas.
+    ensure_decision_density(content)
     content["brief"]["headline"] = narrative
     content["campo"] = build_campo(session, client_id, utc_start, utc_end)
 
