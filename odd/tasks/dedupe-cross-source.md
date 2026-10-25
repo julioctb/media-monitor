@@ -24,5 +24,5 @@ aparezca duplicada en el feed, y que el feed muestre el evento canónico.
 
 ## Estado
 - T1–T4 OK: commits 88b0fcf (canonicalización GN→publisher en pipeline, fallback seguro) y bf672b4 (event_id/event_title en MentionOut + attach batcheado + chip en feed). Suite 391 passed, vitest 48, svelte-check limpio.
-- T5 parcial: deploy 01:04 UTC; API sirve event fields (572→569, 570→673); HTML del feed trae 50 chips Evento / 37 links. Dedupe en vivo pendiente del primer ciclo post-deploy (worker demorado por VM saturada).
+- T5 verificado 25/oct: 0 grupos de URL duplicada en 48h; 47/47 menciones últimas 24h con URL de publisher (canonicalización activa en pipeline); worker ciclando (última ingesta 00:06 UTC). Chip ya verificado en deploy (50 chips / 37 links en HTML). FEATURE COMPLETA.
 - Incidente paralelo: Postgres crash exit 2 01:03 UTC + recovery; 3er crash en 3 días. VM Docker al 1360% CPU crónico (host 6d sin reinicio). Load host 63→33.
