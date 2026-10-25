@@ -782,6 +782,58 @@ export interface DailySummaryContent {
 	temas_sin_nota?: string[];
 	/** Plain-text render of the whole digest, kept for the RAG chat. */
 	plain_text?: string;
+	/** digest-brief-v3 esqueleto (PR2). Absent on legacy v2 rows. */
+	brief?: DigestBrief;
+	/** Evidence cards, index-aligned with ``noticias``. */
+	tarjetas?: DigestTarjeta[];
+	/** Field reports captured in the window; ``estado`` carries the label. */
+	campo?: DigestCampoEntry[];
+}
+
+/** One brief pick: the tarjeta index it references, never new data. */
+export interface DigestBriefSeleccion {
+	index: number;
+	categoria: 'decision' | 'ruido' | 'a_favor';
+	razon?: string | null;
+}
+
+/** The v3 brief: fixed sections, CODE-built; the LLM only picks and writes prose. */
+export interface DigestBrief {
+	headline?: string | null;
+	delta?: string[];
+	decisiones?: DigestBriefSeleccion[];
+	ruido?: DigestBriefSeleccion[];
+	a_favor?: DigestBriefSeleccion[];
+	fechas?: DigestBriefFecha[];
+}
+
+/** A deadline the brief surfaces; ``estado`` is caducada | proxima. */
+export interface DigestBriefFecha {
+	title?: string | null;
+	when?: string | null;
+	estado?: string | null;
+	/** ISO date the label was parsed to. */
+	fecha?: string | null;
+}
+
+/** Evidence card for one digest story; mirrors the aligned noticia. */
+export interface DigestTarjeta {
+	titulo?: string | null;
+	hecho?: string | null;
+	por_que?: string | null;
+	fuentes?: string[];
+	tono?: string | null;
+	repeat?: boolean;
+	angulo_nuevo?: string | null;
+}
+
+/** One field report of the day, with its workflow estado. */
+export interface DigestCampoEntry {
+	titulo?: string | null;
+	contenido?: string | null;
+	lugar?: string | null;
+	cuando?: string | null;
+	estado?: string | null;
 }
 
 type SummaryMode = 'heuristic' | 'llm';

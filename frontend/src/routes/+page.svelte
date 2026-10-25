@@ -10,6 +10,8 @@
 	} from '$lib/format';
 	import { categoryRows, monogram } from '$lib/digest-stats';
 	import DigestSections from '$lib/components/DigestSections.svelte';
+	import DigestV3 from '$lib/components/DigestV3.svelte';
+	import { digestV3View } from '$lib/digest-v3';
 	import NegativeNews from '$lib/components/NegativeNews.svelte';
 	import type { PageProps } from './$types';
 
@@ -62,6 +64,11 @@
 	});
 
 	const updatedLabel = $derived(summary ? formatDisplayTime(summary.updated_at) : null);
+
+	/** digest-brief-v3: the brief headline replaces the plain narrative (same text, promoted). */
+	const v3Headline = $derived(
+		summary ? (digestV3View(summary.content)?.headline ?? null) : null
+	);
 	const nextCut = $derived(nextCutLabel(data.digestHours, new Date()));
 
 	/** Header eyebrow: «Resumen diario /» + active keywords (BUAP fallback). */
@@ -144,14 +151,19 @@
 			{/if}
 		</section>
 
-		<section class="narrative" aria-labelledby="narrative-heading">
-			<div class="eyebrow" id="narrative-heading">Sintesis del día</div>
-			{#if summary}
-				<p>{summary.narrative}</p>
-			{:else}
-				<p>En espera de generar el resumen del día</p>
-			{/if}
-		</section>
+		<!-- digest-brief-v3: brief + evidencia + campo; renders nothing on legacy rows. -->
+		<DigestV3 content={summary?.content ?? {}} />
+
+		{#if !v3Headline}
+			<section class="narrative" aria-labelledby="narrative-heading">
+				<div class="eyebrow" id="narrative-heading">Sintesis del día</div>
+				{#if summary}
+					<p>{summary.narrative}</p>
+				{:else}
+					<p>En espera de generar el resumen del día</p>
+				{/if}
+			</section>
+		{/if}
 
 		<NegativeNews mentions={data.negativeEvents} />
 
