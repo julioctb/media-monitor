@@ -128,11 +128,17 @@ def _tokens(title: str) -> set[str]:
     return {token for token in normalize_title(title).split() if token}
 
 
-def _near_dup(a_tokens: set[str], b_tokens: set[str]) -> bool:
-    """F2a: high token overlap reads as the same compromiso."""
+def near_dup_tokens(a_tokens: set[str], b_tokens: set[str]) -> bool:
+    """F2a: high token overlap reads as the same compromiso.
+
+    Jaccard >= :data:`AGENDA_NEAR_DUP_JACCARD`, or one title's tokens
+    contained in the other's (the truncated variant of the same story).
+    """
 
     if not a_tokens or not b_tokens:
         return False
+    if len(a_tokens) >= 3 and len(b_tokens) >= 3 and (a_tokens <= b_tokens or b_tokens <= a_tokens):
+        return True
     union = a_tokens | b_tokens
     return len(a_tokens & b_tokens) / len(union) >= AGENDA_NEAR_DUP_JACCARD
 
@@ -186,7 +192,7 @@ def sync_agenda_from_digest(
             event_date = date(event_date.year + 1, event_date.month, event_date.day)
         tokens = _tokens(title)
         if event_date is not None and any(
-            event_date == seen_date and _near_dup(tokens, seen_tokens)
+            event_date == seen_date and near_dup_tokens(tokens, seen_tokens)
             for seen_tokens, seen_date in dated
         ):
             continue

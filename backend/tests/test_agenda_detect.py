@@ -181,3 +181,16 @@ def test_sync_near_dupe_needs_a_parsed_date(db) -> None:
 
     created = sync_agenda_from_digest(db, client_id, content, reference=date(2026, 10, 24))
     assert created == 2
+
+
+def test_near_dup_tokens_subset_and_ratio() -> None:
+    """F2a: subconjunto de >=3 tokens y Jaccard >= .6 son el mismo compromiso."""
+    from app.summaries.agenda_detect import near_dup_tokens
+
+    full = {"paro", "activo", "marcha", "interna", "academicos", "estudiantes", "buap"}
+    corto = {"paro", "activo", "marcha", "interna"}
+    # 4/7 = 0.57 < 0.6, pero el corto es subconjunto: mismo paro.
+    assert near_dup_tokens(corto, full)
+    assert not near_dup_tokens({"paro", "activo"}, full)  # subconjunto de 2: no basta
+    assert not near_dup_tokens({"clases", "virtuales", "cu2"}, full)
+    assert not near_dup_tokens(set(), full)

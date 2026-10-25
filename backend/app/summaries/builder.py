@@ -42,7 +42,7 @@ from app.models import (
 )
 from app.models.settings import DEFAULT_OPENAI_BASE_URL
 from app.settings_runtime import EffectiveSettings, resolve_effective_settings
-from app.summaries.agenda_detect import normalize_title, parse_spanish_date
+from app.summaries.agenda_detect import near_dup_tokens, normalize_title, parse_spanish_date
 from app.summaries.digest import (
     CONFIDENCE_SCALE,
     DIGEST_SCHEMA_VERSION,
@@ -358,13 +358,30 @@ def augment_fechas_from_agenda(session, client_id: int, day: date, fechas: list)
     El brief nunca dependió de que el narrador recuerde listar la agenda:
     las filas reales con ``event_date`` en ``[day, day + FECHAS_PROXIMAS_DIAS]``
     entran como «proxima» con su date_label. Homónimas (título normalizado)
-    ya presentes en la ventana narrativa no se duplican. Determinista.
+    ya presentes en la ventana narrativa no se duplican, y las near-título
+    del MISMO día tampoco (F2a): un solo «Paro» por fecha, no tres variantes.
+    Determinista.
     """
     out = list(fechas or [])
     known = set()
+    seen: list[tuple[set[str], date | None]] = []
     for f in out:
         if isinstance(f, dict) and f.get("title"):
-            known.add(normalize_title(f["title"]))
+            key = normalize_title(f["title"])
+            known.add(key)
+            parsed = parse_spanish_date(str(f.get("when") or ""), day.year)
+            seen.append((set(key.split()), parsed))
+
+    def _already_seen(tokens: set[str], when: str) -> bool:
+        """True when an included entry already covers this title that day."""
+        parsed = parse_spanish_date(when, day.year)
+        if parsed is None:
+            return False
+        return any(
+            same_date == parsed and near_dup_tokens(tokens, seen_tokens)
+            for seen_tokens, same_date in seen
+        )
+
     limit = day + timedelta(days=FECHAS_PROXIMAS_DIAS)
     rows = session.scalars(
         select(AgendaItem)
@@ -380,7 +397,11 @@ def augment_fechas_from_agenda(session, client_id: int, day: date, fechas: list)
         key = normalize_title(row.title or "")
         if not key or key in known:
             continue
+        tokens = set(key.split())
+        if _already_seen(tokens, row.date_label or row.event_date.isoformat()):
+            continue
         known.add(key)
+        seen.append((tokens, row.event_date))
         estado = "en duda" if fecha_en_duda(row.title, row.date_label, row.notes) else "proxima"
         out.append(
             {

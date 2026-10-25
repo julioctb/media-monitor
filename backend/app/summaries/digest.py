@@ -711,18 +711,6 @@ def render_plain_text(content: dict, narrative: str) -> str:
                 lines.append(
                     f"- [{estado}] {fecha.get('title')} ({fecha.get('when')})"
                 )
-    campo = content.get("campo")
-    if isinstance(campo, list) and campo:
-        lines.append("")
-        lines.append("CAMPO")
-        for entry in campo:
-            if not isinstance(entry, dict):
-                continue
-            estado = entry.get("estado") or "?"
-            head = f"- ({estado}) {entry.get('titulo') or '(sin título)'}"
-            if entry.get("contenido"):
-                head += f": {entry['contenido']}"
-            lines.append(head)
     lines.append("")
     lines.append("PENDIENTES")
     for pending in content.get("pendientes") or []:

@@ -1440,9 +1440,12 @@ def test_plain_text_renders_campo_section(session):
     session.commit()
     row = build_daily_summary(session, client_id=client.id, day=DAY.date())
     plain = row.content["plain_text"]
-    assert "CAMPO" in plain
-    assert "Obra del puente parada" in plain
-    assert "en revisión" in plain
+    # F4: el campo ya no se renderiza en el digest — la clave persiste en
+    # el payload y la superficie de campo es /campo.
+    assert "CAMPO" not in plain
+    campo = row.content["campo"]
+    assert campo and campo[0]["titulo"] == "Obra del puente parada"
+    assert campo[0]["estado"] == "en revisión"
 
 
 # ------------------------------------------------------- digest-brief-v3 (T4)
