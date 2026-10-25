@@ -1293,7 +1293,25 @@ def build_vigilancia(
     return lines
 
 
-def digest_prompt_view(facts: dict, dia_previo: list | None = None) -> dict:
+def _focus_person_context(session, effective: EffectiveSettings) -> dict | None:
+    """Resolve the principal monitored person within the current client only."""
+    person_id = effective.digest_focus_person_id
+    if person_id is None:
+        return None
+    person = queries.get_client_person(
+        session, person_id=person_id, client_id=effective.client_id
+    )
+    if person is None:
+        return None
+    return {"name": person.name, "role": person.role, "org": person.org}
+
+
+def digest_prompt_view(
+    facts: dict,
+    dia_previo: list | None = None,
+    *,
+    focus_person: dict | None = None,
+) -> dict:
     """Lean facts projection for the narrative prompt.
 
     Everything the SYSTEM_PROMPT instructions can reference, nothing the
@@ -1302,6 +1320,8 @@ def digest_prompt_view(facts: dict, dia_previo: list | None = None) -> dict:
     ``items[i].index`` keeps matching ``noticias[i]``. Titles travel sobrios
     (T8.C): the chrome never reaches the model. ``dia_previo`` (T8.D) is the
     compact previous-day context the density rules calibrate against.
+    ``focus_person`` optionally identifies the principal monitored subject,
+    not a news item or the report's reader.
     """
     noticias = []
     for noticia in facts.get("noticias", []):
@@ -1346,6 +1366,10 @@ def digest_prompt_view(facts: dict, dia_previo: list | None = None) -> dict:
                 }
             )
         view["dia_previo"] = compacto
+    if focus_person is not None:
+        view["focus_person"] = {
+            key: focus_person.get(key) for key in ("name", "role", "org")
+        }
     return view
 
 
@@ -1402,7 +1426,13 @@ def ensure_decision_density(content: dict) -> None:
         )
 
 
-def _digest_prompt(day: date, facts: dict, dia_previo: list | None = None) -> str:
+def _digest_prompt(
+    day: date,
+    facts: dict,
+    dia_previo: list | None = None,
+    *,
+    focus_person: dict | None = None,
+) -> str:
     repeats = any(n.get("repeat") for n in facts.get("noticias", []))
     extra = (
         "\nLas notas con repeat=true ya fueron cubiertas en ediciones "
@@ -1412,10 +1442,24 @@ def _digest_prompt(day: date, facts: dict, dia_previo: list | None = None) -> st
         if repeats
         else ""
     )
-    return (
+    header = (
         f"Digest del {day.isoformat()} (todas las cifras y títulos son datos "
-        f"verificados; el items[i].index corresponde a noticias[i]):\n"
-        f"{json.dumps(digest_prompt_view(facts, dia_previo), ensure_ascii=False, default=str)}"
+        "verificados; el items[i].index corresponde a noticias[i]):"
+    )
+    if focus_person is not None:
+        header += (
+            " El bloque focus_person identifica a la persona principal bajo "
+            "seguimiento, no necesariamente al lector ni al protagonista de "
+            "cada noticia. Evalúa la relación directa o institucional de los "
+            "hechos con ella, sin atribuir participación, responsabilidad ni "
+            "afectación por mera mención. Usa su cargo e institución registrados "
+            "sin inventar competencias u objetivos. Si la relación no puede "
+            "establecerse, indica esa limitación."
+        )
+    view = digest_prompt_view(facts, dia_previo, focus_person=focus_person)
+    return (
+        f"{header}\n"
+        f"{json.dumps(view, ensure_ascii=False, default=str)}"
         f"{extra}"
     )
 
@@ -1636,7 +1680,10 @@ def build_daily_summary(
     if generate is not None and total > 0:
         try:
             prompt = _digest_prompt(
-                day, content, dia_previo=previous_day_noticias(session, client_id, day)
+                day,
+                content,
+                dia_previo=previous_day_noticias(session, client_id, day),
+                focus_person=_focus_person_context(session, effective),
             )
             payload = json.loads(generate(prompt))
         except Exception as exc:  # noqa: BLE001 - heuristic is the contract

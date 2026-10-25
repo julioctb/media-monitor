@@ -156,3 +156,24 @@ para un candidato, pertinencia de su posición pública y verificación previa.
 No adjudicarle al candidato capacidad de ejecución gubernamental. Estos
 son ejemplos de revisión humana, no resultados demostrados por un
 proveedor real ni por un generador falso de pruebas.
+
+### Entrada del narrador: persona principal
+
+La fase 1 resuelve el foco con `queries.get_client_person` y el `client_id`
+efectivo. La entrada opcional del narrador contiene únicamente:
+
+```json
+{"focus_person": {"name": "Nombre registrado", "role": null, "org": null}}
+```
+
+Se usa cargo e institución registrados cuando existen; `null` significa
+información desconocida. El bloque no identifica al lector ni presupone
+que la persona participe en cada noticia. Puede existir aunque no haya
+menciones suyas en el corte. Si el ID falta, no existe o pertenece a otro
+cliente, se omite sin elegir otra persona por volumen o por watchlist.
+
+El contexto vive solo en el prompt: no amplía `DailySummary.content`, el
+schema de respuesta ni las revisiones almacenadas. Las llamadas existentes
+sin foco conservan su proyección y mensaje. Las pruebas con generador falso
+acreditan este transporte y sus límites, no calidad editorial, facultades
+legales ni verdad factual. El reemplazo integral del prompt es posterior.
