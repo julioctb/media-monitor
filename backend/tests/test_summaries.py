@@ -24,7 +24,13 @@ from app.models import (
 )
 from app.settings_runtime import EffectiveSettings
 from app.summaries import build_daily_summary
-from app.summaries.builder import SYSTEM_PROMPT, day_window, summary_generator
+from app.summaries.builder import (
+    SYSTEM_PROMPT,
+    apply_impact_order,
+    compile_tail_cards,
+    day_window,
+    summary_generator,
+)
 from app.summaries.digest import apply_narrative, validate_digest
 
 DAY = datetime(2026, 10, 9, 18, 0, tzinfo=timezone.utc)  # 12:00 in Mexico City
@@ -1609,3 +1615,167 @@ def test_failed_regen_inherits_prose_across_merged_events(session):
     second = build_daily_summary(session, client_id=client.id, day=DAY.date(), generate=boom)
     assert second.content["noticias"][0]["summary"] == "Consulta pospuesta."
     assert second.content["tarjetas"][0]["por_que"] == "Define el recorte 2027."
+
+
+# --------------------------------------------------- T8.B orden y cola
+
+
+def _card(i, fuentes=1, tone=None, why=None, titulo=None):
+    tone_counts = {tone: 2} if tone else {}
+    titulo = titulo or f"Historia {i}"
+    return (
+        {
+            "title": titulo,
+            "sources": [{"source": f"medio{n}"} for n in range(fuentes)],
+            "tone": tone_counts,
+            "why_it_matters": why,
+        },
+        {
+            "titulo": titulo,
+            "hecho": None,
+            "por_que": why,
+            "fuentes": [f"medio{n}" for n in range(fuentes)],
+            "tono": "negativo" if tone == "negative" else ("positivo" if tone else None),
+            "repeat": False,
+            "angulo_nuevo": None,
+        },
+    )
+
+
+def _ordered_content(noticias, tarjetas, brief_extra=None):
+    content = {
+        "noticias": noticias,
+        "tarjetas": tarjetas,
+        "brief": {
+            "headline": "h",
+            "delta": [],
+            "decisiones": [],
+            "ruido": [],
+            "a_favor": [],
+            "fechas": [],
+            **(brief_extra or {}),
+        },
+    }
+    return content
+
+
+def test_impact_order_decisions_first_impact_middle_ruido_last():
+    nota_fuerte, card_fuerte = _card(1, fuentes=3, tone="negative")
+    nota_dec, card_dec = _card(2, fuentes=2, tone="negative")
+    nota_media, card_media = _card(3, fuentes=2)
+    nota_ruido, card_ruido = _card(4, fuentes=1)
+    content = _ordered_content(
+        [nota_ruido, nota_fuerte, nota_dec, nota_media],
+        [card_ruido, card_fuerte, card_dec, card_media],
+        brief_extra={"decisiones": [{"index": 2, "razon": "x"}], "ruido": [{"index": 0}]},
+    )
+
+    apply_impact_order(content)
+
+    # decision (2) -> resto por impacto (1: 3 fuentes; 3: 2 fuentes) -> ruido (0)
+    assert [n["title"] for n in content["noticias"]] == [
+        "Historia 2",
+        "Historia 1",
+        "Historia 3",
+        "Historia 4",
+    ]
+    assert [t["titulo"] for t in content["tarjetas"]] == [
+        "Historia 2",
+        "Historia 1",
+        "Historia 3",
+        "Historia 4",
+    ]
+    # Brief indices remapped to the new positions.
+    assert content["brief"]["decisiones"] == [{"index": 0, "razon": "x"}]
+    assert content["brief"]["ruido"] == [{"index": 3}]
+
+
+def test_impact_order_is_deterministic_on_ties():
+    nota_a, card_a = _card(1, fuentes=1)
+    nota_b, card_b = _card(2, fuentes=1)
+    content = _ordered_content([nota_a, nota_b], [card_a, card_b])
+    apply_impact_order(content)
+    again = _ordered_content(
+        [dict(nota_a), dict(nota_b)], [dict(card_a), dict(card_b)]
+    )
+    apply_impact_order(again)
+    assert [n["title"] for n in content["noticias"]] == [
+        n["title"] for n in again["noticias"]
+    ]
+
+
+def test_tail_cards_compile_into_tambien_hoy():
+    pares = [_card(i, fuentes=3, tone="negative", why="Fuerte.") for i in range(8)]
+    pares += [_card(20 + i, fuentes=1) for i in range(3)]
+    content = _ordered_content([p[0] for p in pares], [p[1] for p in pares])
+
+    compile_tail_cards(content)
+
+    tarjetas = content["tarjetas"]
+    # 11 tarjetas, cola de 3, piso 9: se funden las tres.
+    assert len(tarjetas) == 9
+    compiled = tarjetas[-1]
+    assert compiled["titulo"] == "También hoy"
+    assert compiled["hecho"] is None and compiled["por_que"] is None
+    assert len(compiled["notas"]) == 3
+    assert "Historia 20" in compiled["notas"][0]
+    assert set(compiled["fuentes"]) == {"medio0"}
+    # Cobertura intacta: las noticias siguen completas en el detalle.
+    assert len(content["noticias"]) == 11
+
+
+def test_tail_compile_drops_brief_refs_to_swallowed_cards():
+    pares = [_card(i, fuentes=3, tone="negative", why="Fuerte.") for i in range(9)]
+    pares.append(_card(30, fuentes=1))
+    content = _ordered_content(
+        [p[0] for p in pares],
+        [p[1] for p in pares],
+        brief_extra={"ruido": [{"index": 9}], "a_favor": [{"index": 0}]},
+    )
+
+    compile_tail_cards(content)
+
+    # index 9 (swallowed) dropped; index 0 unchanged (suffix removal).
+    assert len(content["tarjetas"]) == 10
+    assert content["tarjetas"][-1]["titulo"] == "También hoy"
+    assert content["brief"]["ruido"] == []
+    assert content["brief"]["a_favor"] == [{"index": 0}]
+
+
+def test_tail_compile_never_guts_below_nine_cards():
+    fuertes = [_card(i, fuentes=3, tone="negative", why="x") for i in range(6)]
+    cola = [_card(10 + i, fuentes=1) for i in range(4)]
+    pares = fuertes + cola
+    content = _ordered_content(
+        [p[0] for p in pares], [p[1] for p in pares]
+    )
+
+    compile_tail_cards(content)
+
+    # 10 cards, tail-run 4, floor keeps >= 9: swallow 2, compiled makes 9.
+    assert len(content["tarjetas"]) == 9
+    assert content["tarjetas"][-1]["titulo"] == "También hoy"
+
+
+def test_build_orders_decision_cards_first(session):
+    client = add_client(session)
+    neg_a = _event(client.id, "BUAP pierde el clásico por goleada")
+    neg_b = _event(client.id, "Crisis presupuestal detiene obras en la BUAP")
+    session.add_all([neg_a, neg_b])
+    session.flush()
+    m1 = add_mention(session, client.id, neg_a.title, DAY, event_id=neg_a.id)
+    m2 = add_mention(
+        session, client.id, neg_b.title, DAY, source=MentionSource.rss_custom, event_id=neg_b.id
+    )
+    from app.models import Sentiment
+
+    m1.sentiment = Sentiment.negative
+    m2.sentiment = Sentiment.negative
+    session.commit()
+    add_mention(session, client.id, "Taller de dibujo para personas sordas", DAY)
+
+    row = build_daily_summary(session, client_id=client.id, day=DAY.date())
+    tarjetas = row.content["tarjetas"]
+    # The heuristic marks negative-dominant stories as decision; they lead.
+    assert tarjetas[0]["tono"] == "negativo"
+    assert tarjetas[1]["tono"] == "negativo"

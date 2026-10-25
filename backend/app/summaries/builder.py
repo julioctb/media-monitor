@@ -439,6 +439,180 @@ def merge_twin_noticias(noticias: list) -> list:
     return merged
 
 
+# --------------------------------------------------- T8.B orden por impacto
+
+#: Tarjeta compilada que absorbe la cola menor (T8.B): preserva cobertura
+#: sin robar tarjetas al top editorial.
+TAMBIEN_HOY = "También hoy"
+
+#: Piso editorial aprobado: la página de perfil alto muestra 9-14 tarjetas.
+#: La fusión de cola nunca baja del piso cuando hay material.
+TARJETAS_MIN = 9
+
+#: Una tarjeta de cola lista <=2 fuentes; más fuentes = historia con cuerpo.
+COLA_MAX_FUENTES = 2
+
+
+def _impact_rank(nota: dict) -> tuple:
+    """Descending impact: fuentes, menciones clasificadas, tono negativo."""
+    sources, classified = _impact(nota)
+    tone = nota.get("tone") if isinstance(nota.get("tone"), dict) else {}
+    return (-sources, -classified, -(tone.get("negative") or 0))
+
+
+def _brief_indices(brief: dict, bucket: str) -> list[int]:
+    """Validated indices a brief bucket references, in declared order."""
+    entries = brief.get(bucket) if isinstance(brief, dict) else None
+    if not isinstance(entries, list):
+        return []
+    return [
+        e["index"]
+        for e in entries
+        if isinstance(e, dict) and isinstance(e.get("index"), int)
+    ]
+
+
+def _unique(indices: list[int]) -> list[int]:
+    seen: set = set()
+    out: list = []
+    for index in indices:
+        if index not in seen:
+            seen.add(index)
+            out.append(index)
+    return out
+
+
+def apply_impact_order(content: dict) -> None:
+    """T8.B: orden editorial — decision primero, resto por impacto, ruido al final.
+
+    Permuta ``noticias`` y ``tarjetas`` juntas (el índice sigue compartido) y
+    remapea los índices de TODOS los buckets del brief. Determinista: el
+    orden dentro de cada bloque es el del brief (la prioridad del modelo) y
+    el empate en impacto conserva el orden previo (sort estable).
+    """
+    noticias = content.get("noticias")
+    tarjetas = content.get("tarjetas")
+    if not (isinstance(noticias, list) and isinstance(tarjetas, list)):
+        return
+    total = min(len(noticias), len(tarjetas))
+    if total == 0:
+        return
+    brief = content.get("brief") if isinstance(content.get("brief"), dict) else {}
+    decisiones = [i for i in _brief_indices(brief, "decisiones") if 0 <= i < total]
+    ruido = [i for i in _brief_indices(brief, "ruido") if 0 <= i < total]
+    marked = set(decisiones) | set(ruido)
+    resto = [i for i in range(total) if i not in marked]
+    resto.sort(
+        key=lambda i: _impact_rank(noticias[i])
+        if isinstance(noticias[i], dict)
+        else (0, 0, 0)
+    )
+    # Una tarjeta marcada decision Y ruido entra una sola vez (precede
+    # decision); el orden final es SIEMPRE una permutación de 0..total-1.
+    seen: set = set()
+    order: list = []
+    for index in _unique(decisiones) + resto + _unique(ruido):
+        if index not in seen:
+            seen.add(index)
+            order.append(index)
+    for index in range(total):
+        if index not in seen:
+            seen.add(index)
+            order.append(index)
+    if order == list(range(total)):
+        return
+    position = {old: new for new, old in enumerate(order)}
+    content["noticias"] = [noticias[i] for i in order] + list(noticias[total:])
+    content["tarjetas"] = [tarjetas[i] for i in order] + list(tarjetas[total:])
+    for bucket in ("decisiones", "ruido", "a_favor"):
+        entries = brief.get(bucket)
+        if not isinstance(entries, list):
+            continue
+        for entry in entries:
+            if isinstance(entry, dict) and entry.get("index") in position:
+                entry["index"] = position[entry["index"]]
+
+
+def _es_tarjeta_cola(tarjeta: dict) -> bool:
+    """Cola menor: pocas fuentes, tono neutro, sin por_que que la sostenga."""
+    if len(tarjeta.get("fuentes") or []) > COLA_MAX_FUENTES:
+        return False
+    if tarjeta.get("tono") not in (None, "neutral"):
+        return False
+    if tarjeta.get("por_que"):
+        return False
+    return True
+
+
+def compile_tail_cards(content: dict) -> bool:
+    """Funde la cola menor en UNA tarjeta compilada «También hoy» (T8.B).
+
+    Camina la cola del ranking ya ordenado y absorbe la corrida final de
+    tarjetas menores (<=2 fuentes, tono neutro, sin por_que) en una sola
+    tarjeta con bullets; el piso :data:`TARJETAS_MIN` nunca se perfora
+    cuando hay material. Las noticias conservan TODAS las historias (la
+    cobertura vive en el detalle); los índices del brief que apuntaban a
+    tarjetas absorbadas se descartan (la info queda en los bullets) y los
+    restantes siguen válidos porque la fusión es un sufijo.
+    """
+    tarjetas = content.get("tarjetas")
+    if not isinstance(tarjetas, list) or not tarjetas:
+        return False
+    total = len(tarjetas)
+    if total <= TARJETAS_MIN:
+        # En días cortos la cola ES la página: nada que fundar.
+        return False
+    run = 0
+    for tarjeta in reversed(tarjetas):
+        if not isinstance(tarjeta, dict) or not _es_tarjeta_cola(tarjeta):
+            break
+        run += 1
+    max_take = max(0, total - (TARJETAS_MIN - 1))
+    take = min(run, max_take)
+    if take <= 0:
+        return False
+    swallowed = tarjetas[total - take :]
+    notas: list = []
+    fuentes: list = []
+    for tarjeta in swallowed:
+        label = tarjeta.get("titulo") or tarjeta.get("hecho") or "(sin título)"
+        names = [f for f in tarjeta.get("fuentes") or [] if f]
+        if names:
+            label = f"{label} ({', '.join(names)})"
+        notas.append(label)
+        for name in names:
+            if name not in fuentes:
+                fuentes.append(name)
+    compiled = {
+        "titulo": TAMBIEN_HOY,
+        "hecho": None,
+        "por_que": None,
+        "notas": notas,
+        "fuentes": fuentes,
+        "tono": None,
+        "repeat": any(
+            t.get("repeat") for t in swallowed if isinstance(t, dict)
+        ),
+        "angulo_nuevo": None,
+    }
+    content["tarjetas"] = tarjetas[: total - take] + [compiled]
+    valid = total - take
+    brief = content.get("brief")
+    if isinstance(brief, dict):
+        for bucket in ("decisiones", "ruido", "a_favor"):
+            entries = brief.get(bucket)
+            if isinstance(entries, list):
+                brief[bucket] = [
+                    e
+                    for e in entries
+                    if not (
+                        isinstance(e, dict) and isinstance(e.get("index"), int)
+                    )
+                    or e["index"] < valid
+                ]
+    return True
+
+
 def build_tarjetas(noticias: list) -> list[dict]:
     """One tarjeta per noticia, index-aligned; prose fields mirror the row.
 
@@ -968,6 +1142,12 @@ def build_daily_summary(
         apply_brief(content, brief_payload)
     content["brief"]["headline"] = narrative
     content["campo"] = build_campo(session, client_id, utc_start, utc_end)
+
+    # T8.B: orden editorial (decision -> impacto -> ruido) y fusión de la
+    # cola menor en «También hoy». Siempre POST-brief: los índices que
+    # remapea son los definitivos.
+    apply_impact_order(content)
+    compile_tail_cards(content)
 
     content["plain_text"] = render_plain_text(content, narrative)
     row = queries.upsert_daily_summary(
