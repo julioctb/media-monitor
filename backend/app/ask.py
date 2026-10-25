@@ -45,7 +45,9 @@ ASK_SYSTEM_PROMPT = (
     "usuario usando EXCLUSIVAMENTE el contexto numerado; no inventes datos "
     "ni uses conocimiento externo. Si el contexto no alcanza para responder, "
     "dilo explícitamente. Menciona las notas que sustentan cada afirmación "
-    "con su marcador [n]. Responde en español, máximo 6 líneas, directo."
+    "con su marcador [n]. Las afirmaciones basadas en el bloque de resumen "
+    "del día no llevan [n]; indícalas como «según el resumen del día». "
+    "Responde en español, máximo 6 líneas, directo."
 )
 
 

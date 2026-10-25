@@ -28,7 +28,7 @@ router = APIRouter(tags=["settings"])
 AI_PROBE_TIMEOUT_S = 10.0
 
 # Local sentinel canary: short, clearly positive, exercises the full path.
-_AI_PROBE_TEXT = "Excelente servicio, muy recomendable."
+_AI_PROBE_TEXT = "El servicio de la biblioteca fue excelente, muy recomendable."
 
 
 @router.get("/settings", response_model=ClientSettingsOut)
@@ -127,7 +127,7 @@ def test_ai_endpoint(payload: AiProbeRequest) -> dict:
     return result
 
 
-_NARRATIVE_PROBE_PROMPT = 'Respondé solo un JSON: {"items": [], "headline": "prueba"}'
+_NARRATIVE_PROBE_PROMPT = 'Responde solo un JSON: {"items": [], "headline": "prueba"}'
 
 
 def _narrative_body(payload: AiProbeRequest, response_format: dict | None) -> dict:

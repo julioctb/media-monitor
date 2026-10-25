@@ -29,8 +29,8 @@ HTTP_TIMEOUT_S = 30
 
 SYSTEM_PROMPT = (
     "You are a media analyst. Summarize what happened in this burst of "
-    "mentions. Write 2-4 sentences, in the same language as the mentions, "
-    "factual and neutral. Do not invent facts beyond the listed items."
+    "mentions. Write 2-4 sentences, in Spanish, factual and neutral. "
+    "Do not invent facts beyond the listed items."
 )
 
 

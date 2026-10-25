@@ -42,8 +42,8 @@ ENRICH_SYSTEM = (
     "Eres editor de monitoreo. Recibes un reporte de campo crudo (texto de"
     " alguien en territorio). Devuelve EXCLUSIVAMENTE un JSON con:"
     ' {"suggested_title": titulo periodistico <=100 caracteres,'
-    ' "summary": 1 o 2 oraciones con el hecho, "tone": "positive"|"negative"|'
-    '"neutral"}. Usa SOLO la informacion dada; nada de datos nuevos.'
+    ' "summary": 1 o 2 oraciones con el hecho, "tone": "positive"|"neutral"|'
+    '"negative"}. Usa SOLO la informacion dada; nada de datos nuevos.'
 )
 
 

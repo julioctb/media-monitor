@@ -55,7 +55,7 @@ WELCOME = (
     "revisión. /cancelar empieza de nuevo."
 )
 
-CONFIRM_PROMPT = "Confirmás el reporte? Respondé OK para enviarlo o NO para volver a empezar."
+CONFIRM_PROMPT = "¿Confirmas el reporte? Responde OK para enviarlo o NO para volver a empezar."
 
 CONFIRM_WORDS = {"ok", "si", "sí", "dale", "confirmo"}
 CANCEL_WORDS = {"no", "cancelar", "restart"}
@@ -66,9 +66,9 @@ CONTACT_KEYBOARD = {
     "one_time_keyboard": True,
 }
 
-ASK_CONTACT = "Para validarte necesito tu teléfono: tocá el botón para compartirlo."
-NOT_REGISTERED = "Ese número no está registrado. Contactá al administrador del proyecto."
-ALREADY_BOUND = "Ese teléfono ya está vinculado a otro acceso. Avisale al administrador."
+ASK_CONTACT = "Para validarte necesito tu teléfono: toca el botón para compartirlo."
+NOT_REGISTERED = "Ese número no está registrado. Contacta al administrador del proyecto."
+ALREADY_BOUND = "Ese teléfono ya está vinculado a otro acceso. Avísale al administrador."
 DEACTIVATED = "Tu acceso está desactivado. Contactá al administrador."
 
 _DIGITS = re.compile(r"\D+")
@@ -253,7 +253,7 @@ class Bot:
             self.send(
                 chat_id,
                 "Bienvenido a Reporte de Campo. El acceso es para operadores "
-                "registrados: validá tu teléfono para continuar.",
+                "registrados: valida tu teléfono para continuar.",
             )
         self.send(chat_id, ASK_CONTACT, CONTACT_KEYBOARD)
 
