@@ -53,6 +53,7 @@
 		ai_provider: 'local' | 'openai';
 		ai_base_url: string;
 		ai_model: string;
+		ai_model_fast: string;
 		ai_api_key: string;
 	}
 
@@ -78,6 +79,7 @@
 			ai_provider: settings.ai_provider,
 			ai_base_url: settings.ai_base_url ?? '',
 			ai_model: settings.ai_model ?? '',
+			ai_model_fast: settings.ai_model_fast ?? '',
 			ai_api_key: settings.ai_api_key ?? ''
 		};
 	}
@@ -848,6 +850,19 @@
 								type="text"
 								bind:value={draft.ai_model}
 								placeholder="Nombre configurado en el servidor"
+								class={INPUT_CLS}
+							/>
+						</div>
+						<div>
+							<label for="set-ai-model-fast" class={LABEL_CLS}
+								>Modelo para tareas ligeras</label
+							>
+							<input
+								id="set-ai-model-fast"
+								name="ai_model_fast"
+								type="text"
+								bind:value={draft.ai_model_fast}
+								placeholder="Vacío = usar el modelo principal"
 								class={INPUT_CLS}
 							/>
 						</div>

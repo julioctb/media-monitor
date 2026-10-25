@@ -226,7 +226,8 @@ export const actions: Actions = {
 				ai_provider: form.get('ai_provider') === 'openai' ? 'openai' : 'local',
 				ai_api_key: optionalText(form, 'ai_api_key'),
 				ai_base_url: optionalText(form, 'ai_base_url'),
-				ai_model: optionalText(form, 'ai_model')
+				ai_model: optionalText(form, 'ai_model'),
+				ai_model_fast: optionalText(form, 'ai_model_fast')
 			});
 			return actionResult('save', true, SAVE_OK_MESSAGE);
 		} catch (cause) {

@@ -195,6 +195,7 @@ export interface ClientSettings {
   ai_api_key: string | null;
   ai_base_url: string | null;
   ai_model: string | null;
+  ai_model_fast: string | null;
   /** Paid-mode X source; see x-mode-settings. */
   x_mode: XMode;
   /** Always "" on the wire: the API masks the stored key. */
@@ -225,6 +226,7 @@ export interface ClientSettingsInput {
   ai_api_key?: string | null;
   ai_base_url?: string | null;
   ai_model?: string | null;
+  ai_model_fast?: string | null;
   x_mode?: XMode;
   /** Non-empty stores the key; ''/absent keeps the stored one. */
   x_api_key?: string;

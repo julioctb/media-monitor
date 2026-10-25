@@ -53,8 +53,18 @@ class EffectiveSettings:
     ai_api_key: str | None = None
     ai_base_url: str | None = None
     ai_model: str | None = None
+    ai_model_fast: str | None = None
     enrich_max_per_cycle: int = 50
     fetch_max_per_cycle: int = 20
+
+    @property
+    def fast_model(self) -> str | None:
+        """Model for the fast/structured tier (event arbitrator).
+
+        Single fallback chokepoint: ai_model_fast when set, else the main
+        model — same provider/base_url/key either way.
+        """
+        return self.ai_model_fast or self.ai_model
 
 
 # Cycle-scoped cache: client_id -> snapshot. Overwritten by every
@@ -146,6 +156,7 @@ def resolve_effective_settings(session: Session, client_id: int) -> EffectiveSet
         ai_api_key=row.ai_api_key,
         ai_base_url=row.ai_base_url,
         ai_model=row.ai_model,
+        ai_model_fast=row.ai_model_fast,
         enrich_max_per_cycle=row.enrich_max_per_cycle,
         fetch_max_per_cycle=row.fetch_max_per_cycle,
     )

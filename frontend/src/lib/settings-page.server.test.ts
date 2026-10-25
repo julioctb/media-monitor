@@ -54,6 +54,7 @@ const SETTINGS_ROW = {
 	ai_api_key: null,
 	ai_base_url: null,
 	ai_model: null,
+	ai_model_fast: null,
 	updated_at: '2026-10-19T03:00:00Z'
 };
 

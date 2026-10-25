@@ -32,6 +32,7 @@ const SETTINGS_VIEW: ClientSettings = {
 	ai_api_key: null,
 	ai_base_url: null,
 	ai_model: null,
+	ai_model_fast: null,
 	x_mode: 'free',
 	x_api_key: '',
 	x_api_key_set: false,

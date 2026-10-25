@@ -122,6 +122,10 @@ class ClientSettings(IntPk, Base):
         String(500), nullable=True, server_default=DEFAULT_OPENAI_BASE_URL
     )
     ai_model: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    # Fast/structured tier (event-identity arbitrator): model for cheap,
+    # JSON-strict calls. Falls back to ai_model when unset — one provider,
+    # two model classes (odd/tasks/event-identity-llm-arbitrator.md).
+    ai_model_fast: Mapped[str | None] = mapped_column(String(100), nullable=True)
     # Legacy (laya removal): the local-fallback toggle is no longer exposed
     # nor read; the column stays to avoid a migration in this pass.
     ai_fallback_local: Mapped[bool] = mapped_column(

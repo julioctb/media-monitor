@@ -173,3 +173,22 @@ def test_source_readiness_follows_settings(api, session, client_id) -> None:
     row.x_api_key = None
     session.commit()
     assert api.get(f"/api/clients/{client_id}/source-readiness").json()["x_twitter"] is False
+
+
+def test_ai_model_fast_roundtrip_and_runtime_fallback(api, session, client_id) -> None:
+    """T2a: the fast/structured model override persists, clears, and the
+    runtime falls back to the main model when unset."""
+    from app.settings_runtime import resolve_effective_settings
+
+    api.put("/api/settings", json={"ai_model": "big-model", "ai_model_fast": "flash"})
+    body = api.get("/api/settings").json()
+    assert body["ai_model_fast"] == "flash"
+    assert body["ai_model"] == "big-model"
+    effective = resolve_effective_settings(session, client_id)
+    assert effective.fast_model == "flash"
+
+    # Clearing the override falls back to the main model.
+    api.put("/api/settings", json={"ai_model_fast": None})
+    effective = resolve_effective_settings(session, client_id)
+    assert effective.fast_model == "big-model"
+    assert effective.ai_model == "big-model"
