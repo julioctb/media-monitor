@@ -18,6 +18,7 @@ empty days (nothing to summarize); mode stays ``heuristic`` then.
 
 import json
 import logging
+import re
 import time
 from collections.abc import Callable
 from datetime import date, datetime, timedelta, timezone
@@ -273,6 +274,24 @@ def brief_fechas(agenda: list, day: date) -> list[dict]:
             {"title": title, "when": when, "estado": estado, "fecha": parsed.isoformat()}
         )
     return fechas
+
+
+#: Piso de calidad (digest-brief-v3): una historia cuyo único contenido es una
+#: actualización cosmética de red social (foto de portada/perfil, avatar) no
+#: merece tarjeta. Heurística determinística sobre el título; la mención sigue
+#: contando en cobertura y en el log por fuente de redes.
+COSMETIC_TITLE_RE = re.compile(
+    r"\b(?:actualiz|cambi|renov)[oó]\s+(?:su\s+)?(?:foto|imagen|portada|avatar|perfil)\b",
+    re.I,
+)
+
+
+def is_cosmetic_story(title: str | None) -> bool:
+    """True when the title is a social-profile cosmetic update and nothing
+    else (no editorial text detectable from the title itself)."""
+    if not title:
+        return False
+    return bool(COSMETIC_TITLE_RE.search(title))
 
 
 def build_tarjetas(noticias: list) -> list[dict]:
@@ -677,6 +696,17 @@ def build_daily_summary(
                 earliest = earliest.replace(tzinfo=timezone.utc)
             if earliest < window_start_utc:
                 noticia["repeat"] = True
+
+    # Piso de calidad (digest-brief-v3): una actualización cosmética de red
+    # social (foto de portada/perfil sin texto editorial) no genera tarjeta.
+    # Se funde en el log por fuente de redes —el conteo de cobertura la
+    # incluye igual— y sale de noticias ANTES de prompt/tarjetas/brief para
+    # mantener el índice noticias↔tarjetas alineado.
+    content["noticias"] = [
+        nota
+        for nota in content["noticias"]
+        if not is_cosmetic_story(nota.get("title"))
+    ]
 
     # Events whose mentions read negative-dominant, for the narrative emphasis
     # (the LLM gets tone per noticia; the heuristic names the count).

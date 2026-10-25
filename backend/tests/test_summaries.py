@@ -1113,6 +1113,48 @@ def test_digest_titles_strip_facebook_chrome(session):
             assert "Compartido con" not in (fuente["title"] or "")
 
 
+def test_cosmetic_story_heuristic():
+    from app.summaries.builder import is_cosmetic_story
+
+    assert is_cosmetic_story("Verdades Buap CRS actualizó su foto de portada.")
+    assert is_cosmetic_story("La BUAP cambió su foto de perfil")
+    assert is_cosmetic_story("BUAP renovó su imagen de portada")
+    assert is_cosmetic_story("Rectora anuncia nuevos horarios") is False
+    assert is_cosmetic_story(None) is False
+    assert is_cosmetic_story("") is False
+
+
+def test_cosmetic_update_never_becomes_tarjeta(session):
+    """Piso de calidad: una actualización cosmética de red social no genera
+    tarjeta; queda en el log por fuente de redes y cuenta en cobertura."""
+    client = add_client(session)
+    kw = add_keyword(session, client.id, "BUAP")
+    cosmet = add_mention(
+        session,
+        client.id,
+        "Verdades Buap CRS actualizó su foto de portada.",
+        DAY,
+        source=MentionSource.facebook_page,
+        keyword_id=kw.id,
+    )
+    real = add_mention(
+        session, client.id, "BUAP anuncia reforma pensionaria", DAY, keyword_id=kw.id
+    )
+    session.commit()
+
+    row = build_daily_summary(session, client_id=client.id, day=DAY.date())
+    titles = {n["title"] for n in row.content["noticias"]}
+    card_titles = {t["titulo"] for t in row.content["tarjetas"]}
+    assert len(row.content["tarjetas"]) == len(row.content["noticias"])
+    assert "Verdades Buap CRS actualizó su foto de portada." not in card_titles
+    assert "BUAP anuncia reforma pensionaria" in card_titles
+    assert "Verdades Buap CRS actualizó su foto de portada." not in titles
+    # Coverage counts it anyway; the redes per-source log carries it.
+    assert row.content["coverage"]["total"] == 2
+    assert row.content["redes"]["facebook_page"]["count"] == 1
+    assert cosmet.id and real.id  # rows untouched, only the card layer filters
+
+
 def test_brief_fechas_caduca_y_proxima():
     from datetime import date
 
