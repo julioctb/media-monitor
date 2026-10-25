@@ -29,7 +29,7 @@ from sqlalchemy import func, select
 
 from app.enrich.llm import strip_code_fence
 
-from app.ingest.events import similarity_with_suffix_variants
+from app.ingest.events import similarity_with_suffix_variants, strip_outlet_suffix
 from app.models import AgendaItem, DailySummary, FieldReport, Mention, queries
 from app.models.settings import DEFAULT_OPENAI_BASE_URL
 from app.settings_runtime import EffectiveSettings, resolve_effective_settings
@@ -192,6 +192,17 @@ def _human_day(day: date) -> str:
 #: digest day it already «caducó».
 FECHAS_PROXIMAS_DIAS = 7
 
+#: Wording that makes a dated compromiso semantically «en duda» (F2b): the
+#: stems cover aplazada/cancelada/suspendida/vencida and inflections.
+FECHA_DUDA_STEMS = ("aplazad", "cancelad", "suspendid", "vencid")
+
+
+def fecha_en_duda(*textos: object) -> bool:
+    """True when any text carries deferral/cancellation wording (F2b)."""
+    haystack = " ".join(str(t) for t in textos if t).lower()
+    return any(stem in haystack for stem in FECHA_DUDA_STEMS)
+
+
 #: Field-report statuses the campo section shows, with their UI label.
 CAMPO_ESTADOS = {"published": "publicada", "review": "en revisión"}
 
@@ -278,7 +289,9 @@ def brief_fechas(agenda: list, day: date) -> list[dict]:
 
     Parsed with the agenda detector's Spanish parser against the DIGEST day
     (never now(), so regenerating an old day stays stable). Undatable whens
-    and far-future dates stay out of the section.
+    and far-future dates stay out of the section. Semantic estado (F2b):
+    wording about postponements/cancellations makes the date «en duda»
+    even when it sits in the future — a deferred date is not a commitment.
     """
     fechas: list[dict] = []
     for item in agenda or []:
@@ -296,6 +309,8 @@ def brief_fechas(agenda: list, day: date) -> list[dict]:
             estado = "proxima"
         else:
             continue
+        if fecha_en_duda(title, when, item.get("status")):
+            estado = "en duda"
         fechas.append(
             {"title": title, "when": when, "estado": estado, "fecha": parsed.isoformat()}
         )
@@ -331,11 +346,12 @@ def augment_fechas_from_agenda(session, client_id: int, day: date, fechas: list)
         if not key or key in known:
             continue
         known.add(key)
+        estado = "en duda" if fecha_en_duda(row.title, row.date_label, row.notes) else "proxima"
         out.append(
             {
                 "title": row.title,
                 "when": row.date_label or row.event_date.isoformat(),
-                "estado": "proxima",
+                "estado": estado,
                 "fecha": row.event_date.isoformat(),
             }
         )
@@ -383,13 +399,19 @@ _EMOJI_RE = re.compile(
     "]+"
 )
 HASHTAG_RE = re.compile(r"#\w+")
+#: X-post separator chrome: «🏀 || nota», «#Entérate || nota» — the pipes
+#: never carry meaning once emoji/hashtag chrome is gone.
+_SEPARATOR_CHROME_RE = re.compile(r"\s*\|\|+\s*")
 
 
 def display_title(title: str | None) -> str:
     """Sobrio presentation title: sin emojis, hashtags, URLs ni @handles.
 
     The RAW title always survives on the sources; this is the presentation
-    (and twin-comparison) layer. Idempotent, like strip_fb_chrome.
+    (and twin-comparison) layer. Idempotent, like strip_fb_chrome. The
+    X-post separator chrome («🏀 || nota») and the trailing outlet
+    signature («... - atiemponoticias.mx») are chrome too: the medium
+    lives on the source line, never in the headline.
     """
     if not title:
         return ""
@@ -397,6 +419,8 @@ def display_title(title: str | None) -> str:
     out = HANDLE_RE.sub(" ", out)
     out = _EMOJI_RE.sub(" ", out)
     out = HASHTAG_RE.sub(" ", out)  # el hashtag completo se va, es metadata
+    out = _SEPARATOR_CHROME_RE.sub(" ", out)
+    out = strip_outlet_suffix(out)
     out = re.sub(r"\s+", " ", out).strip()
     return out or title.strip()
 

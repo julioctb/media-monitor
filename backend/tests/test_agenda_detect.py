@@ -124,3 +124,60 @@ def test_sync_creates_dedupes_and_keeps_unparsed_dates(db) -> None:
     again = sync_agenda_from_digest(db, client_id, content, reference=date(2026, 10, 23))
     assert again == 0
     assert len(queries.list_agenda_items(db, client_id)) == 3
+
+
+def _client_id(db) -> int:
+    db.add(Client(name="acme"))
+    db.commit()
+    return db.query(Client).order_by(Client.id).first().id
+
+
+def test_sync_dedupes_near_titles_on_the_same_day(db) -> None:
+    """F2a: mismo día + Jaccard >= 0.6 = un solo compromiso, no dos filas."""
+    client_id = _client_id(db)
+    content = {
+        "agenda": [
+            {"when": "28 oct.", "title": "Paro activo en la BUAP"},
+            {"when": "28 de octubre", "title": "Paro activo BUAP"},
+        ]
+    }
+
+    created = sync_agenda_from_digest(db, client_id, content, reference=date(2026, 10, 24))
+    assert created == 1
+
+    from app.models import queries
+
+    rows = queries.list_agenda_items(db, client_id)
+    assert [r.title for r in rows] == ["Paro activo en la BUAP"]
+    assert rows[0].event_date == date(2026, 10, 28)
+
+    # Idempotencia reforzada: un regen con el título parafraseado no suma.
+    again = sync_agenda_from_digest(db, client_id, content, reference=date(2026, 10, 24))
+    assert again == 0
+
+
+def test_sync_keeps_near_titles_on_different_days(db) -> None:
+    client_id = _client_id(db)
+    content = {
+        "agenda": [
+            {"when": "28 oct.", "title": "Paro activo en la BUAP"},
+            {"when": "29 oct.", "title": "Paro activo BUAP"},
+        ]
+    }
+
+    created = sync_agenda_from_digest(db, client_id, content, reference=date(2026, 10, 24))
+    assert created == 2
+
+
+def test_sync_near_dupe_needs_a_parsed_date(db) -> None:
+    """Sin fecha parseable no hay cruce: la near-dup no descarta nada."""
+    client_id = _client_id(db)
+    content = {
+        "agenda": [
+            {"when": "próxima semana", "title": "Paro activo en la BUAP"},
+            {"when": "fecha por confirmar", "title": "Paro activo BUAP"},
+        ]
+    }
+
+    created = sync_agenda_from_digest(db, client_id, content, reference=date(2026, 10, 24))
+    assert created == 2

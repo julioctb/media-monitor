@@ -1963,3 +1963,119 @@ def test_build_orders_decision_cards_first(session):
     # The heuristic marks negative-dominant stories as decision; they lead.
     assert tarjetas[0]["tono"] == "negativo"
     assert tarjetas[1]["tono"] == "negativo"
+
+
+# --------------------------------------------------- F1 higiene del lector
+
+
+def test_display_title_drops_separator_chrome_and_outlet_suffix():
+    """F1: pipes de separación X y sufijo de medio son chrome de título."""
+    from app.summaries.builder import display_title
+
+    raw = "🏀🐺 || ¡Lobos Puebla va por la serie! - atiemponoticias.mx"
+    clean = display_title(raw)
+    assert clean == "¡Lobos Puebla va por la serie!"
+    assert "||" not in clean
+    assert "atiemponoticias" not in clean
+    assert display_title(clean) == clean  # idempotente
+    # El hashtag-chrome + separador de la variante #Entérate también cae.
+    assert display_title("#Entérate || Hoy la rectora presentará informe") == (
+        "Hoy la rectora presentará informe"
+    )
+
+
+def test_tarjeta_titulo_presentational_sin_sufijo_de_medio():
+    """F1: el medio vive en fuentes; el título de tarjeta queda limpio."""
+    from app.summaries.builder import build_tarjetas
+
+    tarjeta = build_tarjetas(
+        [{"title": "BUAP pospone consulta de pensiones - atiemponoticias.mx"}]
+    )[0]
+    assert tarjeta["titulo"] == "BUAP pospone consulta de pensiones"
+
+
+def test_twin_merge_survives_sobrio_normalization():
+    """F1: la presentación limpia chrome; el clustering de gemelas no cambia.
+
+    The digest merge compares display_title forms: the suffix/pipes strip
+    must keep fusing the outlet-variant twins the variant similarity
+    exists for (the ingest assigner never sees this layer).
+    """
+    from app.summaries.builder import merge_twin_noticias
+
+    merged = merge_twin_noticias(
+        [
+            {
+                "title": "BUAP pospone consulta de pensiones - atiemponoticias.mx",
+                "sources": [{"source": "news_rss", "url": "https://a.mx/x"}],
+                "tone": {"negative": 1},
+            },
+            {
+                "title": "BUAP pospone consulta de pensiones",
+                "sources": [{"source": "x_twitter", "url": "https://x.com/y"}],
+                "tone": {"positive": 1},
+            },
+        ]
+    )
+    assert len(merged) == 1
+    # La tarjeta fundida conserva el title crudo de la mejor fuente; el
+    # sufijo se quita solo en la capa presentacional (build_tarjetas).
+    assert merged[0]["title"].endswith("atiemponoticias.mx")
+
+
+def test_brief_fechas_en_duda_domina_sobre_la_fecha():
+    """F2b: aplazada/cancelada/suspendida/vencida -> «en duda», aunque futura."""
+    from datetime import date
+
+    from app.summaries.builder import brief_fechas
+
+    day = date(2026, 10, 24)
+    fechas = brief_fechas(
+        [
+            # Futura pero aplazada: en duda, no próxima.
+            {
+                "when": "28 de octubre",
+                "title": "Consulta de pensiones",
+                "status": "(aplazada, sin nueva fecha)",
+            },
+            # Futura y firme: próxima.
+            {"when": "30 de octubre", "title": "Taller de vinculación"},
+            # Pasada y suspendida: en duda también domina.
+            {
+                "when": "20 de octubre",
+                "title": "Asamblea",
+                "status": "suspendida",
+            },
+        ],
+        day,
+    )
+    by_title = {f["title"]: f["estado"] for f in fechas}
+    assert by_title["Consulta de pensiones"] == "en duda"
+    assert by_title["Taller de vinculación"] == "proxima"
+    assert by_title["Asamblea"] == "en duda"
+
+
+def test_augment_fechas_en_duda_desde_notas(session):
+    """F2b en la vía agenda_items: las notas de la fila activan «en duda»."""
+    from datetime import date, timedelta
+
+    from app.models import AgendaItem
+    from app.summaries.builder import augment_fechas_from_agenda
+
+    client = add_client(session)
+    day = date(2026, 10, 24)
+    session.add(
+        AgendaItem(
+            client_id=client.id,
+            title="Votación de la reforma",
+            kind="deadline",
+            event_date=day + timedelta(days=4),
+            date_label="28 de octubre",
+            notes="(aplazada, sin nueva fecha)",
+        )
+    )
+    session.commit()
+
+    fechas = augment_fechas_from_agenda(session, client.id, day, [])
+    assert len(fechas) == 1
+    assert fechas[0]["estado"] == "en duda"

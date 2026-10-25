@@ -44,6 +44,11 @@ _MONTHS_ES = {
     "dic": 12,
 }
 
+#: Jaccard token overlap (over normalized-title tokens) at which two
+#: same-day titles count as the same compromiso: promotion-time near-dupe
+#: guard (F2a), on top of the exact-key idempotency.
+AGENDA_NEAR_DUP_JACCARD = 0.6
+
 _DEADLINE_WORDS = (
     "inscripc",
     "cierre",
@@ -117,13 +122,31 @@ def detect_kind(title: str | None, status: str | None) -> str:
     return "activity"
 
 
+def _tokens(title: str) -> set[str]:
+    """Word tokens of the normalized title, for the Jaccard near-dupe check."""
+
+    return {token for token in normalize_title(title).split() if token}
+
+
+def _near_dup(a_tokens: set[str], b_tokens: set[str]) -> bool:
+    """F2a: high token overlap reads as the same compromiso."""
+
+    if not a_tokens or not b_tokens:
+        return False
+    union = a_tokens | b_tokens
+    return len(a_tokens & b_tokens) / len(union) >= AGENDA_NEAR_DUP_JACCARD
+
+
 def sync_agenda_from_digest(
     session: Session, client_id: int, content: dict, *, reference: date
 ) -> int:
     """Promote ``content['agenda']`` entries into agenda_items; return count.
 
     Idempotent by normalized title: existing items (any origin) suppress
-    their detected twin, so repeated cuts and regens never pile up.
+    their detected twin, so repeated cuts and regens never pile up. Near-
+    titles of the SAME parsed date also collapse (F2a): token-Jaccard
+    >= :data:`AGENDA_NEAR_DUP_JACCARD` on the normalized title means one
+    «Paro» phrased twice, not two paros.
 
     ``reference`` is the digest day (NOT today): the year anchor and the
     next-occurrence roll are deterministic per digest, so regenerating an
@@ -135,7 +158,15 @@ def sync_agenda_from_digest(
         return 0
 
     existing = queries.list_agenda_items(session, client_id)
-    known = {normalize_title(item.title) for item in existing}
+    known: set[str] = set()
+    dated: list[tuple[set[str], date]] = []
+    for item in existing:
+        key = normalize_title(item.title or "")
+        if not key:
+            continue
+        known.add(key)
+        if item.event_date is not None:
+            dated.append((_tokens(item.title or ""), item.event_date))
 
     created = 0
     for entry in entries:
@@ -153,6 +184,12 @@ def sync_agenda_from_digest(
         event_date = parse_spanish_date(when, reference.year)
         if event_date is not None and event_date < reference:
             event_date = date(event_date.year + 1, event_date.month, event_date.day)
+        tokens = _tokens(title)
+        if event_date is not None and any(
+            event_date == seen_date and _near_dup(tokens, seen_tokens)
+            for seen_tokens, seen_date in dated
+        ):
+            continue
         session.add(
             AgendaItem(
                 client_id=client_id,
@@ -165,6 +202,8 @@ def sync_agenda_from_digest(
             )
         )
         known.add(key)
+        if event_date is not None:
+            dated.append((tokens, event_date))
         created += 1
 
     if created:
