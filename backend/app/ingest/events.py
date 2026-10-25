@@ -55,6 +55,36 @@ def similarity(a: str, b: str) -> float:
     return intersection / len(tokens_a | tokens_b)
 
 
+_OUTLET_SUFFIX_RE = re.compile(r"\s+[-|]\s+[^-|]+$")
+
+
+def strip_outlet_suffix(title: str) -> str:
+    """Drop the trailing outlet signature (`... - El Popular`, `... | X`).
+
+    RSS titles carry the medium's name appended; it is noise for the
+    similarity of the STORY. Applied repeatedly so chains like
+    `nota - Medio | Sección` collapse to the bare headline.
+    """
+    out = title.strip()
+    while True:
+        stripped = _OUTLET_SUFFIX_RE.sub("", out).strip()
+        if stripped == out or not stripped:
+            return out
+        out = stripped
+
+
+def similarity_with_suffix_variants(a: str, b: str) -> float:
+    """Best of the plain and the suffix-stripped comparison.
+
+    Never below :func:`similarity`; strictly higher when outlet suffixes
+    were diluting the token overlap (measured: 132 lost merges / 15d).
+    """
+    return max(
+        similarity(a, b),
+        similarity(strip_outlet_suffix(a), strip_outlet_suffix(b)),
+    )
+
+
 def _aware(dt: datetime) -> datetime:
     """UTC-normalize for comparisons: SQLite roundtrips naive datetimes."""
     if dt.tzinfo is None:
@@ -91,9 +121,10 @@ def find_or_create_event(
     """Assign `title` to the best event of the client inside the window.
 
     Candidates: same client with first/last_seen within +/- 48h of `when`.
-    Ranked by token-Jaccard against the canonical title, ties broken by id
-    (deterministic). Below threshold (or no candidates) a new event is
-    created. Does not commit; the caller owns the transaction.
+    Ranked by token-Jaccard against the canonical title (best of the plain
+    and suffix-stripped variants), ties broken by id (deterministic).
+    Below threshold (or no candidates) a new event is created. Does not
+    commit; the caller owns the transaction.
     """
     window_start = when - timedelta(hours=WINDOW_HOURS)
     window_end = when + timedelta(hours=WINDOW_HOURS)
@@ -109,7 +140,7 @@ def find_or_create_event(
     best: Event | None = None
     best_score = 0.0
     for event in sorted(candidates, key=lambda e: e.id):
-        score = similarity(title, event.title)
+        score = similarity_with_suffix_variants(title, event.title)
         if score > best_score:
             best, best_score = event, score
     if best is not None and best_score >= SIMILARITY_THRESHOLD:

@@ -3,7 +3,11 @@
 import itertools
 from datetime import datetime, timedelta, timezone
 
-from app.ingest.events import assign_mention_to_event, similarity
+from app.ingest.events import (
+    assign_mention_to_event,
+    similarity,
+    similarity_with_suffix_variants,
+)
 from app.models import Event, Mention, MentionSource, queries
 
 T0 = datetime(2026, 10, 13, 12, 0, tzinfo=timezone.utc)
@@ -53,6 +57,62 @@ def test_similarity_distinct_titles_stay_apart() -> None:
 
 def test_similarity_empty_tokens_is_zero() -> None:
     assert similarity("de la", "por el") == 0.0
+
+
+def test_suffix_variants_merge_outlet_branded_titles() -> None:
+    """Real 15-day sweep case: same story, outlet suffix + truncated title.
+
+    Raw similarity is 0.462 (< 0.5 threshold); stripping the outlet
+    suffixes lifts it over the line.
+    """
+    a = (
+        "BUAP reúne a especialistas para analizar el impacto de la "
+        "Inteligencia Artificial en la Química - Curul Puebla"
+    )
+    b = (
+        "BUAP reúne a especialistas para analizar el impacto de la "
+        "inteligen... - Contraparte | Periodismo en Equilibrio"
+    )
+    assert similarity(a, b) < 0.5
+    assert similarity_with_suffix_variants(a, b) >= 0.5
+
+
+def test_suffix_variants_keeps_distinct_titles_apart() -> None:
+    assert (
+        similarity_with_suffix_variants(
+            "BUAP inaugura edificio en Zacapoaxtla - El Heraldo",
+            "Sube el dólar frente al peso esta semana - Notimex",
+        )
+        < 0.3
+    )
+
+
+def test_suffix_variants_never_scores_below_plain_similarity() -> None:
+    a = "BUAP registra tortuga nueva en Puebla"
+    b = "BUAP registra tortuga nueva en Puebla - El Popular"
+    plain = similarity(a, b)
+    assert similarity_with_suffix_variants(a, b) >= plain
+
+
+def test_assign_merges_same_story_across_outlet_suffixes(session) -> None:
+    """The Emiliano Zapata sweep pair: two outlets, one story, one event."""
+    client_id = _client(session)
+    first = _assign(
+        session,
+        client_id,
+        "Acusan a profesor de la prepa Emiliano Zapata de la BUAP de acoso"
+        " - Ambas Manos",
+        T0,
+    )
+    second = _assign(
+        session,
+        client_id,
+        "Acusan a profesor de la Prepa Zapata de la BUAP de presunto acoso"
+        " sexual - Reto Diario",
+        T0 + timedelta(hours=3),
+    )
+    assert second.id == first.id
+    assert session.query(Event).count() == 1
 
 
 def test_find_or_create_groups_within_window(session) -> None:
