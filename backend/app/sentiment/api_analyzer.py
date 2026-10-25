@@ -2,8 +2,9 @@
 
 POSTs {base_url}/chat/completions with the configured model and key; the
 prompt demands exactly one word (positive|neutral|negative). The score is
-the chosen label's logprob when the response carries logprobs, else the
-flat 0.8 default. Transport: httpx, 20s timeout, 3 attempts.
+a fixed value per label on the bipolar scale the enrichment writer
+defines (0 = negative, 0.5 = neutral, 1 = positive). Transport: httpx,
+20s timeout, 3 attempts.
 
 Roles: the worker builds it as the sentiment FALLBACK for rows whose
 enrichment failed; the settings probe instantiates it directly as a
@@ -11,7 +12,6 @@ connectivity check.
 """
 
 import logging
-import math
 import re
 import time
 
@@ -24,14 +24,21 @@ log = logging.getLogger("sentiment.api")
 
 DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1"
 DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
-DEFAULT_SCORE = 0.8
+#: Fixed per-label scores on the bipolar sentiment_score column (0.5 =
+#: neutral, <0.5 negative, >0.5 positive) — the semantics the enrichment
+#: writer already stores; a label confidence was never a position on it.
+LABEL_SCORES: dict[Sentiment, float] = {
+    Sentiment.negative: 0.4,
+    Sentiment.neutral: 0.5,
+    Sentiment.positive: 0.8,
+}
 TIMEOUT_S = 20.0
 ATTEMPTS = 3
 BACKOFF_S = 0.5
 
 _PROMPT = (
-    "Classify the sentiment towards the brand or subject named in the text. "
-    "Judge the subject, not the event itself. "
+    "Classify the sentiment towards the protagonist of the text (the "
+    "subject of the headline), not the event itself. "
     "Answer with exactly one word: positive, neutral or negative."
 )
 
@@ -44,20 +51,6 @@ def parse_label(content: str) -> Sentiment:
     if match is None:
         raise ValueError(f"unexpected sentiment completion: {content!r}")
     return Sentiment(match.group(1).lower())
-
-
-def _score_from(payload: dict, label: Sentiment) -> float:
-    """exp(logprob) of the label token when logprobs came back, else 0.8."""
-    try:
-        parts = payload["choices"][0].get("logprobs") or {}
-        for item in parts.get("content") or []:
-            token = str(item.get("token") or "")
-            logprob = item.get("logprob")
-            if label.value in token.lower() and isinstance(logprob, (int, float)):
-                return min(1.0, max(0.0, math.exp(logprob)))
-    except (KeyError, IndexError, TypeError):  # shape varies across servers
-        pass
-    return DEFAULT_SCORE
 
 
 class ApiSentimentAnalyzer(SentimentAnalyzer):
@@ -108,7 +101,7 @@ class ApiSentimentAnalyzer(SentimentAnalyzer):
         payload = resp.json()
         choice = payload["choices"][0]
         label = parse_label(choice["message"]["content"])
-        return SentimentResult(label=label, score=_score_from(payload, label))
+        return SentimentResult(label=label, score=LABEL_SCORES[label])
 
     def analyze(self, text: str, lang: str) -> SentimentResult:
         last_error: Exception | None = None

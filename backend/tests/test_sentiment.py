@@ -7,7 +7,12 @@ import httpx
 import pytest
 
 from app.models.base import Sentiment
-from app.sentiment.api_analyzer import DEFAULT_SCORE, ApiSentimentAnalyzer, parse_label
+from app.sentiment.api_analyzer import (
+    LABEL_SCORES,
+    _PROMPT,
+    ApiSentimentAnalyzer,
+    parse_label,
+)
 from app.sentiment.base import SentimentAnalyzer
 
 
@@ -50,7 +55,7 @@ class TestApiSentimentAnalyzer:
         with pytest.raises(ValueError):
             ApiSentimentAnalyzer(api_key="")
 
-    def test_analyze_parses_label_and_default_score(self) -> None:
+    def test_analyze_parses_label_and_fixed_score(self) -> None:
         calls: list[dict] = []
 
         def handler(request: httpx.Request) -> httpx.Response:
@@ -60,12 +65,18 @@ class TestApiSentimentAnalyzer:
         analyzer = ApiSentimentAnalyzer(api_key="k", client=_client(handler))
         result = analyzer.analyze("texto", "es")
         assert result.label is Sentiment.neutral
-        assert result.score == DEFAULT_SCORE  # no logprobs in the response
-        # Prompt shape: system rules + the text, temperature pinned.
+        assert result.score == LABEL_SCORES[Sentiment.neutral]
+        # Prompt shape: system rules + the text, temperature pinned; the
+        # system prompt anchors to the protagonist of the headline.
         assert calls[0]["temperature"] == 0
+        assert calls[0]["messages"][0]["content"] == _PROMPT
+        assert "protagonist of the text" in _PROMPT
         assert calls[0]["messages"][1]["content"] == "texto"
 
-    def test_score_from_logprobs(self) -> None:
+    def test_score_fixed_per_label_ignores_logprobs(self) -> None:
+        # A label confidence (logprob) is not a position on the bipolar
+        # sentiment_score scale: the fixed per-label value wins even when
+        # the provider returns logprobs.
         logprobs = {"content": [{"token": "negative", "logprob": math.log(0.75)}]}
 
         def handler(request: httpx.Request) -> httpx.Response:
@@ -74,7 +85,12 @@ class TestApiSentimentAnalyzer:
         analyzer = ApiSentimentAnalyzer(api_key="k", client=_client(handler))
         result = analyzer.analyze("texto", "es")
         assert result.label is Sentiment.negative
-        assert result.score == pytest.approx(0.75)
+        assert result.score == LABEL_SCORES[Sentiment.negative]
+        assert LABEL_SCORES == {
+            Sentiment.negative: 0.4,
+            Sentiment.neutral: 0.5,
+            Sentiment.positive: 0.8,
+        }
 
     def test_retries_then_raises(self) -> None:
         calls: list = []
