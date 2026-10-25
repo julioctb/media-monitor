@@ -560,6 +560,7 @@ def apply_brief(content: dict, payload: object) -> None:
     if not got:
         return
     content["brief"]["decisiones"] = buckets["decision"]
+    content["brief"]["riesgos"] = buckets["riesgo"]
     content["brief"]["ruido"] = buckets["ruido"]
     content["brief"]["a_favor"] = buckets["a_favor"]
 

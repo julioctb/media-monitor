@@ -27,9 +27,8 @@ function v3Content(): DailySummaryContent {
     brief: {
       headline: "Titular del día",
       delta: ["Nueva historia: A", "B: el tono pasa de positivo a negativo"],
-      decisiones: [
-        { index: 0, categoria: "decision", razon: "Impacto presupuestal" },
-      ],
+      decisiones: [{ index: 0, categoria: "decision", razon: "Impacto presupuestal" }],
+      riesgos: [{ index: 0, categoria: "riesgo", razon: "tono negativo dominante" }],
       ruido: [{ index: 1, categoria: "ruido" }],
       a_favor: [],
       descarte: { cosmeticas: 2, fundadas: 1 },
@@ -127,6 +126,16 @@ describe("digestV3View", () => {
       repeat: true,
       anguloNuevo: "Nuevo ángulo",
     });
+  });
+
+  it("projects the F5 riesgo bucket alongside the picks", () => {
+  	const view = digestV3View(v3Content());
+  	expect(view?.riesgos).toEqual([
+  		{ titulo: "A", razon: "tono negativo dominante" }
+  	]);
+  	// Legacy rows without the key degrade to empty, never error.
+  	const legacy = digestV3View({ ...v2Content(), brief: {}, tarjetas: [] });
+  	expect(legacy?.riesgos).toEqual([]);
   });
 
   it("projects the F3 descarte line, never fabricated", () => {

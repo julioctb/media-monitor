@@ -22,6 +22,7 @@
 		const empty =
 			!view.headline &&
 			view.delta.length === 0 &&
+			view.riesgos.length === 0 &&
 			view.decisiones.length === 0 &&
 			view.ruido.length === 0 &&
 			view.aFavor.length === 0 &&
@@ -32,6 +33,7 @@
 			: {
 					headline: view.headline,
 					delta: view.delta,
+					riesgos: view.riesgos,
 					decisiones: view.decisiones,
 					ruido: view.ruido,
 					aFavor: view.aFavor,
@@ -46,6 +48,7 @@
 		<BriefPanel
 			headline={brief.headline}
 			delta={brief.delta}
+			riesgos={brief.riesgos}
 			decisiones={brief.decisiones}
 			ruido={brief.ruido}
 			aFavor={brief.aFavor}

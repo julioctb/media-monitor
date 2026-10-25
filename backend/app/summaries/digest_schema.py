@@ -70,14 +70,20 @@ class RedesSourceNote(_Strict):
 # writes prose; it never invents structure. ``categoria`` is a closed set so
 # the guided schema carries an enum and the merge can bucket by name.
 
-BriefCategoria = Literal["decision", "ruido", "a_favor"]
+BriefCategoria = Literal["decision", "riesgo", "ruido", "a_favor"]
 
-#: The three brief buckets, in render order.
-BRIEF_CATEGORIES = ("decision", "ruido", "a_favor")
+#: The four brief buckets, in editorial precedence (F5): riesgo leads, the
+#: resto follows by impact, ruido closes.
+BRIEF_CATEGORIES = ("riesgo", "decision", "ruido", "a_favor")
 
 #: content keys carrying the esqueleto's fixed section names, for the
 #: shape validator below and the builder that fills them.
-BRIEF_SECTIONS = ("delta", "decisiones", "ruido", "a_favor", "fechas")
+BRIEF_SECTIONS = ("delta", "decisiones", "riesgos", "ruido", "a_favor", "fechas")
+
+#: The plural content keys of the selection buckets (index-bearing entries).
+#: EVERY bucket iteration — builder post-pases, order remap, shape check —
+#: MUST loop this tuple: a new category lands here once, not per loop.
+BRIEF_BUCKETS = ("decisiones", "riesgos", "ruido", "a_favor")
 
 
 class SeleccionEntry(_Strict):
@@ -130,7 +136,7 @@ def brief_shape_errors(content: object) -> list[str]:
                 errors.append(f"brief.{section} must be a list")
         if "descarte" in brief and not isinstance(brief["descarte"], dict):
             errors.append("brief.descarte must be an object")
-        for section in ("decisiones", "ruido", "a_favor"):
+        for section in BRIEF_BUCKETS:
             entries = brief.get(section)
             if not isinstance(entries, list):
                 continue

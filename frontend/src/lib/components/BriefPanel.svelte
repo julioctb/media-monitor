@@ -14,6 +14,7 @@
 	let {
 		headline = null,
 		delta = [],
+		riesgos = [],
 		decisiones = [],
 		ruido = [],
 		aFavor = [],
@@ -22,6 +23,7 @@
 	}: {
 		headline?: string | null;
 		delta?: string[];
+		riesgos?: BriefEntry[];
 		decisiones?: BriefEntry[];
 		ruido?: BriefEntry[];
 		aFavor?: BriefEntry[];
@@ -42,14 +44,19 @@
 					entradas: delta.map((linea) => ({ principal: linea, secundario: null }))
 				});
 			}
+			// F5: riesgo primero, luego decisión; el resto por impacto y el
+			// ruido al final vive en el orden de las tarjetas.
+			if (riesgos.length > 0) {
+				bloques.push({ titulo: 'Riesgo', entradas: pick(riesgos) });
+			}
 			if (decisiones.length > 0) {
 				bloques.push({ titulo: 'Decisión / atención', entradas: pick(decisiones) });
 			}
-			if (ruido.length > 0) {
-				bloques.push({ titulo: 'Ruido', entradas: pick(ruido) });
-			}
 			if (aFavor.length > 0) {
 				bloques.push({ titulo: 'A favor', entradas: pick(aFavor) });
+			}
+			if (ruido.length > 0) {
+				bloques.push({ titulo: 'Ruido', entradas: pick(ruido) });
 			}
 			return bloques;
 		});

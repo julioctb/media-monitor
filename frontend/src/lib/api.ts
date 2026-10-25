@@ -898,21 +898,23 @@ export interface DailySummaryContent {
 
 /** One brief pick: the tarjeta index it references, never new data. */
 export interface DigestBriefSeleccion {
-  index: number;
-  categoria: "decision" | "ruido" | "a_favor";
-  razon?: string | null;
+	index: number;
+	categoria: 'decision' | 'riesgo' | 'ruido' | 'a_favor';
+	razon?: string | null;
 }
 
 /** The v3 brief: fixed sections, CODE-built; the LLM only picks and writes prose. */
 export interface DigestBrief {
-  headline?: string | null;
-  delta?: string[];
-  decisiones?: DigestBriefSeleccion[];
-  ruido?: DigestBriefSeleccion[];
-  a_favor?: DigestBriefSeleccion[];
-  fechas?: DigestBriefFecha[];
-  /** F3: pre-card discard counters; absent when nothing was discarded. */
-  descarte?: DigestDescarte;
+	headline?: string | null;
+	delta?: string[];
+	decisiones?: DigestBriefSeleccion[];
+	/** F5 risk bucket: negative-dominant cards, floor-filled post-pase. */
+	riesgos?: DigestBriefSeleccion[];
+	ruido?: DigestBriefSeleccion[];
+	a_favor?: DigestBriefSeleccion[];
+	fechas?: DigestBriefFecha[];
+	/** F3: pre-card discard counters; absent when nothing was discarded. */
+	descarte?: DigestDescarte;
 }
 
 /** Pre-card discard: cosmetic updates + stories merged into twins. */

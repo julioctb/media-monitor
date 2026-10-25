@@ -54,15 +54,16 @@ export interface TarjetaView {
 }
 
 export interface DigestV3View {
-  headline: string | null;
-  delta: string[];
-  decisiones: BriefEntryView[];
-  ruido: BriefEntryView[];
-  aFavor: BriefEntryView[];
-  fechas: BriefFechaView[];
-  tarjetas: TarjetaView[];
-  /** F3 visible discard line; null when the row reports no descarte. */
-  descarte: string | null;
+	headline: string | null;
+	delta: string[];
+	decisiones: BriefEntryView[];
+	riesgos: BriefEntryView[];
+	ruido: BriefEntryView[];
+	aFavor: BriefEntryView[];
+	fechas: BriefFechaView[];
+	tarjetas: TarjetaView[];
+	/** F3 visible discard line; null when the row reports no descarte. */
+	descarte: string | null;
 }
 
 const FECHA_ESTADO_LABELS: Record<string, string> = {
@@ -193,6 +194,7 @@ export function digestV3View(
         )
       : [],
     decisiones: seleccionView(brief.decisiones, tarjetas),
+    riesgos: seleccionView(brief.riesgos, tarjetas),
     ruido: seleccionView(brief.ruido, tarjetas),
     aFavor: seleccionView(brief.a_favor, tarjetas),
     fechas,

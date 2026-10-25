@@ -43,7 +43,7 @@ from app.summaries.digest import (
     confidence_for,
     render_plain_text,
 )
-from app.summaries.digest_schema import narrative_response_schema
+from app.summaries.digest_schema import BRIEF_BUCKETS, narrative_response_schema
 
 log = logging.getLogger("summaries.builder")
 
@@ -85,7 +85,8 @@ SYSTEM_PROMPT = (
     "<=6 palabras (ej. «fuente oficial directa») y es opcional; y seleccion: "
     "[{index, categoria, razon}] para el brief, eligiendo SOLO tarjetas ya "
     "existentes por su índice en noticias, con categoria decision (exige "
-    "decisión o atención), ruido o a_favor: la selección nunca introduce "
+    "decisión o atención), riesgo (la lectura de tono negativo dominante), "
+    "ruido o a_favor: la selección nunca introduce "
     "datos nuevos, solo referencia índices. Densidad editorial: marca "
     "mínimo tres decisiones cuando haya candidatas, y cada razon es una "
     "oración completa que explique la lectura editorial y su consecuencia, "
@@ -597,7 +598,7 @@ def _unique(indices: list[int]) -> list[int]:
 
 
 def apply_impact_order(content: dict) -> None:
-    """T8.B: orden editorial — decision primero, resto por impacto, ruido al final.
+    """F5: orden editorial — riesgo, decision, resto por impacto, ruido al final.
 
     Permuta ``noticias`` y ``tarjetas`` juntas (el índice sigue compartido) y
     remapea los índices de TODOS los buckets del brief. Determinista: el
@@ -611,21 +612,23 @@ def apply_impact_order(content: dict) -> None:
     total = min(len(noticias), len(tarjetas))
     if total == 0:
         return
-    brief = content.get("brief") if isinstance(content.get("brief"), dict) else {}
+    raw_brief = content.get("brief")
+    brief: dict = raw_brief if isinstance(raw_brief, dict) else {}
+    riesgos = [i for i in _brief_indices(brief, "riesgos") if 0 <= i < total]
     decisiones = [i for i in _brief_indices(brief, "decisiones") if 0 <= i < total]
     ruido = [i for i in _brief_indices(brief, "ruido") if 0 <= i < total]
-    marked = set(decisiones) | set(ruido)
+    marked = set(riesgos) | set(decisiones) | set(ruido)
     resto = [i for i in range(total) if i not in marked]
     resto.sort(
         key=lambda i: _impact_rank(noticias[i])
         if isinstance(noticias[i], dict)
         else (0, 0, 0)
     )
-    # Una tarjeta marcada decision Y ruido entra una sola vez (precede
-    # decision); el orden final es SIEMPRE una permutación de 0..total-1.
+    # Una tarjeta marcada en dos buckets entra una sola vez (precede el
+    # bloque más alto); el orden final es SIEMPRE una permutación 0..total-1.
     seen: set = set()
     order: list = []
-    for index in _unique(decisiones) + resto + _unique(ruido):
+    for index in _unique(riesgos) + _unique(decisiones) + resto + _unique(ruido):
         if index not in seen:
             seen.add(index)
             order.append(index)
@@ -638,7 +641,7 @@ def apply_impact_order(content: dict) -> None:
     position = {old: new for new, old in enumerate(order)}
     content["noticias"] = [noticias[i] for i in order] + list(noticias[total:])
     content["tarjetas"] = [tarjetas[i] for i in order] + list(tarjetas[total:])
-    for bucket in ("decisiones", "ruido", "a_favor"):
+    for bucket in BRIEF_BUCKETS:
         entries = brief.get(bucket)
         if not isinstance(entries, list):
             continue
@@ -713,7 +716,7 @@ def compile_tail_cards(content: dict) -> bool:
     valid = total - take
     brief = content.get("brief")
     if isinstance(brief, dict):
-        for bucket in ("decisiones", "ruido", "a_favor"):
+        for bucket in BRIEF_BUCKETS:
             entries = brief.get(bucket)
             if isinstance(entries, list):
                 brief[bucket] = [
@@ -866,16 +869,21 @@ def _impact(nota: dict) -> tuple[int, int]:
 
 
 #: Bucket caps keep the heuristic brief as short as the LLM one.
-MAX_DECISIONES = 3
 MAX_RUIDO = 3
+
+#: Razón estándar del piso de riesgo (F5). El cap de decisiones es solo del
+#: bucket decisión: los negativos dejan de competir ahí y llenan el suyo,
+#: sin tope — el piso cubre TODAS las negativas no referenciadas.
+RIESGO_RAZON = "tono negativo dominante"
 
 
 def _heuristic_brief_sections(noticias: list) -> tuple[list, list, list]:
     """Heuristic fill of the SAME esqueleto the LLM completes: tono/conteo.
 
-    Negative-dominant stories are the decision/atention pile (capped);
-    positive-dominant ones go to a_favor; repeated single-source items are
-    ruido. With no negative story at all the top-impact card leads.
+    Positive-dominant stories go to a_favor; repeated single-source items
+    are ruido. The negative floor is NOT here anymore (F5): :func:`ensure_riesgos`
+    owns every negative-dominant card in BOTH paths, so positives and the
+    top-impact fallback shape the decision bucket.
     """
     decisiones: list[dict] = []
     ruido: list[dict] = []
@@ -885,9 +893,7 @@ def _heuristic_brief_sections(noticias: list) -> tuple[list, list, list]:
             continue
         label = tone_label(nota.get("tone"))
         fuentes = len(nota.get("sources") or [])
-        if label == "negativo" and len(decisiones) < MAX_DECISIONES:
-            decisiones.append({"index": index, "razon": "tono negativo dominante"})
-        elif label == "positivo":
+        if label == "positivo":
             a_favor.append({"index": index, "razon": "tono positivo dominante"})
         elif nota.get("repeat") and fuentes < 2 and len(ruido) < MAX_RUIDO:
             ruido.append({"index": index, "razon": "reiteración sin datos nuevos"})
@@ -895,6 +901,35 @@ def _heuristic_brief_sections(noticias: list) -> tuple[list, list, list]:
         top = max(range(len(noticias)), key=lambda i: _impact(noticias[i]))
         decisiones.append({"index": top, "razon": "mayor cobertura del día"})
     return decisiones, ruido, a_favor
+
+
+def ensure_riesgos(content: dict) -> None:
+    """Piso determinístico de negativas (F5), en AMBOS caminos.
+
+    Toda tarjeta de tono negativo dominante NO referenciada en ningún bucket
+    entra a ``riesgos`` con la razón estándar, sin cap. Corre antes del piso
+    de densidad: lo ya marcado por el modelo (o por esta pasada) no se
+    duplica, y el topup de decisiones completa con lo restante. Determinista.
+    """
+    brief = content.get("brief")
+    noticias = content.get("noticias")
+    if not (isinstance(brief, dict) and isinstance(noticias, list)):
+        return
+    riesgos = brief.get("riesgos")
+    if not isinstance(riesgos, list):
+        riesgos = []
+        brief["riesgos"] = riesgos
+    marked: set = set()
+    for bucket in BRIEF_BUCKETS:
+        for entry in brief.get(bucket) or []:
+            if isinstance(entry, dict) and isinstance(entry.get("index"), int):
+                marked.add(entry["index"])
+    for index, nota in enumerate(noticias):
+        if index in marked or not isinstance(nota, dict):
+            continue
+        if tone_label(nota.get("tone")) != "negativo":
+            continue
+        riesgos.append({"index": index, "razon": RIESGO_RAZON})
 
 
 def digest_prompt_view(facts: dict, dia_previo: list | None = None) -> dict:
@@ -992,7 +1027,7 @@ def ensure_decision_density(content: dict) -> None:
     if len(decisiones) >= DECISION_MIN or total < DECISION_MIN:
         return
     marked: set = set()
-    for bucket in ("decisiones", "ruido", "a_favor"):
+    for bucket in BRIEF_BUCKETS:
         for entry in brief.get(bucket) or []:
             if isinstance(entry, dict) and isinstance(entry.get("index"), int):
                 marked.add(entry["index"])
@@ -1323,6 +1358,7 @@ def build_daily_summary(
             previous_day_noticias(session, client_id, day), content["noticias"]
         ),
         "decisiones": heu_decisiones,
+        "riesgos": [],
         "ruido": heu_ruido,
         "a_favor": heu_a_favor,
         "fechas": brief_fechas(content.get("agenda") or [], day),
@@ -1334,6 +1370,9 @@ def build_daily_summary(
     )
     if brief_payload is not None:
         apply_brief(content, brief_payload)
+    # F5: piso de riesgo — las negativas no referenciadas a su bucket, antes
+    # del piso de densidad (T8.D completa decisiones con lo restante).
+    ensure_riesgos(content)
     # T8.D: piso de densidad — mínimo tres decisiones cuando haya candidatas.
     ensure_decision_density(content)
     content["brief"]["headline"] = narrative

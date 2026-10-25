@@ -49,7 +49,7 @@ def test_seleccion_entry_validates_known_categories() -> None:
     assert entry.index == 2
     assert entry.categoria == "decision"
     assert entry.razon is None
-    assert set(BRIEF_CATEGORIES) == {"decision", "ruido", "a_favor"}
+    assert set(BRIEF_CATEGORIES) == {"decision", "riesgo", "ruido", "a_favor"}
 
 
 def test_seleccion_entry_rejects_unknown_category_and_type() -> None:

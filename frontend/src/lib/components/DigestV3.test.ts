@@ -41,6 +41,9 @@ function v3Content(): Record<string, unknown> {
       decisiones: [
         { index: 0, categoria: "decision", razon: "Impacto presupuestal" },
       ],
+      riesgos: [
+        { index: 1, categoria: "riesgo", razon: "tono negativo dominante" },
+      ],
       ruido: [],
       a_favor: [],
       fechas: [
@@ -85,6 +88,9 @@ it("renders brief and evidencia; campo stays out of the digest (F4)", () => {
   expect(copy).toContain("Titular del día");
   expect(copy).toContain("Qué cambió");
   expect(copy).toContain("Nueva historia: A");
+  // F5: el riesgo encabeza los picks del brief.
+  expect(copy).toContain("Riesgo");
+  expect(copy).toContain("B — tono negativo dominante");
   expect(copy).toContain("Decisión / atención");
   expect(copy).toContain("A — Impacto presupuestal");
   expect(copy).toContain("Fechas que obligan");

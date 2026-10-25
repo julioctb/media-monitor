@@ -1242,14 +1242,83 @@ def test_heuristic_brief_sections_by_tone_and_count(session):
 
     row = build_daily_summary(session, client_id=client.id, day=DAY.date())
     brief = row.content["brief"]
-    # noticias[0] es el evento negativo de 2 fuentes; index-aligned buckets.
-    assert brief["decisiones"] == [
-        {"index": 0, "razon": "tono negativo dominante"}
-    ]
+    # F5: los negativos ya no compiten por decision; el top-impacto manda
+    # ahí (fallback) y el piso lleva TODA negativa no referenciada a riesgos.
+    assert brief["decisiones"] == [{"index": 0, "razon": "mayor cobertura del día"}]
+    assert brief["riesgos"] == []
     assert len(brief["a_favor"]) == 1
     assert brief["a_favor"][0]["index"] == 1
     assert brief["a_favor"][0]["razon"] == "tono positivo dominante"
     assert brief["ruido"] == []
+
+
+def test_riesgo_floor_covers_every_unreferenced_negative():
+    """F5: piso en AMBOS caminos — negativa no referenciada => riesgo, sin cap."""
+    from app.summaries.builder import ensure_riesgos
+
+    content = {
+        "noticias": [
+            {"title": "A", "tone": {"negative": 2}},
+            {"title": "B", "tone": {"positive": 2}},
+            {"title": "C", "tone": {"negative": 1, "neutral": 1}},  # mixto, no negativo
+            {"title": "D", "tone": {"negative": 5}},
+            {"title": "E", "tone": {"negative": 1}},
+        ],
+        "brief": {
+            "decisiones": [{"index": 0, "razon": "x"}],
+            "ruido": [{"index": 2}],
+        },
+    }
+
+    ensure_riesgos(content)
+
+    # 3 y 4 son negativas no referenciadas: ambas entran, sin cap.
+    assert content["brief"]["riesgos"] == [
+        {"index": 3, "razon": "tono negativo dominante"},
+        {"index": 4, "razon": "tono negativo dominante"},
+    ]
+    # Idempotente: una segunda pasada no duplica.
+    ensure_riesgos(content)
+    assert len(content["brief"]["riesgos"]) == 2
+
+
+def test_riesgo_floor_respects_the_model_selection(session):
+    """Camino LLM: lo que el modelo no marcó y es negativo, cae a riesgos."""
+    from app.models import Sentiment
+
+    from app.summaries.builder import ensure_riesgos
+
+    client = add_client(session)
+    neg = _event(client.id, "BUAP recorta becas")
+    session.add(neg)
+    session.flush()
+    m1 = add_mention(session, client.id, "Recorte de becas", DAY, event_id=neg.id)
+    m1.sentiment = Sentiment.negative
+    session.commit()
+
+    def payload(prompt: str) -> str:
+        return json.dumps(
+            {
+                "headline": "Titular.",
+                "seleccion": [{"index": 0, "categoria": "decision", "razon": "afecta presupuesto"}],
+            }
+        )
+
+    row = build_daily_summary(session, client_id=client.id, day=DAY.date(), generate=payload)
+    brief = row.content["brief"]
+    assert row.mode == "llm"
+    # La seleccion del modelo manda: la negativa marcada decision no se
+    # duplica en riesgos; el piso solo toma lo no referenciado.
+    assert brief["decisiones"] == [{"index": 0, "razon": "afecta presupuesto"}]
+    assert brief["riesgos"] == []
+
+    # Sin ninguna referencia previa, el piso coloca la negativa en riesgos.
+    content = row.content
+    content["brief"]["decisiones"] = []
+    content["brief"]["ruido"] = []
+    content["brief"]["riesgos"] = []
+    ensure_riesgos(content)
+    assert content["brief"]["riesgos"] == [{"index": 0, "razon": "tono negativo dominante"}]
 
 
 def test_brief_selection_merge_replaces_heuristic_buckets(session):
@@ -1322,6 +1391,7 @@ def test_brief_esqueleto_golden_keys():
                 "headline": "h",
                 "delta": [],
                 "decisiones": [],
+                "riesgos": [],
                 "ruido": [],
                 "a_favor": [],
                 "fechas": [],
@@ -1330,7 +1400,7 @@ def test_brief_esqueleto_golden_keys():
             "campo": [],
         }
     ) == {
-        "top": ["a_favor", "decisiones", "delta", "fechas", "headline", "ruido"],
+        "top": ["a_favor", "decisiones", "delta", "fechas", "headline", "riesgos", "ruido"],
         "tarjeta": [
             "angulo_nuevo",
             "fuentes",
@@ -1446,6 +1516,7 @@ def test_failed_regen_preserves_llm_prose_in_tarjetas(session):
         "headline",
         "delta",
         "decisiones",
+        "riesgos",
         "ruido",
         "a_favor",
         "fechas",
@@ -1872,6 +1943,54 @@ def test_impact_order_decisions_first_impact_middle_ruido_last():
     # Brief indices remapped to the new positions.
     assert content["brief"]["decisiones"] == [{"index": 0, "razon": "x"}]
     assert content["brief"]["ruido"] == [{"index": 3}]
+
+
+def test_impact_order_riesgo_leads_decision_rest_ruido():
+    """F5: el orden editorial pasa a riesgo > decision > resto > ruido."""
+    nota_riesgo, card_riesgo = _card(1, fuentes=1, tone="negative")
+    nota_dec, card_dec = _card(2, fuentes=3)
+    nota_media, card_media = _card(3, fuentes=2)
+    nota_ruido, card_ruido = _card(4, fuentes=1)
+    content = _ordered_content(
+        [nota_ruido, nota_riesgo, nota_dec, nota_media],
+        [card_ruido, card_riesgo, card_dec, card_media],
+        brief_extra={
+            "riesgos": [{"index": 1, "razon": "tono negativo dominante"}],
+            "decisiones": [{"index": 2, "razon": "x"}],
+            "ruido": [{"index": 0}],
+        },
+    )
+
+    apply_impact_order(content)
+
+    # riesgo (1) -> decision (2) -> resto por impacto (3) -> ruido (0)
+    assert [n["title"] for n in content["noticias"]] == [
+        "Historia 1",
+        "Historia 2",
+        "Historia 3",
+        "Historia 4",
+    ]
+    assert content["brief"]["riesgos"] == [{"index": 0, "razon": "tono negativo dominante"}]
+    assert content["brief"]["decisiones"] == [{"index": 1, "razon": "x"}]
+    assert content["brief"]["ruido"] == [{"index": 3}]
+
+
+def test_impact_order_tolerates_legacy_rows_without_riesgos():
+    """Filas v3.1 sin la clave riesgos: degradan, nunca 500 ni reindex roto."""
+
+    nota_dec, card_dec = _card(1, fuentes=2)
+    nota_otra, card_otra = _card(2, fuentes=1)
+    content = _ordered_content(
+        [nota_otra, nota_dec],
+        [card_otra, card_dec],
+        # sin 'riesgos' en el brief: fila previa al bucket
+        brief_extra={"decisiones": [{"index": 1, "razon": "x"}]},
+    )
+
+    apply_impact_order(content)
+
+    assert [n["title"] for n in content["noticias"]] == ["Historia 1", "Historia 2"]
+    assert content["brief"]["decisiones"] == [{"index": 0, "razon": "x"}]
 
 
 def test_impact_order_is_deterministic_on_ties():
