@@ -121,6 +121,24 @@ describe("digestV3View", () => {
     const view = digestV3View(v3Content());
     expect(view?.headline).toBe("Titular del día");
     expect(view?.delta).toHaveLength(2);
+    // Legacy strings normalize: «Nueva historia:» prefix stripped, tone
+    // note split into giro.
+    expect(view?.delta[0]).toEqual({ titulo: "A", giro: null });
+    expect(view?.delta[1]).toEqual({
+      titulo: "B",
+      giro: "el tono pasa de positivo a negativo",
+    });
+    // Typed rows (post 25/oct) pass through untouched.
+    const typed = digestV3View({
+      ...v3Content(),
+      brief: {
+        ...v3Content().brief,
+        delta: [{ titulo: "C", giro: "el tono pasa de neutral a negativo" }],
+      },
+    });
+    expect(typed?.delta).toEqual([
+      { titulo: "C", giro: "el tono pasa de neutral a negativo" },
+    ]);
     expect(view?.decisiones).toEqual([
       { titulo: "A", razon: "Impacto presupuestal", afectacion: null },
     ]);

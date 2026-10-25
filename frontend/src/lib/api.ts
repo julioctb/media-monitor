@@ -908,7 +908,8 @@ export interface DigestVigilanciaEntry {
 /** The v3 brief: fixed sections, CODE-built; the LLM only picks and writes prose. */
 export interface DigestBrief {
 	headline?: string | null;
-	delta?: string[];
+	/** v3 brief delta: typed rows {titulo, giro} or legacy composed strings. */
+	delta?: Array<string | { titulo: string; giro: string | null }>;
 	decisiones?: DigestBriefSeleccion[];
 	/** F5 risk bucket: negative-dominant cards, floor-filled post-pase. */
 	riesgos?: DigestBriefSeleccion[];

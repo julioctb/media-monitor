@@ -64,9 +64,15 @@ export interface TarjetaView {
   anguloNuevo: string | null;
 }
 
+export interface DeltaLineaView {
+  titulo: string;
+  /** Tone-shift note («el tono pasa de X a Y»); null on new-story lines. */
+  giro: string | null;
+}
+
 export interface DigestV3View {
   headline: string | null;
-  delta: string[];
+  delta: DeltaLineaView[];
   decisiones: BriefEntryView[];
   riesgos: BriefEntryView[];
   ruido: BriefEntryView[];
@@ -117,6 +123,32 @@ function afectacionLabel(afectacion: unknown): string | null {
       partes.push(`Ventana: ${[cuando, titulo].filter(Boolean).join(" — ")}`);
   }
   return partes.length > 0 ? partes.join(" · ") : null;
+}
+
+/**
+ * Delta normalizer: new rows store `{titulo, giro}`; legacy rows (pre
+ * 25/oct) store composed strings — «Nueva historia: X» and «X: el tono
+ * pasa de A a B» — parsed here so every row renders the same way.
+ */
+function deltaLineaView(entry: unknown): DeltaLineaView | null {
+  if (typeof entry === "string") {
+    const giro = entry.match(/^(.*?): el tono pasa de /);
+    if (giro?.[1]) {
+      return { titulo: giro[1], giro: entry.slice(giro[1].length + 2) };
+    }
+    const prefijo = "Nueva historia: ";
+    if (entry.startsWith(prefijo)) {
+      return { titulo: entry.slice(prefijo.length), giro: null };
+    }
+    return { titulo: entry, giro: null };
+  }
+  if (entry && typeof entry === "object") {
+    const record = entry as Record<string, unknown>;
+    const titulo = textOrNull(record.titulo);
+    if (!titulo) return null;
+    return { titulo, giro: textOrNull(record.giro) };
+  }
+  return null;
 }
 
 function vigiliaView(entry: unknown): VigilanciaView | null {
@@ -240,9 +272,9 @@ export function digestV3View(
   return {
     headline: textOrNull(brief.headline),
     delta: hasEntries(brief.delta)
-      ? (brief.delta as unknown[]).filter(
-          (line): line is string => typeof line === "string",
-        )
+      ? (brief.delta as unknown[])
+          .map(deltaLineaView)
+          .filter((linea): linea is DeltaLineaView => linea !== null)
       : [],
     decisiones: seleccionView(brief.decisiones, tarjetas),
     riesgos: seleccionView(brief.riesgos, tarjetas),

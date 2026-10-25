@@ -37,7 +37,7 @@ function v3Content(): Record<string, unknown> {
     noticias: [],
     brief: {
       headline: "Titular del día",
-      delta: ["Nueva historia: A"],
+      delta: ["Nueva historia: A", "Consulta pensionaria: el tono pasa de positivo a negativo"],
       decisiones: [
         { index: 0, categoria: "decision", razon: "Impacto presupuestal" },
       ],
@@ -100,7 +100,10 @@ it("renders brief and evidencia; campo stays out of the digest (F4)", () => {
   expect(copy).toContain("Brief del día");
   expect(copy).toContain("Titular del día");
   expect(copy).toContain("Qué cambió");
-  expect(copy).toContain("Nueva historia: A");
+  // Delta tipado (25/oct): sin prefijo «Nueva historia» repetido; el giro
+  // de tono viaja como nota en peso normal tras el título.
+  expect(copy).not.toContain("Nueva historia");
+  expect(copy).toContain("Consulta pensionaria — el tono pasa de positivo a negativo");
   // F5: el riesgo encabeza los picks del brief, con su afectación.
   expect(copy).toContain("Riesgo");
   expect(copy).toContain("B — tono negativo dominante");

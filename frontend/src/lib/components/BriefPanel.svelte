@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { BriefFechaView } from '$lib/digest-v3';
+	import type { BriefFechaView, DeltaLineaView } from '$lib/digest-v3';
 
 	interface BriefEntry {
 		titulo: string;
@@ -32,7 +32,7 @@
 		descarte = null
 	}: {
 		headline?: string | null;
-		delta?: string[];
+		delta?: DeltaLineaView[];
 		riesgos?: BriefEntry[];
 		decisiones?: BriefEntry[];
 		ruido?: BriefEntry[];
@@ -60,7 +60,11 @@
 		if (delta.length > 0) {
 			bloques.push({
 				titulo: 'Qué cambió',
-				entradas: delta.map((linea) => ({ principal: linea, secundario: null, extra: null }))
+			entradas: delta.map((linea) => ({
+					principal: linea.titulo,
+					secundario: linea.giro,
+					extra: null
+				}))
 			});
 		}
 		// F5: riesgo primero, luego decisión; el resto por impacto y el

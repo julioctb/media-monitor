@@ -914,11 +914,13 @@ def test_brief_delta_flags_new_story_against_previous_day(session):
     row = build_daily_summary(session, client_id=client.id, day=next_day.date())
 
     # The carried-over story is NOT new; only the fresh event enters delta.
-    assert row.content["brief"]["delta"] == ["Nueva historia: Rectora anuncia nuevos horarios"]
+    assert row.content["brief"]["delta"] == [
+        {"titulo": "Rectora anuncia nuevos horarios", "giro": None}
+    ]
     # The pure matcher agrees when fed the two days' noticias.
     prev = queries.get_daily_summary(session, client.id, DAY.date()).content["noticias"]
     assert brief_delta(prev, row.content["noticias"]) == [
-        "Nueva historia: Rectora anuncia nuevos horarios"
+        {"titulo": "Rectora anuncia nuevos horarios", "giro": None}
     ]
 
 
@@ -929,7 +931,7 @@ def test_brief_delta_matches_by_normalized_title_without_event_id():
     cur = [{"event_id": None, "title": "puma explota pedido", "tone": {}}]
     assert brief_delta(prev, cur) == []
     cur[0]["title"] = "Nota completamente nueva"
-    assert brief_delta(prev, cur) == ["Nueva historia: Nota completamente nueva"]
+    assert brief_delta(prev, cur) == [{"titulo": "Nota completamente nueva", "giro": None}]
 
 
 def test_brief_delta_reports_tone_flips():
@@ -938,7 +940,9 @@ def test_brief_delta_reports_tone_flips():
     prev = [{"event_id": 3, "title": "Cambio de rectoría", "tone": {"positive": 2}}]
     cur = [{"event_id": 3, "title": "Cambio de rectoría", "tone": {"negative": 3}}]
     delta = brief_delta(prev, cur)
-    assert delta == ["Cambio de rectoría: el tono pasa de positivo a negativo"]
+    assert delta == [
+        {"titulo": "Cambio de rectoría", "giro": "el tono pasa de positivo a negativo"}
+    ]
     # Same tone: no entry.
     assert brief_delta(prev, prev) == []
 
@@ -1755,14 +1759,16 @@ def test_brief_delta_caps_at_five_and_never_raw_titles():
     delta = brief_delta(prev, noticias)
     assert len(delta) == 5
     # giro primero (es el delta verdad), luego nuevas por impacto.
-    assert delta[0].startswith("Historia que mejora")
-    assert "positivo" in delta[0]
-    nuevas = [d for d in delta if d.startswith("Nueva historia:")]
+    assert delta[0]["titulo"].startswith("Historia que mejora")
+    assert "positivo" in (delta[0]["giro"] or "")
+    nuevas = [d for d in delta if d["giro"] is None]
     assert len(nuevas) == 4
     # prosa corta, nunca el title crudo con chrome
     for entry in delta:
-        assert "https" not in entry and "@" not in entry
-        assert len(entry) <= 90
+        texto = f"{entry['titulo']} {entry['giro'] or ''}"
+        assert "https" not in texto and "@" not in texto
+        assert len(entry["titulo"]) <= 200  # DELTA_CLIP: solo títulos patológicos
+        assert len(entry["giro"] or "") <= 60
 
 
 def test_brief_fechas_takes_last_valid_on_ranges():

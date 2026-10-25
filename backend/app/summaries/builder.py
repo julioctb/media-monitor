@@ -273,7 +273,8 @@ def _delta_key(noticia: dict):
 
 
 def _delta_label(title: str | None) -> str:
-    """Sobrio, clipped label for a delta entry — never a raw dumped title."""
+    """Sobrio label for a delta entry; hard cap only against pathological
+    RSS titles — presentation truncation belongs to the UI, never the data."""
     clean = display_title(title)
     if not clean:
         return "(sin título)"
@@ -282,18 +283,21 @@ def _delta_label(title: str | None) -> str:
     return f"{clean[:DELTA_CLIP].rsplit(' ', 1)[0]}…"
 
 
-#: Tope duro del delta (T8.D) y recorte de la etiqueta sobria.
+#: Tope duro del delta (T8.D); el clip alto solo corta títulos patológicos.
 DELTA_MAX = 5
-DELTA_CLIP = 60
+DELTA_CLIP = 200
 
 
-def brief_delta(prev_noticias: list, noticias: list) -> list[str]:
-    """Qué cambió vs el día hábil previo: nuevas historias y giros de tono.
+def brief_delta(prev_noticias: list, noticias: list) -> list[dict]:
+    """Qué cambió vs el día hábil previo: giros de tono y historias nuevas.
 
     Matching by event id first, normalized title as fallback (loose rows
-    carry no id). Densa por contrato (T8.D): los giros van primero (son el
-    delta verdad), las nuevas después; tope duro :data:`DELTA_MAX` y
-    etiqueta sobria recortada — nunca el volcado de titles crudos.
+    carry no id). Entradas tipadas ``{titulo, giro}`` (fix de tono 25/oct):
+    el giro lleva la nota («el tono pasa de X a Y») como campo propio y las
+    nuevas van SIN etiqueta repetida — la sección ya dice «Qué cambió» y el
+    prefijo por línea era changelog mecánico, no brief editorial. Giros
+    primero (son el delta verdad), tope duro :data:`DELTA_MAX`. Strings
+    legacy (filas pre-25/oct) los normaliza la vista del front.
     """
     prev_by_key: dict = {}
     for noticia in prev_noticias or []:
@@ -302,8 +306,8 @@ def brief_delta(prev_noticias: list, noticias: list) -> list[str]:
         key = _delta_key(noticia)
         if key is not None:
             prev_by_key.setdefault(key, noticia)
-    giros: list[str] = []
-    nuevas: list[str] = []
+    giros: list[dict] = []
+    nuevas: list[dict] = []
     for noticia in noticias or []:
         if not isinstance(noticia, dict):
             continue
@@ -311,12 +315,14 @@ def brief_delta(prev_noticias: list, noticias: list) -> list[str]:
         key = _delta_key(noticia)
         prev = prev_by_key.get(key) if key else None
         if prev is None:
-            nuevas.append(f"Nueva historia: {label}")
+            nuevas.append({"titulo": label, "giro": None})
             continue
         before = tone_label(prev.get("tone"))
         after = tone_label(noticia.get("tone"))
         if before and after and before != after:
-            giros.append(f"{label}: el tono pasa de {before} a {after}")
+            giros.append(
+                {"titulo": label, "giro": f"el tono pasa de {before} a {after}"}
+            )
     return (giros + nuevas)[:DELTA_MAX]
 
 
