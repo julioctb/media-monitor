@@ -248,14 +248,18 @@ def reconcile_gray_pairs(
     client_id: int,
     now: datetime | None = None,
     judge: Judge | None = None,
+    window_hours: int = WINDOW_HOURS,
 ) -> dict[str, int | str]:
     """One arbitration pass: detect grays, judge, merge/record.
 
     Returns counts for the worker log (``candidates`` only when idle).
     Judge entries missing from the answer stay unrecorded — a half-answer
-    retries next cycle instead of freezing a wrong identity.
+    retries next cycle instead of freezing a wrong identity. Healing (T3)
+    passes a wider ``window_hours`` to cover historical splits.
     """
-    pairs = find_gray_pairs(session, client_id=client_id, now=now)
+    pairs = find_gray_pairs(
+        session, client_id=client_id, now=now, window_hours=window_hours
+    )
     if not pairs:
         return {"candidates": 0}
     if judge is None:
