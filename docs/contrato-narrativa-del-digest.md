@@ -284,3 +284,10 @@ Un catálogo explícito mal formado o de versión desconocida no habilita una
 ruta alternativa de texto mutable. La ausencia del catálogo conserva la
 compatibilidad de las llamadas antiguas. La salida del modelo no puede
 reescribir el catálogo ni la pertenencia de fuentes de una historia.
+
+### Transporte a tarjetas y compilados
+
+Las tarjetas conservan la pertenencia de fuentes y la referencia de su
+material. Un compilado conserva la unión de fuentes y `notas_refs` alineado
+con cada viñeta; no se le inventa una única publicación representativa.
+Estos índices transportan entrada documental, no respaldo de cada afirmación.

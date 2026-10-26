@@ -295,6 +295,64 @@ def test_public_build_prompts_only_frozen_material_and_rejects_catalogue_injecti
     assert changed["noticias"][0]["source_refs"] == [0]
 
 
+def test_public_build_preserves_source_zero_and_bullet_refs_after_reorder(session):
+    owner = client(session)
+    articles = [publication(session, owner.id, str(i)) for i in range(11)]
+    session.commit()
+
+    row = build_daily_summary(
+        session,
+        client_id=owner.id,
+        day=DAY,
+        generate=lambda prompt: json.dumps(
+            {
+                "headline": "Resumen de prueba.",
+                "seleccion": [
+                    {"index": 10, "categoria": "decision", "razon": "Atender."}
+                ],
+            }
+        ),
+    )
+    session.refresh(row)
+    content = row.content
+    assert [s["mention_id"] for s in content["evidence"]["sources"]] == [
+        article.id for article in articles
+    ]
+    assert [n["source_refs"] for n in content["noticias"]] == [
+        [10],
+        *[[i] for i in range(10)],
+    ]
+    assert [t["source_refs"] for t in content["tarjetas"][:-1]] == [
+        [10],
+        *[[i] for i in range(7)],
+    ]
+    assert [t["material_ref"] for t in content["tarjetas"][:-1]] == [10, *range(7)]
+    assert len(content["tarjetas"]) == 9
+    compiled = content["tarjetas"][-1]
+    assert compiled["titulo"] == "También hoy"
+    assert compiled["source_refs"] == [7, 8, 9]
+    assert compiled["notas_refs"] == [
+        {"source_refs": [i], "material_ref": i} for i in (7, 8, 9)
+    ]
+    assert "material_ref" not in compiled  # No invented single representative.
+    assert compiled["notas"] == [
+        f"Publicación institucional {i} (news_rss)" for i in (7, 8, 9)
+    ]
+    assert content["coverage"]["total"] == len(content["noticias"]) == 11
+    for noticia in content["noticias"]:
+        ref = noticia["material_ref"]
+        assert noticia["sources"] == [
+            {
+                "source": "news_rss",
+                "url": articles[ref].url,
+                "title": articles[ref].title,
+            }
+        ]
+    projected = digest_prompt_view(content)
+    assert [n["material_ref"] for n in projected["noticias"]] == [10, *range(10)]
+    assert [s["index"] for s in projected["evidence"]["sources"]] == list(range(11))
+
+
 @pytest.mark.parametrize(
     "invalid",
     [

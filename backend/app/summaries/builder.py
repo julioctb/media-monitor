@@ -639,11 +639,23 @@ def compile_tail_cards(content: dict) -> bool:
         "notas": notas,
         "fuentes": fuentes,
         "tono": None,
-        "repeat": any(
-            t.get("repeat") for t in swallowed if isinstance(t, dict)
-        ),
+        "repeat": any(t.get("repeat") for t in swallowed if isinstance(t, dict)),
         "angulo_nuevo": None,
     }
+    if any("source_refs" in tarjeta for tarjeta in swallowed):
+        # Preserve each bullet's input membership, not a fabricated shared
+        # representative. Text-bound output provenance is a later contract.
+        compiled["notas_refs"] = [
+            {
+                key: list(tarjeta[key]) if key == "source_refs" else tarjeta[key]
+                for key in ("source_refs", "material_ref")
+                if key in tarjeta
+            }
+            for tarjeta in swallowed
+        ]
+        compiled["source_refs"] = sorted(
+            {ref for tarjeta in swallowed for ref in tarjeta.get("source_refs", [])}
+        )
     content["tarjetas"] = tarjetas[: total - take] + [compiled]
     valid = total - take
     brief = content.get("brief")
@@ -690,6 +702,11 @@ def build_tarjetas(noticias: list) -> list[dict]:
                 # The new angle of a repeated story is narrative (T3); the
                 # esqueleto always carries the key so the render is fixed.
                 "angulo_nuevo": None,
+                **{
+                    key: list(nota[key]) if key == "source_refs" else nota[key]
+                    for key in ("source_refs", "material_ref")
+                    if key in nota
+                },
             }
         )
     return tarjetas
