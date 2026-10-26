@@ -471,3 +471,21 @@ rotula diversidad y veracidad sin prefijo de confianza en el nuevo, conserva
 cada nota del análisis y sus referencias, y deja intacto el formato antiguo.
 Las pruebas con generadores falsos acreditan transporte, aislamiento y
 compatibilidad; no acreditan calidad editorial ni verificación factual.
+
+## 15. Conteos sociales y límites del seguimiento
+
+En nuevos cortes, `redes.x.count` cuenta las publicaciones congeladas del
+canal canónico `x_twitter`, mediante el mismo lector de ámbito que usa la
+procedencia. La clave de presentación sigue siendo `x`; no se altera el
+inventario, el conteo por adaptador ni los indicadores de cada historia.
+
+Los avisos de ausencia solo corresponden a canales soportados y activos en
+la configuración efectiva del cliente: X está disponible en modo gratuito,
+de pago o respaldo; Facebook requiere páginas configuradas. Sin un ámbito
+explícito, el constructor de hechos solo presupone X. No se crea seguimiento
+de Instagram ni se deduce una caída del proveedor porque no haya publicaciones.
+
+Una publicación de Facebook ya recuperada sigue siendo visible y contable
+aunque el seguimiento esté desactivado al generar el corte. Las fuentes
+inactivas sin publicaciones no se agregan como canales vacíos ni limitaciones.
+Los informes históricos no se recalculan y conservan su representación.

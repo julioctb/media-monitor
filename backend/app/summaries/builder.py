@@ -1688,6 +1688,7 @@ def build_daily_summary(
         tz=effective.timezone,
         mentions=mentions,
         window_start=start if window_extended else None,
+        tracked_social={"x", "facebook_page"} if effective.facebook_pages else {"x"},
     )
     content = {
         **facts,

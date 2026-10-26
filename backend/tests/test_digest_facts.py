@@ -50,6 +50,104 @@ def _classify(session, mention_id: int, classifier: str, label: str) -> None:
     session.commit()
 
 
+def test_x_count_matches_frozen_publications_without_false_gap(session) -> None:
+    client_id = _client(session)
+    mention = _mention(
+        session,
+        client_id,
+        "https://x.com/prueba/status/1",
+        source=MentionSource.x_twitter,
+    )
+
+    facts = build_digest_facts(session, client_id=client_id, day=DAY, tz=TZ)
+
+    assert facts["coverage"]["by_source"] == {"x_twitter": 1}
+    assert facts["redes"]["x"]["count"] == 1
+    assert [source["mention_id"] for source in facts["evidence"]["sources"]] == [
+        mention.id
+    ]
+    assert not any("X (Twitter)" in gap for gap in facts["coverage"]["gaps"])
+
+
+@pytest.mark.parametrize("facebook_enabled", [False, True])
+@pytest.mark.parametrize("x_mode", ["free", "paid"])
+def test_public_build_gaps_follow_supported_configured_sources(
+    session, facebook_enabled, x_mode
+) -> None:
+    from app.summaries import build_daily_summary
+
+    client_id = _client(session)
+    upsert_settings(
+        session,
+        client_id,
+        {
+            "timezone": TZ,
+            "x_mode": x_mode,
+            "facebook_pages": [{"page_id": "123456", "label": "Página de prueba"}]
+            if facebook_enabled
+            else [],
+        },
+    )
+    row = build_daily_summary(
+        session,
+        client_id=client_id,
+        day=DAY,
+        generate=lambda _: '{"headline":"Resumen de prueba.","items":[]}',
+    )
+
+    gaps = row.content["coverage"]["gaps"]
+    assert any("Facebook" in gap for gap in gaps) is facebook_enabled
+    assert any("X (Twitter)" in gap for gap in gaps)
+    assert not any("Instagram" in gap for gap in gaps + row.content["pendientes"])
+    assert set(row.content["redes"]) == (
+        {"x", "facebook_page"} if facebook_enabled else {"x"}
+    )
+
+
+def test_observed_facebook_survives_disabled_scope_without_cross_client_counts(
+    session,
+) -> None:
+    from app.summaries import build_daily_summary
+
+    active, disabled = Client(name="Scope active"), Client(name="Scope disabled")
+    session.add_all([active, disabled])
+    session.commit()
+    upsert_settings(
+        session,
+        active.id,
+        {
+            "timezone": TZ,
+            "facebook_pages": [{"page_id": "123456", "label": "Página de prueba"}],
+        },
+    )
+    upsert_settings(session, disabled.id, {"timezone": TZ, "facebook_pages": []})
+    mention = _mention(
+        session,
+        disabled.id,
+        "https://facebook.com/prueba/posts/1",
+        source=MentionSource.facebook_page,
+    )
+
+    def fake(_prompt):
+        return '{"headline":"Resumen de prueba.","items":[]}'
+
+    active_row = build_daily_summary(
+        session, client_id=active.id, day=DAY, generate=fake
+    )
+    disabled_row = build_daily_summary(
+        session, client_id=disabled.id, day=DAY, generate=fake
+    )
+
+    assert active_row.content["redes"]["facebook_page"]["count"] == 0
+    assert any("Facebook" in gap for gap in active_row.content["coverage"]["gaps"])
+    assert active_row.content["evidence"]["sources"] == []
+    assert disabled_row.content["redes"]["facebook_page"]["count"] == 1
+    assert not any(
+        "Facebook" in gap for gap in disabled_row.content["coverage"]["gaps"]
+    )
+    assert [s["mention_id"] for s in disabled_row.content["evidence"]["sources"]] == [mention.id]
+
+
 def test_groups_event_with_media_diversity_and_sources(session) -> None:
     client_id = _client(session)
     event = Event(
@@ -156,7 +254,8 @@ def test_out_of_window_mention_ignored_and_gaps_listed(session) -> None:
 
     assert facts["coverage"]["total"] == 0
     assert facts["noticias"] == []
-    assert any("Facebook" in g for g in facts["coverage"]["gaps"])
+    assert not any("Facebook" in g for g in facts["coverage"]["gaps"])
+    assert not any("Instagram" in g for g in facts["coverage"]["gaps"])
     assert any("X" in g for g in facts["coverage"]["gaps"])
 
 

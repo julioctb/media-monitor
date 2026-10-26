@@ -136,8 +136,13 @@ def build_digest_facts(
     tz: str,
     mentions: list | None = None,
     window_start: datetime | None = None,
+    tracked_social: set[str] | None = None,
 ) -> dict:
     """Deterministic facts for one client-day. No LLM, no prose.
+
+    ``tracked_social`` uses digest channel keys. Without explicit settings,
+    only the always-supported X channel is assumed tracked; observed Facebook
+    publications remain reportable without inventing a configured-source gap.
 
     Window, source counts and the SQLite/PostgreSQL tz dance mirror
     builder.build_daily_summary (UTC walls over mentions.published_at).
@@ -355,18 +360,26 @@ def build_digest_facts(
             }
         )
 
-    # --- redes: tracked social sources, count + gaps when silent.
-    social_labels = {"x": "X (Twitter)", "facebook_page": "Facebook", "instagram": "Instagram"}
+    # --- redes: supported tracked channels and publications actually observed.
+    social_labels = {"x": "X (Twitter)", "facebook_page": "Facebook"}
+    social_scope = set(social_labels).intersection(
+        {"x"} if tracked_social is None else tracked_social
+    )
+    social_counts = {
+        source: len(channel_refs({"evidence": evidence}, source))
+        for source in social_labels
+    }
     redes = {
-        source: {"count": by_source.get(source, 0), "note": ""}
-        for source in ("x", "facebook_page", "instagram")
+        source: {"count": social_counts[source], "note": ""}
+        for source in social_labels
+        if source in social_scope or social_counts[source] > 0
     }
 
     coverage = {
         "total": len(mentions),
         "by_source": dict(by_source),
         "by_topic": dict(by_topic),
-        "gaps": gaps_for(counts=dict(by_source), social=set(social_labels), labels=social_labels),
+        "gaps": gaps_for(counts=social_counts, social=social_scope, labels=social_labels),
     }
 
     content = {
