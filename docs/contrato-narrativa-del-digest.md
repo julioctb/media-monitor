@@ -351,3 +351,17 @@ tipado como texto, sin volcar diccionarios de Python ni perder filas antiguas
 de texto. Las fechas derivadas sin vinculación también conservan su advertencia.
 Esto no cambia la clasificación de riesgos, los pisos ni las reglas temporales;
 esas decisiones analíticas corresponden a T5/T6/T8.
+
+## 11. Validación del catálogo en la interfaz
+
+El lector de procedencia recalcula SHA-256 sobre los campos conocidos del
+catálogo congelado; no confía en una huella declarada por el contenido. Compara
+el texto original antes de limpiarlo para presentación y exige referencias
+enteras válidas dentro del ámbito de cada campo o viñeta compilada.
+
+La validación usa Web Crypto integrado, disponible en localhost o HTTPS.
+Mientras está pendiente o no está disponible, el estado permanece no respaldado;
+no se activa por la mera presencia de enlaces ni por pertenecer a una historia.
+Los enlaces requieren HTTP(S) absoluto, sin reparar valores malformados ni
+aceptar credenciales en la URL. El lector no consulta APIs ni comparte caché
+mutable entre informes o clientes.
