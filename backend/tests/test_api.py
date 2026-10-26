@@ -1045,6 +1045,81 @@ class TestSummaryRevisions:
         assert [row["seq"] for row in rows] == [1, 2]
         assert rows[0]["narrative"] == "primera versión"
 
+    @pytest.mark.parametrize("same_text", [False, True])
+    def test_restore_persists_unbacked_headline_without_borrowing_current_evidence(
+        self, api, db, same_text
+    ):
+        from app.models import DailySummaryRevision
+        from app.summaries.builder import build_daily_summary
+
+        client_id = first_client_id(db)
+        day = date(2026, 10, 23)
+        seed_mention(
+            db,
+            client_id,
+            "https://medio.test/restore",
+            title="Publicación vigente",
+            published=datetime(2026, 10, 23, 18, tzinfo=timezone.utc),
+        )
+        db.commit()
+        payload = {"headline": "Primera versión", "references": {"headline": [0]}}
+        build_daily_summary(
+            db, client_id=client_id, day=day, generate=lambda p: json.dumps(payload)
+        )
+        payload["headline"] = "Primera versión" if same_text else "Nueva versión"
+        current = build_daily_summary(
+            db, client_id=client_id, day=day, generate=lambda p: json.dumps(payload)
+        )
+        before = json.loads(json.dumps(current.content))
+        assert before["provenance"]["headline"]["state"] == "linked"
+        foreign = Client(name="Otro cliente")
+        db.add(foreign)
+        db.flush()
+        db.add(
+            DailySummaryRevision(
+                client_id=foreign.id,
+                summary_date=day,
+                seq=9,
+                narrative="Texto privado ajeno",
+                mode="llm",
+            )
+        )
+        db.commit()
+        # Each POST/GET really owns a fresh session; the JSON mutation must
+        # survive commit, closure and ORM expiry, not just its POST response.
+        factory = sessionmaker(bind=db.bind)
+
+        def fresh_db():
+            with factory() as session:
+                yield session
+
+        api.app.dependency_overrides[get_db] = fresh_db
+        url = f"/api/clients/{client_id}/summary-revisions/restore"
+        response = api.post(url, json={"day": day.isoformat(), "seq": 1})
+        assert response.status_code == 200
+        db.expire_all()
+        read = api.get(f"/api/clients/{client_id}/summaries/{day}")
+        assert read.status_code == 200
+        row = read.json()
+        assert row["narrative"] == "Primera versión"
+        content = row["content"]
+        binding = content["provenance"]["headline"]
+        assert binding["state"] == "unbacked"
+        assert binding["source_refs"] == []
+        assert binding["text"] == row["narrative"]
+        assert binding["origin"] == "revision_restore"
+        assert content["evidence"] == before["evidence"]
+        assert content["tarjetas"] == before["tarjetas"]
+        assert content["brief"]["headline"] == row["narrative"]
+        assert api.post(url, json={"day": day.isoformat(), "seq": 1}).json() == row
+        assert api.post(url, json={"day": day.isoformat(), "seq": 9}).status_code == 404
+        assert "Texto privado ajeno" not in json.dumps(row)
+        revisions = api.get(f"/api/clients/{client_id}/summary-revisions/{day}").json()
+        assert [r["narrative"] for r in revisions] == [
+            "Primera versión",
+            payload["headline"],
+        ]
+
     def test_restore_updates_the_live_row(self, api, db) -> None:
         client_id = first_client_id(db)
         self._seed_day(client_id=client_id, db=db)

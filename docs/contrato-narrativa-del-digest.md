@@ -326,3 +326,13 @@ controles de identidad del corte. Un mismo evento o URL no autoriza copiar
 análisis de material cambiado o desconocido. Una respuesta rechazada no
 filtra texto parcialmente aplicado a la plantilla. Las etiquetas visibles
 en interfaz y exportación se implementan en T9.
+
+### Restauración de revisiones
+
+Las revisiones no guardan un catálogo de evidencia. Restaurar una revisión
+invalida la procedencia del titular, incluso si su texto coincide con el
+actual. Se conservan el catálogo y los metadatos de las tarjetas actuales;
+no se adjudican al titular restaurado. Se sincronizan el titular del brief
+y el texto exportable con la narrativa elegida. La invalidación se asigna
+como un nuevo JSON y se confirma en base de datos para sobrevivir a la
+siguiente lectura. No se reconstruyen ni migran revisiones históricas.

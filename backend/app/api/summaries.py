@@ -90,6 +90,27 @@ def restore_summary_revision(
         raise HTTPException(status_code=404, detail="summary not found")
     row.narrative = revision.narrative
     row.mode = revision.mode
+    # Revisions contain no evidence snapshot. Even an equal-text restore
+    # cannot borrow the live cut's citations; assign fresh JSON for the ORM.
+    from app.summaries.digest import render_plain_text
+    from app.summaries.evidence import cut_refs, make_binding
+
+    content = dict(row.content or {})
+    content["provenance"] = {
+        **(content.get("provenance") or {}),
+        "headline": make_binding(
+            content,
+            revision.narrative,
+            [],
+            cut_refs(content),
+            origin="revision_restore",
+        ),
+    }
+    if isinstance(content.get("brief"), dict):
+        content["brief"] = {**content["brief"], "headline": revision.narrative}
+    if "plain_text" in content:
+        content["plain_text"] = render_plain_text(content, revision.narrative)
+    row.content = content
     session.commit()
     session.refresh(row)
     return row
