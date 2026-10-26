@@ -1,4 +1,6 @@
 <script lang="ts">
+	import DigestEvidence from './DigestEvidence.svelte';
+	import { createEvidenceContext, storyEvidence, type EvidenceContext } from '$lib/digest-evidence';
 	import { sourceLabel, topicLabel, cleanDigestText } from '$lib/format';
 
 	import { toneRows, type ToneCounts } from '$lib/digest-stats';
@@ -6,6 +8,7 @@
 
 	let {
 		content,
+    context,
 		tones = null,
 		sourcesCount = null,
 		socialLabels = {},
@@ -13,6 +16,7 @@
 		negativeEvents = []
 	}: {
 		content: DailySummaryContent;
+    context?: EvidenceContext;
 		/** Day tone split media/social/field; null when /stats/day failed. */
 		tones?: { media: ToneCounts; social: ToneCounts; field: ToneCounts } | null;
 		/** Ingest sources wired for this client; null when settings unreadable. */
@@ -24,6 +28,8 @@
 		negativeEvents?: { event_id?: number | null }[];
 	} = $props();
 
+	const evidenceContext = $derived(context ?? createEvidenceContext(content));
+	const AGENDA_FIELDS = ['when', 'status', 'title', 'source'] as const;
 	const agenda = $derived(content.agenda ?? []);
 	const pendientes = $derived(content.pendientes ?? []);
 	const redes = $derived(Object.entries(content.redes ?? {}));
@@ -88,6 +94,7 @@
 		key: string;
 		label: string;
 		note: string;
+    raw?: unknown;
 		cuentas?: { cuenta: string; nota?: string }[];
 	}
 
@@ -103,7 +110,7 @@
 			const note = typeof info?.note === 'string' ? info.note.trim() : '';
 			const cuentas = Array.isArray(info?.cuentas) ? info.cuentas : [];
 			if (note) {
-				entries.push({ key, label: socialLabels[key] ?? sourceLabel(key), note, cuentas });
+				entries.push({ key, label: socialLabels[key] ?? sourceLabel(key), note, cuentas, raw: info });
 			} else if ((info?.count ?? 0) === 0 && (key === 'x' || (key === 'facebook_page' && socialLabels[key]))) {
 				entries.push({ key, label: socialLabels[key] ?? sourceLabel(key), note: REDES_EMPTY_NOTE });
 			}
@@ -222,11 +229,14 @@
 											? ` — ${item.why_it_matters}`
 											: ''}
 									</p>
+                  {#if item.why_it_matters}<DigestEvidence context={evidenceContext} request={storyEvidence(item, 'why_it_matters')} />{/if}
 								{/if}
 								{#if item.summary || item.title}
 										<p>{entryPrefix(item)}{cleanDigestText(item.summary ?? item.title ?? '')}</p>
+                    <DigestEvidence context={evidenceContext} request={storyEvidence(item, item.summary == null ? 'title' : 'summary')} />
 									{/if}
 								{#if sourceLine(item)}<p class="daily-detail-source">{sourceLine(item)}</p>{/if}
+                {#if item.confidence && item.confidence_note}<DigestEvidence context={evidenceContext} request={storyEvidence(item, 'confidence_note')} />{/if}
 							</div>
 						{/each}
 					</div>
@@ -247,6 +257,11 @@
 						<li>
 							<strong>{[item.when, item.status].filter(Boolean).join(' · ')}</strong>
 							{item.title}{item.source ? ` Fuente: ${item.source}` : ''}
+              {#each AGENDA_FIELDS as field (field)}
+                {#if item[field]}
+                  <DigestEvidence context={evidenceContext} request={{ target: item, field }} />
+                {/if}
+              {/each}
 						</li>
 					{/each}
 				</ul>
@@ -259,10 +274,13 @@
 					<div class="daily-detail-item">
 						<h4>{entry.label}</h4>
 						<p>{entry.note}</p>
+            {#if entry.raw}<DigestEvidence context={evidenceContext} request={{ target: entry.raw, field: 'note', channel: entry.key }} />{/if}
 						{#each entry.cuentas ?? [] as cuentaEntry (cuentaEntry.cuenta)}
 							<p class="daily-detail-cuenta">
 								<strong>{cuentaEntry.cuenta}</strong>{cuentaEntry.nota ? ` — ${cuentaEntry.nota}` : ''}
 							</p>
+              <DigestEvidence context={evidenceContext} request={{ target: cuentaEntry, field: 'cuenta', channel: entry.key, account: cuentaEntry.cuenta }} />
+              {#if cuentaEntry.nota}<DigestEvidence context={evidenceContext} request={{ target: cuentaEntry, field: 'nota', channel: entry.key, account: cuentaEntry.cuenta }} />{/if}
 						{/each}
 					</div>
 				{/each}

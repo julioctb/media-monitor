@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { mount, unmount } from "svelte";
+import { mount, tick, unmount } from "svelte";
 import { afterEach, expect, it } from "vitest";
 
 import type { DailySummary } from "$lib/api";
@@ -7,6 +7,7 @@ import type { DailySummary } from "$lib/api";
 import type { PageProps } from "../routes/$types";
 
 import HomePage from "../routes/+page.svelte";
+import { createEvidenceContext } from "$lib/digest-evidence";
 
 /**
  * Home page view (digest v2): a day without a generated digest must keep
@@ -169,4 +170,37 @@ it("keeps the legacy narrative on v2 rows without brief keys", () => {
 
   expect(text()).toContain("Sintesis del día");
   expect(text()).not.toContain("Brief del día");
+});
+
+it('does not mark the waiting placeholder as unbacked', async () => {
+  const { text } = renderPage(emptyDayData()); await tick();
+  expect(text()).toContain(PLACEHOLDER);
+  expect(text()).not.toContain('No respaldado');
+});
+it('marks a historical narrative without removing any prose', async () => {
+  const { container } = renderPage({ ...emptyDayData(), summary: summaryFixture() }); await tick();
+  expect(container.querySelector('.narrative')?.textContent).toContain('Narrativa editorial del día.');
+  expect(container.querySelector('.narrative')?.textContent).toContain('No respaldado');
+});
+it('binds the leading brief to the actual raw narrative, not a stale headline copy', async () => {
+  const summary = summaryFixture();
+  summary.content.evidence = { version: 1, sources: [{ index: 0, mention_id: 1,
+    source: 'news_rss', url: 'https://medio.example/1', outlet: 'medio.example', author: null,
+    title: 'Publicación registrada', published_at: null, summary: null, excerpt: 'Material' }] };
+  const fingerprint = (await createEvidenceContext(summary.content))!.fingerprint;
+  summary.content.brief = { headline: 'Copia vieja del titular' };
+  summary.content.provenance = { headline: { text: summary.narrative, source_refs: [0], state: 'linked', origin: 'model_output', catalogue_fingerprint: fingerprint } };
+  const { container, text } = renderPage({ ...emptyDayData(), summary });
+  await new Promise(resolve => setTimeout(resolve, 30)); await tick();
+  expect(container.querySelector('.digest-brief-headline')?.textContent).toBe(summary.narrative);
+  expect(text()).not.toContain('Copia vieja del titular');
+  expect(container.querySelector('.digest-brief > details summary')?.textContent).toBe('Fuentes vinculadas');
+});
+
+it('retains a valid legacy brief headline when the actual narrative is empty', async () => {
+  const summary = summaryFixture(); summary.narrative = '';
+  summary.content.brief = { headline: 'Titular histórico íntegro' };
+  const { container } = renderPage({ ...emptyDayData(), summary }); await tick();
+  expect(container.querySelector('.digest-brief-headline')?.textContent).toBe('Titular histórico íntegro');
+  expect(container.querySelector('.digest-brief')?.textContent).toContain('No respaldado');
 });

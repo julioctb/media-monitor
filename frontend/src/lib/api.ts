@@ -811,8 +811,15 @@ interface DigestSourceRef {
   title?: string | null;
 }
 
+/** Optional untrusted JSON metadata; validated centrally at the UI boundary. */
+export interface DigestProvenanceCarrier {
+  provenance?: unknown;
+  source_refs?: unknown;
+  material_ref?: unknown;
+}
+
 /** A digest news item: one canonical event (or loose mention) plus narrative. */
-export interface DigestNewsItem {
+export interface DigestNewsItem extends DigestProvenanceCarrier {
   event_id: number | null;
   title: string | null;
   /** LLM/heuristic synthesis; grounded on the event facts. */
@@ -832,7 +839,7 @@ export interface DigestNewsItem {
   why_it_matters?: string | null;
 }
 
-interface DigestPersonItem {
+interface DigestPersonItem extends DigestProvenanceCarrier {
   person_id: number;
   name: string;
   role?: string | null;
@@ -842,7 +849,9 @@ interface DigestPersonItem {
 }
 
 /** Structured sections of the editorial daily digest (schema 2). */
-export interface DailySummaryContent {
+export interface DailySummaryContent extends DigestProvenanceCarrier {
+  /** Frozen input catalogue, not a truth certificate. */
+  evidence?: unknown;
   schema?: number;
   date?: string;
   timezone?: string;
@@ -855,7 +864,7 @@ export interface DailySummaryContent {
   };
   noticias?: DigestNewsItem[];
   /** Agenda v2: LLM-authored upcoming items (home-digest-v2). */
-  agenda?: { when: string; title: string; status?: string; source?: string }[];
+  agenda?: (DigestProvenanceCarrier & { when: string; title: string; status?: string; source?: string })[];
   /**
    * Legacy rows may still carry a `rectora` key in their stored JSON; the
    * section was removed 25/oct and the key is ignored at render time.
@@ -864,9 +873,10 @@ export interface DailySummaryContent {
     string,
     {
       count: number;
+      provenance?: unknown;
       note?: string;
       /** Per-account follow-ups (LLM); absent on legacy rows. */
-      cuentas?: { cuenta: string; nota?: string }[];
+      cuentas?: (DigestProvenanceCarrier & { cuenta: string; nota?: string })[];
     }
   >;
   personas?: DigestPersonItem[];
@@ -890,7 +900,7 @@ export interface DigestAfectacion {
 	ventana?: { cuando: string; titulo: string };
 }
 
-export interface DigestBriefSeleccion {
+export interface DigestBriefSeleccion extends DigestProvenanceCarrier {
 	index: number;
 	categoria: 'decision' | 'riesgo' | 'ruido' | 'a_favor';
 	razon?: string | null;
@@ -938,7 +948,12 @@ export interface DigestBriefFecha {
 }
 
 /** Evidence card for one digest story; mirrors the aligned noticia. */
-export interface DigestTarjeta {
+export interface DigestTarjeta extends DigestProvenanceCarrier {
+  notas?: unknown;
+  notas_refs?: unknown;
+  /** Historical alternative field names remain readable. */
+  title?: string | null;
+  summary?: string | null;
   titulo?: string | null;
   hecho?: string | null;
   por_que?: string | null;

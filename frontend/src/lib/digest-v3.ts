@@ -33,6 +33,8 @@ function hasEntries(value: unknown): value is unknown[] {
 
 /** Headline of a brief pick, resolved against the tarjeta pool. */
 export interface BriefEntryView {
+  raw?: unknown;
+  sourceRefs?: unknown;
   titulo: string;
   razon: string | null;
   /** F6 structured afectacion, humanized; null when the entry carries none. */
@@ -54,6 +56,8 @@ export interface BriefFechaView {
 }
 
 export interface TarjetaView {
+  raw?: DigestTarjeta;
+  notas?: { text: string; position: number }[];
   titulo: string | null;
   hecho: string | null;
   porQue: string | null;
@@ -187,7 +191,7 @@ function seleccionView(
     const razon = textOrNull(record.razon);
     const afectacion = afectacionLabel(record.afectacion);
     if (!titulo && !razon && !afectacion) continue;
-    view.push({ titulo, razon, afectacion });
+    view.push({ titulo, razon, afectacion, raw: record, sourceRefs: fuente?.source_refs ?? null });
   }
   return view;
 }
@@ -200,6 +204,9 @@ function tarjetaView(tarjeta: DigestTarjeta): TarjetaView {
       )
     : [];
   return {
+    raw: tarjeta,
+    notas: Array.isArray(record.notas) ? record.notas.flatMap((text, position) =>
+      typeof text === 'string' && text.trim() ? [{ text, position }] : []) : [],
     titulo: textOrNull(record.titulo ?? record.title),
     hecho: textOrNull(record.hecho ?? record.summary),
     porQue: textOrNull(record.por_que),

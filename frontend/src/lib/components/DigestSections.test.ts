@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from 'vitest';
-import { mount, unmount } from 'svelte';
+import { mount, tick, unmount } from 'svelte';
 
 import type { DailySummaryContent } from '$lib/api';
 import DigestSections from './DigestSections.svelte';
+import { createEvidenceContext } from '$lib/digest-evidence';
 
 function digestFixture(): DailySummaryContent {
 	return {
@@ -204,4 +205,37 @@ describe('DigestSections v2', () => {
 		expect(host.textContent).not.toContain('Casa de la Bóveda');
 		expect(host.textContent).toContain('Limitaciones de cobertura');
 	});
+});
+
+it('adds raw field receipts to existing news, confidence, negative, agenda and network prose', async () => {
+  const content = digestFixture();
+  content.evidence = { version: 1, sources: [
+    { index: 0, mention_id: 1, source: 'news_rss', url: 'https://medio.example/0', outlet: 'medio.example', author: null, title: 'Medio', published_at: null, summary: null, excerpt: 'Material' },
+    { index: 1, mention_id: 2, source: 'x_twitter', url: 'https://x.com/cuenta/status/2', outlet: 'x.com', author: '@cuenta', title: 'Publicación X', published_at: null, summary: null, excerpt: 'Material X' }
+  ] };
+  const fingerprint = (await createEvidenceContext(content))!.fingerprint;
+  function bind(target: Record<string, unknown>, field: string, ref: number) {
+    target.provenance = { ...(target.provenance as object ?? {}), [field]: { text: target[field], source_refs: [ref], state: 'linked', origin: 'model_output', catalogue_fingerprint: fingerprint } };
+  }
+  const noticia = content.noticias![0];
+  noticia.source_refs = [0];
+  noticia.summary = ' Reseña https://enlace.example/ íntegra ';
+  noticia.confidence_note = 'Nota de confianza';
+  for (const field of ['summary', 'why_it_matters', 'confidence_note']) bind(noticia as unknown as Record<string, unknown>, field, 0);
+  const agenda = content.agenda![0];
+  for (const field of ['when', 'status', 'title', 'source']) bind(agenda as unknown as Record<string, unknown>, field, 0);
+  const account = { cuenta: '@cuenta', nota: 'Lectura de cuenta' };
+  const network = { count: 1, note: 'Lectura de red', cuentas: [account] };
+  bind(network, 'note', 1); bind(account, 'cuenta', 1); bind(account, 'nota', 1);
+  content.redes = { x: network };
+  const host = renderSection(content, null, { negativeEvents: [{ event_id: 673 }] });
+  await new Promise(resolve => setTimeout(resolve, 30)); await tick();
+  const first = host.querySelector('.daily-detail-entry')!;
+  expect(first.querySelectorAll('details')).toHaveLength(3);
+  expect(first.textContent).toContain('Reseña íntegra');
+  const agendaBlock = [...host.querySelectorAll('.daily-detail-block')].find(block => block.querySelector('h3')?.textContent === 'Agenda')!;
+  expect(agendaBlock.querySelectorAll('details')).toHaveLength(4);
+  const social = [...host.querySelectorAll('.daily-detail-block')].find(block => block.querySelector('h3')?.textContent === 'Redes sociales')!;
+  expect(social.querySelectorAll('details')).toHaveLength(3);
+  expect([...social.querySelectorAll('a')].map(link => link.getAttribute('href'))).toEqual(Array(3).fill('https://x.com/cuenta/status/2'));
 });

@@ -377,3 +377,16 @@ páginas o grupos. Un enlace inválido queda como texto, nunca como ancla repara
 La explicación visible aclara que procedencia no equivale a veracidad ni a
 independencia entre publicaciones. Los estados sin referencias válidas conservan
 la prosa y muestran «No respaldado»; el inspector no agrega una afirmación nueva.
+
+## 13. Uso en las superficies existentes
+
+El informe, las razones del brief, tarjetas, viñetas compiladas y el detalle
+comparten el mismo inspector. Agenda y redes conservan el ámbito del canal y,
+para cuentas individuales, el autor original. El texto se valida antes de
+limpiarlo; los índices de viñetas se conservan aunque otras filas se filtren.
+
+El titular principal se vincula al `narrative` real, no a una copia histórica
+que haya quedado en el brief. Sin narrativa actual, la copia visible no adquiere
+procedencia por coincidencia accidental. El material histórico sin metadatos
+permanece visible no respaldado, sin reconstruir datos ni cambiar categorías,
+pisos, vigilancia, persona principal o reglas analíticas de T5–T8.

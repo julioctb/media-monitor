@@ -139,18 +139,18 @@ describe("digestV3View", () => {
     expect(typed?.delta).toEqual([
       { titulo: "C", giro: "el tono pasa de neutral a negativo" },
     ]);
-    expect(view?.decisiones).toEqual([
+    expect(view?.decisiones).toMatchObject([
       { titulo: "A", razon: "Impacto presupuestal", afectacion: null },
     ]);
     // Index 1 has no titulo: the fallback keeps the pick renderable.
-    expect(view?.ruido).toEqual([{ titulo: "#1", razon: null, afectacion: null }]);
+    expect(view?.ruido).toMatchObject([{ titulo: "#1", razon: null, afectacion: null }]);
     expect(view?.aFavor).toEqual([]);
     expect(view?.fechas.map((fecha) => fecha.estado)).toEqual([
       "Próxima",
       "Caducada",
       "otro",
     ]);
-    expect(view?.tarjetas[0]).toEqual({
+    expect(view?.tarjetas[0]).toMatchObject({
       titulo: "A",
       hecho: "Hecho uno",
       porQue: "Porque uno",
@@ -163,7 +163,7 @@ describe("digestV3View", () => {
 
   it("projects the F5 riesgo bucket alongside the picks", () => {
     const view = digestV3View(v3Content());
-    expect(view?.riesgos).toEqual([
+    expect(view?.riesgos).toMatchObject([
       {
         titulo: "A",
         razon: "tono negativo dominante",
@@ -226,9 +226,9 @@ describe("digestV3View", () => {
     });
     expect(view?.headline).toBeNull();
     expect(view?.delta).toEqual([]);
-    expect(view?.decisiones).toEqual([]);
+    expect(view?.decisiones).toMatchObject([]);
     expect(view?.descarte).toBeNull();
-    expect(view?.tarjetas).toEqual([
+    expect(view?.tarjetas).toMatchObject([
       {
         titulo: "Solo titulo",
         hecho: null,
@@ -240,4 +240,15 @@ describe("digestV3View", () => {
       },
     ]);
   });
+});
+
+it('preserves raw object identity and compiled bullet positions before display filtering', () => {
+  const raw = { titulo: 'Compilación', notas: ['B', '', 'A'], source_refs: [0, 1], notas_refs: [{ source_refs: [1] }, {}, { source_refs: [0] }], provenance: { notas: ['b', null, 'a'] } };
+  const pick = { index: 1, razon: ' Razón cruda ', categoria: 'decision' as const };
+  const view = digestV3View({ brief: { decisiones: [pick] }, tarjetas: [null as never, raw] });
+  expect(view?.tarjetas[0].raw).toBe(raw);
+  expect(view?.tarjetas[0].notas?.map(nota => nota.position)).toEqual([0, 2]);
+  expect(view?.decisiones[0].raw).toBe(pick);
+  expect(view?.decisiones[0].sourceRefs).toBe(raw.source_refs);
+  expect(view?.decisiones[0].razon).toBe('Razón cruda');
 });

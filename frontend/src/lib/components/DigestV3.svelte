@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { DailySummaryContent } from '$lib/api';
 
+	import { createEvidenceContext, type EvidenceContext } from '$lib/digest-evidence';
 	import { digestV3View } from '$lib/digest-v3';
 	import BriefPanel from '$lib/components/BriefPanel.svelte';
 	import TarjetaCard from '$lib/components/TarjetaCard.svelte';
@@ -11,11 +12,12 @@
 	 * no view and this renders nothing — the home keeps its layout. Campo
 	 * lives in its own surface (/campo); the digest no longer renders it (F4).
 	 */
-	let { content }: { content: DailySummaryContent } = $props();
+	let { content, context, narrative }: { content: DailySummaryContent; context?: EvidenceContext; narrative?: string } = $props();
+  const evidenceContext = $derived(context ?? createEvidenceContext(content));
 
 	const view = $derived(digestV3View(content));
 	const tarjetas = $derived(
-		view?.tarjetas.filter((tarjeta) => tarjeta.titulo || tarjeta.hecho || tarjeta.porQue) ?? []
+		view?.tarjetas.filter((tarjeta) => tarjeta.titulo || tarjeta.hecho || tarjeta.porQue || tarjeta.anguloNuevo || tarjeta.notas?.length) ?? []
 	);
 	const brief = $derived.by(() => {
 		if (!view) return null;
@@ -48,7 +50,9 @@
 {#if view}
 	{#if brief}
 		<BriefPanel
-			headline={brief.headline}
+      context={evidenceContext}
+      headlineRequest={{ target: content, field: 'headline', text: narrative ?? null }}
+			headline={narrative?.trim() ? narrative : brief.headline}
 			delta={brief.delta}
 			riesgos={brief.riesgos}
 			decisiones={brief.decisiones}
@@ -70,7 +74,7 @@
 			</header>
 			<div class="digest-tarjetas">
 				{#each tarjetas as tarjeta, i (`tarjeta-${i}`)}
-					<TarjetaCard {tarjeta} />
+					<TarjetaCard {tarjeta} context={evidenceContext} />
 				{/each}
 			</div>
 		</section>

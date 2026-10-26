@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
-import { mount, unmount } from "svelte";
+import { mount, tick, unmount } from "svelte";
 import { afterEach, expect, it } from "vitest";
 
 import type { DailySummaryContent } from "$lib/api";
 
 import DigestV3 from "./DigestV3.svelte";
+import { createEvidenceContext } from "$lib/digest-evidence";
 
 /**
  * Container behavior: v3 rows render brief + evidencia + campo; legacy v2
@@ -13,7 +14,7 @@ import DigestV3 from "./DigestV3.svelte";
 
 const mounted: Array<Record<string, unknown>> = [];
 
-function render(content: unknown): { text: () => string; html: () => string } {
+function render(content: unknown): { text: () => string; html: () => string; target: HTMLElement } {
   const target = document.createElement("div");
   document.body.appendChild(target);
   const instance = mount(DigestV3, {
@@ -24,6 +25,7 @@ function render(content: unknown): { text: () => string; html: () => string } {
   return {
     text: () => (target.textContent ?? "").replace(/\s+/g, " "),
     html: () => target.innerHTML,
+    target,
   };
 }
 
@@ -150,4 +152,85 @@ it("hides absent pieces: no por_que, no ghost sections", () => {
   expect(text()).not.toContain("Descartado");
   expect(text()).not.toContain("reportes en la ventana");
   expect(text()).toContain("Hecho uno");
+});
+
+
+it("retains legacy analytical prose with visible unbacked markers", async () => {
+  const { text, html } = render(v3Content());
+  await tick();
+  expect(text()).toContain("Hecho uno");
+  expect(text()).toContain("Impacto presupuestal");
+  expect(html()).toContain("No respaldado");
+  expect(html()).not.toContain("Fuentes vinculadas");
+});
+
+async function linkedContent() {
+  const sources = [0, 1, 2].map(index => ({ index, mention_id: 10 + index,
+    source: 'news_rss', url: `https://medio.example/${index}`, outlet: 'medio.example',
+    author: null, title: `Publicación ${index}`, published_at: null, summary: null, excerpt: `Material ${index}` }));
+  const content: Record<string, unknown> = { ...v3Content(), evidence: { version: 1, sources } };
+  const fingerprint = (await createEvidenceContext(content))!.fingerprint;
+  const binding = (text: string, source: number) => ({ text, source_refs: [source], state: 'linked', origin: 'model_output', catalogue_fingerprint: fingerprint });
+  const tarjetas = content.tarjetas as Record<string, unknown>[];
+  tarjetas[0] = { titulo: 'A', hecho: ' Hecho https://enlace.example/ crudo ', por_que: 'Porque importa', angulo_nuevo: 'Lectura nueva', fuentes: [], source_refs: [0], provenance: {
+    hecho: binding(' Hecho https://enlace.example/ crudo ', 0), por_que: binding('Porque importa', 0), angulo_nuevo: binding('Lectura nueva', 0)
+  } };
+  const brief = content.brief as Record<string, unknown>;
+  brief.decisiones = [{ index: 0, razon: 'Razón vinculada', provenance: { razon: binding('Razón vinculada', 0) } }];
+  return { content, binding };
+}
+
+it('carries exact raw card and selection bindings through the existing view', async () => {
+  const { content } = await linkedContent();
+  const { target, text } = render(content);
+  await new Promise(resolve => setTimeout(resolve, 30)); await tick();
+  const first = target.querySelector('.digest-tarjeta')!;
+  expect(first.querySelectorAll('details summary')).toHaveLength(3);
+  expect(first.textContent).toContain('Hecho crudo');
+  expect(text()).toContain('Razón vinculada');
+  const choice = [...target.querySelectorAll('.digest-brief-block')].find(block => block.textContent?.includes('Decisión / atención'))!;
+  expect(choice.querySelector('details summary')?.textContent).toBe('Fuentes vinculadas');
+  expect([...first.querySelectorAll('a')].every(link => link.getAttribute('href') === 'https://medio.example/0')).toBe(true);
+  expect(first.textContent).not.toContain('Material 2');
+});
+
+it('renders every compiled bullet with its own scope after card reordering', async () => {
+  const { content, binding } = await linkedContent();
+  const compiled = { titulo: 'También hoy', notas: ['Nota B', '', 'Nota A'], source_refs: [0, 1],
+    notas_refs: [{ source_refs: [1] }, {}, { source_refs: [0] }],
+    provenance: { notas: [binding('Nota B', 1), null, binding('Nota A', 0)] }, fuentes: [] };
+  content.tarjetas = [null, compiled, { titulo: 'Después', hecho: 'Texto sin respaldo' }];
+  const { target, text } = render(content);
+  await new Promise(resolve => setTimeout(resolve, 30)); await tick();
+  const bullets = [...target.querySelectorAll('.digest-tarjeta-notas > li')];
+  expect(bullets).toHaveLength(2);
+  expect(bullets.map(bullet => bullet.textContent?.slice(0, 6))).toEqual(['Nota B', 'Nota A']);
+  expect(bullets.map(bullet => bullet.querySelector('a')?.getAttribute('href'))).toEqual(['https://medio.example/1', 'https://medio.example/0']);
+  expect(text()).toContain('Texto sin respaldo');
+  compiled.notas_refs[0] = { source_refs: [0] };
+  const changed = render(content);
+  await new Promise(resolve => setTimeout(resolve, 30)); await tick();
+  expect(changed.target.querySelector('.digest-tarjeta-notas > li')?.textContent).toContain('No respaldado');
+  expect(changed.target.querySelector('.digest-tarjeta-notas > li')?.querySelector('a')).toBeNull();
+});
+
+it('retains all displayed prose while stale, foreign and changed raw bindings become unbacked', async () => {
+  const { content } = await linkedContent();
+  const cards = content.tarjetas as Record<string, unknown>[];
+  cards[0].hecho = 'Otro hecho sin referencia válida';
+  (cards[0].provenance as Record<string, { source_refs: number[] }>).por_que.source_refs = [1];
+  const { target, text } = render(content);
+  await new Promise(resolve => setTimeout(resolve, 30)); await tick();
+  expect(text()).toContain('Otro hecho sin referencia válida');
+  expect(text()).toContain('Porque importa');
+  const first = target.querySelector('.digest-tarjeta')!;
+  expect(first.querySelectorAll('span.digest-provenance')).toHaveLength(2);
+  expect(first.querySelectorAll('details')).toHaveLength(1);
+  const evidence = content.evidence as { catalogue_fingerprint?: string; sources: { excerpt: string }[] };
+  evidence.catalogue_fingerprint = (await createEvidenceContext(content))!.fingerprint;
+  evidence.sources[0].excerpt = 'Material modificado';
+  const changed = render(content);
+  await new Promise(resolve => setTimeout(resolve, 30)); await tick();
+  expect(changed.target.querySelector('.digest-tarjeta')?.querySelectorAll('details')).toHaveLength(0);
+  expect(changed.text()).toContain('Lectura nueva');
 });

@@ -11,6 +11,8 @@
 	import { categoryRows, monogram } from '$lib/digest-stats';
 	import DigestSections from '$lib/components/DigestSections.svelte';
 	import DigestV3 from '$lib/components/DigestV3.svelte';
+	import DigestEvidence from '$lib/components/DigestEvidence.svelte';
+	import { createEvidenceContext } from '$lib/digest-evidence';
 	import { digestV3View } from '$lib/digest-v3';
 	import NegativeNews from '$lib/components/NegativeNews.svelte';
 	import type { PageProps } from './$types';
@@ -18,6 +20,7 @@
 	let { data }: PageProps = $props();
 
 	const summary = $derived(data.summary);
+  const evidenceContext = $derived(createEvidenceContext(summary?.content));
 	const day = $derived(data.day);
 
 	// Auto-refresh while visible (same contract as the feed): picks up new
@@ -152,13 +155,14 @@
 		</section>
 
 		<!-- digest-brief-v3: brief + evidencia + campo; renders nothing on legacy rows. -->
-		<DigestV3 content={summary?.content ?? {}} />
+		<DigestV3 content={summary?.content ?? {}} context={evidenceContext} narrative={summary?.narrative} />
 
 		{#if !v3Headline}
 			<section class="narrative" aria-labelledby="narrative-heading">
 				<div class="eyebrow" id="narrative-heading">Sintesis del día</div>
 				{#if summary}
 					<p>{summary.narrative}</p>
+          {#if summary.narrative}<DigestEvidence context={evidenceContext} request={{ target: summary.content, field: 'headline', text: summary.narrative }} />{/if}
 				{:else}
 					<p>En espera de generar el resumen del día</p>
 				{/if}
@@ -168,6 +172,7 @@
 		<NegativeNews mentions={data.negativeEvents} />
 
 		<DigestSections
+      context={evidenceContext}
 			content={summary?.content ?? {}}
 			tones={data.tones}
 			sourcesCount={data.sourcesCount}

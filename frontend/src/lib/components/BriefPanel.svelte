@@ -1,12 +1,8 @@
 <script lang="ts">
-	import type { BriefFechaView, DeltaLineaView } from '$lib/digest-v3';
+	import DigestEvidence from './DigestEvidence.svelte';
+	import type { EvidenceContext, EvidenceRequest } from '$lib/digest-evidence';
+	import type { BriefEntryView as BriefEntry, BriefFechaView, DeltaLineaView } from '$lib/digest-v3';
 
-	interface BriefEntry {
-		titulo: string;
-		razon: string | null;
-		/** F6 afectacion line; null when the entry carries none. */
-		afectacion: string | null;
-	}
 
 	interface VigilanciaLinea {
 		persona: string;
@@ -22,6 +18,8 @@
 	 */
 	let {
 		headline = null,
+    context,
+    headlineRequest,
 		delta = [],
 		riesgos = [],
 		decisiones = [],
@@ -32,6 +30,8 @@
 		descarte = null
 	}: {
 		headline?: string | null;
+    context?: EvidenceContext;
+    headlineRequest?: EvidenceRequest;
 		delta?: DeltaLineaView[];
 		riesgos?: BriefEntry[];
 		decisiones?: BriefEntry[];
@@ -45,17 +45,18 @@
 
 	const secciones: {
 		titulo: string;
-		entradas: { principal: string; secundario: string | null; extra: string | null }[];
+		entradas: { principal: string; secundario: string | null; extra: string | null; evidence?: EvidenceRequest }[];
 	}[] = $derived.by(() => {
 		const pick = (entries: BriefEntry[]) =>
 			entries.map((entry) => ({
 				principal: entry.titulo,
 				secundario: entry.razon,
-				extra: entry.afectacion
+				extra: entry.afectacion,
+          evidence: { target: entry.raw, field: 'razon', allowed: entry.sourceRefs ?? null }
 			}));
 		const bloques: {
 			titulo: string;
-			entradas: { principal: string; secundario: string | null; extra: string | null }[];
+			entradas: { principal: string; secundario: string | null; extra: string | null; evidence?: EvidenceRequest }[];
 		}[] = [];
 		if (delta.length > 0) {
 			bloques.push({
@@ -88,7 +89,7 @@
 <section class="digest-brief" aria-labelledby="digest-brief-heading">
 	<div class="eyebrow" id="digest-brief-heading">Brief del día</div>
 	{#if headline}
-		<p class="digest-brief-headline">{headline}</p>
+		<p class="digest-brief-headline">{headline}</p><DigestEvidence {context} request={headlineRequest} />
 	{/if}
 	<div class="digest-brief-grid">
 		{#each secciones as bloque (bloque.titulo)}
@@ -99,7 +100,8 @@
 						<li>
 							<strong>{entrada.principal}</strong>
 							{#if entrada.secundario}<span> — {entrada.secundario}</span>{/if}
-							{#if entrada.extra}<span class="digest-brief-afectacion">{entrada.extra}</span>{/if}
+							{#if entrada.secundario}<DigestEvidence {context} request={entrada.evidence} />{/if}
+                {#if entrada.extra}<span class="digest-brief-afectacion">{entrada.extra}</span><DigestEvidence />{/if}
 						</li>
 					{/each}
 				</ul>
@@ -115,6 +117,7 @@
 							{#if linea.nota}: {linea.nota}{/if}
 							{#if linea.fecha} <span class="digest-brief-estado">{linea.fecha}</span>{/if}
 							{#if linea.afectacion}<span class="digest-brief-afectacion">{linea.afectacion}</span>{/if}
+                {#if linea.nota || linea.afectacion}<DigestEvidence />{/if}
 						</li>
 					{/each}
 				</ul>
@@ -129,6 +132,7 @@
 							<span class="digest-brief-estado">{fecha.estado}</span>
 							<strong>{fecha.titulo}</strong>
 							{#if fecha.cuando}<span> ({fecha.cuando})</span>{/if}
+                <DigestEvidence />
 						</li>
 					{/each}
 				</ul>
