@@ -377,6 +377,8 @@ páginas o grupos. Un enlace inválido queda como texto, nunca como ancla repara
 La explicación visible aclara que procedencia no equivale a veracidad ni a
 independencia entre publicaciones. Los estados sin referencias válidas conservan
 la prosa y muestran «No respaldado»; el inspector no agrega una afirmación nueva.
+El material capturado permite partir palabras o URL largas dentro de su propio
+contenedor, sin recortar el texto ni modificar el diseño global del informe.
 
 ## 13. Uso en las superficies existentes
 

@@ -56,7 +56,7 @@
   .digest-provenance { display: block; margin-top: 0.35rem; font: 500 0.75rem/1.5 var(--font-body, sans-serif); color: inherit; }
   summary { cursor: pointer; text-decoration: underline; text-underline-offset: 0.2em; }
   summary:focus-visible, a:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
-  .digest-provenance-material { margin-top: 0.5rem; padding: 0.5rem; border: 1px solid currentColor; border-radius: var(--radius-sm, 4px); }
+  .digest-provenance-material { overflow-wrap: anywhere; margin-top: 0.5rem; padding: 0.5rem; border: 1px solid currentColor; border-radius: var(--radius-sm, 4px); }
   .digest-provenance-material p { margin: 0.25rem 0; font: inherit; color: inherit; }
   ol { margin: 0; padding-left: 1.25rem; }
   li + li { margin-top: 0.75rem; }
