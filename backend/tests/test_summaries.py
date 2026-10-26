@@ -3044,6 +3044,155 @@ def test_brief_shape_flags_malformed_descarte():
 # ------------------------------------------------- F6/F7 watchlist y vigilia
 
 
+@pytest.mark.parametrize("surface", ["riesgos", "vigilancia"])
+def test_public_quoted_person_is_not_automatically_an_affected_party(session, surface):
+    client = add_client(session)
+    mention = _negative_mention(
+        session, client.id, "Cambio de nómina afecta al personal", DAY
+    )
+    assert mention is not None
+    observer = _person_link(session, client.id, "Observador de Prueba", mention)
+    observer.role = "Candidato"
+    mention.content = "El cambio afecta al personal. Observador de Prueba comentó la revisión, sin responsabilidad de ejecución."
+    queries.upsert_settings(session, client.id, {"digest_focus_person_id": observer.id})
+    session.commit()
+    reason = "El cambio afecta al personal; conviene verificar su alcance."
+    response = json.dumps(
+        {
+            "headline": "Revisión de nómina.",
+            "items": [{"index": 0, "why_it_matters": reason}],
+            "seleccion": [{"index": 0, "categoria": "riesgo", "razon": reason}]
+            if surface == "riesgos"
+            else [],
+            "references": {"items.0.why_it_matters": [0], "seleccion.0.razon": [0]},
+        }
+    )
+
+    row = build_daily_summary(
+        session, client_id=client.id, day=DAY.date(), generate=lambda _: response
+    )
+
+    entry = row.content["brief"][surface][0]
+    assert "quien" not in entry.get("afectacion", {})
+    assert observer.id in row.content["noticias"][0]["person_ids"]
+    assert row.content["noticias"][0]["why_it_matters"] == reason
+    assert observer.name in row.content["evidence"]["sources"][0]["excerpt"]
+    if surface == "riesgos":
+        assert entry["razon"] == reason
+        assert entry["provenance"]["razon"]["state"] == "linked"
+    else:
+        assert entry["persona"] == observer.name
+        assert entry["fecha"] == DAY.isoformat()
+
+
+@pytest.mark.parametrize("surface", ["riesgos", "vigilancia"])
+@pytest.mark.parametrize("matching_title", [False, True])
+def test_public_agenda_is_not_attached_by_publication_day_or_title_overlap(
+    session, surface, matching_title
+):
+    from app.summaries.digest import build_digest_facts
+
+    client = add_client(session)
+    title = "Cambio de nómina requiere revisión"
+    mention = _negative_mention(session, client.id, title, DAY)
+    assert mention is not None
+    mention.content = "La revisión de nómina no tiene plazo específico documentado."
+    observer = _person_link(session, client.id, "Persona bajo seguimiento", mention)
+    other_title = (
+        title + " — trámite de otra institución"
+        if matching_title
+        else "Entrega de un informe independiente"
+    )
+    other = add_mention(session, client.id, other_title, DAY)
+    assert other is not None
+    other.content = "El 9 de octubre finaliza un trámite de otra institución, sin relación con la revisión de nómina."
+    queries.upsert_settings(session, client.id, {"digest_focus_person_id": observer.id})
+    session.commit()
+    facts = build_digest_facts(session, client_id=client.id, day=DAY.date(), tz=MX_TZ)
+    index = next(i for i, n in enumerate(facts["noticias"]) if n["title"] == title)
+    other_ref = next(
+        s["index"] for s in facts["evidence"]["sources"] if s["mention_id"] == other.id
+    )
+    reason = "Falta confirmar un plazo propio de la revisión."
+    response = json.dumps(
+        {
+            "headline": "Hechos sin relación temporal acreditada.",
+            "seleccion": [{"index": index, "categoria": "riesgo", "razon": reason}]
+            if surface == "riesgos"
+            else [],
+            "agenda": [
+                {
+                    "when": "9 de octubre",
+                    "title": other_title,
+                    "source": "Publicación identificada",
+                }
+            ],
+            "references": {"agenda.0.when": [other_ref], "agenda.0.title": [other_ref]},
+        }
+    )
+
+    row = build_daily_summary(
+        session, client_id=client.id, day=DAY.date(), generate=lambda _: response
+    )
+
+    entry = row.content["brief"][surface][0]
+    assert "ventana" not in entry.get("afectacion", {})
+    assert any(f["title"] == other_title for f in row.content["brief"]["fechas"])
+    assert row.content["agenda"][0]["provenance"]["when"]["state"] == "linked"
+    assert row.content["coverage"]["total"] == 2
+    if surface == "riesgos":
+        assert entry["razon"] == reason
+    else:
+        assert entry["fecha"] == DAY.isoformat()
+
+
+def test_public_compatible_recovery_does_not_reintroduce_inferred_actor_or_deadline(
+    session,
+):
+    from copy import deepcopy
+
+    client = add_client(session)
+    mention = _negative_mention(
+        session, client.id, "Revisión de nómina sin plazo específico", DAY
+    )
+    assert mention is not None
+    observer = _person_link(session, client.id, "Observador de Prueba", mention)
+    response = json.dumps(
+        {
+            "headline": "Revisión institucional.",
+            "seleccion": [
+                {
+                    "index": 0,
+                    "categoria": "riesgo",
+                    "razon": "Verificar el alcance del cambio de nómina.",
+                }
+            ],
+        }
+    )
+    first = build_daily_summary(
+        session, client_id=client.id, day=DAY.date(), generate=lambda _: response
+    )
+    legacy = deepcopy(first.content)
+    legacy["brief"]["riesgos"][0]["afectacion"] = {
+        "quien": [observer.name],
+        "ventana": {"cuando": "9 de octubre", "titulo": "Otro trámite"},
+    }
+    first.content = legacy
+    session.commit()
+    before = deepcopy(legacy)
+
+    recovered = build_daily_summary(
+        session, client_id=client.id, day=DAY.date(), generate=_failed_generation
+    )
+
+    pick = recovered.content["brief"]["riesgos"][0]
+    assert "quien" not in pick.get("afectacion", {})
+    assert "ventana" not in pick.get("afectacion", {})
+    assert pick["razon"] == "Verificar el alcance del cambio de nómina."
+    assert recovered.mode == "llm"
+    assert legacy == before
+
+
 def _person_link(session, client_id: int, name: str, mention) -> Person:
     """Get-or-create person by folded key and link the mention to it."""
     from app.ingest.matching import fold_text
@@ -3283,8 +3432,10 @@ def test_vigilancia_sin_configuracion_no_llave(session):
     assert "vigilancia" not in row.content["brief"]
 
 
-def test_afectacion_en_riesgo_quien_y_trayectoria(session):
-    """F6: la entrada de riesgo lleva quien y la dirección del delta."""
+def test_risk_annotation_preserves_coverage_tone_without_inferring_affected_party(
+    session,
+):
+    """Coverage tone changes do not identify an affected or responsible party."""
     client = add_client(session)
     event = _event(client.id, "BUAP replantea el calendario escolar")
     session.add(event)
@@ -3358,26 +3509,50 @@ def test_afectacion_en_riesgo_quien_y_trayectoria(session):
     assert riesgos, "el riesgo aceptado se conserva"
     afect = riesgos[0].get("afectacion")
     assert afect is not None
-    assert "Lilia Cedillo" in afect["quien"]
+    assert "quien" not in afect
     assert afect["trayectoria"] == "el tono pasa de positivo a negativo"
 
 
-def test_ventana_por_titulo_y_por_fecha():
-    """F6 ventana: cruce por título normalizado o por día."""
-    from datetime import date
+def test_public_explicit_affected_party_and_deadline_prose_remains_available(session):
+    client = add_client(session)
+    title = "Personal operativo entrega documentos el 12 de octubre"
+    mention = add_mention(session, client.id, title, DAY)
+    assert mention is not None
+    mention.content = "El personal operativo tiene hasta el 12 de octubre para entregar documentos de pago; de no hacerlo se aplaza el procesamiento."
+    session.commit()
+    reason = "El personal operativo debe entregar documentos el 12 de octubre para evitar el aplazamiento del procesamiento."
+    response = json.dumps(
+        {
+            "headline": "Plazo documentado para el personal.",
+            "items": [{"index": 0, "why_it_matters": reason}],
+            "seleccion": [{"index": 0, "categoria": "riesgo", "razon": reason}],
+            "agenda": [
+                {
+                    "when": "12 de octubre",
+                    "title": "Entrega de documentación de pago",
+                    "source": "Publicación identificada",
+                }
+            ],
+            "references": {
+                "seleccion.0.razon": [0],
+                "items.0.why_it_matters": [0],
+                "agenda.0.when": [0],
+                "agenda.0.title": [0],
+            },
+        }
+    )
 
-    from app.summaries.builder import _ventana_from_fechas
+    row = build_daily_summary(
+        session, client_id=client.id, day=DAY.date(), generate=lambda _: response
+    )
 
-    fechas = [
-        {"title": "Consulta de pensiones", "when": "28 de octubre", "fecha": "2026-10-28"},
-        {"title": "Entrega de informe", "when": "30 de octubre", "fecha": "2026-10-30"},
-    ]
-    cruz = _ventana_from_fechas(fechas, "La consulta de pensiones sigue en pie", None)
-    assert cruz == {"cuando": "28 de octubre", "titulo": "Consulta de pensiones"}
-    por_dia = _ventana_from_fechas(fechas, "Tema sin relación", date(2026, 10, 30))
-    assert por_dia["titulo"] == "Entrega de informe"
-    assert _ventana_from_fechas(fechas, "Tema sin relación", date(2026, 5, 1)) is None
-    assert _ventana_from_fechas(None, "x", None) is None
+    pick = row.content["brief"]["riesgos"][0]
+    assert pick["razon"] == reason
+    assert pick["provenance"]["razon"]["state"] == "linked"
+    assert row.content["noticias"][0]["why_it_matters"] == reason
+    assert any(f["when"] == "12 de octubre" for f in row.content["brief"]["fechas"])
+    assert reason in row.content["plain_text"]
+    assert "12 de octubre" in row.content["evidence"]["sources"][0]["excerpt"]
 
 
 def test_publication_variety_does_not_expand_explicit_selection():

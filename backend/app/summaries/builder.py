@@ -920,25 +920,6 @@ def _prev_by_key(noticias: list) -> dict:
     return prev_by_key
 
 
-def _cross_title(a: object, b: object) -> bool:
-    """Normalized-title containment, in either direction."""
-    na, nb = normalize_title(str(a or "")), normalize_title(str(b or ""))
-    return bool(na) and bool(nb) and (na in nb or nb in na)
-
-
-def _person_names(session, client_id: int, person_ids: list) -> dict:
-    """id -> display name; empty mapping when there is nothing to load."""
-    ids = sorted({p for p in person_ids if isinstance(p, int)})
-    if not ids:
-        return {}
-    rows = session.execute(
-        select(Person.id, Person.name).where(
-            Person.client_id == client_id, Person.id.in_(ids)
-        )
-    ).all()
-    return {row[0]: row[1] for row in rows}
-
-
 def _event_tone_today(noticias: list, event_id: int) -> str | None:
     """Aggregate tone of the card carrying this event today, if any."""
     for nota in noticias:
@@ -952,34 +933,13 @@ def _event_tone_today(noticias: list, event_id: int) -> str | None:
     return None
 
 
-def _ventana_from_fechas(fechas: object, title: object, day: date | None) -> dict | None:
-    """Agenda que cruza con la historia: mismo título o mismo día (F6)."""
-    if not isinstance(fechas, list):
-        return None
-    for fecha in fechas:
-        if not isinstance(fecha, dict):
-            continue
-        f_title, f_when = fecha.get("title"), fecha.get("when")
-        if not f_title or not f_when:
-            continue
-        if _cross_title(title, f_title):
-            return {"cuando": str(f_when), "titulo": str(f_title)}
-        raw = fecha.get("fecha")
-        if day is not None and isinstance(raw, str):
-            try:
-                if date.fromisoformat(raw) == day:
-                    return {"cuando": str(f_when), "titulo": str(f_title)}
-            except ValueError:
-                continue
-    return None
-
-
 def annotate_afectacion(session, client_id: int, content: dict, prev_noticias: list, day: date) -> None:
-    """F6: quien/trayectoria/ventana sobre las entradas de riesgo.
+    """Keep explicitly labelled coverage-tone transitions on accepted risks.
 
-    Solo campos, cero prosa nueva: nombres via person_ids, dirección del
-    delta cuando la historia matchea la jornada previa, y la fecha de
-    agenda que cruza por título o día. Cada campo se omite si vacío.
+    Mentioned people and publication dates do not establish affected parties
+    or deadline relations. Those explicit relationships remain in accepted
+    analytical prose; unknown structured fields are omitted. Legacy call
+    parameters remain compatible without adding a new inference contract.
     """
     brief = content.get("brief")
     noticias = content.get("noticias")
@@ -988,13 +948,7 @@ def annotate_afectacion(session, client_id: int, content: dict, prev_noticias: l
     riesgos = brief.get("riesgos")
     if not isinstance(riesgos, list) or not riesgos:
         return
-    fechas = brief.get("fechas")
     prev_by_key = _prev_by_key(prev_noticias)
-    names = _person_names(
-        session,
-        client_id,
-        [p for nota in noticias if isinstance(nota, dict) for p in nota.get("person_ids") or []],
-    )
     for entry in riesgos:
         index = entry.get("index") if isinstance(entry, dict) else None
         if not isinstance(index, int) or not 0 <= index < len(noticias):
@@ -1003,19 +957,11 @@ def annotate_afectacion(session, client_id: int, content: dict, prev_noticias: l
         if not isinstance(nota, dict):
             continue
         afect: dict = {}
-        quien = sorted({names[p] for p in nota.get("person_ids") or [] if p in names})
-        if quien:
-            afect["quien"] = quien
         prev = prev_by_key.get(_delta_key(nota))
         before = tone_label((prev or {}).get("tone"))
         after = tone_label(nota.get("tone"))
         if before and after and before != after:
             afect["trayectoria"] = f"el tono pasa de {before} a {after}"
-        when_label = nota.get("when_label")
-        parsed = parse_spanish_date(when_label, day.year) if when_label else None
-        ventana = _ventana_from_fechas(fechas, nota.get("title"), parsed)
-        if ventana:
-            afect["ventana"] = ventana
         if afect:
             entry["afectacion"] = afect
 
@@ -1097,7 +1043,6 @@ def build_vigilancia(
         )
     ).all()
 
-    tz = _zone(effective.timezone)
     per_person: dict[int, dict] = {}
     for mention, person_id, name in rows:
         if is_cosmetic_story(mention.title):
@@ -1110,8 +1055,6 @@ def build_vigilancia(
 
     event_ids, titles = _riesgo_repr(content)
     prev_by_key = _prev_by_key(prev_noticias)
-    brief = content.get("brief") if isinstance(content.get("brief"), dict) else {}
-    fechas = brief.get("fechas")
     lines: list[dict] = []
     for person_id, data in sorted(per_person.items()):
         keep = [
@@ -1126,25 +1069,12 @@ def build_vigilancia(
         if not enough:
             continue
         chosen, chosen_dt = max(keep, key=lambda row: (row[1], row[0].id))
-        local_day = chosen_dt.astimezone(tz).date()
         line: dict = {"persona": data["name"]}
         nota = display_title(chosen.title) if chosen.title else None
         if nota:
             line["nota"] = nota
         line["fecha"] = chosen_dt.isoformat()
         afect: dict = {}
-        # Quien: todas las personas de la mención elegida (la vigilada
-        # incluida); la consulta es puntual, hay pocas líneas.
-        linked = (
-            session.scalars(
-                select(Person.name)
-                .join(MentionPerson, MentionPerson.person_id == Person.id)
-                .where(MentionPerson.mention_id == chosen.id)
-            ).all()
-        )
-        quien = sorted({n for n in linked if n})
-        if quien:
-            afect["quien"] = quien
         # Trayectoria: transición del delta cuando la historia matchea.
         if chosen.event_id is not None:
             key = ("id", chosen.event_id)
@@ -1159,9 +1089,6 @@ def build_vigilancia(
         before = tone_label((prev or {}).get("tone"))
         if before and after and before != after:
             afect["trayectoria"] = f"el tono pasa de {before} a {after}"
-        ventana = _ventana_from_fechas(fechas, chosen.title, local_day)
-        if ventana:
-            afect["ventana"] = ventana
         if afect:
             line["afectacion"] = afect
         lines.append(line)

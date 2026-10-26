@@ -528,3 +528,26 @@ políticas desde conteos. Un bloque vacío no demuestra que no existan riesgos.
 La recuperación de un corte compatible conserva su análisis previamente
 aceptado y sus advertencias: no prueba que la última llamada haya funcionado
 ni migra retrospectivamente las categorías de informes históricos.
+
+## 18. Personas mencionadas y plazos sin asociaciones automáticas
+
+En cortes nuevos, una persona vinculada a una publicación no se convierte
+por ese solo vínculo en afectada o responsable. Se conservan la mención,
+el perfil registrado, el material congelado y la prosa aceptada que explique
+una afectación explícita; no se genera `afectacion.quien` desde `person_ids`.
+Esto evita atribuir a un observador o candidato obligaciones no documentadas.
+
+Tampoco se genera `afectacion.ventana` por compartir la fecha de publicación
+con una cita de agenda o por contener palabras similares en el título. Las
+fechas documentadas permanecen en agenda y «Fechas que obligan», y los plazos
+explícitos en la razón o el porqué se conservan con su procedencia. Si no
+existe una relación estructurada acreditada por el contrato de entrada, el
+campo desconocido se omite: no se inventa un clasificador de relaciones.
+
+La transición literal «el tono pasa de…» sigue describiendo cobertura, no
+resolución del problema ni evolución factual. Vigilancia conserva personas,
+sensibilidad, ventana, supresión de duplicados y su fecha de publicación o
+ingesta; no se le asignan afectados ni plazos por coincidencia. La interfaz
+histórica conserva los campos almacenados sin recálculo ni migración. La
+comparación factual entre cortes y el diseño de cualquier relación más rica
+se tratan por separado.
