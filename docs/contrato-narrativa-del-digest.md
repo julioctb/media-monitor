@@ -392,3 +392,82 @@ que haya quedado en el brief. Sin narrativa actual, la copia visible no adquiere
 procedencia por coincidencia accidental. El material histórico sin metadatos
 permanece visible no respaldado, sin reconstruir datos ni cambiar categorías,
 pisos, vigilancia, persona principal o reglas analíticas de T5–T8.
+
+## 14. Diversidad de medios y veracidad no evaluada (S7)
+
+Los análisis nuevos conservan `schema: 2` y añaden `indicators_version: 1`.
+Cada noticia y tarjeta ordinaria contiene:
+
+```json
+{
+  "media_diversity": {"identified_outlet_count": 0},
+  "veracity": "not_evaluated"
+}
+```
+
+**«Diversidad de medios» cuenta identidades de medios identificados en el
+material congelado de esa historia; «Veracidad no evaluada» no es una escala.**
+No mide verdad, independencia editorial, corroboración ni confianza en una
+interpretación. Tres adaptadores que capturan el mismo medio cuentan uno;
+un adaptador que captura tres medios cuenta tres. Publicaciones repetidas
+no incrementan el número de identidades.
+
+El cálculo reutiliza `source_refs`, el catálogo validado y su `outlet`, ya
+normalizado por `_outlet_of` (host sin `www.`, con autor como respaldo cuando
+no existe host). Ese respaldo identifica una etiqueta registrada, no acredita
+propiedad ni independencia de una redacción. Solo son elegibles los orígenes
+editoriales existentes de `MEDIA_EVENT_SOURCES`. Se excluyen identidad
+desconocida, plataformas sociales y enlaces conocidos de Google News o
+acortadores aún no resueltos; no se consulta ni resuelve ninguna URL.
+Una cuenta social o un operador de campo no se convierten en un medio por
+tener una identidad. Cero significa **cero medios identificados elegibles
+en ese material**, no ausencia del hecho ni menor veracidad.
+
+La pertenencia y el inventario de publicaciones, `material_ref`, las huellas
+del catálogo y los ámbitos de procedencia no cambian. Las portadas de
+cobertura y otras historias no incrementan el indicador de una noticia.
+El desempate histórico por variedad de adaptadores se conserva como detalle
+privado de ordenación, sin publicarlo como confiabilidad. No cambia categorías,
+pisos de selección, impacto, vigilancia ni el criterio sustantivo pendiente.
+
+### Lectura estricta e historia
+
+Solo la ausencia completa de metadatos nuevos permite mostrar la confianza
+histórica con su formato original. La presencia de cualquier clave nueva,
+incluso en una fila de un informe mixto, impide volver a `confidence: alta`.
+Versión ausente, desconocida o mal formada, conteo ausente o inválido, o
+veracidad distinta de `not_evaluated` producen «Diversidad de medios: no
+disponible» y «Veracidad no evaluada». Los conteos no admiten booleanos,
+cadenas, negativos ni valores no enteros o no finitos; cero sigue siendo cero.
+La validación del contenido nuevo denuncia esas formas sin reinterpretarlas.
+No hay migración, recálculo histórico ni conversión de `alta/media/baja`.
+
+Las compilaciones transportan `notas_indicators` en las posiciones originales
+de `notas`, junto con sus referencias propias. Cada viñeta muestra su propio
+indicador; no recibe el conteo de la unión del compilado. La interfaz conserva
+esas posiciones al filtrar texto vacío y falla de forma conservadora ante una
+lista de indicadores desalineada. Se reutiliza la superficie de metadatos,
+sin una nueva sección global.
+
+### Narrativa, recuperación y exportación
+
+La proyección nueva entrega estos indicadores medidos y omite niveles de
+confianza factual. El prompt ya no declara la entrada verificada ni pide
+justificar confianza. El modelo no puede reemplazar los valores deterministas.
+El campo opcional `confidence_note` sigue aceptando prosa estructuralmente
+válida de proveedores o cortes anteriores: en informes nuevos se presenta
+separadamente como **«Nota del análisis»**, con su procedencia o advertencia
+original, nunca como explicación de diversidad o verdad. S6 sigue vigente:
+una referencia inválida no elimina una observación válida.
+
+Una recuperación compatible conserva prosa y selecciones, pero mantiene los
+indicadores recién calculados. No se rechaza un corte compatible solo porque
+contenga confianza antigua; los controles de identidad y material congelado
+siguen siendo obligatorios. Restaurar revisiones conserva los indicadores
+actuales e invalida la procedencia del titular como antes.
+
+El texto exportable distingue explícitamente contenido nuevo y antiguo:
+rotula diversidad y veracidad sin prefijo de confianza en el nuevo, conserva
+cada nota del análisis y sus referencias, y deja intacto el formato antiguo.
+Las pruebas con generadores falsos acreditan transporte, aislamiento y
+compatibilidad; no acreditan calidad editorial ni verificación factual.

@@ -6,7 +6,7 @@ from datetime import UTC, date, datetime, timedelta, timezone
 
 import pytest
 from app.models import Client, Event, Mention, MentionSource, make_url_hash
-from app.summaries.builder import build_daily_summary, digest_prompt_view
+from app.summaries.builder import build_daily_summary, build_tarjetas, digest_prompt_view
 from app.summaries.digest import build_digest_facts
 
 DAY = date(2026, 10, 17)
@@ -335,6 +335,13 @@ def test_public_build_preserves_source_zero_and_bullet_refs_after_reorder(sessio
         {"source_refs": [i], "material_ref": i} for i in (7, 8, 9)
     ]
     assert "material_ref" not in compiled  # No invented single representative.
+    assert content["indicators_version"] == 1
+    assert all(t["media_diversity"] == {"identified_outlet_count": 1} for t in content["tarjetas"][:-1])
+    assert compiled["notas_indicators"] == [
+        {"media_diversity": {"identified_outlet_count": 1}, "veracity": "not_evaluated"}
+        for _ in (7, 8, 9)
+    ]
+    assert "media_diversity" not in compiled
     assert compiled["notas"] == [
         f"Publicación institucional {i} (news_rss)" for i in (7, 8, 9)
     ]
@@ -539,7 +546,7 @@ def test_reference_scopes_and_raw_positions_across_prose_fields(session, wrong_s
     session.add(MentionPerson(mention_id=one.id, person_id=person.id))
     session.commit()
     facts = facts_for(session, owner)
-    facts.update(schema=2, brief={}, tarjetas=[{} for _ in facts["noticias"]])
+    facts.update(schema=2, brief={}, tarjetas=build_tarjetas(facts["noticias"]))
     payload = {
         "items": [
             {"index": False, "summary": "No aceptar."},

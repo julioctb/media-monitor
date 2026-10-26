@@ -1109,6 +1109,12 @@ class TestSummaryRevisions:
         assert binding["text"] == row["narrative"]
         assert binding["origin"] == "revision_restore"
         assert content["evidence"] == before["evidence"]
+        assert content["indicators_version"] == before["indicators_version"] == 1
+        assert content["noticias"][0]["media_diversity"] == {"identified_outlet_count": 1}
+        assert content["noticias"][0]["veracity"] == "not_evaluated"
+        assert "Diversidad de medios: 1 medio identificado" in content["plain_text"]
+        assert "[alta]" not in content["plain_text"]
+        assert response.json()["content"] == content
         assert content["tarjetas"] == before["tarjetas"]
         assert content["brief"]["headline"] == row["narrative"]
         assert api.post(url, json={"day": day.isoformat(), "seq": 1}).json() == row

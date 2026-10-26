@@ -50,7 +50,7 @@ def _classify(session, mention_id: int, classifier: str, label: str) -> None:
     session.commit()
 
 
-def test_groups_event_with_confidence_and_sources(session) -> None:
+def test_groups_event_with_media_diversity_and_sources(session) -> None:
     client_id = _client(session)
     event = Event(
         client_id=client_id,
@@ -76,7 +76,7 @@ def test_groups_event_with_confidence_and_sources(session) -> None:
     assert facts["coverage"]["by_source"] == {"news_rss": 1, "rss_custom": 1}
     item = facts["noticias"][0]
     assert item["event_id"] == event.id
-    assert item["confidence"] == "media"  # 2 independent outlets
+    assert item["media_diversity"] == {"identified_outlet_count": 2}
     assert item["when_label"] == "17 oct."  # local-day stamp from the mention
     assert {s["source"] for s in item["sources"]} == {"news_rss", "rss_custom"}
     assert item["topic"] == "institutional"
@@ -120,7 +120,7 @@ def test_event_carries_the_sentiment_mix_for_the_narrative(session) -> None:
     assert facts["noticias"][0]["tone"] == {"negative": 2, "positive": 1}
 
 
-def test_loose_mention_without_event_is_baja_and_own_item(session) -> None:
+def test_loose_mention_without_event_has_own_media_indicator(session) -> None:
     client_id = _client(session)
     loose = _mention(
         session,
@@ -134,7 +134,7 @@ def test_loose_mention_without_event_is_baja_and_own_item(session) -> None:
     facts = build_digest_facts(session, client_id=client_id, day=DAY, tz=TZ)
 
     assert len(facts["noticias"]) == 1
-    assert facts["noticias"][0]["confidence"] == "baja"
+    assert facts["noticias"][0]["media_diversity"] == {"identified_outlet_count": 1}
     assert facts["noticias"][0]["event_id"] is None
     assert facts["noticias"][0]["topic"] == "culture"
     assert facts["noticias"][0]["summary"] == loose.summary
@@ -377,4 +377,4 @@ def test_aggregate_showcases_are_coverage_not_story_material(session, case):
             showcase.url,
         ]
         assert item["tone"] == {"negative": 1, "positive": 1}
-        assert item["confidence"] == "media"
+        assert item["media_diversity"] == {"identified_outlet_count": 0}

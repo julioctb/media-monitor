@@ -6,7 +6,7 @@
     window      {"from", "to"} ISO datetimes in the settings timezone
     coverage    {"total", "by_source", "by_topic", "gaps"} - deterministic
     noticias    [{topic, event_id, title, sources[{source,url,title}],
-                  summary, why_it_matters, confidence, person_ids}]
+                  summary, why_it_matters, media_diversity, veracity, person_ids}]
     agenda      [{when, status?, title, source?}] - LLM narrative
     redes       {<source>: {count, note}} - social sources; note carries the
                 LLM narrative when the day has data
@@ -15,7 +15,7 @@
 
 Only the narrative fields (summary, why_it_matters, agenda, redes note) are
 LLM-authored; everything else is deterministic (see
-build_digest_facts and confidence_for). validate_digest gates the LLM output:
+build_digest_facts). validate_digest gates the LLM output:
 any error falls back to the heuristic render, mirroring builder.py's mode
 contract. Every v2 key is optional: rows authored before home-digest-v2 lack
 them and must read back unchanged. Legacy rows that still carry a ``rectora``
@@ -28,6 +28,12 @@ from datetime import datetime, timezone
 import logging
 
 from pydantic import ValidationError
+from app.summaries.indicators import (
+    indicator_line,
+    read_indicators,
+    story_indicators,
+    uses_indicators,
+)
 
 from app.summaries.evidence import (
     bind_material_copies,
@@ -91,7 +97,7 @@ def es_short_label(dt: datetime, tz_name: str) -> str:
 
 
 def confidence_for(source_count: int) -> str:
-    """Auditability rule: independent outlets decide, never the LLM."""
+    """Legacy adapter-variety tiers; retained only for compatibility/order."""
     if source_count >= 3:
         return "alta"
     if source_count == 2:
@@ -209,7 +215,7 @@ def build_digest_facts(
     for event_id, items in grouped.items():
         event = events_by_id.get(event_id) if event_id is not None else None
         if event is None:
-            # Loose mentions: each its own baja item (grouping unrelated
+            # Loose mentions: each its own story (grouping unrelated
             # rows would fabricate a story).
             for mention in items:
                 if is_aggregate_title(mention.title):
@@ -232,7 +238,7 @@ def build_digest_facts(
                                 "title": strip_fb_chrome(mention.title),
                             }
                         ],
-                        "confidence": "baja",
+                        **story_indicators(evidence, [source_index[mention.id]]),
                         "person_ids": _mention_person_ids(mention),
                         "when_label": (
                             es_short_label(mention.published_at, tz)
@@ -276,7 +282,7 @@ def build_digest_facts(
                     }
                     for m in items
                 ],
-                "confidence": confidence_for(len({m.source for m in items})),
+                **story_indicators(evidence, [source_index[m.id] for m in eligible]),
                 "tone": dict(tone_counts),
                 "person_ids": person_ids,
                 "when_label": max(
@@ -294,7 +300,11 @@ def build_digest_facts(
     noticias.sort(
         key=lambda n: (
             -len(n["sources"]),
-            CONFIDENCE_SCALE.index(n["confidence"]),
+            # Preserve the exact legacy saturated adapter-variety tiebreak,
+            # without publishing it as reliability or ranking by outlets.
+            CONFIDENCE_SCALE.index(
+                confidence_for(len({s["source"] for s in n["sources"]}))
+            ),
         )
     )
 
@@ -360,6 +370,7 @@ def build_digest_facts(
     }
 
     content = {
+        "indicators_version": 1,
         "evidence": evidence,
         "window": {"from": start.isoformat(), "to": end.isoformat()},
         "coverage": coverage,
@@ -643,22 +654,31 @@ def render_plain_text(content: dict, narrative: str) -> str:
     lines = [marked(content, "headline", text=narrative), ""]
     lines.append("NOTICIAS")
     for item in content.get("noticias") or []:
+        indicators = indicator_line(content, item)
         confidence = item.get("confidence") or "?"
         repeat_tag = " (se repite nuevamente)" if item.get("repeat") else ""
         when = item.get("when_label")
         when_tag = f" ({when})" if when else ""
         # T8.C: el texto plano es capa de presentación — título sobrio.
         title = display_title(item.get("title")) or item.get("title") or "(sin título)"
-        lines.append(f"- [{confidence}]{when_tag}{repeat_tag} {title}")
+        if indicators is None:
+            lines.append(f"- [{confidence}]{when_tag}{repeat_tag} {title}")
+        else:
+            lines.append(f"-{when_tag}{repeat_tag} {title}")
+            lines.append(f"  {indicators}")
         scope = item.get("source_refs") or []
         if item.get("summary"):
             note = (
                 f" ({marked(item, 'confidence_note', allowed=scope, feminine=True)})"
-                if item.get("confidence_note")
+                if item.get("confidence_note") and indicators is None
                 else ""
             )
             lines.append(
                 f"  {marked(item, 'summary', allowed=scope, feminine=True)}{note}"
+            )
+        if indicators is not None and item.get("confidence_note"):
+            lines.append(
+                f"  Nota del análisis: {marked(item, 'confidence_note', allowed=scope, feminine=True)}"
             )
         if item.get("why_it_matters"):
             lines.append(
@@ -851,6 +871,34 @@ def validate_digest(content: object) -> list[str]:
     if not isinstance(content, dict):
         return ["digest must be a JSON object"]
     errors: list[str] = []
+    if uses_indicators(content):
+        if (
+            type(content.get("indicators_version")) is not int
+            or content["indicators_version"] != 1
+        ):
+            errors.append("indicators_version must be 1")
+        for section in ("noticias", "tarjetas"):
+            rows = content.get(section)
+            for index, row in enumerate(rows if isinstance(rows, list) else []):
+                if not isinstance(row, dict):
+                    continue
+                if section == "tarjetas" and "notas" in row:
+                    notes, indicators = row.get("notas"), row.get("notas_indicators")
+                    if (
+                        not isinstance(notes, list)
+                        or not isinstance(indicators, list)
+                        or len(notes) != len(indicators)
+                    ):
+                        errors.append(f"tarjetas[{index}].notas_indicators must align with notas")
+                        continue
+                    targets = indicators
+                else:
+                    targets = [row]
+                for target in targets:
+                    reading = read_indicators(content, target)
+                    if reading is None or reading["identified_outlet_count"] is None:
+                        errors.append(f"{section}[{index}] has invalid indicators")
+                        break
     if content.get("schema") != DIGEST_SCHEMA_VERSION:
         errors.append(f"schema must be {DIGEST_SCHEMA_VERSION}")
     for section in REQUIRED_SECTIONS:

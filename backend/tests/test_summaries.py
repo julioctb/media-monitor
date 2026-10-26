@@ -93,9 +93,9 @@ def test_heuristic_builder_shape_v2(session):
     assert validate_digest(content) == []
     assert content["coverage"]["total"] == 2
     assert content["coverage"]["by_source"] == {"news_rss": 2}
-    # No events ingested -> every mention is its own baja-confidence item.
+    # No events ingested: every publication remains its own story.
     assert len(content["noticias"]) == 2
-    assert {n["confidence"] for n in content["noticias"]} == {"baja"}
+    assert {n["media_diversity"]["identified_outlet_count"] for n in content["noticias"]} == {1}
     assert {n["title"] for n in content["noticias"]} == {
         "BUAP abre convocatoria",
         "Cedillo encabeza mesa",
@@ -117,7 +117,7 @@ def test_heuristic_builder_shape_v2(session):
     assert queries.get_daily_summary(session, client.id, DAY.date()).id == row.id
 
 
-def test_event_grouping_carries_confidence(session):
+def test_event_grouping_carries_media_diversity(session):
     client = add_client(session)
     event = Event(
         client_id=client.id,
@@ -145,7 +145,7 @@ def test_event_grouping_carries_confidence(session):
     noticias = row.content["noticias"]
     assert len(noticias) == 1
     assert noticias[0]["event_id"] == event.id
-    assert noticias[0]["confidence"] == "media"
+    assert noticias[0]["media_diversity"] == {"identified_outlet_count": 1}
     assert {s["source"] for s in noticias[0]["sources"]} == {"news_rss", "rss_custom"}
 
 
@@ -1662,7 +1662,7 @@ def test_distinct_event_sources_stay_with_their_card(session):
     assert {source["source"] for source in by_event[e2.id]["sources"]} == {"rss_custom"}
     assert by_event[e1.id]["summary"] == one.summary
     assert all("event_ids" not in item for item in noticias)
-    assert all(item["confidence"] == "baja" for item in noticias)
+    assert all(item["media_diversity"] == {"identified_outlet_count": 1} for item in noticias)
     assert len(row.content["tarjetas"]) == 2
     assert validate_digest(row.content) == []
 
@@ -2098,7 +2098,7 @@ def test_window_material_keeps_prompt_and_card_indexes_aligned(session):
 
     assert row.content["coverage"]["total"] == 2
     assert len(captured) == 1
-    assert set(captured[0]) == {"noticias", "redes", "personas", "evidence"}
+    assert set(captured[0]) == {"noticias", "redes", "personas", "evidence", "indicators_version"}
     projected = captured[0]["noticias"]
     assert (
         len(projected)
