@@ -1565,36 +1565,75 @@ def _twin_events(session, client_id):
     return e1, e2
 
 
-def test_twin_stories_merge_into_one_card(session):
-    """Same editorial story from different outlets: ONE card, all sources."""
+@pytest.mark.parametrize("kind", ["distinct_events", "loose", "bridge"])
+def test_digest_does_not_reassign_story_identity(session, kind):
+    """Presentation must not merge identities that ingestion kept separate."""
+    client = add_client(session)
+    titles = (
+        [
+            "BUAP anuncia becas para estudiantes",
+            "BUAP inaugura hospital para estudiantes",
+            "Gobierno inaugura hospital regional",
+        ]
+        if kind == "bridge"
+        else [
+            "BUAP anuncia presupuesto para infraestructura 2027",
+            "BUAP anuncia reconocimiento a doctores 2026",
+        ]
+    )
+    event_ids = set()
+    for title in titles:
+        event_id = None
+        if kind != "loose":
+            event = Event(
+                client_id=client.id, title=title, title_tokens=title,
+                first_seen_at=DAY, last_seen_at=DAY,
+            )
+            session.add(event)
+            session.flush()
+            event_id = event.id
+            event_ids.add(event_id)
+        assert add_mention(session, client.id, title, DAY, event_id=event_id) is not None
+
+    row = build_daily_summary(
+        session, client_id=client.id, day=DAY.date(),
+        generate=lambda prompt: json.dumps({"headline": "Resumen de prueba."}),
+    )
+
+    assert len(row.content["noticias"]) == len(titles)
+    assert len(row.content["tarjetas"]) == len(titles)
+    assert row.content["coverage"]["total"] == len(titles)
+    assert all(len(item["sources"]) == 1 for item in row.content["noticias"])
+    assert row.content["brief"].get("descarte", {}).get("fundadas", 0) == 0
+    if kind != "loose":
+        assert {item["event_id"] for item in row.content["noticias"]} == event_ids
+    assert validate_digest(row.content) == []
+
+
+def test_distinct_event_sources_stay_with_their_card(session):
+    """Distinct ingest identities retain their own publication material."""
     client = add_client(session)
     e1, e2 = _twin_events(session, client.id)
     e1.summary = "La BUAP movió la consulta para revisar el aumento salarial."
-    add_mention(session, client.id, e1.title, DAY, event_id=e1.id)
+    one = add_mention(session, client.id, e1.title, DAY, event_id=e1.id)
+    assert one is not None
+    one.summary = e1.summary
     add_mention(
-        session,
-        client.id,
-        e2.title,
-        DAY,
-        source=MentionSource.rss_custom,
-        event_id=e2.id,
+        session, client.id, e2.title, DAY,
+        source=MentionSource.rss_custom, event_id=e2.id,
     )
+    session.commit()
 
     row = build_daily_summary(session, client_id=client.id, day=DAY.date())
     noticias = row.content["noticias"]
-    assert len(noticias) == 1
-    nota = noticias[0]
-    assert {s["source"] for s in nota["sources"]} == {"news_rss", "rss_custom"}
-    # The best source carries the facts; both events traceable.
-    assert nota["summary"] == "La BUAP movió la consulta para revisar el aumento salarial."
-    assert nota["event_id"] in (e1.id, e2.id)
-    assert set(nota["event_ids"]) == {e1.id, e2.id}
-    # Two independent outlets -> media confidence for the merged story.
-    assert nota["confidence"] == "media"
-
-    tarjetas = row.content["tarjetas"]
-    assert len(tarjetas) == 1
-    assert set(tarjetas[0]["fuentes"]) == {"news_rss", "rss_custom"}
+    assert len(noticias) == 2
+    by_event = {item["event_id"]: item for item in noticias}
+    assert {source["source"] for source in by_event[e1.id]["sources"]} == {"news_rss"}
+    assert {source["source"] for source in by_event[e2.id]["sources"]} == {"rss_custom"}
+    assert by_event[e1.id]["summary"] == one.summary
+    assert all("event_ids" not in item for item in noticias)
+    assert all(item["confidence"] == "baja" for item in noticias)
+    assert len(row.content["tarjetas"]) == 2
     assert validate_digest(row.content) == []
 
 
@@ -1620,41 +1659,36 @@ def test_twin_merge_keeps_distinct_stories_apart(session):
     assert len(row.content["tarjetas"]) == 2
 
 
-def test_twin_merge_sums_tone_and_flags_repeat(session):
-    """Aggregates are the union: tone counters add, repeat is OR."""
+def test_distinct_event_tone_and_repeat_do_not_bleed(session):
+    """Negativity and previous circulation stay with their own event."""
     client = add_client(session)
     e1, e2 = _twin_events(session, client.id)
     neg = add_mention(session, client.id, e1.title, DAY, event_id=e1.id)
     add_mention(
-        session,
-        client.id,
-        "BUAP reprograma la consulta de pensiones",
-        DAY - timedelta(days=1),
-        event_id=e1.id,
-    )  # earlier mention -> repeat
-    pos = add_mention(
-        session,
-        client.id,
-        e2.title,
-        DAY,
-        source=MentionSource.rss_custom,
-        event_id=e2.id,
+        session, client.id, "BUAP reprograma la consulta de pensiones",
+        DAY - timedelta(days=1), event_id=e1.id,
     )
-    from app.models import Sentiment
-
+    pos = add_mention(
+        session, client.id, e2.title, DAY,
+        source=MentionSource.rss_custom, event_id=e2.id,
+    )
     neg.sentiment = Sentiment.negative
     pos.sentiment = Sentiment.positive
     session.commit()
 
     row = build_daily_summary(session, client_id=client.id, day=DAY.date())
-    nota = row.content["noticias"][0]
-    assert nota["tone"] == {"negative": 1, "positive": 1}
-    assert nota["repeat"] is True
-    assert row.content["tarjetas"][0]["repeat"] is True
+    by_event = {item["event_id"]: item for item in row.content["noticias"]}
+    assert len(by_event) == 2
+    assert by_event[e1.id]["tone"] == {"negative": 1}
+    assert by_event[e2.id]["tone"] == {"positive": 1}
+    assert by_event[e1.id]["repeat"] is True
+    assert not by_event[e2.id].get("repeat", False)
+    for noticia, tarjeta in zip(row.content["noticias"], row.content["tarjetas"]):
+        assert bool(tarjeta.get("repeat")) == bool(noticia.get("repeat"))
 
 
-def test_failed_regen_inherits_prose_across_merged_events(session):
-    """The inheritance path matches ANY event id of the merged card."""
+def test_failed_regen_inherits_prose_for_same_story_material(session):
+    """An unchanged publication set may retain its previously authored prose."""
     client = add_client(session)
     e1, e2 = _twin_events(session, client.id)
     add_mention(session, client.id, e1.title, DAY, event_id=e1.id)
@@ -2122,33 +2156,28 @@ def test_tarjeta_titulo_presentational_sin_sufijo_de_medio():
     assert tarjeta["titulo"] == "BUAP pospone consulta de pensiones"
 
 
-def test_twin_merge_survives_sobrio_normalization():
-    """F1: la presentación limpia chrome; el clustering de gemelas no cambia.
-
-    The digest merge compares display_title forms: the suffix/pipes strip
-    must keep fusing the outlet-variant twins the variant similarity
-    exists for (the ingest assigner never sees this layer).
-    """
-    from app.summaries.builder import merge_twin_noticias
-
-    merged = merge_twin_noticias(
-        [
-            {
-                "title": "BUAP pospone consulta de pensiones - atiemponoticias.mx",
-                "sources": [{"source": "news_rss", "url": "https://a.mx/x"}],
-                "tone": {"negative": 1},
-            },
-            {
-                "title": "BUAP pospone consulta de pensiones",
-                "sources": [{"source": "x_twitter", "url": "https://x.com/y"}],
-                "tone": {"positive": 1},
-            },
-        ]
-    )
-    assert len(merged) == 1
-    # La tarjeta fundida conserva el title crudo de la mejor fuente; el
-    # sufijo se quita solo en la capa presentacional (build_tarjetas).
-    assert merged[0]["title"].endswith("atiemponoticias.mx")
+def test_sobrio_normalization_preserves_distinct_story_sources(session):
+    """Equal presentation titles do not override distinct ingest identities."""
+    client = add_client(session)
+    titles = [
+        "BUAP pospone consulta de pensiones - atiemponoticias.mx",
+        "BUAP pospone consulta de pensiones",
+    ]
+    for title in titles:
+        event = Event(
+            client_id=client.id, title=title, title_tokens=title,
+            first_seen_at=DAY, last_seen_at=DAY,
+        )
+        session.add(event)
+        session.flush()
+        assert add_mention(session, client.id, title, DAY, event_id=event.id) is not None
+    row = build_daily_summary(session, client_id=client.id, day=DAY.date())
+    assert len(row.content["noticias"]) == 2
+    assert len(row.content["tarjetas"]) == 2
+    assert {card["titulo"] for card in row.content["tarjetas"]} == {
+        "BUAP pospone consulta de pensiones"
+    }
+    assert {source["title"] for item in row.content["noticias"] for source in item["sources"]} == set(titles)
 
 
 def test_brief_fechas_en_duda_domina_sobre_la_fecha():
@@ -2232,9 +2261,9 @@ def test_brief_descarte_counts_cosmeticas_and_fundadas(session):
 
     row = build_daily_summary(session, client_id=client.id, day=DAY.date())
     brief = row.content["brief"]
-    assert brief["descarte"] == {"cosmeticas": 1, "fundadas": 1}
-    # La tarjeta fundida y la cosmetica nunca llegan a noticias.
-    assert len(row.content["noticias"]) == 1
+    assert brief["descarte"] == {"cosmeticas": 1, "fundadas": 0}
+    # Only the cosmetic update is excluded; the two ingest events remain.
+    assert len(row.content["noticias"]) == 2
     assert validate_digest(row.content) == []
 
 
@@ -2284,7 +2313,8 @@ def test_plain_text_carries_the_descarte_line(session):
 
     row = build_daily_summary(session, client_id=client.id, day=DAY.date())
     plain = row.content["plain_text"]
-    assert "Descartado: 1 historia fundida" in plain
+    assert "historia fundida" not in plain
+    assert len(row.content["noticias"]) == 2
 
 
 def test_brief_shape_flags_malformed_descarte():

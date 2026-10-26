@@ -193,3 +193,22 @@ de localStorage en identidad ni se modifica el valor persistido por ello.
 Para una personalidad aún no identificada se pueden configurar keywords y
 seleccionar después su perfil registrado; no existe un alta manual nueva
 ni una inferencia automática del sujeto principal en esta fase.
+
+## 7. Identidad de historias: una sola autoridad
+
+La construcción del digest no vuelve a agrupar por similitud de titulares
+los eventos que ingestión mantuvo separados. Tampoco combina publicaciones
+sueltas mediante cadenas de coincidencias. La limpieza visual de títulos
+continúa, pero no decide identidad ni suma entre eventos su tono, personas
+o reiteración. La cobertura conserva todas las publicaciones del corte.
+
+El contador histórico de historias fundidas se mantiene compatible como
+cero cuando aparece junto a otros descartes; sin descartes no se fabrica
+un bloque vacío. Las cosméticas siguen excluyéndose de tarjetas sin dejar
+de contar para cobertura. Puede haber historias parecidas con IDs distintos
+hasta que el mecanismo de identidad de ingestión las resuelva: se prefiere
+esa duplicación conservadora a mezclar asuntos diferentes.
+
+Esto no reconstruye eventos históricos ni regenera informes almacenados.
+El material local al corte y la procedencia de la prosa se endurecen en
+las siguientes unidades de la fase 2.
