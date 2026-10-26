@@ -42,9 +42,18 @@
   {#if tarjeta.notas?.length}
     <ul class="digest-tarjeta-notas">
       {#each tarjeta.notas as nota (nota.position)}
-        <li>{cleanDigestText(nota.text)}<DigestEvidence {context} request={storyEvidence(tarjeta.raw, 'notas', nota.position)} /></li>
+        <li>
+          {cleanDigestText(nota.text)}
+          <DigestEvidence {context} request={storyEvidence(tarjeta.raw, 'notas', nota.position)} />
+          {#if nota.indicators?.kind === 'new'}<p class="daily-detail-source">{nota.indicators.label}</p>{/if}
+        </li>
       {/each}
     </ul>
   {/if}
 	{#if fuentesLine}<p class="daily-detail-source">{fuentesLine}</p>{/if}
+  {#if tarjeta.indicators?.kind === 'new'}<p class="daily-detail-source">{tarjeta.indicators.label}</p>{/if}
+  {#if tarjeta.analysisNote}
+    <p class="daily-detail-source">Nota del análisis: {cleanDigestText(tarjeta.analysisNote)}</p>
+    <DigestEvidence {context} request={storyEvidence(tarjeta.raw, 'confidence_note')} />
+  {/if}
 </article>

@@ -252,3 +252,18 @@ it('preserves raw object identity and compiled bullet positions before display f
   expect(view?.decisiones[0].sourceRefs).toBe(raw.source_refs);
   expect(view?.decisiones[0].razon).toBe('Razón cruda');
 });
+
+it('reads new compiled metrics by raw position without mutating bindings or borrowing union counts', () => {
+  const metric = (count: number) => ({ media_diversity: { identified_outlet_count: count }, veracity: 'not_evaluated' });
+  const raw = { titulo: 'También hoy', notas: ['B', '', 'A'], notas_indicators: [metric(1), metric(9), metric(0)],
+    source_refs: [0, 1], notas_refs: [{ source_refs: [1] }, {}, { source_refs: [0] }], ...metric(99) };
+  const original = JSON.stringify(raw);
+  const view = digestV3View({ indicators_version: 1, tarjetas: [raw] })!;
+  expect(view.tarjetas[0].raw).toBe(raw);
+  expect(view.tarjetas[0].indicators).toBeUndefined();
+  expect(view.tarjetas[0].notas?.map(note => [note.position, note.indicators])).toEqual([
+    [0, expect.objectContaining({ kind: 'new', count: 1 })],
+    [2, expect.objectContaining({ kind: 'new', count: 0 })]
+  ]);
+  expect(JSON.stringify(raw)).toBe(original);
+});

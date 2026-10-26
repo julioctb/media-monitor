@@ -79,6 +79,18 @@ afterEach(() => {
   while (mounted.length) void unmount(mounted.pop() as never);
 });
 
+it('shows new indicators in the existing home card and detail surfaces', async () => {
+  const summary = summaryFixture();
+  const metric = { media_diversity: { identified_outlet_count: 0 }, veracity: 'not_evaluated' };
+  summary.content = { indicators_version: 1,
+    noticias: [{ title: 'Historia', event_id: 7, summary: 'Reseña íntegra.', sources: [], ...metric }],
+    tarjetas: [{ titulo: 'Historia', hecho: 'Reseña íntegra.', ...metric }] };
+  const { container, text } = renderPage({ ...emptyDayData(), summary }); await tick();
+  expect(container.querySelector('.digest-tarjeta')?.textContent).toContain('Diversidad de medios: 0 medios identificados');
+  expect(container.querySelector('.daily-detail-entry')?.textContent).toContain('Veracidad no evaluada');
+  expect(text()).not.toContain('Confianza');
+});
+
 const PLACEHOLDER = "En espera de generar el resumen del día";
 
 it("keeps the page structure with placeholders when the digest is missing", () => {

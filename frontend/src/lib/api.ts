@@ -820,6 +820,8 @@ export interface DigestProvenanceCarrier {
 
 /** A digest news item: one canonical event (or loose mention) plus narrative. */
 export interface DigestNewsItem extends DigestProvenanceCarrier {
+  media_diversity?: unknown;
+  veracity?: unknown;
   event_id: number | null;
   title: string | null;
   /** LLM/heuristic synthesis; grounded on the event facts. */
@@ -827,9 +829,9 @@ export interface DigestNewsItem extends DigestProvenanceCarrier {
   /** Canonical topic key v2 (see format.topicLabel). */
   topic?: string | null;
   sources: DigestSourceRef[];
-  /** alta | media | baja — rule-based, never LLM-authored. */
+  /** Historical alta | media | baja; never reinterpreted as media diversity. */
   confidence?: string;
-  /** LLM one-liner justifying the confidence («fuente oficial directa»). */
+  /** Optional analysis prose; not evidence of diversity or truth. */
   confidence_note?: string | null;
   /** Local-day stamp of the latest mention («22 oct.»); deterministic. */
   when_label?: string | null;
@@ -850,6 +852,7 @@ interface DigestPersonItem extends DigestProvenanceCarrier {
 
 /** Structured sections of the editorial daily digest (schema 2). */
 export interface DailySummaryContent extends DigestProvenanceCarrier {
+  indicators_version?: unknown;
   /** Frozen input catalogue, not a truth certificate. */
   evidence?: unknown;
   schema?: number;
@@ -949,6 +952,10 @@ export interface DigestBriefFecha {
 
 /** Evidence card for one digest story; mirrors the aligned noticia. */
 export interface DigestTarjeta extends DigestProvenanceCarrier {
+  media_diversity?: unknown;
+  veracity?: unknown;
+  notas_indicators?: unknown;
+  confidence_note?: string | null;
   notas?: unknown;
   notas_refs?: unknown;
   /** Historical alternative field names remain readable. */

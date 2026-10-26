@@ -9,6 +9,7 @@
  */
 
 import { formatDisplayDateTime } from "$lib/format";
+import { readDigestIndicators, type DigestIndicators } from "$lib/digest-indicators";
 
 import type {
   DailySummaryContent,
@@ -57,7 +58,9 @@ export interface BriefFechaView {
 
 export interface TarjetaView {
   raw?: DigestTarjeta;
-  notas?: { text: string; position: number }[];
+  notas?: { text: string; position: number; indicators?: DigestIndicators }[];
+  indicators?: DigestIndicators;
+  analysisNote?: string | null;
   titulo: string | null;
   hecho: string | null;
   porQue: string | null;
@@ -196,7 +199,7 @@ function seleccionView(
   return view;
 }
 
-function tarjetaView(tarjeta: DigestTarjeta): TarjetaView {
+function tarjetaView(tarjeta: DigestTarjeta, content: DailySummaryContent): TarjetaView {
   const record = tarjeta as unknown as Record<string, unknown>;
   const fuentes = hasEntries(tarjeta.fuentes)
     ? tarjeta.fuentes.filter(
@@ -205,8 +208,10 @@ function tarjetaView(tarjeta: DigestTarjeta): TarjetaView {
     : [];
   return {
     raw: tarjeta,
+    ...(!Array.isArray(record.notas) ? { indicators: readDigestIndicators(content, tarjeta) } : {}),
+    ...(readDigestIndicators(content, tarjeta).kind === 'new' ? { analysisNote: textOrNull(record.confidence_note) } : {}),
     notas: Array.isArray(record.notas) ? record.notas.flatMap((text, position) =>
-      typeof text === 'string' && text.trim() ? [{ text, position }] : []) : [],
+      typeof text === 'string' && text.trim() ? [{ text, position, indicators: readDigestIndicators(content, tarjeta, position) }] : []) : [],
     titulo: textOrNull(record.titulo ?? record.title),
     hecho: textOrNull(record.hecho ?? record.summary),
     porQue: textOrNull(record.por_que),
@@ -293,7 +298,7 @@ export function digestV3View(
           .map(vigiliaView)
           .filter((linea): linea is VigilanciaView => linea !== null)
       : [],
-    tarjetas: tarjetas.filter(Boolean).map(tarjetaView),
+    tarjetas: tarjetas.filter(Boolean).map((tarjeta) => tarjetaView(tarjeta, content)),
     descarte: descarteLabel(brief.descarte),
   };
 }

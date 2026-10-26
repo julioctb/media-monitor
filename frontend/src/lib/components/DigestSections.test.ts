@@ -75,6 +75,23 @@ function renderSection(
 }
 
 describe('DigestSections v2', () => {
+  it.each([0, 3, true, '3', -1, 0.5, Infinity])('shows strict new indicators and a separate analysis note for %s', async (count) => {
+    const content = digestFixture();
+    Object.assign(content, { indicators_version: 1 });
+    Object.assign(content.noticias![0], {
+      media_diversity: { identified_outlet_count: count }, veracity: 'not_evaluated', confidence: 'alta', confidence_note: 'Observación válida.'
+    });
+    const host = renderSection(content);
+    await tick();
+    const entry = host.querySelector('.daily-detail-entry')!;
+    const text = (entry.textContent ?? '').replace(/\s+/g, ' ');
+    const expected = typeof count === 'number' && Number.isInteger(count) && count >= 0 ? `${count} medios identificados` : 'no disponible';
+    expect(text).toContain(`Diversidad de medios: ${expected}`);
+    expect(text).toContain('Veracidad no evaluada');
+    expect(text).not.toContain('Confianza');
+    expect(text).toContain('Nota del análisis: Observación válida.');
+    expect(entry.querySelectorAll('.digest-provenance').length).toBeGreaterThan(0);
+  });
 	afterEach(() => {
 		if (instance) void unmount(instance as never);
 		instance = undefined;

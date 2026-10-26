@@ -234,3 +234,18 @@ it('retains all displayed prose while stale, foreign and changed raw bindings be
   expect(changed.target.querySelector('.digest-tarjeta')?.querySelectorAll('details')).toHaveLength(0);
   expect(changed.text()).toContain('Lectura nueva');
 });
+
+it('keeps new analysis notes separately linked to their original raw text', async () => {
+  const { content, binding } = await linkedContent();
+  content.indicators_version = 1;
+  const card = (content.tarjetas as Record<string, unknown>[])[0];
+  Object.assign(card, { media_diversity: { identified_outlet_count: 1 }, veracity: 'not_evaluated', confidence_note: 'Nota https://enlace.example/ cruda' });
+  (card.provenance as Record<string, unknown>).confidence_note = binding(card.confidence_note as string, 0);
+  const { target } = render(content);
+  await new Promise(resolve => setTimeout(resolve, 30)); await tick();
+  const first = target.querySelector('.digest-tarjeta')!;
+  expect(first.textContent).toContain('Nota del análisis: Nota cruda');
+  expect(first.textContent).toContain('Diversidad de medios: 1 medio identificado');
+  expect(first.querySelectorAll('details summary')).toHaveLength(4);
+  expect([...first.querySelectorAll('a')].every(link => link.getAttribute('href') === 'https://medio.example/0')).toBe(true);
+});

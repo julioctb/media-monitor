@@ -5,6 +5,7 @@
 
 	import { toneRows, type ToneCounts } from '$lib/digest-stats';
 	import type { DailySummaryContent, DigestNewsItem } from '$lib/api';
+	import { readDigestIndicators } from '$lib/digest-indicators';
 
 	let {
 		content,
@@ -72,12 +73,15 @@
 		return parts.length > 0 ? `${parts.join(' · ')} — ` : '';
 	}
 
-	/** «Fuente: … Confianza: …» line; null when the item carries neither. */
+	/** Source attribution plus new indicators or unchanged historical confidence. */
 	function sourceLine(item: DigestNewsItem): string | null {
 		const parts: string[] = [];
 		const labels = [...new Set((item.sources ?? []).map((source) => sourceLabel(source.source)))];
 		if (labels.length > 0) parts.push(`Fuente: ${labels.join(' · ')}`);
-		if (item.confidence) {
+		const indicators = readDigestIndicators(content, item);
+		if (indicators.kind === 'new') {
+			parts.push(indicators.label);
+		} else if (item.confidence) {
 			parts.push(
 				item.confidence_note
 					? `Confianza: ${item.confidence} — ${item.confidence_note}`
@@ -236,7 +240,10 @@
                     <DigestEvidence context={evidenceContext} request={storyEvidence(item, item.summary == null ? 'title' : 'summary')} />
 									{/if}
 								{#if sourceLine(item)}<p class="daily-detail-source">{sourceLine(item)}</p>{/if}
-                {#if item.confidence && item.confidence_note}<DigestEvidence context={evidenceContext} request={storyEvidence(item, 'confidence_note')} />{/if}
+                {#if item.confidence_note && readDigestIndicators(content, item).kind === 'new'}
+                  <p class="daily-detail-source">Nota del análisis: {cleanDigestText(item.confidence_note)}</p>
+                  <DigestEvidence context={evidenceContext} request={storyEvidence(item, 'confidence_note')} />
+                {:else if item.confidence && item.confidence_note}<DigestEvidence context={evidenceContext} request={storyEvidence(item, 'confidence_note')} />{/if}
 							</div>
 						{/each}
 					</div>
