@@ -256,3 +256,19 @@ ni de verdad. Cuando publicaciones de cobertura no aparecen en las fuentes
 almacenadas, no se presupone completitud: la recuperación falla de forma
 conservadora. El catálogo congelado y las etiquetas explícitas de falta de
 respaldo corresponden a la siguiente unidad de evidencia.
+
+## 8. Catálogo de publicaciones congelado
+
+Cada nuevo corte incorpora `evidence.version = 1` y su catálogo `sources`,
+obtenido de las mismas publicaciones del cliente y ventana. Los índices
+empiezan en cero y siguen el ID de publicación, no el orden visual de las
+historias. `source_refs` identifica los miembros no agregados de una noticia;
+`material_ref` identifica su publicación representativa.
+
+El catálogo conserva URL, medio, autor, fecha UTC, título y material limitado:
+`summary` es el resumen derivado almacenado; `excerpt` procede de
+`Mention.content`. Ambos se acotan por separado a 300 caracteres y no se
+sustituyen entre sí. El catálogo incluye también la cobertura que no produce
+una historia. No contiene una certificación de verdad ni atribuye por sí solo
+la prosa generada a esas fuentes. La vinculación de texto y etiquetas se
+implementa en la siguiente unidad.

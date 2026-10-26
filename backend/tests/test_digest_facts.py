@@ -312,6 +312,11 @@ def test_window_representative_is_media_first_then_latest(session, case):
 
     item = facts["noticias"][0]
     assert (item["title"], item["summary"]) == (winner.title, winner.summary)
+    assert item["source_refs"] == [0, 1]
+    assert item["material_ref"] == (1 if winner is second else 0)
+    assert [source["mention_id"] for source in facts["evidence"]["sources"]] == [
+        first.id, second.id
+    ]
     assert len(item["sources"]) == 2
     assert facts["coverage"]["total"] == 2
 

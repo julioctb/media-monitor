@@ -29,6 +29,7 @@ import logging
 
 from pydantic import ValidationError
 
+from app.summaries.evidence import freeze_sources
 from app.summaries.digest_schema import (
     BRIEF_CATEGORIES,
     AgendaEntry,
@@ -161,6 +162,8 @@ def build_digest_facts(
     else:
         mentions = sorted(mentions, key=lambda m: m.id)
 
+    evidence = freeze_sources(mentions)
+    source_index = {s["mention_id"]: s["index"] for s in evidence["sources"]}
     by_source: Counter[str] = Counter(m.source.value for m in mentions)
     by_topic: Counter[str] = Counter(
         c.label
@@ -210,6 +213,8 @@ def build_digest_facts(
                         # digest must render clean titles without a backfill.
                         "title": strip_fb_chrome(mention.title),
                         "summary": mention.summary,
+                        "source_refs": [source_index[mention.id]],
+                        "material_ref": source_index[mention.id],
                         "topic": _single_topic(mention),
                         "sources": [
                             {
@@ -251,6 +256,8 @@ def build_digest_facts(
                 "event_id": event_id,
                 "title": strip_fb_chrome(representative.title),
                 "summary": representative.summary,
+                "source_refs": [source_index[m.id] for m in eligible],
+                "material_ref": source_index[representative.id],
                 "topic": topic,
                 "sources": [
                     {
@@ -339,6 +346,7 @@ def build_digest_facts(
     }
 
     return {
+        "evidence": evidence,
         "window": {"from": start.isoformat(), "to": end.isoformat()},
         "coverage": coverage,
         "noticias": noticias,
