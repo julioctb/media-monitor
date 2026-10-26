@@ -1950,7 +1950,7 @@ def test_window_material_keeps_prompt_and_card_indexes_aligned(session):
 
     assert row.content["coverage"]["total"] == 2
     assert len(captured) == 1
-    assert set(captured[0]) == {"noticias", "redes", "personas"}
+    assert set(captured[0]) == {"noticias", "redes", "personas", "evidence"}
     projected = captured[0]["noticias"]
     assert (
         len(projected)

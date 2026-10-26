@@ -272,3 +272,15 @@ sustituyen entre sí. El catálogo incluye también la cobertura que no produce
 una historia. No contiene una certificación de verdad ni atribuye por sí solo
 la prosa generada a esas fuentes. La vinculación de texto y etiquetas se
 implementa en la siguiente unidad.
+
+### Entrada del modelo
+
+La proyección de entrada versión 1 lee el material de ese catálogo, no las
+reseñas mutables del informe. Omite IDs de base de datos y URLs; mantiene
+índices de fuente, texto acotado, conteos y contexto registrado de personas.
+El material se trata como dato no confiable, no como instrucciones.
+
+Un catálogo explícito mal formado o de versión desconocida no habilita una
+ruta alternativa de texto mutable. La ausencia del catálogo conserva la
+compatibilidad de las llamadas antiguas. La salida del modelo no puede
+reescribir el catálogo ni la pertenencia de fuentes de una historia.
