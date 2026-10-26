@@ -291,3 +291,38 @@ Las tarjetas conservan la pertenencia de fuentes y la referencia de su
 material. Un compilado conserva la unión de fuentes y `notas_refs` alineado
 con cada viñeta; no se le inventa una única publicación representativa.
 Estos índices transportan entrada documental, no respaldo de cada afirmación.
+
+## 9. Procedencia por campo sin descartar prosa válida
+
+La salida admite `references`, un mapa opcional de rutas exactas a índices
+del catálogo. Los índices de noticia son semánticos; las posiciones de otras
+listas son las originales antes de omitir entradas inválidas.
+
+| Ruta | Texto vinculado |
+| --- | --- |
+| `headline` | Lectura principal |
+| `items.<index>.summary`, `.why_it_matters`, `.confidence_note`, `.angulo_nuevo` | Campos de noticia |
+| `seleccion.<index>.razon` | Motivo de selección |
+| `agenda.<position>.when`, `.title`, `.status`, `.source` | Campos de agenda |
+| `redes.<channel>.note` | Nota del canal |
+| `redes.<channel>.cuentas.<position>.cuenta`, `.nota` | Seguimiento por cuenta |
+| `personas.<position>.fact` | Reseña de persona registrada |
+
+Cero es un índice válido; booleanos, cadenas numéricas, índices ajenos al
+campo o fuera del catálogo invalidan el conjunto de referencias, NO su texto
+estructuralmente válido. No se inventa una cita porque la historia tenga
+publicaciones. La validación de los demás campos e índices sigue siendo
+estricta.
+
+El backend crea `provenance.<field>` con texto exacto, referencias, origen,
+estado `linked`/`unbacked` y huella del catálogo validado. `linked` significa
+procedencia registrada: no verifica verdad, causalidad ni corroboración
+independiente. La lectura vuelve a comprobar texto, huella y ámbito; no
+confía solo en el estado guardado. Los compilados conservan una vinculación
+por viñeta y requieren todos los padres documentales de su transformación.
+
+La recuperación de prosa añade igualdad del material congelado a los
+controles de identidad del corte. Un mismo evento o URL no autoriza copiar
+análisis de material cambiado o desconocido. Una respuesta rechazada no
+filtra texto parcialmente aplicado a la plantilla. Las etiquetas visibles
+en interfaz y exportación se implementan en T9.

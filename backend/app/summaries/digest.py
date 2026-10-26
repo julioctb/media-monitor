@@ -29,12 +29,19 @@ import logging
 
 from pydantic import ValidationError
 
-from app.summaries.evidence import freeze_sources
+from app.summaries.evidence import (
+    bind_material_copies,
+    bind_output,
+    channel_refs,
+    cut_refs,
+    freeze_sources,
+)
 from app.summaries.digest_schema import (
     BRIEF_CATEGORIES,
     AgendaEntry,
     CuentaEntry,
     NarrativeItem,
+    PersonFactEntry,
     SeleccionEntry,
     brief_shape_errors,
 )
@@ -328,6 +335,11 @@ def build_digest_facts(
                 "org": (link.org if link and link.org else None) or person.org,
                 "mention_count": count,
                 "fact": fact,
+                "source_refs": [
+                    source_index[m.id]
+                    for m in mentions
+                    if any(link.person_id == person_id for link in m.person_links)
+                ],
             }
         )
 
@@ -345,7 +357,7 @@ def build_digest_facts(
         "gaps": gaps_for(counts=dict(by_source), social=set(social_labels), labels=social_labels),
     }
 
-    return {
+    content = {
         "evidence": evidence,
         "window": {"from": start.isoformat(), "to": end.isoformat()},
         "coverage": coverage,
@@ -355,6 +367,8 @@ def build_digest_facts(
         "personas": personas,
         "pendientes": [],  # composed at T5: silent keywords + coverage gaps
     }
+    bind_material_copies(content)
+    return content
 
 
 def _clean_str(value: object) -> str | None:
@@ -380,6 +394,17 @@ def apply_narrative(content: dict, payload: object) -> list[str]:
     """
     if not isinstance(content, dict) or not isinstance(payload, dict):
         return ["payload must be an object"]
+    headline = _clean_str(payload.get("headline"))
+    if headline:
+        bind_output(
+            content,
+            content,
+            "headline",
+            headline,
+            payload,
+            "headline",
+            cut_refs(content),
+        )
     items = payload.get("items")
     noticias = content.get("noticias")
     if items is not None:
@@ -401,10 +426,19 @@ def apply_narrative(content: dict, payload: object) -> list[str]:
             target = noticias[narrative_item.index]
             if not isinstance(target, dict):
                 continue
-            for key in ("summary", "why_it_matters", "confidence_note"):
+            for key in ("summary", "why_it_matters", "confidence_note", "angulo_nuevo"):
                 value = getattr(narrative_item, key)
                 if isinstance(value, str) and value.strip():
                     target[key] = value.strip()
+                    bind_output(
+                        content,
+                        target,
+                        key,
+                        target[key],
+                        payload,
+                        f"items.{narrative_item.index}.{key}",
+                        target.get("source_refs"),
+                    )
     # agenda: upcoming items gleaned from the day's facts; when+title
     # required (the mockup's strong-led fields), status/source optional.
     agenda = payload.get("agenda")
@@ -425,6 +459,16 @@ def apply_narrative(content: dict, payload: object) -> list[str]:
                 value = _clean_str(getattr(validated, optional))
                 if value:
                     item[optional] = value
+            for key, text in list(item.items()):
+                bind_output(
+                    content,
+                    item,
+                    key,
+                    text,
+                    payload,
+                    f"agenda.{pos}.{key}",
+                    cut_refs(content),
+                )
             entries.append(item)
         if entries:
             content["agenda"] = entries
@@ -446,6 +490,15 @@ def apply_narrative(content: dict, payload: object) -> list[str]:
             note = _clean_str(note)
             if note:
                 target["note"] = note
+                bind_output(
+                    content,
+                    target,
+                    "note",
+                    note,
+                    payload,
+                    f"redes.{source}.note",
+                    channel_refs(content, source),
+                )
             if isinstance(cuentas, list):
                 entries = []
                 for pos, entry in enumerate(cuentas):
@@ -460,9 +513,41 @@ def apply_narrative(content: dict, payload: object) -> list[str]:
                     item: dict[str, str] = {"cuenta": cuenta}
                     if validated.nota and validated.nota.strip():
                         item["nota"] = validated.nota.strip()
+                    for key, text in list(item.items()):
+                        bind_output(
+                            content,
+                            item,
+                            key,
+                            text,
+                            payload,
+                            f"redes.{source}.cuentas.{pos}.{key}",
+                            channel_refs(content, source, cuenta),
+                        )
                     entries.append(item)
                 if entries:
                     target["cuentas"] = entries
+    personas = payload.get("personas")
+    targets = content.get("personas")
+    if isinstance(personas, list) and isinstance(targets, list):
+        for pos, entry in enumerate(personas):
+            try:
+                validated = PersonFactEntry.model_validate(entry)
+            except ValidationError as exc:
+                _warn_skip(f"personas[{pos}]", exc)
+                continue
+            fact = _clean_str(validated.fact)
+            if fact and pos < len(targets) and isinstance(targets[pos], dict):
+                target = targets[pos]
+                target["fact"] = fact
+                bind_output(
+                    content,
+                    target,
+                    "fact",
+                    fact,
+                    payload,
+                    f"personas.{pos}.fact",
+                    target.get("source_refs"),
+                )
     return validate_digest(content)
 
 
@@ -505,6 +590,21 @@ def apply_brief(content: dict, payload: object) -> None:
         razon = _clean_str(validated.razon)
         if razon:
             item["razon"] = razon
+            noticias = content.get("noticias") or []
+            allowed = (
+                noticias[validated.index].get("source_refs")
+                if validated.index < len(noticias)
+                else []
+            )
+            bind_output(
+                content,
+                item,
+                "razon",
+                razon,
+                payload,
+                f"seleccion.{validated.index}.razon",
+                allowed,
+            )
         buckets[validated.categoria].append(item)
         got = True
     if not got:

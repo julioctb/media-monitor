@@ -470,3 +470,326 @@ def test_injected_facts_do_not_requery_publications(session):
         event.remove(session.bind, "before_cursor_execute", capture)
     assert facts["evidence"]["sources"][0]["mention_id"] == article.id
     assert not any("FROM mentions" in statement for statement in statements)
+
+
+@pytest.mark.parametrize(
+    "refs, linked",
+    [
+        ([0], True),
+        (None, False),
+        ([], False),
+        (["0"], False),
+        ([False], False),
+        ([1], False),
+        ([999], False),
+        ([0, 999], False),
+    ],
+)
+def test_output_references_bind_own_story_without_discarding_prose(
+    session, refs, linked
+):
+    from app.summaries.digest import apply_narrative
+
+    owner = client(session)
+    publication(session, owner.id, "own")
+    publication(session, owner.id, "foreign-story")
+    facts = facts_for(session, owner)
+    facts["schema"] = 2
+    payload = {
+        "headline": "  Lectura no verificada.  ",
+        # Model-return order is not the story index.
+        "items": [
+            {"index": 1, "summary": "Otra historia."},
+            {"index": 0, "summary": "  Texto retenido.  "},
+        ],
+        "references": {"headline": [0], "items.0.summary": refs},
+        "provenance": {"headline": {"state": "linked", "source_refs": [1]}},
+    }
+    assert apply_narrative(facts, payload) == []
+    assert facts["noticias"][0]["summary"] == "Texto retenido."
+    binding = facts["noticias"][0]["provenance"]["summary"]
+    assert binding["text"] == "Texto retenido."
+    assert binding["state"] == ("linked" if linked else "unbacked")
+    assert binding["source_refs"] == ([0] if linked else [])
+    assert binding["origin"] == "model_output"
+    assert len(binding["catalogue_fingerprint"]) == 64
+    assert facts["provenance"]["headline"]["text"] == "Lectura no verificada."
+    assert facts["provenance"]["headline"]["source_refs"] == [0]
+    # Catalogue membership alone cannot back the second generated sentence.
+    assert facts["noticias"][1]["provenance"]["summary"]["state"] == "unbacked"
+
+
+@pytest.mark.parametrize("wrong_scope", [False, True])
+def test_reference_scopes_and_raw_positions_across_prose_fields(session, wrong_scope):
+    from app.models import MentionPerson, Person
+    from app.summaries.digest import apply_brief, apply_narrative
+
+    owner = client(session)
+    publication(session, owner.id, "news")
+    one = publication(
+        session, owner.id, "one", source=MentionSource.x_twitter, author="@one"
+    )
+    publication(session, owner.id, "two", source=MentionSource.x_twitter, author="@two")
+    publication(session, owner.id, "fb", source=MentionSource.facebook_page)
+    person = Person(
+        client_id=owner.id, name="Persona registrada", name_key="persona registrada"
+    )
+    session.add(person)
+    session.flush()
+    session.add(MentionPerson(mention_id=one.id, person_id=person.id))
+    session.commit()
+    facts = facts_for(session, owner)
+    facts.update(schema=2, brief={}, tarjetas=[{} for _ in facts["noticias"]])
+    payload = {
+        "items": [
+            {"index": False, "summary": "No aceptar."},
+            {"index": "0", "summary": "No coercionar."},
+            {"index": 0, "summary": 99},
+            {
+                "index": 1,
+                "summary": "Síntesis.",
+                "why_it_matters": "Importa.",
+                "confidence_note": "Atribución.",
+                "angulo_nuevo": "Giro.",
+            },
+        ],
+        "agenda": [
+            {"when": 12, "title": "No aceptar"},
+            {
+                "when": " mañana ",
+                "title": " Plazo ",
+                "status": " Abierto ",
+                "source": " Fuente ",
+            },
+        ],
+        "redes": {
+            "x": {
+                "note": " Hallazgo ",
+                "cuentas": [
+                    {"cuenta": 22},
+                    {"cuenta": "@one", "nota": " Nota de cuenta "},
+                ],
+            }
+        },
+        "personas": [{"fact": " Hecho personal "}],
+        "seleccion": [{"index": 1, "categoria": "decision", "razon": " Motivo "}],
+        "references": {
+            **{
+                f"items.1.{key}": [0 if wrong_scope else 1]
+                for key in (
+                    "summary",
+                    "why_it_matters",
+                    "confidence_note",
+                    "angulo_nuevo",
+                )
+            },
+            **{f"agenda.1.{key}": [0] for key in ("when", "title", "status", "source")},
+            "redes.x.note": [3 if wrong_scope else 1],
+            "redes.x.cuentas.1.cuenta": [2 if wrong_scope else 1],
+            "redes.x.cuentas.1.nota": [2 if wrong_scope else 1],
+            "personas.0.fact": [0 if wrong_scope else 1],
+            "seleccion.1.razon": [0 if wrong_scope else 1],
+        },
+    }
+    assert apply_narrative(facts, payload) == []
+    apply_brief(facts, payload)
+    expected = "unbacked" if wrong_scope else "linked"
+    assert "No aceptar." not in json.dumps(facts)
+    for key in ("summary", "why_it_matters", "confidence_note", "angulo_nuevo"):
+        assert facts["noticias"][1]["provenance"][key]["state"] == expected
+    for key in ("when", "title", "status", "source"):
+        assert facts["agenda"][0]["provenance"][key]["source_refs"] == [0]
+    network = facts["redes"]["x"]
+    assert network["provenance"]["note"]["state"] == expected
+    assert network["cuentas"][0]["provenance"]["nota"]["state"] == expected
+    assert network["cuentas"][0]["provenance"]["cuenta"]["state"] == expected
+    assert facts["personas"][0]["fact"] == "Hecho personal"
+    assert facts["personas"][0]["provenance"]["fact"]["state"] == expected
+    assert facts["brief"]["decisiones"][0]["provenance"]["razon"]["state"] == expected
+
+
+@pytest.mark.parametrize(
+    "change", ["text", "material", "legacy", "future", "invalid", "claimed_hash"]
+)
+def test_binding_resolution_fails_safe_after_mutation(session, change):
+    from app.summaries.digest import apply_narrative
+    from app.summaries import evidence
+
+    owner = client(session)
+    publication(session, owner.id, "bound", summary="Material original")
+    facts = facts_for(session, owner)
+    facts["schema"] = 2
+    apply_narrative(
+        facts,
+        {
+            "items": [{"index": 0, "summary": "Prosa"}],
+            "references": {"items.0.summary": [0]},
+        },
+    )
+    target = facts["noticias"][0]
+    assert (
+        evidence.resolved_provenance(facts, target, "summary", allowed=[0])["state"]
+        == "linked"
+    )
+    if change == "text":
+        target["summary"] += " alterada"
+    elif change == "material":
+        facts["evidence"]["sources"][0]["excerpt"] = "Otro cuerpo"
+    elif change == "legacy":
+        del facts["evidence"]
+    elif change == "future":
+        facts["evidence"]["version"] = 2
+    elif change == "invalid":
+        facts["evidence"]["sources"][0]["index"] = False
+    else:
+        target["provenance"]["summary"]["catalogue_fingerprint"] = "modelo inventa hash"
+    binding = evidence.resolved_provenance(facts, target, "summary", allowed=[0])
+    assert binding["state"] == "unbacked"
+    assert binding["source_refs"] == []
+    assert binding["text"] == target["summary"]
+
+
+def test_public_cards_and_compiled_bullets_keep_object_bound_provenance(session):
+    from app.summaries.builder import build_tarjetas
+    from app.summaries.evidence import resolved_provenance
+
+    owner = client(session)
+    for i in range(11):
+        publication(session, owner.id, f"p{i}", summary=f"Resumen {i}")
+    session.commit()
+    row = build_daily_summary(
+        session,
+        client_id=owner.id,
+        day=DAY,
+        generate=lambda prompt: json.dumps(
+            {
+                "headline": "Síntesis",
+                "items": [
+                    {"index": 10, "summary": "Resumen 10"}
+                ],  # Equal to source, still uncited.
+                "seleccion": [{"index": 10, "categoria": "decision", "razon": "Razón"}],
+                "references": {"headline": [0], "seleccion.10.razon": [10]},
+            }
+        ),
+    )
+    content = row.content
+    first = content["tarjetas"][0]
+    assert first["source_refs"] == [10]
+    assert first["provenance"]["hecho"]["state"] == "unbacked"
+    assert first["provenance"]["titulo"]["source_refs"] == [10]
+    pick = content["brief"]["decisiones"][0]
+    assert pick["index"] == 0
+    assert pick["provenance"]["razon"]["source_refs"] == [10]
+    compiled = content["tarjetas"][-1]
+    assert compiled["source_refs"] == [7, 8, 9]
+    for pos, ref in enumerate((7, 8, 9)):
+        binding = compiled["provenance"]["notas"][pos]
+        assert binding["text"] == compiled["notas"][pos]
+        assert binding["source_refs"] == [ref]  # Never the compiled union.
+        assert binding["state"] == "linked"
+    changed = copy.deepcopy(content["noticias"])
+    changed[0]["summary"] = "Cambio arbitrario"
+    cards = build_tarjetas(changed, content=content)
+    assert cards[0]["provenance"]["hecho"]["state"] == "unbacked"
+    assert (
+        resolved_provenance(content, content, "headline", text=row.narrative)["state"]
+        == "linked"
+    )
+
+
+def test_compiled_label_cannot_inherit_support_for_changed_source_names(session):
+    from app.summaries.builder import build_tarjetas, compile_tail_cards
+
+    owner = client(session)
+    for i in range(10):
+        publication(session, owner.id, f"compile{i}")
+    facts = facts_for(session, owner)
+    facts["tarjetas"] = build_tarjetas(facts["noticias"], content=facts)
+    facts["tarjetas"][-1]["fuentes"] = ["Fuente inventada"]
+    assert compile_tail_cards(facts)
+    compiled = facts["tarjetas"][-1]
+    assert compiled["notas"][-1].endswith("(Fuente inventada)")
+    assert compiled["provenance"]["notas"][-1]["state"] == "unbacked"
+    assert compiled["provenance"]["notas"][-1]["source_refs"] == []
+
+
+def test_resolution_rejects_unknown_origin_and_derivation_requires_all_parents(session):
+    from app.summaries.digest import apply_narrative
+    from app.summaries.evidence import derive_provenance, resolved_provenance
+
+    owner = client(session)
+    publication(session, owner.id, "parents")
+    facts = facts_for(session, owner)
+    facts["schema"] = 2
+    apply_narrative(
+        facts,
+        {
+            "items": [{"index": 0, "summary": "Hecho", "why_it_matters": "Lectura"}],
+            "references": {"items.0.summary": [0], "items.0.why_it_matters": [0]},
+        },
+    )
+    target = facts["noticias"][0]
+    parents = [(target, "summary"), (target, "why_it_matters")]
+    assert derive_provenance(facts, "Hecho: Lectura", parents, [0])["state"] == "linked"
+    target["provenance"]["why_it_matters"]["origin"] = "inventado_por_el_modelo"
+    assert (
+        resolved_provenance(facts, target, "why_it_matters", allowed=[0])["state"]
+        == "unbacked"
+    )
+    assert (
+        derive_provenance(facts, "Hecho: Lectura", parents, [0])["state"] == "unbacked"
+    )
+
+
+def test_prompt_documents_exact_paths_and_person_scopes_without_exposing_bindings(
+    session,
+):
+    from app.models import MentionPerson, Person
+    from app.summaries.builder import SYSTEM_PROMPT
+
+    owner = client(session)
+    one = publication(session, owner.id, "person-scope")
+    person = Person(client_id=owner.id, name="Sujeto", name_key="sujeto")
+    session.add(person)
+    session.flush()
+    session.add(MentionPerson(mention_id=one.id, person_id=person.id))
+    session.commit()
+    facts = facts_for(session, owner)
+    view = digest_prompt_view(facts)
+    assert view["personas"][0]["source_refs"] == [0]
+    assert "provenance" not in json.dumps(view)
+    assert "catalogue_fingerprint" not in json.dumps(view)
+    for path in (
+        "items.<index>.summary",
+        "seleccion.<index>.razon",
+        "agenda.<posición>.title",
+        "redes.<canal>.cuentas.<posición>.nota",
+        "personas.<posición>.fact",
+    ):
+        assert path in SYSTEM_PROMPT
+
+
+@pytest.mark.parametrize(
+    "invalid", [None, {"version": 2}, {"version": 1, "sources": []}]
+)
+def test_unknown_catalogue_cannot_link_retained_prose(session, invalid):
+    from app.summaries.digest import apply_narrative
+
+    owner = client(session)
+    publication(session, owner.id, "unknown")
+    facts = facts_for(session, owner)
+    facts.update(schema=2, evidence=invalid)
+    assert (
+        apply_narrative(
+            facts,
+            {
+                "headline": "Conservar",
+                "items": [{"index": 0, "summary": "Conservar"}],
+                "references": {"headline": [0], "items.0.summary": [0]},
+            },
+        )
+        == []
+    )
+    assert facts["noticias"][0]["summary"] == "Conservar"
+    assert facts["provenance"]["headline"]["state"] == "unbacked"
+    assert facts["noticias"][0]["provenance"]["summary"]["state"] == "unbacked"

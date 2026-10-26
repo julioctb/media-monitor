@@ -202,6 +202,19 @@ def _digest_payload() -> str:
     )
 
 
+def _without_provenance(value):
+    """Compare pre-T4 prose/structure while asserting new metadata separately."""
+    if isinstance(value, dict):
+        return {
+            key: _without_provenance(item)
+            for key, item in value.items()
+            if key != "provenance"
+        }
+    if isinstance(value, list):
+        return [_without_provenance(item) for item in value]
+    return value
+
+
 # home-digest-v2 narrative blocks (T1): the LLM-owned v2 content keys.
 _V2_AGENDA = [
     {
@@ -258,7 +271,7 @@ def test_llm_mode_fields_applied_and_fallback(session):
     assert row.content["noticias"][0]["why_it_matters"] == "Porque sí."
     assert "rectora" not in row.content
     # v2 blocks: agenda and per-network note.
-    assert row.content["agenda"] == _V2_AGENDA
+    assert _without_provenance(row.content["agenda"]) == _V2_AGENDA
     assert row.content["redes"]["x"]["note"] == _V2_REDES_NOTE
     assert validate_digest(row.content) == []
     # The v2 blocks render into the plain text (RAG) as their own sections.
@@ -283,7 +296,7 @@ def test_llm_mode_fields_applied_and_fallback(session):
     assert row.mode == "llm"
     assert "Titular del modelo." in row.narrative
     assert row.content["noticias"][0]["summary"] == "Síntesis del modelo."
-    assert row.content["agenda"] == _V2_AGENDA
+    assert _without_provenance(row.content["agenda"]) == _V2_AGENDA
     assert row.content["redes"]["x"]["note"] == _V2_REDES_NOTE
 
 
@@ -362,7 +375,12 @@ def test_apply_narrative_v2_blocks_tolerate_legacy_content():
     # longer knows the section; legacy keys pass through unchanged).
     assert content["rectora"]["tone"] is None
     assert content["redes"]["x"]["note"] == "n"
-    assert content["redes"]["x"]["cuentas"] == [{"cuenta": "@BUAPoficial", "nota": "sin novedades"}]
+    assert _without_provenance(content["redes"]["x"]["cuentas"]) == [
+        {"cuenta": "@BUAPoficial", "nota": "sin novedades"}
+    ]
+    assert (
+        content["redes"]["x"]["cuentas"][0]["provenance"]["nota"]["state"] == "unbacked"
+    )
     assert "agenda" not in content  # legacy shape untouched
     assert "activity" not in content["rectora"]
 
@@ -1230,7 +1248,7 @@ def test_heuristic_brief_sections_by_tone_and_count(session):
     brief = row.content["brief"]
     # F5: los negativos ya no compiten por decision; el top-impacto manda
     # ahí (fallback) y el piso lleva TODA negativa no referenciada a riesgos.
-    assert brief["decisiones"] == [
+    assert _without_provenance(brief["decisiones"]) == [
         {
             "index": 0,
             "razon": (
@@ -1308,7 +1326,10 @@ def test_riesgo_floor_respects_the_model_selection(session):
     assert row.mode == "llm"
     # La seleccion del modelo manda: la negativa marcada decision no se
     # duplica en riesgos; el piso solo toma lo no referenciado.
-    assert brief["decisiones"] == [{"index": 0, "razon": "afecta presupuesto"}]
+    assert _without_provenance(brief["decisiones"]) == [
+        {"index": 0, "razon": "afecta presupuesto"}
+    ]
+    assert brief["decisiones"][0]["provenance"]["razon"]["state"] == "unbacked"
     assert brief["riesgos"] == []
 
     # Sin ninguna referencia previa, el piso coloca la negativa en riesgos.
@@ -1343,7 +1364,10 @@ def test_brief_selection_merge_replaces_heuristic_buckets(session):
     row = build_daily_summary(session, client_id=client.id, day=DAY.date(), generate=payload)
     brief = row.content["brief"]
     # Valid selection: the buckets are EXACTLY the model's picks.
-    assert brief["decisiones"] == [{"index": 0, "razon": "afecta presupuesto"}]
+    assert _without_provenance(brief["decisiones"]) == [
+        {"index": 0, "razon": "afecta presupuesto"}
+    ]
+    assert brief["decisiones"][0]["provenance"]["razon"]["state"] == "unbacked"
     assert brief["ruido"] == [{"index": 0}]
     assert brief["a_favor"] == []
     # Prosa viaja igual en tarjeta y noticia (un solo camino de render).
@@ -1372,7 +1396,10 @@ def test_brief_selection_tolerates_bad_entries(session):
     row = build_daily_summary(session, client_id=client.id, day=DAY.date(), generate=generate)
     brief = row.content["brief"]
     # Only the healthy entry lands; the rest never breaks the merge.
-    assert brief["a_favor"] == [{"index": 0, "razon": "recupera espacios"}]
+    assert _without_provenance(brief["a_favor"]) == [
+        {"index": 0, "razon": "recupera espacios"}
+    ]
+    assert brief["a_favor"][0]["provenance"]["razon"]["state"] == "unbacked"
     assert brief["decisiones"] == []
     assert validate_digest(row.content) == []
 
@@ -1729,6 +1756,47 @@ def test_failed_regen_inherits_prose_for_same_story_material(session):
     assert second.content["tarjetas"][0]["por_que"] == "Define el recorte 2027."
 
 
+def test_fallback_selection_prose_is_explicitly_unbacked_without_changing_floor(
+    session,
+):
+    client = add_client(session)
+    event = _event(client.id, "Institución abre convocatoria")
+    session.add(event)
+    session.flush()
+    for source in (MentionSource.news_rss, MentionSource.rss_custom):
+        add_mention(
+            session, client.id, event.title, DAY, source=source, event_id=event.id
+        )
+    row = build_daily_summary(
+        session, client_id=client.id, day=DAY.date(), generate=_failed_generation
+    )
+    pick = row.content["brief"]["decisiones"][0]
+    assert pick["index"] == 0
+    assert pick["razon"]
+    assert pick["provenance"]["razon"]["state"] == "unbacked"
+    assert pick["provenance"]["razon"]["source_refs"] == []
+
+
+def test_rejected_generation_cannot_leave_partial_prose_or_bindings_in_fallback(
+    session,
+):
+    client = add_client(session)
+    add_mention(session, client.id, "Publicación fresca", DAY)
+    payload = {
+        "items": [{"index": 0, "summary": "Prosa rechazada sin titular"}],
+        "references": {"items.0.summary": [0]},
+    }
+    row = build_daily_summary(
+        session,
+        client_id=client.id,
+        day=DAY.date(),
+        generate=lambda p: json.dumps(payload),
+    )
+    assert row.mode == "heuristic"
+    assert row.content["noticias"][0]["summary"] != "Prosa rechazada sin titular"
+    assert "Prosa rechazada sin titular" not in json.dumps(row.content)
+
+
 def _continuity_fixture(session, *, loose=False):
     client = add_client(session)
     first_event = _event(client.id, "Consulta de pensiones aplazada")
@@ -1768,6 +1836,86 @@ def _continuity_fixture(session, *, loose=False):
 
 def _failed_generation(prompt):
     raise RuntimeError("offline provider unavailable")
+
+
+@pytest.mark.parametrize(
+    "change",
+    ["summary", "content", "author", "published_at", "missing", "future", "invalid"],
+)
+def test_same_publication_identity_cannot_recover_changed_or_unknown_material(
+    session, change
+):
+    client, _, _, one, _, first = _continuity_fixture(session)
+    if change in ("summary", "content", "author"):
+        setattr(one, change, "Nuevo material del mismo enlace")
+    elif change == "published_at":
+        one.published_at += timedelta(minutes=1)
+    else:
+        saved = json.loads(json.dumps(first.content))
+        if change == "missing":
+            del saved["evidence"]
+        elif change == "future":
+            saved["evidence"]["version"] = 2
+        else:
+            saved["evidence"]["sources"][0]["mention_id"] = False
+        first.content = saved
+    session.commit()
+    row = build_daily_summary(
+        session, client_id=client.id, day=DAY.date(), generate=_failed_generation
+    )
+    assert row.mode == "heuristic"
+    assert row.narrative != "Titular del modelo."
+    assert row.content["agenda"] == []
+    assert row.content["redes"]["x"]["note"] == ""
+    assert all(
+        n.get("summary") != "Síntesis del modelo." for n in row.content["noticias"]
+    )
+
+
+@pytest.mark.parametrize("refs", [[0], None, [False], [0, 999]])
+def test_unchanged_frozen_cut_recovers_prose_and_its_reference_state(session, refs):
+    client = add_client(session)
+    add_mention(session, client.id, "Una historia verificable por referencia", DAY)
+    payload = {
+        "headline": "Prosa conservada.",
+        "items": [
+            {
+                "index": 0,
+                "summary": "Prosa propia.",
+                "confidence_note": "Atribución breve",
+                "angulo_nuevo": "Giro propio",
+            }
+        ],
+        "seleccion": [{"index": 0, "categoria": "decision", "razon": "Razón propia."}],
+        "references": {
+            "headline": refs,
+            "items.0.summary": refs,
+            "items.0.confidence_note": refs,
+            "items.0.angulo_nuevo": refs,
+            "seleccion.0.razon": refs,
+        },
+    }
+    first = build_daily_summary(
+        session,
+        client_id=client.id,
+        day=DAY.date(),
+        generate=lambda prompt: json.dumps(payload),
+    )
+    expected = "linked" if refs == [0] and type(refs[0]) is int else "unbacked"
+    assert first.content["provenance"]["headline"]["state"] == expected
+    row = build_daily_summary(
+        session, client_id=client.id, day=DAY.date(), generate=_failed_generation
+    )
+    assert row.mode == "llm"
+    assert row.narrative == payload["headline"]
+    assert row.content["provenance"]["headline"]["state"] == expected
+    assert row.content["noticias"][0]["summary"] == "Prosa propia."
+    assert row.content["tarjetas"][0]["provenance"]["hecho"]["state"] == expected
+    assert row.content["noticias"][0]["confidence_note"] == "Atribución breve"
+    assert row.content["tarjetas"][0]["angulo_nuevo"] == "Giro propio"
+    pick = row.content["brief"]["decisiones"][0]
+    assert pick["razon"] == "Razón propia."
+    assert pick["provenance"]["razon"]["state"] == expected
 
 
 @pytest.mark.parametrize(

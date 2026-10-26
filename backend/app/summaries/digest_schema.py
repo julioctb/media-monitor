@@ -28,6 +28,7 @@ class NarrativeItem(_Strict):
     summary: str | None = None
     why_it_matters: str | None = None
     confidence_note: str | None = None
+    angulo_nuevo: str | None = None
 
 
 class AgendaEntry(_Strict):
@@ -42,6 +43,10 @@ class AgendaEntry(_Strict):
 class CuentaEntry(_Strict):
     cuenta: str
     nota: str | None = None
+
+
+class PersonFactEntry(_Strict):
+    fact: str | None = None
 
 
 class RedesSourceNote(_Strict):
@@ -94,6 +99,10 @@ class NarrativePayload(BaseModel):
     agenda: list[AgendaEntry] = []
     redes: dict[str, str | RedesSourceNote] = {}
     seleccion: list[SeleccionEntry] = []
+    personas: list[PersonFactEntry] = []
+    # Guided shape only: apply_narrative validates metadata separately so
+    # malformed citations cannot discard otherwise valid prose (S6).
+    references: dict[str, list[int]] | None = None
 
 
 def brief_shape_errors(content: object) -> list[str]:

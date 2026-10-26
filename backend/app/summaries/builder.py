@@ -16,6 +16,7 @@ The structured content never depends on the LLM, which is also skipped for
 empty days (nothing to summarize); mode stays ``heuristic`` then.
 """
 
+import copy
 import json
 import logging
 import re
@@ -52,7 +53,17 @@ from app.summaries.digest import (
     render_plain_text,
 )
 from app.summaries.digest_schema import BRIEF_BUCKETS, narrative_response_schema
-from app.summaries.evidence import catalogue_sources
+from app.summaries.evidence import (
+    catalogue_fingerprint,
+    catalogue_sources,
+    channel_refs,
+    compiled_provenance,
+    cut_refs,
+    derive_provenance,
+    inherit_fields,
+    make_binding,
+    resolved_provenance,
+)
 
 log = logging.getLogger("summaries.builder")
 
@@ -126,6 +137,23 @@ SYSTEM_PROMPT = (
     "en sus textos. summary es un resumen derivado, no una cita literal; "
     "excerpt es un extracto capturado. Usa sus índices estables para leer "
     "el material; su presencia no verifica la verdad de las publicaciones."
+    " Devuelve references opcional: mapa de rutas exactas a listas de índices "
+    "enteros de evidence.sources (0 es válido). Rutas: headline; "
+    "items.<index>.summary, items.<index>.why_it_matters, "
+    "items.<index>.confidence_note, items.<index>.angulo_nuevo; "
+    "seleccion.<index>.razon; agenda.<posición>.title, agenda.<posición>.when, "
+    "agenda.<posición>.status, agenda.<posición>.source; redes.<canal>.note; "
+    "redes.<canal>.cuentas.<posición>.cuenta, redes.<canal>.cuentas.<posición>.nota; "
+    "personas.<posición>.fact. Sustituye index por el índice de noticia, no "
+    "el orden de tu respuesta, y posición por la posición original en la lista "
+    "desde cero. Los campos de tarjeta hecho/por_que/angulo_nuevo derivan de "
+    "items summary/why_it_matters/angulo_nuevo; no devuelvas tarjetas nuevas. "
+    "Personas solo admite fact para cada persona ya registrada en esa posición. "
+    "Usa solo source_refs propios para noticia/selección/persona, el canal "
+    "propio para redes y además el autor exacto para cuentas. Headline/agenda "
+    "usan publicaciones del corte actual. Si faltan referencias identificables, "
+    "conserva el texto con lista vacía: queda no respaldado; una referencia "
+    "registra procedencia, no verifica verdad ni corroboración independiente."
 )
 
 
@@ -643,8 +671,8 @@ def compile_tail_cards(content: dict) -> bool:
         "angulo_nuevo": None,
     }
     if any("source_refs" in tarjeta for tarjeta in swallowed):
-        # Preserve each bullet's input membership, not a fabricated shared
-        # representative. Text-bound output provenance is a later contract.
+        # Preserve each bullet's membership AND its exact known formatting
+        # transformation; never assign the compiled union to a bullet.
         compiled["notas_refs"] = [
             {
                 key: list(tarjeta[key]) if key == "source_refs" else tarjeta[key]
@@ -656,6 +684,12 @@ def compile_tail_cards(content: dict) -> bool:
         compiled["source_refs"] = sorted(
             {ref for tarjeta in swallowed for ref in tarjeta.get("source_refs", [])}
         )
+        compiled["provenance"] = {
+            "notas": [
+                compiled_provenance(content, tarjeta, text)
+                for tarjeta, text in zip(swallowed, notas)
+            ]
+        }
     content["tarjetas"] = tarjetas[: total - take] + [compiled]
     valid = total - take
     brief = content.get("brief")
@@ -674,7 +708,7 @@ def compile_tail_cards(content: dict) -> bool:
     return True
 
 
-def build_tarjetas(noticias: list) -> list[dict]:
+def build_tarjetas(noticias: list, *, content: dict | None = None) -> list[dict]:
     """One tarjeta per noticia, index-aligned; prose fields mirror the row.
 
     ``hecho``/``por_que`` read the narrative fields so the inheritance path
@@ -701,7 +735,7 @@ def build_tarjetas(noticias: list) -> list[dict]:
                 "repeat": bool(nota.get("repeat")),
                 # The new angle of a repeated story is narrative (T3); the
                 # esqueleto always carries the key so the render is fixed.
-                "angulo_nuevo": None,
+                "angulo_nuevo": nota.get("angulo_nuevo"),
                 **{
                     key: list(nota[key]) if key == "source_refs" else nota[key]
                     for key in ("source_refs", "material_ref")
@@ -709,6 +743,20 @@ def build_tarjetas(noticias: list) -> list[dict]:
                 },
             }
         )
+        if content is not None:
+            tarjeta = tarjetas[-1]
+            tarjeta["provenance"] = {
+                field: derive_provenance(
+                    content, tarjeta[field], [(nota, parent)], nota.get("source_refs")
+                )
+                for field, parent in (
+                    ("titulo", "title"),
+                    ("hecho", "summary"),
+                    ("por_que", "why_it_matters"),
+                    ("angulo_nuevo", "angulo_nuevo"),
+                )
+                if isinstance(tarjeta.get(field), str) and tarjeta[field]
+            }
     return tarjetas
 
 
@@ -1305,11 +1353,20 @@ def digest_prompt_view(
         personas = [
             {
                 key: person[key]
-                for key in ("name", "role", "org", "mention_count")
+                for key in ("name", "role", "org", "mention_count", "source_refs")
                 if key in person
             }
             for person in facts.get("personas", [])
         ]
+        for person in personas:
+            if "source_refs" in person:
+                refs = person["source_refs"]
+                person["source_refs"] = (
+                    sorted(set(refs))
+                    if isinstance(refs, list)
+                    and all(type(ref) is int and ref in catalogue for ref in refs)
+                    else []
+                )
         redes = {}
         for name, data in facts.get("redes", {}).items():
             if not isinstance(data, dict):
@@ -1680,6 +1737,7 @@ def build_daily_summary(
     mode = "heuristic"
     llm_ok = False
     brief_payload: dict | None = None
+    recovered_brief: dict | None = None
     if generate is None:
         generate = summary_generator(effective)
     if generate is not None and total > 0:
@@ -1694,9 +1752,11 @@ def build_daily_summary(
         except Exception as exc:  # noqa: BLE001 - heuristic is the contract
             log.warning("digest llm failed for %s (%s); heuristic fallback", day, exc)
         else:
-            errors = apply_narrative(content, payload)
+            candidate = copy.deepcopy(content)
+            errors = apply_narrative(candidate, payload)
             headline = payload.get("headline") if isinstance(payload, dict) else None
             if not errors and isinstance(headline, str) and headline.strip():
+                content = candidate
                 narrative, mode, llm_ok = headline.strip(), "llm", True
                 brief_payload = payload
             else:
@@ -1715,32 +1775,97 @@ def build_daily_summary(
             and current_stories is not None
             and previous_stories is not None
             and current_stories.keys() == previous_stories.keys()
+            and catalogue_fingerprint(content.get("evidence")) is not None
+            and catalogue_fingerprint(content.get("evidence"))
+            == catalogue_fingerprint(prev_content.get("evidence"))
         ):
             for identity, nota in current_stories.items():
-                old = previous_stories[identity]
-                if old.get("summary"):
-                    nota["summary"] = old["summary"]
-                if not nota.get("why_it_matters") and old.get("why_it_matters"):
-                    nota["why_it_matters"] = old["why_it_matters"]
-            # home-digest-v2: the narrative blocks travel with the prose.
-            prev_agenda = prev_content.get("agenda")
-            if not content.get("agenda") and prev_agenda:
-                content["agenda"] = prev_agenda
-            for source, prev_data in (prev_content.get("redes") or {}).items():
-                prev_note = prev_data.get("note") if isinstance(prev_data, dict) else None
-                target = (content.get("redes") or {}).get(source)
-                if prev_note and isinstance(target, dict) and not target.get("note"):
-                    target["note"] = prev_note
-            prev_plain = (prev_content.get("plain_text") or "").split("\n", 1)[0]
-            if prev_plain:
-                narrative = prev_plain
+                inherit_fields(
+                    content,
+                    nota,
+                    previous_stories[identity],
+                    ("summary", "why_it_matters", "confidence_note", "angulo_nuevo"),
+                    nota.get("source_refs"),
+                )
+            # Inherited arrays carry object-bound metadata; revalidate every
+            # field against the compatible snapshot, not a mutable position.
+            content["agenda"] = copy.deepcopy(prev_content.get("agenda") or [])
+            for item in content["agenda"]:
+                inherit_fields(
+                    content,
+                    item,
+                    item.copy(),
+                    ("when", "title", "status", "source"),
+                    cut_refs(content),
+                )
+            for source, previous_data in (prev_content.get("redes") or {}).items():
+                target = content["redes"].get(source)
+                if not isinstance(target, dict) or not isinstance(previous_data, dict):
+                    continue
+                inherit_fields(
+                    content,
+                    target,
+                    previous_data,
+                    ("note",),
+                    channel_refs(content, source),
+                )
+                if isinstance(previous_data.get("cuentas"), list):
+                    target["cuentas"] = copy.deepcopy(previous_data["cuentas"])
+                    for item in target["cuentas"]:
+                        inherit_fields(
+                            content,
+                            item,
+                            item.copy(),
+                            ("cuenta", "nota"),
+                            channel_refs(content, source, item.get("cuenta")),
+                        )
+            old_persons = {
+                p.get("person_id"): p for p in prev_content.get("personas", [])
+            }
+            for person in content["personas"]:
+                old = old_persons.get(person.get("person_id"))
+                if old is not None:
+                    inherit_fields(
+                        content, person, old, ("fact",), person.get("source_refs")
+                    )
+            narrative = previous.narrative
+            content.setdefault("provenance", {})["headline"] = resolved_provenance(
+                content,
+                prev_content,
+                "headline",
+                text=narrative,
+            )
+            # Restore picks by story identity, independently of display order.
+            old_positions = {id(n): i for i, n in enumerate(prev_content["noticias"])}
+            positions = {id(n): i for i, n in enumerate(content["noticias"])}
+            remap = {
+                old_positions[id(previous_stories[key])]: positions[id(nota)]
+                for key, nota in current_stories.items()
+            }
+            recovered_brief = {}
+            for bucket in BRIEF_BUCKETS:
+                picks = []
+                for entry in (prev_content.get("brief") or {}).get(bucket, []):
+                    index = entry.get("index")
+                    if type(index) is not int or index not in remap:
+                        continue
+                    pick = {"index": remap[index]}
+                    inherit_fields(
+                        content,
+                        pick,
+                        entry,
+                        ("razon",),
+                        content["noticias"][pick["index"]].get("source_refs"),
+                    )
+                    picks.append(pick)
+                recovered_brief[bucket] = picks
             mode = "llm"
 
     # digest-brief-v3: the deterministic esqueleto. Tarjetas mirror noticias
     # (index-aligned, prose included); delta/fechas/campo are pure facts. The
     # heuristic fills the buckets by tono/conteo; a valid LLM selection
     # replaces them wholesale (same esqueleto, one render path).
-    content["tarjetas"] = build_tarjetas(content["noticias"])
+    content["tarjetas"] = build_tarjetas(content["noticias"], content=content)
     prev_noticias = previous_day_noticias(session, client_id, day)
     heu_decisiones, heu_ruido, heu_a_favor = _heuristic_brief_sections(
         content["noticias"]
@@ -1760,11 +1885,28 @@ def build_daily_summary(
     )
     if brief_payload is not None:
         apply_brief(content, brief_payload)
+    elif recovered_brief is not None:
+        content["brief"].update(recovered_brief)
     # F5: piso de riesgo — las negativas no referenciadas a su bucket, antes
     # del piso de densidad (T8.D completa decisiones con lo restante).
     ensure_riesgos(content)
     # T8.D: piso de densidad — mínimo tres decisiones cuando haya candidatas.
     ensure_decision_density(content)
+    # Code-built category/floor razones are not model-cited merely because
+    # the referenced story has publications. Do not change floor semantics.
+    for bucket in BRIEF_BUCKETS:
+        for pick in content["brief"].get(bucket) or []:
+            if isinstance(pick.get("razon"), str) and pick["razon"]:
+                pick.setdefault("provenance", {}).setdefault(
+                    "razon",
+                    make_binding(
+                        content,
+                        pick["razon"],
+                        [],
+                        cut_refs(content),
+                        origin="fallback",
+                    ),
+                )
     # F6/F7: afectación estructurada en las entradas de riesgo y líneas de
     # vigilancia (post-pases determinísticos, cero LLM). La vigilancia corre
     # DESPUÉS del piso: el anti-dup lee el bucket riesgo final.
@@ -1775,6 +1917,16 @@ def build_daily_summary(
     if vigilancia:
         content["brief"]["vigilancia"] = vigilancia
     content["brief"]["headline"] = narrative
+    content.setdefault("provenance", {}).setdefault(
+        "headline",
+        make_binding(
+            content,
+            narrative,
+            [],
+            cut_refs(content),
+            origin="fallback",
+        ),
+    )
     if descartes_cosmeticas + historias_fundadas > 0:
         content["brief"]["descarte"] = {
             "cosmeticas": descartes_cosmeticas,

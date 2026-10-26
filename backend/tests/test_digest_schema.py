@@ -89,3 +89,15 @@ def test_brief_shape_flags_malformed_sections() -> None:
 
     digest["campo"] = 3
     assert any("campo" in e for e in validate_digest(digest))
+
+
+def test_reference_map_is_optional_strict_and_guided_by_same_schema():
+    from app.summaries.digest_schema import NarrativePayload, narrative_response_schema
+
+    assert NarrativePayload.model_validate({"headline": "Sin citas"}).references is None
+    valid = NarrativePayload.model_validate({"references": {"items.0.summary": [0]}})
+    assert valid.references == {"items.0.summary": [0]}
+    assert "references" in narrative_response_schema()["properties"]
+    for invalid in ([False], ["0"], "0"):
+        with pytest.raises(ValidationError):
+            NarrativePayload.model_validate({"references": {"headline": invalid}})
