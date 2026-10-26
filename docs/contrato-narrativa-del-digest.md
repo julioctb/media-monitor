@@ -212,3 +212,16 @@ esa duplicación conservadora a mezclar asuntos diferentes.
 Esto no reconstruye eventos históricos ni regenera informes almacenados.
 El material local al corte y la procedencia de la prosa se endurecen en
 las siguientes unidades de la fase 2.
+
+### Portadas históricas y entradas de comparación
+
+Las portadas agregadas que sobrevivieron en eventos antiguos no participan
+en la comparación de identidad: se excluyen del conjunto histórico de
+títulos y del título canónico usado para puntuar. El mismo filtro protege
+las dos direcciones del comparador compartido con el árbitro y las
+herramientas de mantenimiento. Los umbrales y la recuperación por variantes
+legítimas de un título se conservan.
+
+Esta protección se aplica al procesamiento futuro; no borra las portadas
+almacenadas, no cambia sus enlaces históricos y no ejecuta reparaciones.
+Las pruebas de mantenimiento operan exclusivamente sobre SQLite en memoria.

@@ -3,6 +3,8 @@
 import itertools
 from datetime import datetime, timedelta, timezone
 
+import pytest
+
 from app.ingest.events import (
     assign_mention_to_event,
     similarity,
@@ -35,6 +37,61 @@ def _assign(session, client_id: int, title: str, when) -> Event:
     session.commit()
     session.expire(mention.event)
     return mention.event
+
+
+@pytest.mark.parametrize("poisoned", ["pool", "canonical"])
+def test_legacy_aggregate_cannot_attract_new_publication(session, poisoned):
+    """Historical showcases are not identity evidence for new articles."""
+    client_id = _client(session)
+    legacy = _assign(session, client_id, "Presupuesto federal 2027", T0)
+    aggregate = "Esta es la portada de @Medio: Convenio hospital universitario"
+    session.add(Mention(
+        client_id=client_id, source=MentionSource.x_twitter,
+        url="https://example.test/legacy-showcase", url_hash="legacy-showcase",
+        title=aggregate, event_id=legacy.id, published_at=T0,
+    ))
+    if poisoned == "canonical":
+        legacy.title = aggregate
+    session.commit()
+    session.refresh(legacy)
+    before = (legacy.title, legacy.mention_count)
+
+    incoming = _assign(
+        session, client_id, "Convenio hospital universitario", T0 + timedelta(hours=1)
+    )
+
+    assert incoming.id != legacy.id
+    session.refresh(legacy)
+    assert (legacy.title, legacy.mention_count) == before
+    assert session.query(Mention).filter(Mention.event_id == legacy.id).count() == 2
+    assert session.query(Event).count() == 2
+
+
+def test_legacy_aggregate_does_not_drive_deterministic_pair_merge(session):
+    """The shared scorer also quarantines aggregate comparison inputs."""
+    from app.ingest.arbitrator import merge_deterministic_pairs
+
+    client_id = _client(session)
+    legacy = _assign(session, client_id, "Presupuesto federal 2027", T0)
+    other = _assign(session, client_id, "Convenio hospital universitario", T0)
+    aggregate = "Esta es la portada de @Medio: Convenio hospital universitario"
+    legacy.title = aggregate
+    session.add(Mention(
+        client_id=client_id, source=MentionSource.x_twitter,
+        url="https://example.test/legacy-pair-showcase", url_hash="legacy-pair-showcase",
+        title=aggregate, event_id=legacy.id, published_at=T0,
+    ))
+    session.commit()
+    identities = {legacy.id, other.id}
+
+    result = merge_deterministic_pairs(
+        session, client_id=client_id, now=T0 + timedelta(hours=1)
+    )
+
+    assert result == {"deterministic_merged": 0}
+    assert {event.id for event in session.query(Event).all()} == identities
+    session.refresh(legacy)
+    assert legacy.title == aggregate
 
 
 def test_similarity_groupes_reordered_titles() -> None:

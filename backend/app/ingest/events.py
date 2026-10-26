@@ -185,7 +185,7 @@ def event_title_pool(session: Session, events: list[Event]) -> dict[int, list[st
     ).all()
     pool: dict[int, set[str]] = {}
     for event_id, title in rows:
-        if title:
+        if title and not is_aggregate_title(title):
             pool.setdefault(event_id, set()).add(title)
     return {
         event_id: sorted(titles, key=len, reverse=True)[:EVENT_TITLE_POOL_CAP]
@@ -194,10 +194,15 @@ def event_title_pool(session: Session, events: list[Event]) -> dict[int, list[st
 
 
 def _event_best_score(title: str, event: Event, pool: list[str]) -> float:
-    """Best suffix-variant Jaccard of `title` vs canonical + pool titles."""
-    score = similarity_with_suffix_variants(title, event.title)
+    """Best score against non-aggregate canonical and historical titles."""
+    if is_aggregate_title(title):
+        return 0.0
+    score = (
+        0.0 if is_aggregate_title(event.title)
+        else similarity_with_suffix_variants(title, event.title)
+    )
     for alt in pool:
-        if alt == event.title:
+        if alt == event.title or is_aggregate_title(alt):
             continue
         alt_score = similarity_with_suffix_variants(title, alt)
         if alt_score > score:
