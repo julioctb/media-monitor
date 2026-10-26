@@ -135,6 +135,7 @@ def build_digest_facts(
     from sqlalchemy import select
 
     from app.models import Event, Mention, Person
+    from app.ingest.events import MEDIA_EVENT_SOURCES, is_aggregate_title
     from app.ingest.facebook_public import strip_fb_chrome
     from app.summaries.builder import day_window
 
@@ -181,6 +182,14 @@ def build_digest_facts(
         # person_links are MentionPerson rows; the person id lives on the link.
         return sorted({link.person_id for link in mention.person_links})
 
+    def _representative_key(mention) -> tuple:
+        published = mention.published_at
+        if published is None:
+            published = datetime.min.replace(tzinfo=timezone.utc)
+        elif published.tzinfo is None:
+            published = published.replace(tzinfo=timezone.utc)
+        return mention.source in MEDIA_EVENT_SOURCES, published, mention.id
+
     grouped: dict[int | None, list] = {}
     for mention in mentions:
         grouped.setdefault(mention.event_id, []).append(mention)
@@ -191,6 +200,8 @@ def build_digest_facts(
             # Loose mentions: each its own baja item (grouping unrelated
             # rows would fabricate a story).
             for mention in items:
+                if is_aggregate_title(mention.title):
+                    continue
                 noticias.append(
                     {
                         "event_id": None,
@@ -198,7 +209,7 @@ def build_digest_facts(
                         # ingest-side normalization keep FB UI tails; the
                         # digest must render clean titles without a backfill.
                         "title": strip_fb_chrome(mention.title),
-                        "summary": None,
+                        "summary": mention.summary,
                         "topic": _single_topic(mention),
                         "sources": [
                             {
@@ -229,16 +240,24 @@ def build_digest_facts(
         # events read negative (and how loudly) to weigh them in the headline.
         tone_counts = Counter(m.sentiment.value for m in items if m.sentiment is not None)
         person_ids = sorted({pid for m in items for pid in _mention_person_ids(m)})
+        eligible = [m for m in items if not is_aggregate_title(m.title)]
+        if not eligible:
+            continue
+        # Keep the full publication inventory and accounting, but never use
+        # a multi-story showcase or event-global prose as cut material.
+        representative = max(eligible, key=_representative_key)
         noticias.append(
             {
                 "event_id": event_id,
-                # Read-side chrome strip (see the loose branch): the event
-                # title inherits the longest mention title, chrome included.
-                "title": strip_fb_chrome(event.title),
-                "summary": event.summary,
+                "title": strip_fb_chrome(representative.title),
+                "summary": representative.summary,
                 "topic": topic,
                 "sources": [
-                    {"source": m.source.value, "url": m.url, "title": strip_fb_chrome(m.title)}
+                    {
+                        "source": m.source.value,
+                        "url": m.url,
+                        "title": strip_fb_chrome(m.title),
+                    }
                     for m in items
                 ],
                 "confidence": confidence_for(len({m.source for m in items})),

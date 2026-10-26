@@ -1,6 +1,8 @@
 """build_digest_facts: deterministic facts per client-day. No LLM, no prose."""
 
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
+
+import pytest
 
 from app.models import Client, Event, MentionClassification, MentionSource
 from app.models.queries import upsert_settings
@@ -27,7 +29,8 @@ def _mention(session, client_id: int, url: str, **kw):
         source=kw.get("source", MentionSource.news_rss),
         url=url,
         url_hash=make_url_hash(url),
-        title=kw.get("title", "t"),
+        title=kw.get("title", "Publicación de seguimiento institucional"),
+        summary=kw.get("summary"),
         published_at=kw.get("published_at", NOON),
         ingested_at=kw.get("published_at", NOON),
         event_id=kw.get("event_id"),
@@ -119,7 +122,13 @@ def test_event_carries_the_sentiment_mix_for_the_narrative(session) -> None:
 
 def test_loose_mention_without_event_is_baja_and_own_item(session) -> None:
     client_id = _client(session)
-    loose = _mention(session, client_id, "https://a/solo", title="Suelta")
+    loose = _mention(
+        session,
+        client_id,
+        "https://a/solo",
+        title="Suelta",
+        summary="La publicación anuncia un taller cultural gratuito.",
+    )
     _classify(session, loose.id, "topic", "culture")
 
     facts = build_digest_facts(session, client_id=client_id, day=DAY, tz=TZ)
@@ -128,6 +137,7 @@ def test_loose_mention_without_event_is_baja_and_own_item(session) -> None:
     assert facts["noticias"][0]["confidence"] == "baja"
     assert facts["noticias"][0]["event_id"] is None
     assert facts["noticias"][0]["topic"] == "culture"
+    assert facts["noticias"][0]["summary"] == loose.summary
 
 
 def test_out_of_window_mention_ignored_and_gaps_listed(session) -> None:
@@ -187,3 +197,179 @@ def test_person_ids_are_person_not_link_ids(session) -> None:
     assert ids == {p.id for p in session.query(Person).all()}
     uno_row = next(p for p in facts["personas"] if p["person_id"] == uno.id)
     assert uno_row["mention_count"] == 2
+
+
+def test_event_material_comes_from_its_window_publication(session):
+    """A stale global budget summary must not accompany today's doctors."""
+    from datetime import timedelta
+
+    client_id = _client(session)
+    event = Event(
+        client_id=client_id,
+        title="BUAP anuncia presupuesto para infraestructura 2027",
+        title_tokens="buap presupuesto",
+        summary="El presupuesto global asigna recursos para infraestructura.",
+        first_seen_at=NOON - timedelta(days=3),
+        last_seen_at=NOON,
+    )
+    session.add(event)
+    session.flush()
+    _mention(
+        session,
+        client_id,
+        "https://medio.test/presupuesto",
+        event_id=event.id,
+        title=event.title,
+        summary=event.summary,
+        published_at=NOON - timedelta(days=3),
+    )
+    current = _mention(
+        session,
+        client_id,
+        "https://medio.test/doctores",
+        event_id=event.id,
+        title="BUAP reconoce a nuevos doctores",
+        summary="La universidad entregó reconocimientos a nuevos doctores.",
+    )
+
+    facts = build_digest_facts(session, client_id=client_id, day=DAY, tz=TZ)
+
+    assert facts["coverage"]["total"] == 1
+    item = facts["noticias"][0]
+    assert (item["title"], item["summary"]) == (current.title, current.summary)
+    assert item["sources"] == [
+        {
+            "source": "news_rss",
+            "url": current.url,
+            "title": current.title,
+        }
+    ]
+    # Reading a cut never repairs or erases historical event material.
+    session.refresh(event)
+    assert (
+        event.summary == "El presupuesto global asigna recursos para infraestructura."
+    )
+
+
+@pytest.mark.parametrize(
+    "case", ["media_first", "latest_time", "id_tie", "social_only"]
+)
+def test_window_representative_is_media_first_then_latest(session, case):
+    client_id = _client(session)
+    event = Event(
+        client_id=client_id,
+        title="Título global que no pertenece al corte",
+        title_tokens="global",
+        summary="Reseña global que no es evidencia del corte.",
+        first_seen_at=NOON,
+        last_seen_at=NOON,
+    )
+    session.add(event)
+    session.flush()
+    # The intended winner is inserted first except for the explicit id tie.
+    first_source = MentionSource.news_rss
+    second_source = MentionSource.rss_custom
+    second_time = NOON - timedelta(hours=1)
+    if case == "media_first":
+        second_source = MentionSource.x_twitter
+        second_time = NOON + timedelta(hours=1)
+    elif case == "id_tie":
+        second_time = NOON
+    elif case == "social_only":
+        first_source = MentionSource.facebook_page
+        second_source = MentionSource.x_twitter
+    first = _mention(
+        session,
+        client_id,
+        "https://medio.test/primera",
+        event_id=event.id,
+        source=first_source,
+        title="Primera publicación de la consulta",
+        summary="La primera publicación informa el aplazamiento.",
+    )
+    second = _mention(
+        session,
+        client_id,
+        "https://medio.test/segunda",
+        event_id=event.id,
+        source=second_source,
+        title="Segunda publicación de la consulta",
+        summary=None,
+        published_at=second_time,
+    )
+    # SQLite reloads naive UTC walls; injected rows can also be aware.
+    session.refresh(second)
+    first.published_at = NOON
+    winner = second if case == "id_tie" else first
+
+    facts = build_digest_facts(
+        session,
+        client_id=client_id,
+        day=DAY,
+        tz=TZ,
+        mentions=[second, first],
+    )
+
+    item = facts["noticias"][0]
+    assert (item["title"], item["summary"]) == (winner.title, winner.summary)
+    assert len(item["sources"]) == 2
+    assert facts["coverage"]["total"] == 2
+
+
+@pytest.mark.parametrize("case", ["loose", "aggregate_event", "mixed_event"])
+def test_aggregate_showcases_are_coverage_not_story_material(session, case):
+    from app.models import Sentiment
+
+    client_id = _client(session)
+    event_id = None
+    if case != "loose":
+        event = Event(
+            client_id=client_id,
+            title="Esta es la PORTADA de @Diario",
+            title_tokens="portada diario",
+            summary="Presupuesto y doctores mezclados.",
+            first_seen_at=NOON,
+            last_seen_at=NOON,
+        )
+        session.add(event)
+        session.flush()
+        event_id = event.id
+    material = None
+    if case == "mixed_event":
+        material = _mention(
+            session,
+            client_id,
+            "https://medio.test/consulta",
+            event_id=event_id,
+            source=MentionSource.x_twitter,
+            title="Se aplaza la consulta de pensiones",
+            summary="La consulta no se celebrará en la fecha prevista.",
+            sentiment=Sentiment.negative,
+        )
+    showcase = _mention(
+        session,
+        client_id,
+        "https://medio.test/portada",
+        event_id=event_id,
+        title="Esta es la PORTADA de @Diario: presupuesto y doctores",
+        summary="Presentación de varios asuntos en una portada.",
+        published_at=NOON + timedelta(hours=1),
+        sentiment=Sentiment.positive,
+    )
+    _classify(session, showcase.id, "topic", "institutional")
+
+    facts = build_digest_facts(session, client_id=client_id, day=DAY, tz=TZ)
+
+    assert facts["coverage"]["total"] == (2 if material else 1)
+    assert facts["coverage"]["by_topic"] == {"institutional": 1}
+    if material is None:
+        assert facts["noticias"] == []
+    else:
+        item = facts["noticias"][0]
+        assert (item["title"], item["summary"]) == (material.title, material.summary)
+        assert [source["url"] for source in item["sources"]] == [
+            material.url,
+            showcase.url,
+        ]
+        assert item["tone"] == {"negative": 1, "positive": 1}
+        assert item["confidence"] == "media"

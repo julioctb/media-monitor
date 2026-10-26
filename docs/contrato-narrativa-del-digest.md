@@ -225,3 +225,18 @@ legítimas de un título se conservan.
 Esta protección se aplica al procesamiento futuro; no borra las portadas
 almacenadas, no cambia sus enlaces históricos y no ejecuta reparaciones.
 Las pruebas de mantenimiento operan exclusivamente sobre SQLite en memoria.
+
+### Material de cada corte
+
+El título y la reseña de una historia proceden de la misma publicación
+elegible del corte: se priorizan medios y, después, la fecha de publicación
+más reciente y el ID como desempate. Las fechas SQLite sin zona se
+interpretan como UTC para compararlas de forma consistente.
+
+El resumen global del evento no sustituye el material del corte. Las
+portadas agregadas no representan historias, aunque siguen contando para
+cobertura y conservan sus entradas cuando forman parte de un inventario de
+fuentes adjunto. Si un grupo solo contiene portadas, no produce una noticia.
+La publicación elegida no demuestra por sí sola que todas las notas de un
+evento histórico mal agrupado traten del mismo asunto; no se ha ejecutado
+una reconstrucción histórica.

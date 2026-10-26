@@ -1036,7 +1036,7 @@ def test_tarjetas_mirror_noticias_with_tone_and_repeat(session):
     m2 = add_mention(
         session,
         client.id,
-        "Derrota buzca en casa",
+        event.title,  # the eligible publication, not just the global title
         DAY,
         source=MentionSource.rss_custom,
         event_id=event.id,
@@ -1179,7 +1179,8 @@ def test_heuristic_headline_leads_with_dominant_event(session):
     big = _event(client.id, "BUAP anuncia recorte de becas")
     session.add(big)
     session.flush()
-    for title in ("Recorte buzca", "Recorte confirmado"):
+    # Expected prose now has a real, eligible publication behind its title.
+    for title in ("BUAP confirma reducción de becas", big.title):
         mention = add_mention(
             session, client.id, title, DAY, event_id=big.id
         )
@@ -1205,11 +1206,13 @@ def test_heuristic_brief_sections_by_tone_and_count(session):
     neg = _event(client.id, "BUAP anuncia recorte de becas")
     session.add(neg)
     session.flush()
-    m = add_mention(session, client.id, "Recorte buzca", DAY, event_id=neg.id)
+    m = add_mention(
+        session, client.id, "BUAP confirma reducción de becas", DAY, event_id=neg.id
+    )
     m2 = add_mention(
         session,
         client.id,
-        "Recorte confirmado",
+        neg.title,  # current-cut material must support the expected reason
         DAY,
         source=MentionSource.rss_custom,
         event_id=neg.id,
@@ -1219,7 +1222,7 @@ def test_heuristic_brief_sections_by_tone_and_count(session):
     pos = _event(client.id, "BUAP gana fondos")
     session.add(pos)
     session.flush()
-    mp = add_mention(session, client.id, "Fuentes extra", DAY, event_id=pos.id)
+    mp = add_mention(session, client.id, pos.title, DAY, event_id=pos.id)
     mp.sentiment = Sentiment.positive
     session.commit()
 
