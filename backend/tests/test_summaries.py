@@ -1729,6 +1729,246 @@ def test_failed_regen_inherits_prose_for_same_story_material(session):
     assert second.content["tarjetas"][0]["por_que"] == "Define el recorte 2027."
 
 
+def _continuity_fixture(session, *, loose=False):
+    client = add_client(session)
+    first_event = _event(client.id, "Consulta de pensiones aplazada")
+    other_event = _event(client.id, "Reconocimiento académico a doctores")
+    session.add_all([first_event, other_event])
+    session.flush()
+    one = add_mention(
+        session, client.id, first_event.title, DAY, event_id=first_event.id
+    )
+    two = add_mention(
+        session,
+        client.id,
+        "Se difiere la consulta de pensiones",
+        DAY,
+        source=MentionSource.rss_custom,
+        event_id=first_event.id,
+    )
+    other = add_mention(
+        session, client.id, other_event.title, DAY, event_id=other_event.id
+    )
+    assert one is not None and two is not None and other is not None
+    if loose:
+        for mention in (one, two, other):
+            mention.event_id = None
+    one.summary = "La consulta se aplaza sin fecha nueva."
+    two.summary = "La segunda publicación informa el aplazamiento."
+    other.summary = "Se entregaron reconocimientos académicos a doctores."
+    session.commit()
+    row = build_daily_summary(
+        session,
+        client_id=client.id,
+        day=DAY.date(),
+        generate=lambda prompt: _digest_payload_v2(),
+    )
+    return client, first_event, other_event, one, two, row
+
+
+def _failed_generation(prompt):
+    raise RuntimeError("offline provider unavailable")
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        "added",
+        "url",
+        "title",
+        "channel",
+        "removed",
+        "regrouped",
+        "missing_channel",
+        "missing_url",
+        "missing_title",
+        "missing_sources",
+        "incomplete_inventory",
+    ],
+)
+def test_failed_generation_rejects_incompatible_complete_cut(session, change):
+    """Overlapping event ids cannot carry old prose into different publications."""
+    from sqlalchemy import select
+
+    from app.models import DailySummaryRevision, make_url_hash
+
+    client, event, other_event, one, two, first = _continuity_fixture(session)
+    if change == "added":
+        added = add_mention(
+            session,
+            client.id,
+            "La consulta de pensiones tendrá otra sede",
+            DAY,
+            source=MentionSource.gdelt,
+            event_id=event.id,
+        )
+        assert added is not None
+        added.summary = "Una nueva publicación informa un cambio de sede."
+    elif change == "url":
+        one.url = "https://medio.test/nueva-publicacion"
+        one.url_hash = make_url_hash(one.url)
+    elif change == "title":
+        one.title = "La consulta de pensiones se reanudará en otra fecha"
+    elif change == "channel":
+        one.source = MentionSource.gdelt
+    elif change == "removed":
+        two.published_at = DAY - timedelta(days=3)
+    elif change == "regrouped":
+        two.event_id = other_event.id
+    else:
+        legacy = json.loads(json.dumps(first.content))
+        if change == "missing_sources":
+            del legacy["noticias"][0]["sources"]
+        elif change == "incomplete_inventory":
+            legacy["coverage"]["total"] += 1
+        else:
+            field = {
+                "missing_channel": "source",
+                "missing_url": "url",
+                "missing_title": "title",
+            }[change]
+            del legacy["noticias"][0]["sources"][0][field]
+        first.content = legacy
+    session.commit()
+
+    row = build_daily_summary(
+        session,
+        client_id=client.id,
+        day=DAY.date(),
+        generate=_failed_generation,
+    )
+
+    assert row.mode == "heuristic"
+    assert row.narrative != "Titular del modelo."
+    assert row.content["agenda"] == []
+    assert row.content["redes"]["x"]["note"] == ""
+    assert all(n.get("why_it_matters") != "Porque sí." for n in row.content["noticias"])
+    assert all(
+        n.get("summary") != "Síntesis del modelo." for n in row.content["noticias"]
+    )
+    for noticia, tarjeta in zip(row.content["noticias"], row.content["tarjetas"]):
+        assert tarjeta["hecho"] == noticia["summary"]
+    revisions = session.scalars(
+        select(DailySummaryRevision)
+        .where(DailySummaryRevision.client_id == client.id)
+        .order_by(DailySummaryRevision.seq)
+    ).all()
+    assert [(r.seq, r.mode) for r in revisions] == [(1, "llm"), (2, "heuristic")]
+    assert revisions[0].narrative == "Titular del modelo."
+    assert validate_digest(row.content) == []
+
+
+@pytest.mark.parametrize("loose", [False, True])
+@pytest.mark.parametrize("generation", ["failed", "skipped"])
+def test_unchanged_cut_recovers_authored_prose_independent_of_order(
+    session, loose, generation
+):
+    client, event, _, _, _, first = _continuity_fixture(session, loose=loose)
+    saved = json.loads(json.dumps(first.content))
+    # Stored display order can differ from the next deterministic build.
+    saved["noticias"].reverse()
+    for noticia in saved["noticias"]:
+        noticia["sources"].reverse()
+    first.content = saved
+    event.title = "Título global ajeno al material de este corte"
+    event.summary = "Una reseña global no reemplaza el texto del corte."
+    session.commit()
+
+    row = build_daily_summary(
+        session,
+        client_id=client.id,
+        day=DAY.date(),
+        generate=_failed_generation if generation == "failed" else None,
+    )
+
+    assert row.mode == "llm"
+    assert row.narrative == "Titular del modelo."
+    assert row.content["agenda"] == saved["agenda"]
+    assert row.content["redes"] == saved["redes"]
+    previous_by_urls = {
+        tuple(sorted(s["url"] for s in n["sources"])): n for n in saved["noticias"]
+    }
+    for noticia, tarjeta in zip(row.content["noticias"], row.content["tarjetas"]):
+        old = previous_by_urls[tuple(sorted(s["url"] for s in noticia["sources"]))]
+        assert noticia["summary"] == old["summary"]
+        assert noticia.get("why_it_matters") == old.get("why_it_matters")
+        assert tarjeta["hecho"] == noticia["summary"]
+        assert tarjeta.get("por_que") == noticia.get("why_it_matters")
+    assert validate_digest(row.content) == []
+
+
+def test_window_material_keeps_prompt_and_card_indexes_aligned(session):
+    client = add_client(session)
+    budget = _event(client.id, "Presupuesto institucional para infraestructura")
+    budget.summary = "Reseña global de presupuesto fuera del corte."
+    session.add(budget)
+    session.flush()
+    add_mention(
+        session,
+        client.id,
+        budget.title,
+        DAY - timedelta(days=3),
+        event_id=budget.id,
+    )
+    doctors = add_mention(
+        session,
+        client.id,
+        "Reconocimiento académico a nuevos doctores",
+        DAY,
+        event_id=budget.id,
+    )
+    assert doctors is not None
+    doctors.summary = "Se entregaron reconocimientos a nuevos doctores."
+    add_mention(
+        session,
+        client.id,
+        "Esta es la PORTADA de @Diario: presupuesto y doctores",
+        DAY,
+        source=MentionSource.facebook_page,
+    )
+    session.commit()
+    captured = []
+
+    def generate(prompt):
+        view = json.JSONDecoder().raw_decode(prompt.split("\n", 1)[1])[0]
+        captured.append(view)
+        return json.dumps(
+            {
+                "headline": "Lectura sintética de prueba sin referencias.",
+                "items": [
+                    {"index": 0, "summary": "Texto válido del modelo sin citas."}
+                ],
+            }
+        )
+
+    row = build_daily_summary(
+        session,
+        client_id=client.id,
+        day=DAY.date(),
+        generate=generate,
+    )
+
+    assert row.content["coverage"]["total"] == 2
+    assert len(captured) == 1
+    assert set(captured[0]) == {"noticias", "redes", "personas"}
+    projected = captured[0]["noticias"]
+    assert (
+        len(projected)
+        == len(row.content["noticias"])
+        == len(row.content["tarjetas"])
+        == 1
+    )
+    assert (projected[0]["title"], projected[0]["summary"]) == (
+        doctors.title,
+        doctors.summary,
+    )
+    assert projected[0]["sources"] == [{"source": "news_rss", "title": doctors.title}]
+    assert row.content["noticias"][0]["summary"] == "Texto válido del modelo sin citas."
+    assert row.content["tarjetas"][0]["hecho"] == "Texto válido del modelo sin citas."
+    assert row.mode == "llm"
+    assert validate_digest(row.content) == []
+
+
 # --------------------------------------------------- T8.C títulos sobrios
 
 

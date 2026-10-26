@@ -240,3 +240,19 @@ fuentes adjunto. Si un grupo solo contiene portadas, no produce una noticia.
 La publicación elegida no demuestra por sí sola que todas las notas de un
 evento histórico mal agrupado traten del mismo asunto; no se ha ejecutado
 una reconstrucción histórica.
+
+### Recuperación de prosa tras un fallo
+
+Un fallo u omisión de generación solo permite recuperar la prosa anterior
+si el corte completo conserva las mismas publicaciones, agrupadas en las
+mismas historias. La comparación usa canal, URL y título de publicación;
+no depende del orden de presentación ni de compartir un ID de evento.
+Si cambia o falta identidad, se conserva la plantilla del corte actual,
+no el titular, agenda, redes o reseña antiguos.
+
+La recuperación del mismo corte conserva la prosa y sus revisiones. Es una
+comprobación de identidad de publicaciones, no de texto externo inmutable
+ni de verdad. Cuando publicaciones de cobertura no aparecen en las fuentes
+almacenadas, no se presupone completitud: la recuperación falla de forma
+conservadora. El catálogo congelado y las etiquetas explícitas de falta de
+respaldo corresponden a la siguiente unidad de evidencia.

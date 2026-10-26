@@ -1435,6 +1435,43 @@ def summary_generator(effective: EffectiveSettings) -> Callable[[str], str] | No
     return _openai_generator(effective)
 
 
+def _cut_source_stories(content: dict) -> dict | None:
+    """Index complete publication identity by story, ignoring display order.
+
+    Coverage-only publications absent from stored story sources cannot be
+    reconstructed here: missing identity fails safe. This is not a frozen
+    material snapshot or a guarantee about external article text.
+    """
+    noticias = content.get("noticias")
+    coverage = content.get("coverage")
+    if not isinstance(noticias, list) or not isinstance(coverage, dict):
+        return None
+    stories = {}
+    publication_count = 0
+    for noticia in noticias:
+        if not isinstance(noticia, dict):
+            return None
+        sources = noticia.get("sources")
+        if not isinstance(sources, list) or not sources:
+            return None
+        identity = []
+        for source in sources:
+            if not isinstance(source, dict):
+                return None
+            fields = tuple(source.get(key) for key in ("source", "url", "title"))
+            if any(not isinstance(value, str) or not value.strip() for value in fields):
+                return None
+            identity.append(fields)
+        key = tuple(sorted(identity))
+        if key in stories:
+            return None
+        stories[key] = noticia
+        publication_count += len(sources)
+    if not stories or publication_count != coverage.get("total"):
+        return None
+    return stories
+
+
 def build_daily_summary(
     session,
     *,
@@ -1584,34 +1621,22 @@ def build_daily_summary(
                 log.warning("digest llm payload rejected for %s: %s", day, errors)
 
     if not llm_ok:
-        # Failed (or skipped) regen of a digest that was llm-authored: keep
-        # the previous narrative instead of downgrading a good digest to
-        # template prose. Facts stay fresh; only the prose is inherited.
+        # Only an identity-compatible complete cut may recover authored prose.
+        # Event overlap alone says nothing about the current publications.
         previous = queries.get_daily_summary(session, client_id, day)
-        if previous is not None and previous.mode == "llm":
-            prev_content = previous.content or {}
-            # Merged cards (T8.A) carry several event ids: index and match by
-            # ALL of them, so prose survives regens regardless of the split.
-            prev_by_event: dict = {}
-            for prev_nota in prev_content.get("noticias") or []:
-                if not isinstance(prev_nota, dict):
-                    continue
-                lookup = list(prev_nota.get("event_ids") or [])
-                if prev_nota.get("event_id") is not None:
-                    lookup.append(prev_nota["event_id"])
-                for event_id in lookup:
-                    prev_by_event.setdefault(event_id, prev_nota)
-            for nota in content["noticias"]:
-                lookup = list(nota.get("event_ids") or [])
-                if nota.get("event_id") is not None:
-                    lookup.append(nota["event_id"])
-                old = next(
-                    (prev_by_event[eid] for eid in lookup if eid in prev_by_event),
-                    None,
-                )
-                if old is None:
-                    continue
-                if not nota.get("summary") and old.get("summary"):
+        prev_content = (previous.content or {}) if previous is not None else {}
+        current_stories = _cut_source_stories(content)
+        previous_stories = _cut_source_stories(prev_content)
+        if (
+            previous is not None
+            and previous.mode == "llm"
+            and current_stories is not None
+            and previous_stories is not None
+            and current_stories.keys() == previous_stories.keys()
+        ):
+            for identity, nota in current_stories.items():
+                old = previous_stories[identity]
+                if old.get("summary"):
                     nota["summary"] = old["summary"]
                 if not nota.get("why_it_matters") and old.get("why_it_matters"):
                     nota["why_it_matters"] = old["why_it_matters"]
