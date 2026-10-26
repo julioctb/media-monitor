@@ -32,9 +32,11 @@ from pydantic import ValidationError
 from app.summaries.evidence import (
     bind_material_copies,
     bind_output,
+    catalogue_sources,
     channel_refs,
     cut_refs,
     freeze_sources,
+    resolved_provenance,
 )
 from app.summaries.digest_schema import (
     BRIEF_CATEGORIES,
@@ -619,9 +621,26 @@ def render_plain_text(content: dict, narrative: str) -> str:
     """Sectioned plain text (RAG chunk + readable fallback), es mirrors UI."""
     # Late import: presentation helper vive en builder (T8.C) y el import
     # module-level sería cycle builder->digest->builder.
-    from app.summaries.builder import display_title
+    from app.summaries.builder import _zone, display_title
 
-    lines = [narrative, ""]
+    emitted_refs: set[int] = set()
+
+    def marked(target, field, *, text=None, allowed=None, feminine=False):
+        value = target.get(field) if text is None else text
+        if not isinstance(value, str) or not value:
+            return value
+        binding = resolved_provenance(
+            content, target, field, text=value, allowed=allowed
+        )
+        if binding["state"] == "linked":
+            refs = binding["source_refs"]
+            emitted_refs.update(refs)
+            citations = ", ".join(f"#{ref}" for ref in refs)
+            return f"{value} [Fuentes vinculadas: {citations}]"
+        label = "No respaldada" if feminine else "No respaldado"
+        return f"{value} [{label}]"
+
+    lines = [marked(content, "headline", text=narrative), ""]
     lines.append("NOTICIAS")
     for item in content.get("noticias") or []:
         confidence = item.get("confidence") or "?"
@@ -631,14 +650,25 @@ def render_plain_text(content: dict, narrative: str) -> str:
         # T8.C: el texto plano es capa de presentación — título sobrio.
         title = display_title(item.get("title")) or item.get("title") or "(sin título)"
         lines.append(f"- [{confidence}]{when_tag}{repeat_tag} {title}")
+        scope = item.get("source_refs") or []
         if item.get("summary"):
-            note = f" ({item['confidence_note']})" if item.get("confidence_note") else ""
-            lines.append(f"  {item['summary']}{note}")
+            note = (
+                f" ({marked(item, 'confidence_note', allowed=scope, feminine=True)})"
+                if item.get("confidence_note")
+                else ""
+            )
+            lines.append(
+                f"  {marked(item, 'summary', allowed=scope, feminine=True)}{note}"
+            )
         if item.get("why_it_matters"):
-            lines.append(f"  Por qué importa: {item['why_it_matters']}")
-        sources = ", ".join(
-            f"{s.get('source')}" for s in item.get("sources") or []
-        )
+            lines.append(
+                f"  Por qué importa: {marked(item, 'why_it_matters', allowed=scope, feminine=True)}"
+            )
+        if item.get("angulo_nuevo"):
+            lines.append(
+                f"  Ángulo nuevo: {marked(item, 'angulo_nuevo', allowed=scope)}"
+            )
+        sources = ", ".join(f"{s.get('source')}" for s in item.get("sources") or [])
         if sources:
             lines.append(f"  Fuentes: {sources}")
     temas = content.get("temas_sin_nota") or []
@@ -654,21 +684,34 @@ def render_plain_text(content: dict, narrative: str) -> str:
         for item in agenda:
             if not isinstance(item, dict):
                 continue
-            head = " · ".join(p for p in (item.get("when"), item.get("status")) if p)
-            line = f"- {head}: {item.get('title')}" if head else f"- {item.get('title')}"
+            head = " · ".join(
+                value
+                for value in (
+                    marked(item, "when", feminine=True),
+                    marked(item, "status"),
+                )
+                if value
+            )
+            title = marked(item, "title", feminine=True)
+            line = f"- {head}: {title}" if head else f"- {title}"
             if item.get("source"):
-                line += f" Fuente: {item['source']}"
+                line += f" Fuente: {marked(item, 'source', feminine=True)}"
             lines.append(line)
     lines.append("")
     lines.append("REDES")
     for source, data in (content.get("redes") or {}).items():
-        note = f" — {data['note']}" if isinstance(data, dict) and data.get("note") else ""
+        note = (
+            f" — {marked(data, 'note', allowed=channel_refs(content, source), feminine=True)}"
+            if isinstance(data, dict) and data.get("note")
+            else ""
+        )
         count = data.get("count") if isinstance(data, dict) else data
         lines.append(f"- {source}: {count}{note}")
         cuentas = data.get("cuentas") if isinstance(data, dict) else None
         for entry in cuentas or []:
-            cuenta = entry.get("cuenta")
-            nota = entry.get("nota")
+            scope = channel_refs(content, source, entry.get("cuenta"))
+            cuenta = marked(entry, "cuenta", allowed=scope, feminine=True)
+            nota = marked(entry, "nota", allowed=scope, feminine=True)
             line = f"    - {cuenta}" if cuenta else None
             if line and nota:
                 line += f": {nota}"
@@ -679,7 +722,11 @@ def render_plain_text(content: dict, narrative: str) -> str:
     for person in content.get("personas") or []:
         role = " · ".join(p for p in (person.get("role"), person.get("org")) if p)
         suffix = f" ({role})" if role else ""
-        fact = f": {person['fact']}" if person.get("fact") else ""
+        fact = (
+            f": {marked(person, 'fact', allowed=person.get('source_refs') or [], feminine=True)}"
+            if person.get("fact")
+            else ""
+        )
         lines.append(
             f"- {person.get('name')}{suffix} — {person.get('mention_count', 0)} menciones{fact}"
         )
@@ -702,6 +749,7 @@ def render_plain_text(content: dict, narrative: str) -> str:
 
         secciones = (
             ("Qué cambió", brief.get("delta"), None),
+            ("Riesgos", brief.get("riesgos"), "razon"),
             ("Decisión / atención", brief.get("decisiones"), "razon"),
             ("Ruido", brief.get("ruido"), "razon"),
             ("A favor", brief.get("a_favor"), "razon"),
@@ -716,14 +764,34 @@ def render_plain_text(content: dict, narrative: str) -> str:
                 continue
             lines.append(header)
             for entry in entries:
-                if not isinstance(entry, dict):
-                    continue
                 if razon_key is None:
-                    lines.append(f"- {entry}")
+                    if isinstance(entry, str):
+                        text = entry
+                        target = {}
+                    elif isinstance(entry, dict):
+                        title = entry.get("titulo") or ""
+                        angle = entry.get("giro")
+                        text = (
+                            f"{title} — {angle}" if title and angle else title or angle
+                        )
+                        target = entry
+                    else:
+                        continue
+                    if text:
+                        lines.append(
+                            f"- {marked(target, 'delta', text=text, feminine=True)}"
+                        )
+                    continue
+                if not isinstance(entry, dict):
                     continue
                 index = entry.get("index")
                 title = _titulo(index) if isinstance(index, int) else "?"
-                razon = entry.get(razon_key)
+                scope = (
+                    noticias[index].get("source_refs") or []
+                    if type(index) is int and 0 <= index < len(noticias)
+                    else []
+                )
+                razon = marked(entry, razon_key, allowed=scope, feminine=True)
                 suffix = f" — {razon}" if razon else ""
                 lines.append(f"- {title}{suffix}")
         fechas = brief.get("fechas") or []
@@ -734,7 +802,8 @@ def render_plain_text(content: dict, narrative: str) -> str:
                     continue
                 estado = fecha.get("estado") or "?"
                 lines.append(
-                    f"- [{estado}] {fecha.get('title')} ({fecha.get('when')})"
+                    f"- [{estado}] {marked(fecha, 'title', feminine=True)} "
+                    f"({marked(fecha, 'when', feminine=True)})"
                 )
     lines.append("")
     lines.append("PENDIENTES")
@@ -742,6 +811,38 @@ def render_plain_text(content: dict, narrative: str) -> str:
         lines.append(f"- {pending}")
     if not content.get("pendientes"):
         lines.append("- ninguno")
+    if emitted_refs:
+        sources = catalogue_sources(content.get("evidence")) or []
+        lines.extend(
+            (
+                "",
+                "FUENTES VINCULADAS",
+                "Las referencias registran procedencia, no verificación de verdad.",
+            )
+        )
+        for source in sources:
+            if source["index"] not in emitted_refs:
+                continue
+            title = (
+                "Publicación de Facebook"
+                if source["source"] == "facebook_page"
+                else source.get("title") or "Publicación sin título registrado"
+            )
+            lines.append(f"- #{source['index']}: {title} — {source['outlet']}")
+            if source.get("published_at"):
+                try:
+                    published = datetime.fromisoformat(source["published_at"])
+                    stamp = published.astimezone(
+                        _zone(content.get("timezone") or "America/Mexico_City")
+                    ).strftime("%d/%m/%Y %H:%M")
+                except (ValueError, TypeError):
+                    stamp = "fecha no interpretable"
+                lines.append(f"  Fecha de publicación: {stamp}")
+            lines.append(f"  URL: {source['url']}")
+            if source.get("summary"):
+                lines.append(f"  Resumen derivado almacenado: {source['summary']}")
+            if source.get("excerpt"):
+                lines.append(f"  Extracto capturado: {source['excerpt']}")
     return "\n".join(lines)
 
 

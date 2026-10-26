@@ -336,3 +336,18 @@ no se adjudican al titular restaurado. Se sincronizan el titular del brief
 y el texto exportable con la narrativa elegida. La invalidación se asigna
 como un nuevo JSON y se confirma en base de datos para sobrevivir a la
 siguiente lectura. No se reconstruyen ni migran revisiones históricas.
+
+## 10. Exportación legible con las mismas advertencias
+
+El texto exportable vuelve a resolver cada vinculación contra texto, catálogo
+y ámbito. Conserva la prosa sin referencia con «No respaldado» o «No
+respaldada»; las referencias válidas aparecen como `Fuentes vinculadas: #0`.
+El registro final enumera solo las publicaciones efectivamente citadas en esa
+salida, no todo el conjunto recuperado. Distingue resumen derivado y extracto
+capturado, y rotula la fecha como fecha de publicación, no del hecho.
+
+El exportador incluye el bucket de riesgos ya existente y presenta el delta
+tipado como texto, sin volcar diccionarios de Python ni perder filas antiguas
+de texto. Las fechas derivadas sin vinculación también conservan su advertencia.
+Esto no cambia la clasificación de riesgos, los pisos ni las reglas temporales;
+esas decisiones analíticas corresponden a T5/T6/T8.
