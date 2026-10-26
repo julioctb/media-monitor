@@ -2331,7 +2331,10 @@ def test_window_material_keeps_prompt_and_card_indexes_aligned(session):
 
     assert row.content["coverage"]["total"] == 2
     assert len(captured) == 1
-    assert set(captured[0]) == {"noticias", "redes", "personas", "evidence", "indicators_version"}
+    assert set(captured[0]) == {
+        "noticias", "redes", "personas", "evidence", "indicators_version", "comparison"
+    }
+    assert captured[0]["comparison"]["available"] is False
     projected = captured[0]["noticias"]
     assert (
         len(projected)
@@ -2493,7 +2496,8 @@ def test_brief_fechas_augments_from_agenda_table(session):
 def test_system_prompt_demands_dense_selection():
     assert "mínimo tres" in SYSTEM_PROMPT
     assert "oración" in SYSTEM_PROMPT  # razon con lectura, no topic de 4 palabras
-    assert "día previo" in SYSTEM_PROMPT
+    assert "corte anterior real" in SYSTEM_PROMPT
+    assert "títulos y tono de cobertura, no evidencia factual" in SYSTEM_PROMPT
 
 
 def test_valid_selection_keeps_declared_order_without_completion():

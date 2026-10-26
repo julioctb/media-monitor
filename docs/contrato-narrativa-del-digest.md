@@ -551,3 +551,54 @@ ingesta; no se le asignan afectados ni plazos por coincidencia. La interfaz
 histórica conserva los campos almacenados sin recálculo ni migración. La
 comparación factual entre cortes y el diseño de cualquier relación más rica
 se tratan por separado.
+
+## 19. Material original del corte anterior y recuperación compatible
+
+Los nuevos cortes añaden `content.comparison`, un contexto de entrada interno
+con discriminador `version: 1`; no es el número de versión del producto ni una
+política de conservación de informes. Identifica la fecha real de la última
+fila del mismo cliente estrictamente anterior al día solicitado, su zona
+horaria y `window_start` almacenados cuando existen. Lo desconocido permanece
+nulo: no se supone que ese corte sea de ayer ni se inventa su hora de cierre.
+
+El contexto conserva una copia del catálogo original validado y la
+correspondencia con las noticias actuales mediante la identidad existente.
+`title_fallback` se declara una coincidencia débil, no una confirmación de que
+se trate del mismo suceso. No se consultan artículos mutables ni se convierten
+las conclusiones generadas del informe previo en material fuente.
+
+La entrada del modelo contiene las primeras doce posiciones de noticias
+previas y todas sus referencias propias válidas. Mantiene los índices
+originales con el prefijo `prior:`; no se reindexa un catálogo filtrado ni se
+confunde `prior:0` con el índice actual `0`. Se omiten los campos técnicos de
+ID de base de datos y URL; no se reescribe el texto capturado para borrar
+enlaces que pudiera contener. Los resúmenes derivados y extractos capturados siguen
+siendo distintos y están limitados a 300 caracteres por el validador existente;
+un catálogo que incumple ese límite se considera inválido, no se rescata en
+silencio. No se introduce otro límite de publicaciones por noticia.
+
+`available` indica disponibilidad del material suministrado, no verdad,
+corroboración, exhaustividad histórica ni un cambio factual demostrado. El
+contexto compacto `dia_previo` solo representa títulos y tono de cobertura.
+`repeat=true` acredita circulación previa, no una edición anterior ni una
+novedad: no obliga a inventar un cambio ni a insertarlo en el hecho actual.
+El campo existente `angulo_nuevo` puede expresar un contraste atribuido o la
+limitación de la comparación. La lista determinista `brief.delta` conserva
+su significado de cobertura, no se transforma en un clasificador de hechos.
+
+La recuperación de prosa nueva requiere tanto el material actual completo
+compatible como igualdad tipada del contexto comparativo registrado. Un
+cambio del material previo, fecha, ventana, contexto de cobertura o
+correspondencia impide reutilizar ese análisis, aunque las noticias actuales
+sean idénticas. Un contexto nuevo inválido no cae en recuperación heredada.
+Sin contexto registrado en un informe legado, se conserva la recuperación
+anterior únicamente si no hay material factual previo disponible; en ese
+caso no se atribuye a la prosa recuperada una nueva autoría comparativa.
+
+Esta unidad prepara y conserva la entrada. Las referencias de salida actuales
+siguen apuntando exclusivamente al catálogo actual: no prueban una premisa
+anterior. Los enlaces separados a ambos cortes, su inspector y la exportación
+correspondiente requieren la siguiente unidad T6.b2. Se conserva toda prosa
+válida no citada con las advertencias de S6. No se regeneran informes ni se
+modifican publicaciones, eventos, personas o agenda por introducir este
+contrato; la sustitución histórica autorizada sigue condicionada a T10.
