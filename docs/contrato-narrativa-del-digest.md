@@ -120,9 +120,10 @@ componentes de presentación para renderizarlas.
 | Ruido | Baja relevancia decisional explicada | Incomodidad o un solo origen |
 | Vigilancia | Señal pertinente sobre una persona configurada | Atribuirle todo el tono de la noticia |
 
-Mantener la regla de tres cuando existan tres candidatas sustantivas. Los
-pisos deterministas actuales se revisarán en fases posteriores; este
-contrato no afirma que ya distingan todas estas dimensiones.
+Mantener la regla de tres cuando existan tres candidatas sustantivas. En
+cortes nuevos no se completa ese mínimo a partir del tono ni del volumen;
+la selección y sus razones deben identificar la sustancia. La política de
+selección y sus límites de evaluación se detallan en la sección 17.
 
 | Entrada sintética | Lectura aceptable | No afirmar |
 |---|---|---|
@@ -499,3 +500,31 @@ referenciado por ningún bloque del brief, respetando el mismo mínimo de
 tarjetas. El orden, las referencias propias, los indicadores y la advertencia
 de prosa no respaldada se conservan. La protección no cambia el criterio
 sustantivo de selección ni demuestra la calidad de la interpretación política.
+
+## 17. Autoridad de la selección y degradación sin categorías inventadas
+
+Las categorías de nuevos cortes no se completan desde métricas de cobertura:
+una postura negativa no basta para declarar riesgo, una positiva no prueba
+beneficio, y la reiteración con pocas publicaciones no demuestra ruido ni
+ausencia de novedades. La selección aceptada debe explicar su pertinencia,
+consecuencia o necesidad de atención; no se agregan decisiones por volumen.
+
+Se conserva la exigencia de **mínimo tres decisiones cuando existan al menos
+tres candidatas sustantivas**. El modelo debe identificarlas y justificarlas;
+si identifica menos, no se rellena con ceremonias o difusión. No se añadió
+un clasificador determinista de elegibilidad: las pruebas de transporte y
+política no acreditan que un modelo haya identificado todas las candidatas.
+Esa capacidad y la calidad de sus razones requieren evaluación editorial.
+
+`seleccion: []` aceptada vacía los cuatro bloques. Una selección ausente,
+malformada o con todas las entradas inválidas no equivale a esa decisión
+explícita: en un corte nuevo no añade categorías al esqueleto vacío, y en
+una combinación parcial no borra selecciones existentes. Las entradas sanas
+siguen aceptándose por separado, con S6 vigente para referencias ausentes.
+
+Si no existe análisis aceptado ni recuperación compatible, se conservan
+hechos, tarjetas y cobertura, pero no se fabrican categorías ni sus razones
+políticas desde conteos. Un bloque vacío no demuestra que no existan riesgos.
+La recuperación de un corte compatible conserva su análisis previamente
+aceptado y sus advertencias: no prueba que la última llamada haya funcionado
+ni migra retrospectivamente las categorías de informes históricos.

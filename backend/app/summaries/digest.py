@@ -582,9 +582,10 @@ def apply_brief(content: dict, payload: object) -> None:
 
     The selection only REFERENCEStarjetas by index (the model never invents
     structure): each valid entry lands in its categoria bucket. One healthy
-    entry switches the buckets to the model's picks wholesale; a payload
-    with no valid selection keeps the heuristic buckets. Tolerant by
-    contract: malformed entries are logged and skipped.
+    entry switches the buckets to the model's picks wholesale; an explicit
+    empty list clears them. Missing/malformed or invalid-only selection
+    leaves existing buckets unchanged. Tolerant by contract: malformed
+    entries are logged and skipped.
     """
     if not isinstance(content, dict) or not isinstance(content.get("brief"), dict):
         return
@@ -600,7 +601,7 @@ def apply_brief(content: dict, payload: object) -> None:
         noticias = content.get("noticias")
         total = len(noticias) if isinstance(noticias, list) else 0
     buckets: dict[str, list] = {categoria: [] for categoria in BRIEF_CATEGORIES}
-    got = False
+    got = not entradas
     for pos, entry in enumerate(entradas):
         try:
             validated = SeleccionEntry.model_validate(entry)

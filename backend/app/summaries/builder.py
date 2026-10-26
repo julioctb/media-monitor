@@ -108,12 +108,19 @@ SYSTEM_PROMPT = (
     "que lo requieran: summary es el HECHO en 1 oración y why_it_matters el "
     "POR QUÉ IMPORTA en 1 oración; y seleccion: "
     "[{index, categoria, razon}] para el brief, eligiendo SOLO tarjetas ya "
-    "existentes por su índice en noticias, con categoria decision (exige "
-    "decisión o atención), riesgo (la lectura de tono negativo dominante), "
-    "ruido o a_favor: la selección nunca introduce "
-    "datos nuevos, solo referencia índices. Densidad editorial: marca "
-    "mínimo tres decisiones cuando haya candidatas, y cada razon es una "
-    "oración completa que explique la lectura editorial y su consecuencia, "
+    "existentes por su índice en noticias, con categoria decision (necesidad "
+    "concreta de verificar, coordinar, fijar postura o resolver), riesgo "
+    "(consecuencia adversa plausible con relación explicable con la persona "
+    "monitoreada; sin perfil, explicita su relevancia política o institucional), "
+    "ruido (baja relevancia decisional con motivo explícito) o a_favor "
+    "(desarrollo favorable sustentado y pertinente, no supuesto respaldo "
+    "público): la selección nunca introduce datos nuevos, solo referencia "
+    "índices; el tono, el volumen o la diversidad de medios no determinan "
+    "estas categorías. Marca mínimo tres decisiones cuando existan al menos "
+    "tres candidatas sustantivas, sin rellenar con ceremonias o difusión; si "
+    "identificas menos, conserva solo esas. Una selección deliberadamente "
+    "vacía se expresa como seleccion: []. Cada razon es una oración completa "
+    "que explique la lectura política, su relación pertinente y su consecuencia, "
     "nunca una etiqueta de tres o cuatro palabras. El bloque dia_previo "
     "lista en compacto el día previo: úsalo para calibrar qué continúa y "
     "qué es ángulo nuevo; lo ya conocido se trata como continuidad. "
@@ -894,127 +901,6 @@ def _impact(nota: dict) -> tuple[int, int]:
     return (len(nota.get("sources") or []), classified)
 
 
-#: Bucket caps keep the heuristic brief as short as the LLM one.
-MAX_RUIDO = 3
-
-
-def _fill_razon_riesgo(nota: dict) -> str:
-    """Razón del piso de riesgo (F5) compuesta desde los hechos de la tarjeta.
-
-    Nunca etiqueta enlatada: título, menciones negativas y fuentes son los
-    datos de la propia tarjeta — el mismo estándar de densidad que el
-    SYSTEM_PROMPT exige a la selección del modelo.
-    """
-    raw_tone = nota.get("tone")
-    tone = raw_tone if isinstance(raw_tone, dict) else {}
-    neg = tone.get("negative") or 0
-    total = sum(v for v in tone.values() if isinstance(v, int))
-    title = display_title(nota.get("title")) or "La historia del día"
-    fuentes = len(nota.get("sources") or [])
-    en_fuentes = ""
-    if fuentes:
-        en_fuentes = f" en {fuentes} fuente" + ("s" if fuentes != 1 else "")
-    return (
-        f"«{title}»: {neg} de {total} menciones con tono negativo{en_fuentes}; "
-        "cobertura adversa que exige seguimiento."
-    )
-
-
-def _fill_razon_decision(nota: dict) -> str:
-    """Razón del topup de decisiones (T8.D) compuesta desde la tarjeta.
-
-    Con ``why_it_matters`` del modelo disponible, ese por-qué ES la razón;
-    sin él, la oración ancla en cobertura (fuentes/tono/reiteración).
-    """
-    title = display_title(nota.get("title")) or "La historia del día"
-    why = nota.get("why_it_matters")
-    if isinstance(why, str) and why.strip():
-        return f"«{title}» — {why.strip()}"
-    fuentes = len(nota.get("sources") or [])
-    label = tone_label(nota.get("tone")) or "neutro"
-    rep = ", reiteración" if nota.get("repeat") else ""
-    return (
-        f"«{title}» marcó el día por su cobertura ({fuentes} fuentes, "
-        f"tono {label}{rep}); entra al brief por impacto."
-    )
-
-
-def _fill_razon_a_favor(nota: dict) -> str:
-    """Razón heurística de a_favor compuesta desde la tarjeta (D6)."""
-    raw_tone = nota.get("tone")
-    tone = raw_tone if isinstance(raw_tone, dict) else {}
-    pos = tone.get("positive") or 0
-    total = sum(v for v in tone.values() if isinstance(v, int))
-    title = display_title(nota.get("title")) or "La historia del día"
-    return f"«{title}»: {pos} de {total} menciones con tono positivo en el día."
-
-
-def _fill_razon_ruido(nota: dict) -> str:
-    """Razón heurística de ruido compuesta desde la tarjeta (D6)."""
-    title = display_title(nota.get("title")) or "La historia del día"
-    fuentes = len(nota.get("sources") or [])
-    return (
-        f"«{title}» reitera cobertura previa sin datos nuevos"
-        f" ({fuentes} fuente{'s' if fuentes != 1 else ''})."
-    )
-
-
-def _heuristic_brief_sections(noticias: list) -> tuple[list, list, list]:
-    """Heuristic fill of the SAME esqueleto the LLM completes: tono/conteo.
-
-    Positive-dominant stories go to a_favor; repeated single-source items
-    are ruido. The negative floor is NOT here anymore (F5): :func:`ensure_riesgos`
-    owns every negative-dominant card in BOTH paths, so positives and the
-    top-impact fallback shape the decision bucket. Razones compuestas desde
-    la tarjeta (D6): jamás etiquetas enlatadas, mismo estándar del prompt.
-    """
-    decisiones: list[dict] = []
-    ruido: list[dict] = []
-    a_favor: list[dict] = []
-    for index, nota in enumerate(noticias or []):
-        if not isinstance(nota, dict):
-            continue
-        label = tone_label(nota.get("tone"))
-        fuentes = len(nota.get("sources") or [])
-        if label == "positivo":
-            a_favor.append({"index": index, "razon": _fill_razon_a_favor(nota)})
-        elif nota.get("repeat") and fuentes < 2 and len(ruido) < MAX_RUIDO:
-            ruido.append({"index": index, "razon": _fill_razon_ruido(nota)})
-    if not decisiones and noticias:
-        top = max(range(len(noticias)), key=lambda i: _impact(noticias[i]))
-        decisiones.append({"index": top, "razon": _fill_razon_decision(noticias[top])})
-    return decisiones, ruido, a_favor
-
-
-def ensure_riesgos(content: dict) -> None:
-    """Piso determinístico de negativas (F5), en AMBOS caminos.
-
-    Toda tarjeta de tono negativo dominante NO referenciada en ningún bucket
-    entra a ``riesgos`` con la razón estándar, sin cap. Corre antes del piso
-    de densidad: lo ya marcado por el modelo (o por esta pasada) no se
-    duplica, y el topup de decisiones completa con lo restante. Determinista.
-    """
-    brief = content.get("brief")
-    noticias = content.get("noticias")
-    if not (isinstance(brief, dict) and isinstance(noticias, list)):
-        return
-    riesgos = brief.get("riesgos")
-    if not isinstance(riesgos, list):
-        riesgos = []
-        brief["riesgos"] = riesgos
-    marked: set = set()
-    for bucket in BRIEF_BUCKETS:
-        for entry in brief.get(bucket) or []:
-            if isinstance(entry, dict) and isinstance(entry.get("index"), int):
-                marked.add(entry["index"])
-    for index, nota in enumerate(noticias):
-        if index in marked or not isinstance(nota, dict):
-            continue
-        if tone_label(nota.get("tone")) != "negativo":
-            continue
-        riesgos.append({"index": index, "razon": _fill_razon_riesgo(nota)})
-
-
 # ------------------------------------------------ F6/F7 riesgo estructural
 
 #: Umbral F7: la persona principal (focus) basta con 1 negativa; el resto
@@ -1440,56 +1326,6 @@ def digest_prompt_view(
 #: Tope del resumen compacto del día previo en el prompt (T8.D).
 DIA_PREVIO_MAX = 12
 
-#: Densidad (T8.D): el brief muestra mínimo tres decisiones cuando hay
-#: candidatas. El modelo marca; el builder completa el piso con las de mayor
-#: impacto NO marcadas (la selección del modelo nunca se recorta).
-DECISION_MIN = 3
-
-
-def ensure_decision_density(content: dict) -> None:
-    """Completa el piso de decisiones del brief (T8.D) sin tocar el modelo.
-
-    Con menos de :data:`DECISION_MIN` decisiones marcadas y tarjetas sin
-    marcar disponibles, las de mayor impacto entran como decisión con la
-    razón estándar del heurístico. Las entradas del modelo van primero y
-    jamás se recortan: el piso es aditivo. Determinista.
-    """
-    brief = content.get("brief")
-    noticias = content.get("noticias")
-    if not (isinstance(brief, dict) and isinstance(noticias, list)):
-        return
-    decisiones = brief.get("decisiones")
-    if not isinstance(decisiones, list):
-        return
-    total = len(noticias)
-    if len(decisiones) >= DECISION_MIN or total < DECISION_MIN:
-        return
-    marked: set = set()
-    for bucket in BRIEF_BUCKETS:
-        for entry in brief.get(bucket) or []:
-            if isinstance(entry, dict) and isinstance(entry.get("index"), int):
-                marked.add(entry["index"])
-    # D4 (digest-coherence 25/oct): el topup solo promueve SUSTANCIA —
-    # cobertura multi-fuente. Un aniversario cultural de una sola fuente
-    # no es «Decisión / atención» en un domingo callado: menos decisiones,
-    # honestas, antes que piso muerto.
-    def _substanciosa(noticia: object) -> bool:
-        return isinstance(noticia, dict) and len(noticia.get("sources") or []) >= 2
-
-    candidatos = [
-        i
-        for i in range(total)
-        if i not in marked and _substanciosa(noticias[i])
-    ]
-    candidatos.sort(
-        key=lambda i: _impact_rank(noticias[i])
-    )
-    for index in candidatos[: DECISION_MIN - len(decisiones)]:
-        decisiones.append(
-            {"index": index, "razon": _fill_razon_decision(noticias[index])}
-        )
-
-
 def _digest_prompt(
     day: date,
     facts: dict,
@@ -1898,21 +1734,16 @@ def build_daily_summary(
                 recovered_brief[bucket] = picks
             mode = "llm"
 
-    # digest-brief-v3: the deterministic esqueleto. Tarjetas mirror noticias
-    # (index-aligned, prose included); delta/fechas/campo are pure facts. The
-    # heuristic fills the buckets by tono/conteo; a valid LLM selection
-    # replaces them wholesale (same esqueleto, one render path).
+    # Factual cards remain available without a political assessment. Only
+    # accepted model picks or compatible authored recovery populate buckets.
     content["tarjetas"] = build_tarjetas(content["noticias"], content=content)
     prev_noticias = previous_day_noticias(session, client_id, day)
-    heu_decisiones, heu_ruido, heu_a_favor = _heuristic_brief_sections(
-        content["noticias"]
-    )
     content["brief"] = {
         "delta": brief_delta(prev_noticias, content["noticias"]),
-        "decisiones": heu_decisiones,
+        "decisiones": [],
         "riesgos": [],
-        "ruido": heu_ruido,
-        "a_favor": heu_a_favor,
+        "ruido": [],
+        "a_favor": [],
         "fechas": brief_fechas(content.get("agenda") or [], day),
     }
     # T8.D: la agenda REAL (tabla) alimenta fechas que obligan — el 28-oct a
@@ -1924,13 +1755,7 @@ def build_daily_summary(
         apply_brief(content, brief_payload)
     elif recovered_brief is not None:
         content["brief"].update(recovered_brief)
-    # F5: piso de riesgo — las negativas no referenciadas a su bucket, antes
-    # del piso de densidad (T8.D completa decisiones con lo restante).
-    ensure_riesgos(content)
-    # T8.D: piso de densidad — mínimo tres decisiones cuando haya candidatas.
-    ensure_decision_density(content)
-    # Code-built category/floor razones are not model-cited merely because
-    # the referenced story has publications. Do not change floor semantics.
+    # Accepted/recovered prose without recorded references stays unbacked.
     for bucket in BRIEF_BUCKETS:
         for pick in content["brief"].get(bucket) or []:
             if isinstance(pick.get("razon"), str) and pick["razon"]:
@@ -1944,9 +1769,8 @@ def build_daily_summary(
                         origin="fallback",
                     ),
                 )
-    # F6/F7: afectación estructurada en las entradas de riesgo y líneas de
-    # vigilancia (post-pases determinísticos, cero LLM). La vigilancia corre
-    # DESPUÉS del piso: el anti-dup lee el bucket riesgo final.
+    # Structured annotations read the final accepted/recovered risk bucket;
+    # vigilance keeps its existing configured sensitivity and anti-dup rule.
     annotate_afectacion(session, client_id, content, prev_noticias, day)
     vigilancia = build_vigilancia(
         session, effective, content, utc_start, utc_end, prev_noticias

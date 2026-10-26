@@ -31,7 +31,6 @@ from app.summaries.builder import (
     SYSTEM_PROMPT,
     apply_impact_order,
     compile_tail_cards,
-    ensure_decision_density,
     day_window,
     summary_generator,
 )
@@ -1217,7 +1216,7 @@ def test_heuristic_headline_leads_with_dominant_event(session):
     assert row.content["brief"]["headline"] == row.narrative
 
 
-def test_heuristic_brief_sections_by_tone_and_count(session):
+def test_heuristic_coverage_does_not_invent_analytical_categories(session):
     from app.models import Sentiment
 
     client = add_client(session)
@@ -1246,64 +1245,47 @@ def test_heuristic_brief_sections_by_tone_and_count(session):
 
     row = build_daily_summary(session, client_id=client.id, day=DAY.date())
     brief = row.content["brief"]
-    # F5: los negativos ya no compiten por decision; el top-impacto manda
-    # ahí (fallback) y el piso lleva TODA negativa no referenciada a riesgos.
-    assert _without_provenance(brief["decisiones"]) == [
-        {
-            "index": 0,
-            "razon": (
-                "«BUAP anuncia recorte de becas» marcó el día por su cobertura"
-                " (2 fuentes, tono negativo); entra al brief por impacto."
-            ),
-        }
-    ]
-    assert brief["riesgos"] == []
-    assert len(brief["a_favor"]) == 1
-    assert brief["a_favor"][0]["index"] == 1
-    razon = brief["a_favor"][0]["razon"]
-    assert razon.startswith("«") and "tono positivo" in razon
-    assert len(razon.split()) >= 8  # oración compuesta, no etiqueta
-    assert brief["ruido"] == []
-
-
-def test_riesgo_floor_covers_every_unreferenced_negative():
-    """F5: piso en AMBOS caminos — negativa no referenciada => riesgo, sin cap."""
-    from app.summaries.builder import ensure_riesgos
-
-    content = {
-        "noticias": [
-            {"title": "A", "tone": {"negative": 2}},
-            {"title": "B", "tone": {"positive": 2}},
-            {"title": "C", "tone": {"negative": 1, "neutral": 1}},  # mixto, no negativo
-            {"title": "D", "tone": {"negative": 5}},
-            {"title": "E", "tone": {"negative": 1}},
-        ],
-        "brief": {
-            "decisiones": [{"index": 0, "razon": "x"}],
-            "ruido": [{"index": 2}],
-        },
-    }
-
-    ensure_riesgos(content)
-
-    # 3 y 4 son negativas no referenciadas: ambas entran, sin cap. La razón
-    # se compone desde los hechos de la tarjeta — ya no es etiqueta enlatada.
-    riesgos = content["brief"]["riesgos"]
-    assert [e["index"] for e in riesgos] == [3, 4]
-    assert riesgos[0]["razon"] == (
-        "«D»: 5 de 5 menciones con tono negativo; cobertura adversa que exige seguimiento."
+    assert all(
+        brief[key] == [] for key in ("decisiones", "riesgos", "a_favor", "ruido")
     )
-    assert riesgos[1]["razon"].startswith("«E»")
-    # Idempotente: una segunda pasada no duplica.
-    ensure_riesgos(content)
-    assert len(content["brief"]["riesgos"]) == 2
+    assert row.content["coverage"]["total"] == 3
+    assert len(row.content["noticias"]) == 2
 
 
-def test_riesgo_floor_respects_the_model_selection(session):
-    """Camino LLM: lo que el modelo no marcó y es negativo, cae a riesgos."""
+def test_missing_selection_does_not_invent_unreferenced_risks(session):
+    client = add_client(session)
+    labels = [
+        Sentiment.negative,
+        Sentiment.positive,
+        Sentiment.neutral,
+        Sentiment.negative,
+        Sentiment.negative,
+    ]
+    titles = [
+        "Auditoría en revisión",
+        "Nueva asignación institucional",
+        "Consulta presupuestal",
+        "Reporte de irregularidades",
+        "Suspensión del servicio",
+    ]
+    for title, label in zip(titles, labels):
+        mention = add_mention(session, client.id, title, DAY)
+        assert mention is not None
+        mention.sentiment = label
+    session.commit()
+    row = build_daily_summary(
+        session,
+        client_id=client.id,
+        day=DAY.date(),
+        generate=lambda _: '{"headline":"Registro de publicaciones."}',
+    )
+    assert row.content["brief"]["riesgos"] == []
+    assert len(row.content["noticias"]) == 5
+
+
+def test_negative_story_retains_accepted_model_category(session):
+    """Accepted category is not replaced or duplicated from stance."""
     from app.models import Sentiment
-
-    from app.summaries.builder import ensure_riesgos
 
     client = add_client(session)
     neg = _event(client.id, "BUAP recorta becas")
@@ -1317,32 +1299,269 @@ def test_riesgo_floor_respects_the_model_selection(session):
         return json.dumps(
             {
                 "headline": "Titular.",
-                "seleccion": [{"index": 0, "categoria": "decision", "razon": "afecta presupuesto"}],
+                "seleccion": [
+                    {"index": 0, "categoria": "decision", "razon": "afecta presupuesto"}
+                ],
             }
         )
 
-    row = build_daily_summary(session, client_id=client.id, day=DAY.date(), generate=payload)
+    row = build_daily_summary(
+        session, client_id=client.id, day=DAY.date(), generate=payload
+    )
     brief = row.content["brief"]
     assert row.mode == "llm"
-    # La seleccion del modelo manda: la negativa marcada decision no se
-    # duplica en riesgos; el piso solo toma lo no referenciado.
+    # The accepted decision is not duplicated as a tone-derived risk.
     assert _without_provenance(brief["decisiones"]) == [
         {"index": 0, "razon": "afecta presupuesto"}
     ]
     assert brief["decisiones"][0]["provenance"]["razon"]["state"] == "unbacked"
-    assert brief["riesgos"] == []
+    assert brief["riesgos"] == []  # oración completa, no etiqueta de 3 palabras
 
-    # Sin ninguna referencia previa, el piso coloca la negativa en riesgos.
-    content = row.content
-    content["brief"]["decisiones"] = []
-    content["brief"]["ruido"] = []
-    content["brief"]["riesgos"] = []
-    ensure_riesgos(content)
-    riesgos = content["brief"]["riesgos"]
-    assert [e["index"] for e in riesgos] == [0]
-    razon = riesgos[0]["razon"]
-    assert razon.startswith("«") and "tono negativo" in razon
-    assert len(razon.split()) >= 8  # oración completa, no etiqueta de 3 palabras
+
+@pytest.mark.parametrize(
+    "payload, clears",
+    [
+        ({"seleccion": []}, True),
+        ({}, False),
+        ({"seleccion": None}, False),
+        ({"seleccion": "invalid"}, False),
+        ({"seleccion": [{"index": True, "categoria": "decision"}]}, False),
+    ],
+)
+def test_explicit_empty_selection_is_distinct_from_unavailable(payload, clears):
+    from copy import deepcopy
+    from app.summaries.digest import apply_brief
+
+    buckets = ("decisiones", "riesgos", "ruido", "a_favor")
+    content = {
+        "noticias": [{"title": "Asunto documentado"}],
+        "tarjetas": [{}],
+        "brief": {
+            **{
+                key: [{"index": 0, "razon": "Lectura previamente aceptada."}]
+                for key in buckets
+            },
+            "headline": "Titular conservado.",
+            "delta": [],
+        },
+    }
+    before = deepcopy(content)
+    apply_brief(content, payload)
+    if clears:
+        assert all(content["brief"][key] == [] for key in buckets)
+        assert content["brief"]["headline"] == before["brief"]["headline"]
+        assert content["noticias"] == before["noticias"]
+    else:
+        assert content == before
+
+
+@pytest.mark.parametrize(
+    "category, target_title, target_tone, reason",
+    [
+        (
+            "decision",
+            "El 12 de octubre vence el plazo de auditoría",
+            Sentiment.neutral,
+            "Conviene verificar el plazo documentado de la revisión.",
+        ),
+        (
+            "riesgo",
+            "Elogian respuesta al incendio; sigue la evacuación",
+            Sentiment.positive,
+            "La evacuación continúa; conviene verificar condiciones de regreso.",
+        ),
+    ],
+)
+def test_public_selection_is_not_extended_from_unselected_negative_stance(
+    session, category, target_title, target_tone, reason
+):
+    from app.summaries.digest import build_digest_facts
+
+    client = add_client(session)
+    target = add_mention(session, client.id, target_title, DAY)
+    sport = add_mention(session, client.id, "Equipo de fútbol pierde encuentro", DAY)
+    assert target is not None and sport is not None
+    target.sentiment, sport.sentiment = target_tone, Sentiment.negative
+    session.commit()
+    facts = build_digest_facts(session, client_id=client.id, day=DAY.date(), tz=MX_TZ)
+    index = next(
+        i for i, n in enumerate(facts["noticias"]) if n["title"] == target_title
+    )
+    payload = json.dumps(
+        {
+            "headline": "Seguimiento de hechos documentados.",
+            "seleccion": [{"index": index, "categoria": category, "razon": reason}],
+        }
+    )
+
+    row = build_daily_summary(
+        session, client_id=client.id, day=DAY.date(), generate=lambda _: payload
+    )
+
+    selected = [
+        (key, row.content["noticias"][p["index"]]["title"], p["razon"])
+        for key in ("decisiones", "riesgos", "ruido", "a_favor")
+        for p in row.content["brief"][key]
+    ]
+    assert selected == [
+        ("decisiones" if category == "decision" else "riesgos", target_title, reason)
+    ]
+    assert len(row.content["noticias"]) == 2
+    assert row.content["coverage"]["total"] == 2
+
+
+@pytest.mark.parametrize("count", [2, 3])
+def test_public_substantive_decisions_are_not_padded_by_publication_volume(
+    session, count
+):
+    from app.summaries.digest import build_digest_facts
+
+    client = add_client(session)
+    titles = [
+        "Auditoría con plazo documentado",
+        "Cambio de asignación presupuestal",
+        "Contrato con vencimiento expreso" if count == 3 else "Ceremonia conmemorativa",
+        "Exposición con amplia difusión",
+    ]
+    events = [_event(client.id, title) for title in titles]
+    session.add_all(events)
+    session.flush()
+    for event in events:
+        for source, suffix in [
+            (MentionSource.news_rss, "antecedentes documentados"),
+            (MentionSource.rss_custom, "condiciones y alcance"),
+        ]:
+            mention = add_mention(
+                session,
+                client.id,
+                f"{event.title}: {suffix}",
+                DAY,
+                source=source,
+                event_id=event.id,
+            )
+            assert mention is not None
+            mention.sentiment = Sentiment.neutral
+    session.commit()
+    facts = build_digest_facts(session, client_id=client.id, day=DAY.date(), tz=MX_TZ)
+    selected_ids = [e.id for e in events[:count]]
+    indexes = [
+        next(i for i, n in enumerate(facts["noticias"]) if n["event_id"] == event_id)
+        for event_id in selected_ids
+    ]
+    payload = json.dumps(
+        {
+            "headline": "Atención a los asuntos documentados.",
+            "seleccion": [
+                {
+                    "index": i,
+                    "categoria": "decision",
+                    "razon": f"Verificar las condiciones documentadas de {facts['noticias'][i]['title']}.",
+                }
+                for i in indexes
+            ],
+        }
+    )
+
+    row = build_daily_summary(
+        session, client_id=client.id, day=DAY.date(), generate=lambda _: payload
+    )
+
+    picks = row.content["brief"]["decisiones"]
+    assert [
+        row.content["noticias"][p["index"]]["event_id"] for p in picks
+    ] == selected_ids
+    assert all(
+        row.content["brief"][key] == [] for key in ("riesgos", "a_favor", "ruido")
+    )
+    assert row.content["coverage"]["total"] == 8
+    assert len(row.content["noticias"]) == 4
+
+
+@pytest.mark.parametrize(
+    "mode",
+    [
+        "provider_failure",
+        "malformed_json",
+        "missing_selection",
+        "malformed_selection",
+        "empty_selection",
+    ],
+)
+def test_public_unassessed_buckets_do_not_infer_politics_from_metadata(session, mode):
+    client = add_client(session)
+    event = _event(client.id, "Observaciones de auditoría")
+    session.add(event)
+    session.flush()
+    add_mention(
+        session,
+        client.id,
+        "Informe previo de observaciones",
+        DAY - timedelta(days=2),
+        event_id=event.id,
+    )
+    current = add_mention(
+        session,
+        client.id,
+        "Aumenta a veinte el monto observado en auditoría",
+        DAY,
+        event_id=event.id,
+    )
+    positive = add_mention(
+        session, client.id, "Elogian respuesta a evacuación aún vigente", DAY
+    )
+    negative = add_mention(session, client.id, "Equipo local pierde partido", DAY)
+    assert current is not None and positive is not None and negative is not None
+    current.sentiment, positive.sentiment, negative.sentiment = (
+        Sentiment.neutral,
+        Sentiment.positive,
+        Sentiment.negative,
+    )
+    session.commit()
+
+    def generate(_prompt):
+        if mode == "provider_failure":
+            raise RuntimeError("synthetic unavailable provider")
+        if mode == "malformed_json":
+            return "{"
+        response: dict[str, object] = {
+            "headline": "Cobertura registrada; selección política no disponible."
+        }
+        if mode == "malformed_selection":
+            response["seleccion"] = 42
+        elif mode == "empty_selection":
+            response["seleccion"] = []
+        return json.dumps(response)
+
+    row = build_daily_summary(
+        session, client_id=client.id, day=DAY.date(), generate=generate
+    )
+
+    assert all(
+        row.content["brief"][key] == []
+        for key in ("decisiones", "riesgos", "a_favor", "ruido")
+    )
+    assert row.content["coverage"]["total"] == 3
+    assert len(row.content["noticias"]) == 3
+    assert (
+        next(n for n in row.content["noticias"] if n.get("event_id") == event.id)[
+            "repeat"
+        ]
+        is True
+    )
+    assert "sin datos nuevos" not in row.content["plain_text"]
+
+
+def test_assembled_selection_contract_keeps_substantive_conditional_minimum():
+    assert (
+        "mínimo tres decisiones cuando existan al menos tres candidatas sustantivas"
+        in SYSTEM_PROMPT
+    )
+    assert (
+        "el tono, el volumen o la diversidad de medios no determinan estas categorías"
+        in SYSTEM_PROMPT
+    )
+    assert "riesgo (la lectura de tono negativo dominante)" not in SYSTEM_PROMPT
+    assert "sin rellenar con ceremonias o difusión" in SYSTEM_PROMPT
 
 
 def test_brief_selection_merge_replaces_heuristic_buckets(session):
@@ -1756,7 +1975,7 @@ def test_failed_regen_inherits_prose_for_same_story_material(session):
     assert second.content["tarjetas"][0]["por_que"] == "Define el recorte 2027."
 
 
-def test_fallback_selection_prose_is_explicitly_unbacked_without_changing_floor(
+def test_uncited_model_selection_prose_is_retained_unbacked(
     session,
 ):
     client = add_client(session)
@@ -1768,7 +1987,21 @@ def test_fallback_selection_prose_is_explicitly_unbacked_without_changing_floor(
             session, client.id, event.title, DAY, source=source, event_id=event.id
         )
     row = build_daily_summary(
-        session, client_id=client.id, day=DAY.date(), generate=_failed_generation
+        session,
+        client_id=client.id,
+        day=DAY.date(),
+        generate=lambda _: json.dumps(
+            {
+                "headline": "Atención documentada.",
+                "seleccion": [
+                    {
+                        "index": 0,
+                        "categoria": "decision",
+                        "razon": "Verificar las condiciones de la convocatoria.",
+                    }
+                ],
+            }
+        ),
     )
     pick = row.content["brief"]["decisiones"][0]
     assert pick["index"] == 0
@@ -2263,37 +2496,45 @@ def test_system_prompt_demands_dense_selection():
     assert "día previo" in SYSTEM_PROMPT
 
 
-def test_decision_density_floor_tops_up_unmarked():
-    pares = [_card(i, fuentes=3, tone="negative", why="x") for i in range(4)]
-    content = _ordered_content([p[0] for p in pares], [p[1] for p in pares])
-    content["brief"]["decisiones"] = [{"index": 2, "razon": "del modelo"}]
+def test_valid_selection_keeps_declared_order_without_completion():
+    from app.summaries.digest import apply_brief
 
-    ensure_decision_density(content)
-
-    decisiones = content["brief"]["decisiones"]
-    assert len(decisiones) == 3
-    assert decisiones[0] == {"index": 2, "razon": "del modelo"}  # el modelo primero
-    topped = {e["index"] for e in decisiones[1:]}
-    assert topped == {0, 1}  # los de mayor impacto no marcados
-    # Relleno fundamentado: el why de la propia tarjeta ancla la razón.
-    assert [e["razon"] for e in decisiones[1:]] == [
-        "«Historia 0» — x",
-        "«Historia 1» — x",
+    pairs = [_card(i, fuentes=3, tone="negative", why="x") for i in range(4)]
+    content = _ordered_content([p[0] for p in pairs], [p[1] for p in pairs])
+    apply_brief(
+        content,
+        {
+            "seleccion": [
+                {
+                    "index": 2,
+                    "categoria": "decision",
+                    "razon": "Verificar el plazo documentado.",
+                },
+                {
+                    "index": 0,
+                    "categoria": "decision",
+                    "razon": "Coordinar la respuesta descrita.",
+                },
+            ]
+        },
+    )
+    assert _without_provenance(content["brief"]["decisiones"]) == [
+        {"index": 2, "razon": "Verificar el plazo documentado."},
+        {"index": 0, "razon": "Coordinar la respuesta descrita."},
     ]
+    assert len(content["noticias"]) == 4
 
 
-def test_decision_density_floor_is_noop_when_model_complies():
-    pares = [_card(i, fuentes=2) for i in range(4)]
-    content = _ordered_content([p[0] for p in pares], [p[1] for p in pares])
-    content["brief"]["decisiones"] = [
-        {"index": 0},
-        {"index": 1},
-        {"index": 2},
-    ]
+def test_valid_three_decision_selection_is_preserved():
+    from app.summaries.digest import apply_brief
 
-    ensure_decision_density(content)
-
-    assert len(content["brief"]["decisiones"]) == 3
+    pairs = [_card(i, fuentes=2) for i in range(4)]
+    content = _ordered_content([p[0] for p in pairs], [p[1] for p in pairs])
+    apply_brief(
+        content,
+        {"seleccion": [{"index": i, "categoria": "decision"} for i in range(3)]},
+    )
+    assert content["brief"]["decisiones"] == [{"index": 0}, {"index": 1}, {"index": 2}]
 
 
 def test_prompt_view_carries_compact_previous_day():
@@ -2877,8 +3118,7 @@ def test_vigilancia_anti_dup_la_tarjeta_riesgo_gana(session):
         event_id=event.id,
     )
     _person_link(session, client.id, "Rectora Cedillo", first)
-    # Una historia ajena de mayor impacto existe: el fallback de cobertura
-    # la toma como decision y la negativa queda libre para el piso riesgo.
+    # An unrelated high-volume story must not replace the accepted risk.
     big = _event(client.id, "Congreso aprueba el presupuesto federal")
     session.add(big)
     session.flush()
@@ -2898,11 +3138,31 @@ def test_vigilancia_anti_dup_la_tarjeta_riesgo_gana(session):
     queries.upsert_settings(session, client.id, {"digest_focus_person_id": 1})
     session.commit()
 
-    row = build_daily_summary(session, client_id=client.id, day=DAY.date())
+    from app.summaries.digest import build_digest_facts
+
+    facts = build_digest_facts(session, client_id=client.id, day=DAY.date(), tz=MX_TZ)
+    risk_index = next(
+        i for i, n in enumerate(facts["noticias"]) if n["event_id"] == event.id
+    )
+    response = json.dumps(
+        {
+            "headline": "Lectura institucional de los hechos.",
+            "seleccion": [
+                {
+                    "index": risk_index,
+                    "categoria": "riesgo",
+                    "razon": "Verificar las consecuencias institucionales del cambio documentado.",
+                }
+            ],
+        }
+    )
+    row = build_daily_summary(
+        session, client_id=client.id, day=DAY.date(), generate=lambda _: response
+    )
     brief = row.content["brief"]
-    # El piso lleva la tarjeta negativa a riesgo; el anti-dup la representa.
+    # The accepted risk card suppresses only its duplicate vigilance line.
     riesgo_indexes = {entry["index"] for entry in brief["riesgos"]}
-    assert riesgo_indexes, "la negativa del día entra al piso"
+    assert riesgo_indexes, "el riesgo aceptado se conserva"
     for index in riesgo_indexes:
         assert row.content["noticias"][index]["event_id"] == event.id
     assert "vigilancia" not in brief
@@ -3030,14 +3290,20 @@ def test_afectacion_en_riesgo_quien_y_trayectoria(session):
     session.add(event)
     session.flush()
     prev_day = DAY - timedelta(days=1)
-    positive = add_mention(session, client.id, "Calendario escolar", prev_day, event_id=event.id)
+    positive = add_mention(
+        session, client.id, "Calendario escolar", prev_day, event_id=event.id
+    )
     positive.sentiment = Sentiment.positive
     session.commit()
     # Día previo: la historia era positiva.
     build_daily_summary(session, client_id=client.id, day=prev_day.date())
 
     negative = _negative_mention(
-        session, client.id, "BUAP replantea calendario y genera incertidumbre", DAY, event_id=event.id
+        session,
+        client.id,
+        "BUAP replantea calendario y genera incertidumbre",
+        DAY,
+        event_id=event.id,
     )
     _negative_mention(
         session,
@@ -3048,7 +3314,7 @@ def test_afectacion_en_riesgo_quien_y_trayectoria(session):
         event_id=event.id,
     )
     _person_link(session, client.id, "Lilia Cedillo", negative)
-    # Historia ajena más fuerte: el fallback de cobertura no roba el riesgo.
+    # Higher unrelated coverage does not replace the accepted risk.
     big = _event(client.id, "Congreso aprueba el presupuesto federal")
     session.add(big)
     session.flush()
@@ -3067,9 +3333,29 @@ def test_afectacion_en_riesgo_quien_y_trayectoria(session):
         )
     session.commit()
 
-    row = build_daily_summary(session, client_id=client.id, day=DAY.date())
+    from app.summaries.digest import build_digest_facts
+
+    facts = build_digest_facts(session, client_id=client.id, day=DAY.date(), tz=MX_TZ)
+    risk_index = next(
+        i for i, n in enumerate(facts["noticias"]) if n["event_id"] == event.id
+    )
+    response = json.dumps(
+        {
+            "headline": "Lectura institucional de los hechos.",
+            "seleccion": [
+                {
+                    "index": risk_index,
+                    "categoria": "riesgo",
+                    "razon": "Verificar las consecuencias institucionales del cambio documentado.",
+                }
+            ],
+        }
+    )
+    row = build_daily_summary(
+        session, client_id=client.id, day=DAY.date(), generate=lambda _: response
+    )
     riesgos = row.content["brief"]["riesgos"]
-    assert riesgos, "la negativa del día entra al piso"
+    assert riesgos, "el riesgo aceptado se conserva"
     afect = riesgos[0].get("afectacion")
     assert afect is not None
     assert "Lilia Cedillo" in afect["quien"]
@@ -3094,17 +3380,27 @@ def test_ventana_por_titulo_y_por_fecha():
     assert _ventana_from_fechas(None, "x", None) is None
 
 
-def test_decision_density_never_promotes_single_source_cards():
-    """D4: el piso promueve solo cobertura multi-fuente — una tarjeta de
-    una sola fuente no entra como Decisión en día callado."""
-    pares = [
+def test_publication_variety_does_not_expand_explicit_selection():
+    from app.summaries.digest import apply_brief
+
+    pairs = [
         _card(0, fuentes=1, tone="negative"),
         _card(1, fuentes=1),
         _card(2, fuentes=1),
         _card(3, fuentes=3),
     ]
-    content = _ordered_content([p[0] for p in pares], [p[1] for p in pares])
-    content["brief"]["decisiones"] = [{"index": 2, "razon": "del modelo"}]
-    ensure_decision_density(content)
-    decisiones = content["brief"]["decisiones"]
-    assert [e["index"] for e in decisiones] == [2, 3]  # solo la multi-fuente
+    content = _ordered_content([p[0] for p in pairs], [p[1] for p in pairs])
+    apply_brief(
+        content,
+        {
+            "seleccion": [
+                {
+                    "index": 2,
+                    "categoria": "decision",
+                    "razon": "Atención concreta documentada.",
+                }
+            ]
+        },
+    )
+    assert [p["index"] for p in content["brief"]["decisiones"]] == [2]
+    assert len(content["tarjetas"]) == 4  # solo la multi-fuente
