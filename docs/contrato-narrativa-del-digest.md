@@ -365,3 +365,15 @@ no se activa por la mera presencia de enlaces ni por pertenecer a una historia.
 Los enlaces requieren HTTP(S) absoluto, sin reparar valores malformados ni
 aceptar credenciales en la URL. El lector no consulta APIs ni comparte caché
 mutable entre informes o clientes.
+
+## 12. Inspector compartido de publicaciones
+
+«Fuentes vinculadas» abre un desplegable nativo con las publicaciones de ese
+campo, no con todo el catálogo. Muestra identidad del registro, enlace seguro,
+fecha de publicación y, cuando existen, resumen derivado y extracto capturado.
+La atribución de Facebook mantiene el rótulo genérico sin presentar nombres de
+páginas o grupos. Un enlace inválido queda como texto, nunca como ancla reparada.
+
+La explicación visible aclara que procedencia no equivale a veracidad ni a
+independencia entre publicaciones. Los estados sin referencias válidas conservan
+la prosa y muestran «No respaldado»; el inspector no agrega una afirmación nueva.
