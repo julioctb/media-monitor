@@ -627,12 +627,11 @@ def compile_tail_cards(content: dict) -> bool:
     """Funde la cola menor en UNA tarjeta compilada «También hoy» (T8.B).
 
     Camina la cola del ranking ya ordenado y absorbe la corrida final de
-    tarjetas menores (<=2 fuentes, tono neutro, sin por_que) en una sola
-    tarjeta con bullets; el piso :data:`TARJETAS_MIN` nunca se perfora
-    cuando hay material. Las noticias conservan TODAS las historias (la
-    cobertura vive en el detalle); los índices del brief que apuntaban a
-    tarjetas absorbadas se descartan (la info queda en los bullets) y los
-    restantes siguen válidos porque la fusión es un sufijo.
+    tarjetas menores (<=2 fuentes, tono neutro, sin por_que) que no están
+    referenciadas por ningún bloque del brief. El piso :data:`TARJETAS_MIN`
+    nunca se perfora cuando hay material. Las selecciones y sus razones
+    conservan su tarjeta; las noticias mantienen TODAS las historias y la
+    compilación sigue siendo exclusivamente un sufijo no seleccionado.
     """
     tarjetas = content.get("tarjetas")
     if not isinstance(tarjetas, list) or not tarjetas:
@@ -641,9 +640,22 @@ def compile_tail_cards(content: dict) -> bool:
     if total <= TARJETAS_MIN:
         # En días cortos la cola ES la página: nada que fundar.
         return False
+    raw_brief = content.get("brief")
+    brief: dict = raw_brief if isinstance(raw_brief, dict) else {}
+    protected = {
+        index
+        for bucket in BRIEF_BUCKETS
+        for index in _brief_indices(brief, bucket)
+        if type(index) is int and 0 <= index < total
+    }
     run = 0
-    for tarjeta in reversed(tarjetas):
-        if not isinstance(tarjeta, dict) or not _es_tarjeta_cola(tarjeta):
+    for index in range(total - 1, -1, -1):
+        tarjeta = tarjetas[index]
+        if (
+            index in protected
+            or not isinstance(tarjeta, dict)
+            or not _es_tarjeta_cola(tarjeta)
+        ):
             break
         run += 1
     max_take = max(0, total - (TARJETAS_MIN - 1))
@@ -703,7 +715,6 @@ def compile_tail_cards(content: dict) -> bool:
         }
     content["tarjetas"] = tarjetas[: total - take] + [compiled]
     valid = total - take
-    brief = content.get("brief")
     if isinstance(brief, dict):
         for bucket in BRIEF_BUCKETS:
             entries = brief.get(bucket)

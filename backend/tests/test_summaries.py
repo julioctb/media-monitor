@@ -2441,6 +2441,90 @@ def test_impact_order_is_deterministic_on_ties():
     ]
 
 
+@pytest.mark.parametrize(
+    "bucket, category",
+    [
+        ("decisiones", "decision"),
+        ("riesgos", "riesgo"),
+        ("a_favor", "a_favor"),
+        ("ruido", "ruido"),
+    ],
+)
+@pytest.mark.parametrize("selected_count", [1, 9])
+def test_public_compilation_preserves_accepted_selections(
+    session, bucket, category, selected_count
+):
+    from app.summaries.digest import build_digest_facts
+    from app.summaries.evidence import catalogue_fingerprint
+
+    client = add_client(session)
+    queries.upsert_settings(session, client.id, {"timezone": MX_TZ})
+    titles = [
+        "Acuerdo de presupuesto institucional",
+        "Auditoría de contratos públicos",
+        "Calendario de matrícula",
+        "Ruta de abastecimiento hospitalario",
+        "Consulta de movilidad urbana",
+        "Revisión de infraestructura escolar",
+        "Actualización del padrón tributario",
+        "Plazo de licitación de equipos",
+        "Sesión sobre protección civil",
+        "Programa de formación docente",
+        "Publicación del reglamento general",
+    ]
+    for title in titles:
+        mention = add_mention(session, client.id, title, DAY)
+        assert mention is not None
+        mention.sentiment = Sentiment.neutral
+    session.commit()
+    facts = build_digest_facts(session, client_id=client.id, day=DAY.date(), tz=MX_TZ)
+    assert len(facts["noticias"]) == 11
+    selected = [10] if selected_count == 1 else list(range(9))
+    expected = [
+        (
+            facts["noticias"][i]["title"],
+            f"Atención documentada para {facts['noticias'][i]['title']}.",
+        )
+        for i in selected
+    ]
+    response = json.dumps(
+        {
+            "headline": "Síntesis de seguimiento.",
+            "items": [],
+            "seleccion": [
+                {"index": i, "categoria": category, "razon": reason}
+                for i, (_, reason) in zip(selected, expected)
+            ],
+        }
+    )
+
+    row = build_daily_summary(
+        session, client_id=client.id, day=DAY.date(), generate=lambda _: response
+    )
+
+    content = row.content
+    picks = content["brief"][bucket]
+    assert [
+        (content["noticias"][p["index"]]["title"], p["razon"]) for p in picks
+    ] == expected
+    assert catalogue_fingerprint(content["evidence"]) == catalogue_fingerprint(
+        facts["evidence"]
+    )
+    assert len(content["noticias"]) == 11
+    for pick in picks:
+        story, card = (
+            content["noticias"][pick["index"]],
+            content["tarjetas"][pick["index"]],
+        )
+        assert card["titulo"] == story["title"]
+        assert not card.get("notas")
+        assert card["source_refs"] == story["source_refs"]
+        assert card["media_diversity"] == story["media_diversity"]
+        assert card["veracity"] == story["veracity"]
+        assert pick["provenance"]["razon"]["state"] == "unbacked"
+        assert pick["razon"] in content["plain_text"]
+
+
 def test_tail_cards_compile_into_tambien_hoy():
     pares = [_card(i, fuentes=3, tone="negative", why="Fuerte.") for i in range(8)]
     pares += [_card(20 + i, fuentes=1) for i in range(3)]
@@ -2461,7 +2545,7 @@ def test_tail_cards_compile_into_tambien_hoy():
     assert len(content["noticias"]) == 11
 
 
-def test_tail_compile_drops_brief_refs_to_swallowed_cards():
+def test_tail_compile_preserves_cards_referenced_by_brief():
     pares = [_card(i, fuentes=3, tone="negative", why="Fuerte.") for i in range(9)]
     pares.append(_card(30, fuentes=1))
     content = _ordered_content(
@@ -2470,12 +2554,11 @@ def test_tail_compile_drops_brief_refs_to_swallowed_cards():
         brief_extra={"ruido": [{"index": 9}], "a_favor": [{"index": 0}]},
     )
 
-    compile_tail_cards(content)
+    assert compile_tail_cards(content) is False
 
-    # index 9 (swallowed) dropped; index 0 unchanged (suffix removal).
     assert len(content["tarjetas"]) == 10
-    assert content["tarjetas"][-1]["titulo"] == "También hoy"
-    assert content["brief"]["ruido"] == []
+    assert content["tarjetas"][-1]["titulo"] == "Historia 30"
+    assert content["brief"]["ruido"] == [{"index": 9}]
     assert content["brief"]["a_favor"] == [{"index": 0}]
 
 

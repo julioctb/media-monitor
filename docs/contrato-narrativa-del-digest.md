@@ -489,3 +489,13 @@ Una publicación de Facebook ya recuperada sigue siendo visible y contable
 aunque el seguimiento esté desactivado al generar el corte. Las fuentes
 inactivas sin publicaciones no se agregan como canales vacíos ni limitaciones.
 Los informes históricos no se recalculan y conservan su representación.
+
+## 16. Selecciones que sobreviven a la compilación
+
+Una selección aceptada en decisiones, riesgos, a favor o ruido conserva su
+tarjeta y su razón aunque tenga tono neutral, pocas publicaciones o carezca
+de `por_que`. «También hoy» solo combina el sufijo elegible que no esté
+referenciado por ningún bloque del brief, respetando el mismo mínimo de
+tarjetas. El orden, las referencias propias, los indicadores y la advertencia
+de prosa no respaldada se conservan. La protección no cambia el criterio
+sustantivo de selección ni demuestra la calidad de la interpretación política.
