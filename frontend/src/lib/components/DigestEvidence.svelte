@@ -18,16 +18,19 @@
 {#snippet marker(receipt: EvidenceReceipt)}
   {#if receipt.sources.length > 0}
     <details class="digest-provenance">
-      <summary>Fuentes vinculadas</summary>
+      <summary>Fuentes vinculadas{receipt.groups?.some(group => group.namespace === 'prior') ? ' · ambos cortes' : ''}</summary>
       <div class="digest-provenance-material">
         <p>{explanation}</p>
-        <ol>
-          {#each receipt.sources as source (source.index)}
+        {#each receipt.groups ?? [{ namespace: 'current', date: null, sources: receipt.sources }] as group (group.namespace)}
+          {#if receipt.groups}<p><strong>{group.namespace === 'current' ? 'Corte actual' : 'Corte comparado'}: {group.date ?? 'fecha no disponible'}</strong></p>{/if}
+          <ol>
+          {#each group.sources as source (`${group.namespace}:${source.index}`)}
             {@const facebook = source.source.startsWith('facebook')}
             {@const href = safeEvidenceUrl(source.url)}
             {@const label = facebook ? 'Publicación de Facebook' : href && source.title ? source.title : 'Publicación registrada'}
             {@const date = publicationDate(source.published_at)}
             <li>
+              {#if receipt.groups}<p>{group.namespace}:#{source.index}</p>{/if}
               <p>{#if href}<a {href} target="_blank" rel="noopener noreferrer">{label}</a>{:else}{label}{/if}</p>
               {#if !href && !facebook && source.title}<p>{source.title}</p>{/if}
               <p>{facebook ? 'Facebook' : [sourceLabel(source.source), source.outlet, source.author].filter(Boolean).join(' · ')} · Registro #{source.mention_id}</p>
@@ -37,6 +40,7 @@
             </li>
           {/each}
         </ol>
+        {/each}
       </div>
     </details>
   {:else}

@@ -672,12 +672,16 @@ material actual completo y el contexto comparativo compatible. Restaurar una
 revisión invalida ambas referencias del titular incluso con texto igual; una
 lectura nueva no deja sus fuentes previas en el registro del texto exportable.
 
-### Exportación y compatibilidad del lector
+### Inspector, exportación y límites
 
-El lector de interfaz actualizado se entrega en la siguiente unidad. Los
-lectores anteriores mantienen estas comparaciones como no respaldadas gracias
-al estado exterior conservador; no presentan referencias del corte previo
-como si fueran actuales.
+El lector central captura y valida datos inmutables antes de esperar las huellas,
+con una promesa por informe y sin caché global. El desplegable nativo distingue
+«Fuentes vinculadas · ambos cortes» de una vinculación solo actual. Agrupa «Corte
+actual» y «Corte comparado» por sus fechas reales de informe, sin deducirlas de
+publicaciones. Cada fuente conserva su índice original y espacio de nombres;
+`current:#0` y `prior:#0` no colisionan. Las fechas de publicación, resumen
+derivado y extracto capturado siguen diferenciados. Ambos grupos aplican la
+misma política de URL HTTP(S) absoluta, texto escapado y ajuste de líneas.
 
 El texto plano usa esos identificadores separados para comparaciones válidas y
 registra únicamente las publicaciones citadas. Conserva el formato actual

@@ -30,6 +30,284 @@ function render(props: Record<string, unknown>) {
 afterEach(async () => { for (const instance of mounted.splice(0)) await unmount(instance); document.body.replaceChildren(); });
 async function settle() { await new Promise((resolve) => setTimeout(resolve, 30)); await tick(); }
 
+
+// Python-generated original-catalogue/context receipt (includes 300 codepoints).
+function comparisonContent() { return {
+  "schema": 2,
+  "coverage": {},
+  "redes": {},
+  "personas": [],
+  "pendientes": [],
+  "agenda": [],
+  "date": "2026-10-14",
+  "timezone": "America/Mexico_City",
+  "evidence": {
+    "version": 1,
+    "sources": [
+      {
+        "index": 0,
+        "mention_id": 20,
+        "source": "news_rss",
+        "url": "https://medio.test/20/0",
+        "outlet": "medio.test",
+        "author": "María",
+        "title": "Publicación 20-0",
+        "published_at": "2026-10-14T18:00:00+00:00",
+        "summary": "á😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀",
+        "excerpt": "Material capturado."
+      },
+      {
+        "index": 1,
+        "mention_id": 21,
+        "source": "news_rss",
+        "url": "https://medio.test/20/1",
+        "outlet": "medio.test",
+        "author": "María",
+        "title": "Publicación 20-1",
+        "published_at": "2026-10-14T18:00:00+00:00",
+        "summary": null,
+        "excerpt": "Material capturado."
+      },
+      {
+        "index": 2,
+        "mention_id": 22,
+        "source": "news_rss",
+        "url": "https://medio.test/20/2",
+        "outlet": "medio.test",
+        "author": "María",
+        "title": "Publicación 20-2",
+        "published_at": "2026-10-14T18:00:00+00:00",
+        "summary": null,
+        "excerpt": "Material capturado."
+      }
+    ],
+    "catalogue_fingerprint": "3a9ed94d156ebe8490e55bb5ced127077316c2d319f239172bb1009b651bc3bf"
+  },
+  "noticias": [
+    {
+      "event_id": 1,
+      "title": "Asunto 0",
+      "summary": "Prosa comparativa retenida.",
+      "source_refs": [
+        0
+      ],
+      "material_ref": 0,
+      "tone": {
+        "neutral": 1
+      },
+      "provenance": {
+        "summary": {
+          "text": "Prosa comparativa retenida.",
+          "source_refs": [],
+          "state": "unbacked",
+          "origin": "model_output",
+          "catalogue_fingerprint": "0cc14027125e53d8a8e2325ea87127368560a7245c2d1e5ec25cf809e57fdc3c",
+          "comparison": {
+            "version": 1,
+            "current": [
+              0
+            ],
+            "prior": [
+              0
+            ],
+            "scope": "story",
+            "current_catalogue_fingerprint": "0cc14027125e53d8a8e2325ea87127368560a7245c2d1e5ec25cf809e57fdc3c",
+            "prior_catalogue_fingerprint": "817232a0b594098e0d5a6be14239b41675978f3d20b92fec9103850f985de32e",
+            "context_fingerprint": "107341752bbd2045e7877c3aa4ee82019409e1bd055aa6b3a285091ea91d5a2e"
+          }
+        }
+      }
+    },
+    {
+      "event_id": 2,
+      "title": "Asunto 1",
+      "summary": "Hecho actual.",
+      "source_refs": [
+        1
+      ],
+      "material_ref": 1,
+      "tone": {
+        "neutral": 1
+      }
+    }
+  ],
+  "comparison": {
+    "version": 1,
+    "available": true,
+    "date": "2026-10-09",
+    "timezone": "America/Mexico_City",
+    "window_start": null,
+    "evidence": {
+      "version": 1,
+      "sources": [
+        {
+          "index": 0,
+          "mention_id": 10,
+          "source": "news_rss",
+          "url": "https://medio.test/10/0",
+          "outlet": "medio.test",
+          "author": "María",
+          "title": "Publicación 10-0",
+          "published_at": "2026-10-09T18:00:00+00:00",
+          "summary": "á😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀",
+          "excerpt": "Material capturado."
+        },
+        {
+          "index": 1,
+          "mention_id": 11,
+          "source": "news_rss",
+          "url": "https://medio.test/10/1",
+          "outlet": "medio.test",
+          "author": "María",
+          "title": "Publicación 10-1",
+          "published_at": "2026-10-09T18:00:00+00:00",
+          "summary": null,
+          "excerpt": "Material capturado."
+        },
+        {
+          "index": 2,
+          "mention_id": 12,
+          "source": "news_rss",
+          "url": "https://medio.test/10/2",
+          "outlet": "medio.test",
+          "author": "María",
+          "title": "Publicación 10-2",
+          "published_at": "2026-10-09T18:00:00+00:00",
+          "summary": null,
+          "excerpt": "Material capturado."
+        }
+      ],
+      "catalogue_fingerprint": "338259667e18651a09a4645f839851b9e16c5a8648e42c28810b2e2801e22e5b"
+    },
+    "stories": [
+      {
+        "prior_index": 0,
+        "current_indexes": [
+          0
+        ],
+        "identity": "registered",
+        "source_refs": [
+          0
+        ],
+        "material_ref": 0
+      },
+      {
+        "prior_index": 1,
+        "current_indexes": [
+          1
+        ],
+        "identity": "registered",
+        "source_refs": [
+          1
+        ],
+        "material_ref": 1
+      }
+    ],
+    "current_source_scopes": [
+      [
+        0
+      ],
+      [
+        1
+      ]
+    ],
+    "coverage_context": [
+      {
+        "title": "Asunto 0",
+        "tone": {
+          "neutral": 1
+        }
+      },
+      {
+        "title": "Asunto 1",
+        "tone": {
+          "neutral": 1
+        }
+      }
+    ]
+  },
+  "provenance": {
+    "headline": {
+      "text": "Comparación de los cortes.",
+      "source_refs": [],
+      "state": "unbacked",
+      "origin": "model_output",
+      "catalogue_fingerprint": "0cc14027125e53d8a8e2325ea87127368560a7245c2d1e5ec25cf809e57fdc3c",
+      "comparison": {
+        "version": 1,
+        "current": [
+          0
+        ],
+        "prior": [
+          0
+        ],
+        "scope": "cut",
+        "current_catalogue_fingerprint": "0cc14027125e53d8a8e2325ea87127368560a7245c2d1e5ec25cf809e57fdc3c",
+        "prior_catalogue_fingerprint": "817232a0b594098e0d5a6be14239b41675978f3d20b92fec9103850f985de32e",
+        "context_fingerprint": "107341752bbd2045e7877c3aa4ee82019409e1bd055aa6b3a285091ea91d5a2e"
+      }
+    }
+  }
+}; }
+
+it('shows both real report dates and separate namespace zero groups in a native disclosure', async () => {
+  const content = comparisonContent();
+  const host = render({ content, request: { target: content.noticias[0], field: 'summary', allowed: [0] } });
+  await settle();
+  expect(host.querySelector('summary')?.textContent).toContain('ambos cortes');
+  expect(host.textContent).toContain('Corte actual: 2026-10-14');
+  expect(host.textContent).toContain('Corte comparado: 2026-10-09');
+  expect(host.textContent).toContain('current:#0');
+  expect(host.textContent).toContain('prior:#0');
+  expect(host.querySelectorAll('a')).toHaveLength(2);
+  const summary = host.querySelector('summary')!;
+  summary.focus();
+  expect(document.activeElement).toBe(summary);
+  summary.click();
+  expect(host.querySelector('details')!.open).toBe(true);
+});
+
+it('labels new current-only linkage without implying the prior premise', async () => {
+  const content = comparisonContent();
+  const item = target();
+  item.provenance.summary.catalogue_fingerprint = content.noticias[0].provenance!.summary.catalogue_fingerprint;
+  const host = render({ content, request: { target: item, field: 'summary', allowed: [0] } });
+  await settle();
+  expect(host.querySelector('summary')?.textContent).toBe('Fuentes vinculadas');
+  expect(host.textContent).toContain('Corte actual: 2026-10-14');
+  expect(host.textContent).not.toContain('Corte comparado');
+});
+
+
+it.each(['javascript:alert(1)', '//medio.test/nota', 'https:///medio.test', 'data:text/html,x'])('keeps unsafe prior URL inert in both-cut disclosure: %s', async url => {
+  const content = comparisonContent();
+  content.comparison.evidence.sources[0].url = url;
+  content.comparison.evidence.sources[0].excerpt = '<img src=x onerror=alert(1)>';
+  const context = createEvidenceContext(content);
+  const validated = (await context)!;
+  const nested = content.noticias[0].provenance!.summary.comparison;
+  nested.prior_catalogue_fingerprint = validated.comparison!.priorFingerprint;
+  nested.context_fingerprint = validated.comparison!.fingerprint;
+  const host = render({ context, request: { target: content.noticias[0], field: 'summary', allowed: [0] } });
+  await settle();
+  expect(host.textContent).toContain('ambos cortes');
+  expect(host.querySelectorAll('a')).toHaveLength(1);
+  expect(host.querySelector('a')?.getAttribute('href')).toBe('https://medio.test/20/0');
+  expect(host.querySelector('img, script')).toBeNull();
+  expect(host.textContent).toContain('<img src=x onerror=alert(1)>');
+});
+
+it('keeps both-cut source groups unavailable for changed raw prose', async () => {
+  const content = comparisonContent();
+  content.noticias[0].summary += ' https://x.test/';
+  const retained = content.noticias[0].summary;
+  const host = render({ content, request: { target: content.noticias[0], field: 'summary', allowed: [0] } });
+  await settle();
+  expect(host.textContent).toContain('No respaldado');
+  expect(host.querySelector('details')).toBeNull();
+  expect(content.noticias[0].summary).toBe(retained);
+});
+
 it('resolves reference zero and exposes only recorded publication material', async () => {
   const host = render({ content: { evidence: evidence() }, request: { target: target(), field: 'summary', allowed: [0] } });
   await tick();

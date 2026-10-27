@@ -855,6 +855,8 @@ export interface DailySummaryContent extends DigestProvenanceCarrier {
   indicators_version?: unknown;
   /** Frozen input catalogue, not a truth certificate. */
   evidence?: unknown;
+  /** Original prior-cut input snapshot; validated with exact field receipts. */
+  comparison?: unknown;
   schema?: number;
   date?: string;
   timezone?: string;
