@@ -683,6 +683,12 @@ publicaciones. Cada fuente conserva su índice original y espacio de nombres;
 derivado y extracto capturado siguen diferenciados. Ambos grupos aplican la
 misma política de URL HTTP(S) absoluta, texto escapado y ajuste de líneas.
 
+Un informe nuevo sin material previo puede conservar `available: false` y
+`evidence: null`: no se fabrica un catálogo anterior vacío. Sus citas actuales
+siguen identificadas como «Corte actual», con fecha real de informe e índices
+`current:#…`; no aparece un corte previo ni se habilitan citas de ese ámbito.
+La ausencia genuina de metadatos comparativos mantiene la presentación legada.
+
 El texto plano usa esos identificadores separados para comparaciones válidas y
 registra únicamente las publicaciones citadas. Conserva el formato actual
 anterior cuando no hay citas comparativas. La ausencia de referencias no oculta

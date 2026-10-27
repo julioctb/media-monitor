@@ -286,7 +286,9 @@ it.each(['javascript:alert(1)', '//medio.test/nota', 'https:///medio.test', 'dat
   const context = createEvidenceContext(content);
   const validated = (await context)!;
   const nested = content.noticias[0].provenance!.summary.comparison;
-  nested.prior_catalogue_fingerprint = validated.comparison!.priorFingerprint;
+  const priorFingerprint = validated.comparison!.priorFingerprint;
+  expect(priorFingerprint).not.toBeNull();
+  nested.prior_catalogue_fingerprint = priorFingerprint!;
   nested.context_fingerprint = validated.comparison!.fingerprint;
   const host = render({ context, request: { target: content.noticias[0], field: 'summary', allowed: [0] } });
   await settle();
@@ -306,6 +308,32 @@ it('keeps both-cut source groups unavailable for changed raw prose', async () =>
   expect(host.textContent).toContain('No respaldado');
   expect(host.querySelector('details')).toBeNull();
   expect(content.noticias[0].summary).toBe(retained);
+});
+
+it('labels the current report when prior material is explicitly unavailable', async () => {
+  const content = {
+    date: '2026-10-14', timezone: 'America/Mexico_City', evidence: evidence(),
+    comparison: {
+      version: 1, available: false, date: null, timezone: null, window_start: null,
+      evidence: null, stories: [], current_source_scopes: [[0]], coverage_context: []
+    }
+  };
+  const item = target();
+  const context = createEvidenceContext(content);
+  const host = render({ context, request: { target: item, field: 'summary', allowed: [0] } });
+  await settle();
+  expect(host.querySelector('summary')?.textContent).toBe('Fuentes vinculadas');
+  expect(host.textContent).toContain('Corte actual: 2026-10-14');
+  expect(host.textContent).toContain('current:#0');
+  expect(host.textContent).toContain('Fecha de publicación: 24/10/2026 19:30');
+  expect(host.textContent).not.toContain('Corte comparado');
+  expect(host.textContent).not.toContain('prior:#');
+  expect(host.querySelectorAll('a')).toHaveLength(1);
+  expect(item.summary).toBe('Lectura política');
+  expect((await context)?.comparison?.snapshot.evidence).toBeNull();
+  expect((await context)?.comparison?.priorFingerprint).toBeNull();
+  // Actual Python comparison_context output for this unavailable-prior input.
+  expect((await context)?.comparison?.fingerprint).toBe('a41bc8c5db3cdf8ecffcb47b22cce3521528a6ab542ab7e7d498b8ca4f55fa21');
 });
 
 it('resolves reference zero and exposes only recorded publication material', async () => {

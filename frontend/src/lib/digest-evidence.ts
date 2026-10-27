@@ -31,7 +31,7 @@ interface ComparisonSnapshot {
   date: string | null;
   timezone: string | null;
   window_start: string | null;
-  evidence: { version: number; sources: EvidenceSource[] };
+  evidence: { version: number; sources: EvidenceSource[] } | null;
   stories: ComparisonStory[];
   current_source_scopes: number[][];
   coverage_context: { title: string | null; tone: Record<string, number> | null }[];
@@ -39,7 +39,7 @@ interface ComparisonSnapshot {
 interface ComparisonCatalogue {
   snapshot: ComparisonSnapshot;
   fingerprint: string;
-  priorFingerprint: string;
+  priorFingerprint: string | null;
   supplied: number[];
 }
 export type EvidenceContext = Promise<EvidenceCatalogue | null>;
@@ -144,7 +144,9 @@ function comparisonSnapshot(value: unknown, current: EvidenceSource[]): Comparis
   if (!exactKeys(raw, ['version', 'available', 'date', 'timezone', 'window_start', 'evidence', 'stories', 'current_source_scopes', 'coverage_context']) ||
       raw.version !== 1 || typeof raw.available !== 'boolean' ||
       !['date', 'timezone', 'window_start'].every(key => nullableString(raw[key]))) return null;
-  const prior = catalogueSources(raw.evidence);
+  // A valid unavailable-prior snapshot retains null in the canonical hash.
+  const prior = raw.evidence === null && raw.available === false &&
+    Array.isArray(raw.stories) && raw.stories.length === 0 ? [] : catalogueSources(raw.evidence);
   if (!prior || !Array.isArray(raw.current_source_scopes) ||
       !raw.current_source_scopes.every(scope => strictRefs(scope, current.length) && sortedUnique(scope)) ||
       !Array.isArray(raw.coverage_context) || raw.coverage_context.length > 12 ||
@@ -178,7 +180,8 @@ function comparisonSnapshot(value: unknown, current: EvidenceSource[]): Comparis
   const available = prior.some(source => supplied.has(source.index) && (source.title || source.summary || source.excerpt));
   if (raw.available !== available) return null;
   return { version: 1, available, date: raw.date as string | null, timezone: raw.timezone as string | null,
-    window_start: raw.window_start as string | null, evidence: { version: 1, sources: prior },
+    window_start: raw.window_start as string | null,
+    evidence: raw.evidence === null ? null : { version: 1, sources: prior },
     stories, current_source_scopes: scopes, coverage_context: coverage };
 }
 
@@ -198,7 +201,7 @@ export async function createEvidenceContext(content: unknown): EvidenceContext {
     const currentFingerprint = await fingerprint({ sources, version: 1 });
     let comparison: ComparisonCatalogue | null = null;
     if (snapshot && metadataValid) {
-      comparison = { snapshot, priorFingerprint: await fingerprint(snapshot.evidence),
+      comparison = { snapshot, priorFingerprint: snapshot.evidence === null ? null : await fingerprint(snapshot.evidence),
         fingerprint: await fingerprint({ comparison: snapshot, current: { ...metadata, evidence: { version: 1, sources } } }),
         supplied: [...new Set(snapshot.stories.flatMap(story => story.source_refs))].sort((a, b) => a - b) };
     }
@@ -244,8 +247,9 @@ export function resolveEvidence(catalogue: EvidenceCatalogue | null, request: Ev
     (index as number) >= 0 && (index as number) < catalogue.sources.length;
   if (Object.hasOwn(binding, 'comparison')) {
     const comparison = catalogue.comparison;
+    const priorSources = comparison?.snapshot.evidence?.sources;
     const nested = record(binding.comparison);
-    if (!comparison || !comparison.snapshot.available || binding.state !== 'unbacked' ||
+    if (!comparison || !comparison.snapshot.available || !priorSources || binding.state !== 'unbacked' ||
         !Array.isArray(binding.source_refs) || binding.source_refs.length !== 0 ||
         !exactKeys(nested, ['version', 'current', 'prior', 'scope', 'current_catalogue_fingerprint', 'prior_catalogue_fingerprint', 'context_fingerprint']) ||
         nested.version !== 1 || nested.current_catalogue_fingerprint !== catalogue.fingerprint ||
@@ -260,12 +264,12 @@ export function resolveEvidence(catalogue: EvidenceCatalogue | null, request: Ev
       .filter(story => story.current_indexes.some(index => positions.includes(index))).flatMap(story => story.source_refs);
     if (!strictRefs(nested.current, catalogue.sources.length) || !nested.current.length ||
         !nested.current.every(ref => allowed.includes(ref)) || !sortedUnique(nested.current) ||
-        !strictRefs(nested.prior, comparison.snapshot.evidence.sources.length) || !nested.prior.length ||
+        !strictRefs(nested.prior, priorSources.length) || !nested.prior.length ||
         !nested.prior.every(ref => priorAllowed.includes(ref)) || !sortedUnique(nested.prior)) return unbacked;
     const sources = nested.current.map(ref => catalogue.sources[ref]);
     return { sources, groups: [
       { namespace: 'current', date: catalogue.date ?? null, sources },
-      { namespace: 'prior', date: comparison.snapshot.date, sources: nested.prior.map(ref => comparison.snapshot.evidence.sources[ref]) }
+      { namespace: 'prior', date: comparison.snapshot.date, sources: nested.prior.map(ref => priorSources[ref]) }
     ] };
   }
   if (binding.state !== 'linked' || !Array.isArray(allowed) || !allowed.every(validIndex) ||
