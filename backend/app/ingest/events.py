@@ -67,7 +67,7 @@ def similarity(a: str, b: str) -> float:
     return intersection / len(tokens_a | tokens_b)
 
 
-_OUTLET_SUFFIX_RE = re.compile(r"\s+[-|]\s+[^-|]+$")
+_OUTLET_SUFFIX_RE = re.compile(r"\s+-\s+[^-]+$")
 
 #: Front-page showcase posts (portadas) quote a whole front page: their
 #: title carries SEVERAL stories' headlines. They are a showcase, not a
@@ -85,11 +85,12 @@ def is_aggregate_title(title: str | None) -> bool:
 
 
 def strip_outlet_suffix(title: str) -> str:
-    """Drop the trailing outlet signature (`... - El Popular`, `... | X`).
+    """Drop a dash-introduced outlet signature, including its pipe sections.
 
-    RSS titles carry the medium's name appended; it is noise for the
-    similarity of the STORY. Applied repeatedly so chains like
-    `nota - Medio | Sección` collapse to the bare headline.
+    A pipe alone is ambiguous: ``Institution | Opens library`` contains
+    substantive story text, not an outlet suffix. Preserve that content.
+    Repeated dash signatures such as ``story - Outlet | Section`` still
+    reduce to the headline; raw publication titles are never rewritten.
     """
     out = title.strip()
     while True:
@@ -198,7 +199,8 @@ def _event_best_score(title: str, event: Event, pool: list[str]) -> float:
     if is_aggregate_title(title):
         return 0.0
     score = (
-        0.0 if is_aggregate_title(event.title)
+        0.0
+        if is_aggregate_title(event.title)
         else similarity_with_suffix_variants(title, event.title)
     )
     for alt in pool:

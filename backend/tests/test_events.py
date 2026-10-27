@@ -45,11 +45,17 @@ def test_legacy_aggregate_cannot_attract_new_publication(session, poisoned):
     client_id = _client(session)
     legacy = _assign(session, client_id, "Presupuesto federal 2027", T0)
     aggregate = "Esta es la portada de @Medio: Convenio hospital universitario"
-    session.add(Mention(
-        client_id=client_id, source=MentionSource.x_twitter,
-        url="https://example.test/legacy-showcase", url_hash="legacy-showcase",
-        title=aggregate, event_id=legacy.id, published_at=T0,
-    ))
+    session.add(
+        Mention(
+            client_id=client_id,
+            source=MentionSource.x_twitter,
+            url="https://example.test/legacy-showcase",
+            url_hash="legacy-showcase",
+            title=aggregate,
+            event_id=legacy.id,
+            published_at=T0,
+        )
+    )
     if poisoned == "canonical":
         legacy.title = aggregate
     session.commit()
@@ -76,11 +82,17 @@ def test_legacy_aggregate_does_not_drive_deterministic_pair_merge(session):
     other = _assign(session, client_id, "Convenio hospital universitario", T0)
     aggregate = "Esta es la portada de @Medio: Convenio hospital universitario"
     legacy.title = aggregate
-    session.add(Mention(
-        client_id=client_id, source=MentionSource.x_twitter,
-        url="https://example.test/legacy-pair-showcase", url_hash="legacy-pair-showcase",
-        title=aggregate, event_id=legacy.id, published_at=T0,
-    ))
+    session.add(
+        Mention(
+            client_id=client_id,
+            source=MentionSource.x_twitter,
+            url="https://example.test/legacy-pair-showcase",
+            url_hash="legacy-pair-showcase",
+            title=aggregate,
+            event_id=legacy.id,
+            published_at=T0,
+        )
+    )
     session.commit()
     identities = {legacy.id, other.id}
 
@@ -114,6 +126,37 @@ def test_similarity_distinct_titles_stay_apart() -> None:
 
 def test_similarity_empty_tokens_is_zero() -> None:
     assert similarity("de la", "por el") == 0.0
+
+
+@pytest.mark.parametrize("prefix", ["BUAP", "Instituto Norte"])
+@pytest.mark.parametrize(
+    "outlets",
+    [("", ""), (" - Diario Norte | Local", " - Revista Sur | Sociedad")],
+)
+def test_substantive_pipe_titles_keep_distinct_public_event_identity(
+    session, prefix, outlets
+):
+    """A shared institution prefix must not replace the actual occurrence."""
+    from app.summaries.builder import digest_prompt_view, display_title
+
+    client_id = _client(session)
+    clean_titles = [f"{prefix} | Abre biblioteca", f"{prefix} | Cierra hospital"]
+    raw_titles = [title + outlet for title, outlet in zip(clean_titles, outlets)]
+    assert similarity(*raw_titles) < 0.5
+    first = _assign(session, client_id, raw_titles[0], T0)
+    second = _assign(session, client_id, raw_titles[1], T0 + timedelta(hours=1))
+
+    assert first.id != second.id
+    rows = session.query(Mention).order_by(Mention.id).all()
+    assert [row.title for row in rows] == raw_titles
+    assert [row.event_id for row in rows] == [first.id, second.id]
+    assert session.query(Event).count() == 2
+    assert first.mention_count == second.mention_count == 1
+    assert [display_title(title) for title in raw_titles] == clean_titles
+    facts = {"noticias": [{"title": title} for title in raw_titles]}
+    view = digest_prompt_view(facts)
+    assert [story["title"] for story in view["noticias"]] == clean_titles
+    assert [story["title"] for story in facts["noticias"]] == raw_titles
 
 
 def test_suffix_variants_merge_outlet_branded_titles() -> None:
@@ -193,7 +236,9 @@ def test_find_or_creates_new_event_outside_window(session) -> None:
     client_id = _client(session)
     first = _assign(session, client_id, "BUAP inaugura edificio en Zacapoaxtla", T0)
     later = _assign(
-        session, client_id, "BUAP inaugura edificio en Zacapoaxtla",
+        session,
+        client_id,
+        "BUAP inaugura edificio en Zacapoaxtla",
         T0 + timedelta(hours=72),
     )
     assert later.id != first.id
@@ -248,13 +293,15 @@ def test_assign_recovers_when_canonical_drifts(session) -> None:
     worded variant (the finanzas 23-24 split, measured 0.636 on titles)."""
     client_id = _client(session)
     first = _assign(
-        session, client_id,
+        session,
+        client_id,
         "Trabajadores de la BUAP pagan por estacionamiento",
         T0,
     )
     # A longer paraphrase joins (0.5 exactly) and becomes the canonical.
     second = _assign(
-        session, client_id,
+        session,
+        client_id,
         "Trabajadores de la BUAP pagan por estacionamiento tras convenio"
         " con rectoría y Sindicato",
         T0 + timedelta(hours=3),
@@ -263,7 +310,8 @@ def test_assign_recovers_when_canonical_drifts(session) -> None:
     # A third outlet repeats the ORIGINAL wording: scores ~0.4 against the
     # drifted canonical but ~0.67 against the original pool title.
     third = _assign(
-        session, client_id,
+        session,
+        client_id,
         "Trabajadores de la BUAP pagan por estacionamiento en Ciudad"
         " Universitaria - Diario Cambio",
         T0 + timedelta(hours=5),
@@ -277,18 +325,21 @@ def test_pool_matching_keeps_distinct_stories_apart(session) -> None:
     story sharing one token (BUAP) still gets its own event."""
     client_id = _client(session)
     _assign(
-        session, client_id,
+        session,
+        client_id,
         "Trabajadores de la BUAP pagan por estacionamiento",
         T0,
     )
     _assign(
-        session, client_id,
+        session,
+        client_id,
         "Trabajadores de la BUAP pagan por estacionamiento tras convenio"
         " con rectoría y Sindicato",
         T0 + timedelta(hours=3),
     )
     other = _assign(
-        session, client_id,
+        session,
+        client_id,
         "Lobos BUAP conquista el titulo nacional de baloncesto - El Popular",
         T0 + timedelta(hours=6),
     )
@@ -326,8 +377,18 @@ def test_front_page_showcase_posts_are_quarantined(session) -> None:
     assert portada_mention.event_id is None
 
     # The two REAL stories the portada mentions stay separate events.
-    a = _assign(session, client_id, "Lilia Cedillo busca subir sueldo a maestros de la BUAP", T0 + timedelta(hours=1))
-    b = _assign(session, client_id, "Armenta y Chedraui se reúnen por la alcaldía", T0 + timedelta(hours=2))
+    a = _assign(
+        session,
+        client_id,
+        "Lilia Cedillo busca subir sueldo a maestros de la BUAP",
+        T0 + timedelta(hours=1),
+    )
+    b = _assign(
+        session,
+        client_id,
+        "Armenta y Chedraui se reúnen por la alcaldía",
+        T0 + timedelta(hours=2),
+    )
     assert a.id != b.id
     assert session.query(Event).filter(Event.client_id == client_id).count() == 2
 
