@@ -20,6 +20,26 @@ def _valid_digest() -> dict:
     }
 
 
+def test_guided_comparison_namespace_schema_and_prompt():
+    from app.summaries.digest_schema import NarrativePayload, narrative_response_schema
+    from app.summaries.builder import SYSTEM_PROMPT
+
+    schema = narrative_response_schema()
+    assert "comparison_references" in schema["properties"]
+    value = {"headline": {"current": [0], "prior": [0]}}
+    assert NarrativePayload(comparison_references=value).comparison_references[
+        "headline"
+    ].prior == [0]
+    for bad in (True, "0", "prior:0"):
+        with pytest.raises(ValidationError):
+            NarrativePayload(
+                comparison_references={"headline": {"current": [0], "prior": [bad]}}
+            )
+    assert "comparison_references" in SYSTEM_PROMPT
+    assert "prior:0" in SYSTEM_PROMPT
+    assert "ambos cortes" in SYSTEM_PROMPT
+
+
 def test_valid_digest_has_no_errors() -> None:
     assert validate_digest(_valid_digest()) == []
 

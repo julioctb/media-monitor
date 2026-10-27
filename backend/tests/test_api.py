@@ -1046,8 +1046,9 @@ class TestSummaryRevisions:
         assert rows[0]["narrative"] == "primera versión"
 
     @pytest.mark.parametrize("same_text", [False, True])
+    @pytest.mark.parametrize("comparison", [False, True])
     def test_restore_persists_unbacked_headline_without_borrowing_current_evidence(
-        self, api, db, same_text
+        self, api, db, same_text, comparison
     ):
         from app.models import DailySummaryRevision
         from app.summaries.builder import build_daily_summary
@@ -1063,6 +1064,20 @@ class TestSummaryRevisions:
         )
         db.commit()
         payload = {"headline": "Primera versión", "references": {"headline": [0]}}
+        if comparison:
+            prior_day = date(2026, 10, 9)
+            seed_mention(
+                db,
+                client_id,
+                "https://medio.test/prior-restore",
+                title="Publicación del corte previo",
+                published=datetime(2026, 10, 9, 18, tzinfo=timezone.utc),
+            )
+            db.commit()
+            build_daily_summary(db, client_id=client_id, day=prior_day)
+            payload["comparison_references"] = {
+                "headline": {"current": [0], "prior": [0]}
+            }
         build_daily_summary(
             db, client_id=client_id, day=day, generate=lambda p: json.dumps(payload)
         )
@@ -1071,7 +1086,19 @@ class TestSummaryRevisions:
             db, client_id=client_id, day=day, generate=lambda p: json.dumps(payload)
         )
         before = json.loads(json.dumps(current.content))
-        assert before["provenance"]["headline"]["state"] == "linked"
+        from app.summaries.evidence import resolved_provenance
+
+        assert before["provenance"]["headline"]["state"] == (
+            "unbacked" if comparison else "linked"
+        )
+        assert (
+            resolved_provenance(before, before, "headline", text=payload["headline"])[
+                "state"
+            ]
+            == "linked"
+        )
+        if comparison:
+            assert "prior:#0" in before["plain_text"]
         foreign = Client(name="Otro cliente")
         db.add(foreign)
         db.flush()
@@ -1108,9 +1135,15 @@ class TestSummaryRevisions:
         assert binding["source_refs"] == []
         assert binding["text"] == row["narrative"]
         assert binding["origin"] == "revision_restore"
+        assert "comparison" not in binding
+        assert "prior:#" not in content["plain_text"]
+        if comparison:
+            assert content["comparison"] == before["comparison"]
         assert content["evidence"] == before["evidence"]
         assert content["indicators_version"] == before["indicators_version"] == 1
-        assert content["noticias"][0]["media_diversity"] == {"identified_outlet_count": 1}
+        assert content["noticias"][0]["media_diversity"] == {
+            "identified_outlet_count": 1
+        }
         assert content["noticias"][0]["veracity"] == "not_evaluated"
         assert "Diversidad de medios: 1 medio identificado" in content["plain_text"]
         assert "[alta]" not in content["plain_text"]

@@ -595,10 +595,99 @@ Sin contexto registrado en un informe legado, se conserva la recuperación
 anterior únicamente si no hay material factual previo disponible; en ese
 caso no se atribuye a la prosa recuperada una nueva autoría comparativa.
 
-Esta unidad prepara y conserva la entrada. Las referencias de salida actuales
-siguen apuntando exclusivamente al catálogo actual: no prueban una premisa
-anterior. Los enlaces separados a ambos cortes, su inspector y la exportación
-correspondiente requieren la siguiente unidad T6.b2. Se conserva toda prosa
-válida no citada con las advertencias de S6. No se regeneran informes ni se
-modifican publicaciones, eventos, personas o agenda por introducir este
+Esta entrada no convierte las referencias del catálogo actual en citas de
+premisas anteriores. La unidad T6.b2 amplía su lectura mediante el contrato
+opcional siguiente, sin reconstruir informes históricos.
+
+## 20. Procedencia separada de ambos cortes (T6.b2)
+
+**Una comparación vinculada requiere referencias válidas de los dos cortes.**
+Se conserva toda prosa estructuralmente válida no citada con las advertencias
+de S6. Vinculación significa procedencia registrada, no verdad, inferencia
+correcta, independencia ni calidad de asesoría política.
+
+### Salida opcional del modelo
+
+`references` mantiene su significado exclusivamente actual. El mapa nuevo
+`comparison_references` usa las mismas rutas exactas de campos existentes:
+
+```json
+{
+  "comparison_references": {
+    "headline": {"current": [0], "prior": [0]},
+    "items.0.angulo_nuevo": {"current": [0], "prior": [0]},
+    "seleccion.0.razon": {"current": [0], "prior": [0]}
+  }
+}
+```
+
+Solo dentro de `prior` de esta salida, el identificador de entrada `prior:0`
+se expresa como entero `0`. Son catálogos distintos; sus publicaciones pueden
+ser distintas aunque compartan índice. No se convierten cadenas numéricas,
+`"prior:0"` ni booleanos. Un solo miembro inválido, una lista vacía o un ámbito
+ajeno deja la comparación no respaldada, sin descartar su texto. Un mapa
+comparativo explícito mal formado tampoco habilita una cita actual alternativa.
+
+Se admiten titular, campos narrativos de noticia y razones de selección. Una
+comparación dirigida a otro campo aceptado, por ejemplo agenda, queda registrada
+no respaldada: no existe un productor ni ámbito previo diseñado para ese campo.
+No se añaden acciones, condiciones ni estados de aprobación. Cuando existe
+material factual previo, `angulo_nuevo` se considera comparativo: referencias
+actuales antiguas por sí solas no respaldan ese contraste. Sin material previo
+y en contenido genuinamente legado se conserva el comportamiento actual.
+
+### Recibo almacenado y validación
+
+El backend crea `provenance.<field>.comparison` con `version: 1`, listas
+`current`/`prior`, ámbito `cut`/`story`/`unsupported`, huellas independientes
+`current_catalogue_fingerprint`/`prior_catalogue_fingerprint` y
+`context_fingerprint`. El texto exacto y el origen siguen en el recibo exterior.
+Este conserva **`state: unbacked` y `source_refs: []`** para que lectores antiguos
+no confundan una comparación con una vinculación actual. Solo el resolvedor
+actualizado produce un estado vinculado transitorio después de validar ambas
+listas. La recuperación usa la variante de persistencia conservadora, nunca
+almacena ese estado transitorio como un recibo legado vinculado.
+
+La identidad SHA-256 procede de JSON canónico de los campos conocidos validados:
+`{comparison: <snapshot>, current: {date, timezone, window_start, evidence}}`.
+Las claves se ordenan por puntos de código Unicode; los catálogos contienen
+solo `version` y los campos conocidos de `sources`. Las huellas declaradas no
+son autoridad. Python y Web Crypto recalculan material real, fecha y contexto;
+se validan los catálogos completos, incluso publicaciones no citadas.
+
+`comparison.current_source_scopes` conserva la pertenencia original de cada
+historia actual. Sus posiciones se corresponden con `current_indexes` antes de
+ordenar, pero la lectura posterior usa las referencias propias estables, no la
+posición visual. La historia o selección no puede tomar fuentes de otra historia
+ni la unión de un compilado. El titular puede usar el ámbito completo declarado;
+las fuentes previas citables son solo las de las primeras doce posiciones
+realmente suministradas, no cualquier entrada del catálogo original conservado.
+
+La ausencia total de metadatos comparativos anidados conserva la lectura
+actual/legada. Su presencia inválida, desconocida, mixta o desactualizada no
+cae en esa ruta. Los espejos y transformaciones conocidas pueden conservar
+recibos válidos de ambos cortes; texto modificado o padres no respaldados no
+adquieren referencias automáticamente. La recuperación sigue exigiendo el
+material actual completo y el contexto comparativo compatible. Restaurar una
+revisión invalida ambas referencias del titular incluso con texto igual; una
+lectura nueva no deja sus fuentes previas en el registro del texto exportable.
+
+### Exportación y compatibilidad del lector
+
+El lector de interfaz actualizado se entrega en la siguiente unidad. Los
+lectores anteriores mantienen estas comparaciones como no respaldadas gracias
+al estado exterior conservador; no presentan referencias del corte previo
+como si fueran actuales.
+
+El texto plano usa esos identificadores separados para comparaciones válidas y
+registra únicamente las publicaciones citadas. Conserva el formato actual
+anterior cuando no hay citas comparativas. La ausencia de referencias no oculta
+prosa ni declara falsedad; tampoco habilita fuentes de los conjuntos de búsqueda.
+
+Las pruebas con generadores falsos y SQLite aislado acreditan transporte,
+validación, ordenación, compilación, recuperación y persistencia de restauración.
+No evalúan razonamiento real, calidad editorial ni costo de los modelos. T7,
+T8.c, T10 y las definiciones T11/T12 conservan su alcance pendiente; este
+protocolo interno no decide el número de versión del producto. No se regeneran
+informes ni se modifican publicaciones, eventos, personas o agenda por este
 contrato; la sustitución histórica autorizada sigue condicionada a T10.

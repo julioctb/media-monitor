@@ -143,6 +143,14 @@ SYSTEM_PROMPT = (
     "factual. Las referencias enteras de references siguen siendo exclusivamente "
     "del catálogo actual: nunca conviertas prior:0 en el entero 0 ni lo "
     "presentes como una cita del material previo. "
+    "Devuelve comparison_references opcional para headline, los campos de items "
+    "y seleccion.<index>.razon: cada ruta exacta contiene {current:[índices enteros], "
+    "prior:[índices enteros]}. Solo en prior de esta salida, el identificador de "
+    "entrada prior:0 se escribe como entero 0; no uses cadenas ni booleanos. "
+    "Para vincular ambos cortes incluye referencias no vacías de cada catálogo, "
+    "solo del material suministrado y de la historia correspondiente. Con material "
+    "previo disponible, angulo_nuevo requiere esas dos listas; sin ellas conserva "
+    "su texto como no respaldado. references sigue citando solo el corte actual. "
     "Incluye además "
     "agenda: lista [{when, status, title, source}] de eventos o citas futuras "
     "visibles en los datos (when y title literales, sin inventar fechas), y "
@@ -1670,6 +1678,7 @@ def build_daily_summary(
                 prev_content,
                 "headline",
                 text=narrative,
+                persist=True,
             )
             # Restore picks by story identity, independently of display order.
             old_positions = {id(n): i for i, n in enumerate(prev_content["noticias"])}

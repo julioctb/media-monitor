@@ -4,7 +4,7 @@ import copy
 import json
 from collections.abc import Callable
 
-from app.summaries.evidence import catalogue_sources, validated_refs
+from app.summaries.evidence import catalogue_sources, comparison_context, validated_refs
 
 
 PRIOR_STORY_LIMIT = 12
@@ -21,6 +21,9 @@ def comparison_compatible(content: dict, previous: dict) -> bool:
         return current["available"] is False
     old = previous["comparison"]
     if not isinstance(old, dict):
+        return False
+    # Equality of malformed new inputs is not validated context compatibility.
+    if comparison_context(content) is None or comparison_context(previous) is None:
         return False
     try:
         return json.dumps(old, sort_keys=True, allow_nan=False) == json.dumps(
@@ -54,6 +57,15 @@ def freeze_comparison(previous, noticias: list, identity: Callable) -> dict:
         else None,
         "evidence": copy.deepcopy(prior["evidence"]) if sources is not None else None,
         "stories": [],
+        # Original source membership survives subsequent display permutations.
+        "current_source_scopes": [
+            sorted(set(note.get("source_refs", [])))
+            if isinstance(note, dict)
+            and isinstance(note.get("source_refs"), list)
+            and all(type(ref) is int and ref >= 0 for ref in note["source_refs"])
+            else []
+            for note in noticias
+        ],
         "coverage_context": [
             {"title": note.get("title"), "tone": copy.deepcopy(note.get("tone"))}
             for note in news[:PRIOR_STORY_LIMIT]

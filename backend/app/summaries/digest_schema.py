@@ -68,7 +68,15 @@ BRIEF_CATEGORIES = ("riesgo", "decision", "ruido", "a_favor")
 
 #: content keys carrying the esqueleto's fixed section names, for the
 #: shape validator below and the builder that fills them.
-BRIEF_SECTIONS = ("delta", "decisiones", "riesgos", "ruido", "a_favor", "fechas", "vigilancia")
+BRIEF_SECTIONS = (
+    "delta",
+    "decisiones",
+    "riesgos",
+    "ruido",
+    "a_favor",
+    "fechas",
+    "vigilancia",
+)
 
 #: The plural content keys of the selection buckets (index-bearing entries).
 #: EVERY bucket iteration — builder post-pases, order remap, shape check —
@@ -82,6 +90,13 @@ class SeleccionEntry(_Strict):
     index: int
     categoria: BriefCategoria
     razon: str | None = None
+
+
+class ComparisonReferences(_Strict):
+    """Provider indexes are local to two independent original catalogues."""
+
+    current: list[int]
+    prior: list[int]
 
 
 class NarrativePayload(BaseModel):
@@ -103,6 +118,7 @@ class NarrativePayload(BaseModel):
     # Guided shape only: apply_narrative validates metadata separately so
     # malformed citations cannot discard otherwise valid prose (S6).
     references: dict[str, list[int]] | None = None
+    comparison_references: dict[str, ComparisonReferences] | None = None
 
 
 def brief_shape_errors(content: object) -> list[str]:
@@ -141,9 +157,7 @@ def brief_shape_errors(content: object) -> list[str]:
                 if not isinstance(index, int) or isinstance(index, bool):
                     errors.append(f"brief.{section}[{pos}].index must be an int")
                 elif tarjetas_len is not None and not 0 <= index < tarjetas_len:
-                    errors.append(
-                        f"brief.{section}[{pos}].index {index} out of range"
-                    )
+                    errors.append(f"brief.{section}[{pos}].index {index} out of range")
 
     if "tarjetas" in content and not isinstance(content["tarjetas"], list):
         errors.append("tarjetas must be a list")

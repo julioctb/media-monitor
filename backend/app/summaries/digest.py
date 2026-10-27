@@ -649,6 +649,7 @@ def render_plain_text(content: dict, narrative: str) -> str:
     from app.summaries.builder import _zone, display_title
 
     emitted_refs: set[int] = set()
+    emitted_prior: set[int] = set()
 
     def marked(target, field, *, text=None, allowed=None, feminine=False):
         value = target.get(field) if text is None else text
@@ -660,6 +661,16 @@ def render_plain_text(content: dict, narrative: str) -> str:
         if binding["state"] == "linked":
             refs = binding["source_refs"]
             emitted_refs.update(refs)
+            if "comparison" in binding:
+                prior = binding["comparison"]["prior"]
+                emitted_prior.update(prior)
+                citations = ", ".join(
+                    [
+                        *(f"current:#{ref}" for ref in refs),
+                        *(f"prior:#{ref}" for ref in prior),
+                    ]
+                )
+                return f"{value} [Fuentes vinculadas (ambos cortes): {citations}]"
             citations = ", ".join(f"#{ref}" for ref in refs)
             return f"{value} [Fuentes vinculadas: {citations}]"
         label = "No respaldada" if feminine else "No respaldado"
@@ -846,7 +857,20 @@ def render_plain_text(content: dict, narrative: str) -> str:
     if not content.get("pendientes"):
         lines.append("- ninguno")
     if emitted_refs:
-        sources = catalogue_sources(content.get("evidence")) or []
+        sources = [
+            ("current", source)
+            for source in catalogue_sources(content.get("evidence")) or []
+            if source["index"] in emitted_refs
+        ]
+        if emitted_prior:
+            sources += [
+                ("prior", source)
+                for source in catalogue_sources(
+                    content.get("comparison", {}).get("evidence")
+                )
+                or []
+                if source["index"] in emitted_prior
+            ]
         lines.extend(
             (
                 "",
@@ -854,15 +878,28 @@ def render_plain_text(content: dict, narrative: str) -> str:
                 "Las referencias registran procedencia, no verificación de verdad.",
             )
         )
-        for source in sources:
-            if source["index"] not in emitted_refs:
-                continue
+        namespace = None
+        for context_name, source in sources:
+            if emitted_prior and context_name != namespace:
+                namespace = context_name
+                date = (
+                    content.get("date")
+                    if namespace == "current"
+                    else content["comparison"].get("date")
+                )
+                label = "Corte actual" if namespace == "current" else "Corte comparado"
+                lines.append(f"{label}: {date or 'fecha no disponible'}")
             title = (
                 "Publicación de Facebook"
                 if source["source"] == "facebook_page"
                 else source.get("title") or "Publicación sin título registrado"
             )
-            lines.append(f"- #{source['index']}: {title} — {source['outlet']}")
+            source_id = (
+                f"{context_name}:#{source['index']}"
+                if emitted_prior
+                else f"#{source['index']}"
+            )
+            lines.append(f"- {source_id}: {title} — {source['outlet']}")
             if source.get("published_at"):
                 try:
                     published = datetime.fromisoformat(source["published_at"])
