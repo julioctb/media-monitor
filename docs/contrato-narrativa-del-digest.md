@@ -70,10 +70,11 @@ correspondencia factual entre una reseña y su noticia.
 
 ## 6. Contrato editorial y persona principal bajo seguimiento
 
-**Contrato objetivo:** la voz integral de asesoría y la trazabilidad por
-aseveración dependen de las fases posteriores de
-`odd/tasks/political-analysis-traceability.md`. Documentarlas no significa
-que estén implementadas, ni que los datos recibidos estén verificados.
+**Contrato editorial:** T7 lleva estas instrucciones al narrador y transporta
+atención opcional por selección (§21). La procedencia registrada por campo no
+acredita veracidad ni que cada aseveración esté sustentada semánticamente.
+La evaluación real de la calidad de asesoría sigue pendiente en T10 de
+`odd/tasks/political-analysis-traceability.md`.
 
 ### Identidad, búsqueda y lectura
 
@@ -696,8 +697,73 @@ prosa ni declara falsedad; tampoco habilita fuentes de los conjuntos de búsqued
 
 Las pruebas con generadores falsos y SQLite aislado acreditan transporte,
 validación, ordenación, compilación, recuperación y persistencia de restauración.
-No evalúan razonamiento real, calidad editorial ni costo de los modelos. T7,
+No evalúan razonamiento real, calidad editorial ni costo de los modelos.
 T8.c, T10 y las definiciones T11/T12 conservan su alcance pendiente; este
 protocolo interno no decide el número de versión del producto. No se regeneran
 informes ni se modifican publicaciones, eventos, personas o agenda por este
 contrato; la sustitución histórica autorizada sigue condicionada a T10.
+
+## 21. Voz de asesoría y atención opcional por selección (T7)
+
+El narrador prioriza relevancia concreta, consecuencia y margen de maniobra,
+no tono negativo. Conserva hechos atribuidos y negaciones, identifica motivos
+o escenarios inferidos como interpretación y exige premisas para analizar
+gobernabilidad, coordinación, negociación y costos reputacionales. No es
+propaganda ni cautela ritual: una recomendación debe ser útil y proporcionada.
+El perfil registrado no implica que el sujeto sea lector, protagonista,
+afectado o responsable; no aporta jurisdicción, objetivos ni facultades
+desconocidas. Una candidatura no recibe poderes de gobierno. Sin perfil, el
+análisis sigue siendo general. Se mantienen los límites de oraciones y el
+mínimo condicional de tres decisiones sustantivas, nunca relleno por volumen.
+
+### Tres textos distintos, no un flujo de tareas
+
+| Campo de `seleccion` | Función | Ausencia |
+|---|---|---|
+| `razon` | Lectura política, relación pertinente y consecuencia | Contrato previo intacto |
+| `accion_sugerida` | Qué verificar, coordinar o resolver | Se omite, sin consejo automático |
+| `condicion` | Prerrequisito o limitación redactado por el análisis | Se omite, sin plazo inferido |
+
+Los dos campos nuevos son cadenas estrictas o null, opcionales e independientes
+en el esquema generado. Ausente, null o blanco no crea una clave almacenada,
+un aviso ni un marcador vacío. Un tipo de prosa inválido descarta solo su
+entrada, no sus hermanas válidas. Referencias inválidas conservan la prosa
+como no respaldada. No hay campos duplicados en noticias/tarjetas, acciones
+independientes para noticias no seleccionadas, responsables, plazos, estados
+de tarea ni aprobación. La sugerencia no autoriza actuar.
+
+### Procedencia y ciclo de vida
+
+Cada texto usa su propia ruta `seleccion.<index>.accion_sugerida` o
+`seleccion.<index>.condicion`, con el índice real de noticia, no la posición
+de respuesta. `references` cita solo fuentes actuales propias; incluso con
+material previo disponible, esa cita puede seguir siendo solo actual.
+Una comparación explícita usa `comparison_references` con ambas listas y
+los ámbitos propios de ambos cortes (§20); si es inválida no se degrada a
+una cita actual. No se copian referencias de `razon` ni se aceptan huellas o
+estados redactados por el modelo. La vinculación registra procedencia, no
+verdad, apoyo semántico ni aprobación de la sugerencia.
+
+La recuperación completa compatible conserva texto y recibos originales;
+exige el material actual completo y el mismo contexto comparativo validado.
+Una nueva selección exitosa que omite estos campos no hereda sugerencias
+anteriores. La ordenación remapea el índice sin separar el objeto, y los
+seleccionados siguen protegidos de compilación. Restaurar un titular invalida
+solo ese titular, no las sugerencias y sus recibos independientes.
+
+### Presentación y límites de prueba
+
+El backend y el texto plano transportan cada campo con su marcador propio y
+registran solo publicaciones realmente citadas. Los informes sin estos campos
+conservan su forma anterior, sin claves null añadidas. La adaptación del lector,
+el modelo de vista y los párrafos opcionales de BriefPanel se entregan en la
+siguiente unidad de interfaz; esta unidad backend no afirma que el panel antiguo
+ya los presente. Esa adaptación reutilizará objeto crudo, ámbito propio,
+inspector compartido y texto escapado, sin rediseño ni aprobación automática.
+
+Las pruebas offline acreditan instrucciones, transporte, validación,
+persistencia y consumidores, no razonamiento político real. T10 debe evaluar
+los mismos hechos con perfiles distintos antes de la sustitución histórica
+autorizada. T8 conserva la composición final y los indicadores filtrados del
+Feed; T11/T12 siguen sin definición. Este contrato no rediseña V3 ni ejecuta
+regeneración, publicación o despliegue.

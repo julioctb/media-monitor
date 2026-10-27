@@ -614,24 +614,25 @@ def apply_brief(content: dict, payload: object) -> None:
             )
             continue
         item: dict = {"index": validated.index}
-        razon = _clean_str(validated.razon)
-        if razon:
-            item["razon"] = razon
-            noticias = content.get("noticias") or []
-            allowed = (
-                noticias[validated.index].get("source_refs")
-                if validated.index < len(noticias)
-                else []
-            )
-            bind_output(
-                content,
-                item,
-                "razon",
-                razon,
-                payload,
-                f"seleccion.{validated.index}.razon",
-                allowed,
-            )
+        noticias = content.get("noticias") or []
+        allowed = (
+            noticias[validated.index].get("source_refs")
+            if validated.index < len(noticias)
+            else []
+        )
+        for field in ("razon", "accion_sugerida", "condicion"):
+            text = _clean_str(getattr(validated, field))
+            if text:
+                item[field] = text
+                bind_output(
+                    content,
+                    item,
+                    field,
+                    text,
+                    payload,
+                    f"seleccion.{validated.index}.{field}",
+                    allowed,
+                )
         buckets[validated.categoria].append(item)
         got = True
     if not got:
@@ -839,6 +840,13 @@ def render_plain_text(content: dict, narrative: str) -> str:
                 razon = marked(entry, razon_key, allowed=scope, feminine=True)
                 suffix = f" — {razon}" if razon else ""
                 lines.append(f"- {title}{suffix}")
+                for field, label in (
+                    ("accion_sugerida", "Acción sugerida"),
+                    ("condicion", "Condición"),
+                ):
+                    text = marked(entry, field, allowed=scope, feminine=True)
+                    if text:
+                        lines.append(f"  {label}: {text}")
         fechas = brief.get("fechas") or []
         if fechas:
             lines.append("Fechas que obligan")

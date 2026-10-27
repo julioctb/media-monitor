@@ -90,6 +90,8 @@ class SeleccionEntry(_Strict):
     index: int
     categoria: BriefCategoria
     razon: str | None = None
+    accion_sugerida: str | None = None
+    condicion: str | None = None
 
 
 class ComparisonReferences(_Strict):

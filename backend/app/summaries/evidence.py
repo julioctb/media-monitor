@@ -357,7 +357,7 @@ def bind_output(
     Exact dotpaths (decimal zero-based indexes, no brackets):
       headline
       items.<index>.summary|why_it_matters|confidence_note|angulo_nuevo
-      seleccion.<index>.razon
+      seleccion.<index>.razon|accion_sugerida|condicion
       agenda.<position>.when|title|status|source
       redes.<channel>.note
       redes.<channel>.cuentas.<position>.cuenta|nota
@@ -457,6 +457,8 @@ def resolved_provenance(
                 "confidence_note",
                 "angulo_nuevo",
                 "razon",
+                "accion_sugerida",
+                "condicion",
                 "hecho",
                 "por_que",
                 "titulo",
