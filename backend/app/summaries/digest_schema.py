@@ -182,4 +182,8 @@ def narrative_response_schema() -> dict:
     builder sends this on the first attempt only — providers without
     json_schema support degrade to the plain retry (see builder).
     """
-    return NarrativePayload.model_json_schema()
+    schema = NarrativePayload.model_json_schema()
+    # Constrain provider generation, not the tolerant legacy merge model.
+    # An open root lets constrained decoders invent unbounded field names.
+    schema["additionalProperties"] = False
+    return schema

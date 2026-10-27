@@ -62,6 +62,12 @@ proveedores sin soporte de generación guiada. La validación posterior de
 `apply_narrative` se conserva: cumplir el schema no acredita veracidad ni
 correspondencia factual entre una reseña y su noticia.
 
+El schema enviado al proveedor limita las claves raíz a las declaradas
+(`additionalProperties: false`) para evitar campos inventados durante la
+decodificación guiada. Esto no endurece la recepción histórica:
+`NarrativePayload` y `apply_narrative` mantienen su tolerancia a claves extra,
+y la prosa válida sin referencias conserva la política de «No respaldado».
+
 ## 5. Que NO se hace
 
 - No se divide la narrativa en una llamada por seccion (mas llamadas, menos

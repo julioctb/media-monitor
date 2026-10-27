@@ -57,7 +57,9 @@ def test_bad_confidence_and_shape_fail() -> None:
     errors = validate_digest(digest)
     assert errors  # confidence not in the fixed scale
 
-    digest["noticias"] = [{"topic": "institutional", "confidence": "alta", "sources": "oops"}]
+    digest["noticias"] = [
+        {"topic": "institutional", "confidence": "alta", "sources": "oops"}
+    ]
     assert any("sources" in e for e in validate_digest(digest))
 
 
@@ -109,6 +111,18 @@ def test_brief_shape_flags_malformed_sections() -> None:
 
     digest["campo"] = 3
     assert any("campo" in e for e in validate_digest(digest))
+
+
+def test_guided_root_is_finite_without_tightening_legacy_prose_merge():
+    from app.summaries.digest import apply_narrative
+    from app.summaries.digest_schema import NarrativePayload, narrative_response_schema
+
+    schema = narrative_response_schema()
+    assert schema["additionalProperties"] is False
+    assert set(schema["properties"]) == set(NarrativePayload.model_fields)
+    payload = {"headline": "Valid uncited prose", "future_extension": None}
+    assert NarrativePayload.model_validate(payload).headline == payload["headline"]
+    assert apply_narrative(_valid_digest(), payload) == []
 
 
 def test_reference_map_is_optional_strict_and_guided_by_same_schema():
