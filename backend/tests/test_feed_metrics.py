@@ -6,7 +6,7 @@ from itertools import product
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -33,6 +33,8 @@ END = START + timedelta(days=1) - timedelta(seconds=1)
 
 def seed_feed(session):
     """Synthetic fixture is reusable by an isolated runtime, without test imports."""
+    from app.models.queries import get_settings
+
     clients = [
         Client(name="Synthetic feed tenant one"),
         Client(name="Synthetic feed tenant two"),
@@ -182,6 +184,10 @@ def seed_feed(session):
         )
     )
     session.commit()
+    # Legacy stats/day initializes missing settings on first read. Complete the
+    # synthetic fixture before consumers capture read-only table baselines.
+    for client in clients:
+        get_settings(session, client.id)
     return clients, keywords, rows
 
 
@@ -226,6 +232,29 @@ def feed():
         with TestClient(app) as api:
             yield api, session, clients, keywords, rows
     engine.dispose()
+
+
+@pytest.mark.parametrize("tenant_index", [0, 1])
+def test_seeded_fixture_keeps_feed_and_legacy_reads_read_only(feed, tenant_index):
+    api, session, clients, _, _ = feed
+    api.app.dependency_overrides[get_client_id] = lambda: clients[tenant_index].id
+
+    def snapshot_tables():
+        return {
+            table.name: session.execute(
+                select(table).order_by(*table.primary_key.columns)
+            ).all()
+            for table in Base.metadata.sorted_tables
+        }
+
+    before = snapshot_tables()
+    for path, params in [
+        ("/api/stats/feed", {"sentiment": "negative"}),
+        ("/api/stats/day", {"day": START.date().isoformat()}),
+    ]:
+        response = api.get(path, params=params)
+        assert response.status_code == 200, response.text
+        assert snapshot_tables() == before, path
 
 
 def test_metrics_cover_full_tenant_result_not_page_or_event_rows(feed):
