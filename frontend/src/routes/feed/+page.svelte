@@ -106,10 +106,7 @@
 		return `${page.url.pathname}?${params.toString()}`;
 	}
 
-	/** Intro stat: news outlets with at least one mention. */
-	// Real outlets with news coverage (backend counts hosts of non-social
-	// sources); the old channelGroups.news.length counted adapter types.
-	const newsOutlets = $derived(data.newsMediumCount ?? 0);
+	/** Global navigation context, separate from the result indicators. */
 	const newsTotal = $derived(
 		data.channelGroups.news.reduce((sum, source) => sum + (data.sourceCounts[source] ?? 0), 0)
 	);
@@ -157,16 +154,20 @@
 	<div class="intro-stats" aria-label="Números del feed">
 		<article class="intro-stat">
 			<p class="intro-stat-label">Medios con noticias</p>
-			<p class="intro-stat-value">{newsOutlets}</p>
-			<p class="intro-stat-note">Fuentes de noticias con registros.</p>
+			<p class="intro-stat-value">{data.feedStats?.news_medium_count ?? 'No disponible'}</p>
+			<p class="intro-stat-note">Medios con registros en todos los resultados filtrados.</p>
 		</article>
 		<article class="intro-stat">
 			<p class="intro-stat-label">Eventos</p>
-			<p class="intro-stat-value">{groups.length}</p>
-			<p class="intro-stat-note">Hechos agrupados en esta página.</p>
+			<p class="intro-stat-value">{data.feedStats?.result_group_count ?? 'No disponible'}</p>
+			<p class="intro-stat-note">Eventos y publicaciones sin evento en todos los resultados filtrados.</p>
 		</article>
 	</div>
 </section>
+
+{#if !data.feedStats}
+	<p class="footnote" role="status">{data.feedStatsError ?? 'Indicadores no disponibles.'}</p>
+{/if}
 
 <div class="layout">
 	<div class="feed-main">
@@ -382,7 +383,7 @@
 		{#if mediumRows.length > 0}
 			<section class="sidebar-section" aria-labelledby="medios-title">
 				<h2 id="medios-title">Medios</h2>
-				<p class="side-note">Outlet de cada mención</p>
+				<p class="side-note">Medios para navegar. Sin aplicar los filtros del feed.</p>
 				<div class="filter-group medios-group" role="group" aria-label="Filtrar por medio">
 					{#if filters.medium}
 						<a class="filter" href={hrefWithMedium(null)}>Todos los medios</a>
@@ -432,6 +433,7 @@
 
 		<section class="sidebar-section" aria-labelledby="estado-title">
 			<h2 id="estado-title">Estado de las fuentes</h2>
+			<p class="side-note">Sin aplicar los filtros del feed.</p>
 			<p><strong>Noticias:</strong> {newsTotal} registros.</p>
 			<p><strong>Redes sociales:</strong> {socialTotal} registros.</p>
 			<p><strong>Datos de campo:</strong> sin registros cargados.</p>

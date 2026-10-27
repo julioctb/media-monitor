@@ -107,6 +107,20 @@ export interface MentionQuery {
   offset?: number;
 }
 
+export type FeedStatsQuery = Omit<MentionQuery, "limit" | "offset"> & {
+  /** Resolved channel union; not a new Feed URL filter. */
+  sources?: MentionSource[];
+};
+
+export interface FeedStats {
+  total: number;
+  by_source: Record<string, number>;
+  /** `none` means SQL NULL, not a neutral or uncertain classification. */
+  by_sentiment: Record<SentimentFilter, number>;
+  news_medium_count: number;
+  result_group_count: number;
+}
+
 export type KeywordLanguage = "es" | "en" | "other";
 
 export interface Keyword {
@@ -375,6 +389,30 @@ export async function listMentions(
     offset: query.offset,
   });
   return request<MentionPage>(`/api/mentions${qs}`, { method: "GET" }, options);
+}
+
+export function getFeedStats(
+  query: FeedStatsQuery = {},
+  options: RequestOptions = {},
+): Promise<FeedStats> {
+  const params = new URLSearchParams(buildQuery({
+    source: query.source,
+    sentiment: query.sentiment,
+    keyword_id: query.keyword_id,
+    classifier: query.classifier,
+    label: query.label,
+    since: query.since,
+    until: query.until,
+    q: query.q,
+    medium: query.medium,
+  }));
+  for (const source of query.sources ?? []) params.append("sources", source);
+  const qs = params.toString();
+  return request<FeedStats>(
+    `/api/stats/feed${qs ? `?${qs}` : ""}`,
+    { method: "GET" },
+    options,
+  );
 }
 
 export function getStatsOverview(

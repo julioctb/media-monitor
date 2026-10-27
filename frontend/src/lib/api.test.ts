@@ -6,6 +6,7 @@ import {
 	getClientSettings,
 	getEvent,
 	getEventCoverage,
+	getFeedStats,
 	listEvents,
 	listMentions,
 	testAi,
@@ -30,6 +31,37 @@ afterEach(() => {
 });
 
 describe('api client', () => {
+	it('encodes Feed scalar filters and repeated sources without pagination', async () => {
+		const body = { total: 0, by_source: {}, by_sentiment: { positive: 0, negative: 0, neutral: 0, none: 0 }, news_medium_count: 0, result_group_count: 0 };
+		const fetchMock = stubFetch(async () => jsonResponse(200, body));
+		// Runtime extra properties must not leak even if a caller passes a list query.
+		const query = { source: 'news_rss', sources: ['news_rss', 'gdelt'], sentiment: 'none' as const, keyword_id: 0, classifier: 'political', label: 'political', medium: 'www.alpha.example', q: 'budget & tax %', since: '2026-10-14T00:00:00+06:00', until: '2026-10-15T23:59:59-06:00', limit: 1, offset: 80, sort: 'ignored' };
+		expect(await getFeedStats(query, { baseUrl: 'http://fixture.invalid' })).toEqual(body);
+		const [url, init] = fetchMock.mock.calls[0];
+		const actual = new URL(url);
+		expect(actual.pathname).toBe('/api/stats/feed');
+		expect(init?.method).toBe('GET');
+		expect(actual.searchParams.getAll('sources')).toEqual(['news_rss', 'gdelt']);
+		for (const key of ['source', 'sentiment', 'keyword_id', 'classifier', 'label', 'medium', 'q', 'since', 'until'] as const) expect(actual.searchParams.get(key)).toBe(String(query[key]));
+		for (const key of ['limit', 'offset', 'sort']) expect(actual.searchParams.has(key)).toBe(false);
+	});
+
+	it('omits empty Feed filters and keeps empty sources unrestricted on the wire', async () => {
+		const fetchMock = stubFetch(async () => jsonResponse(200, { total: 0 }));
+		await getFeedStats({ q: '', source: '', sources: [] });
+		expect(fetchMock.mock.calls[0][0]).toBe('http://localhost:8000/api/stats/feed');
+	});
+
+	it('does not convert aggregate errors or missing payloads into measured zeros', async () => {
+		const issues = [{ loc: ['query', 'sentiment'], msg: 'invalid tone' }];
+		stubFetch(async () => jsonResponse(422, { detail: issues }));
+		await expect(getFeedStats()).rejects.toMatchObject({ status: 422, detail: issues, message: 'invalid tone' });
+		stubFetch(async () => jsonResponse(200, null));
+		expect(await getFeedStats()).toBeNull();
+		stubFetch(async () => { throw new Error('offline'); });
+		await expect(getFeedStats()).rejects.toMatchObject({ status: 0 });
+	});
+
 	it('builds the mentions URL from the non-empty filters only', async () => {
 		const fetchMock = stubFetch(async () => jsonResponse(200, { items: [], total: 0 }));
 

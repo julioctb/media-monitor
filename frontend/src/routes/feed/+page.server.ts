@@ -4,8 +4,10 @@ import {
 	ApiError,
 	getDailySummary,
 	getStatsOverview,
+	getFeedStats,
 	listKeywords,
 	listMentions,
+	type FeedStats,
 	type Mention,
 	type MentionPage,
 	type SentimentFilter
@@ -133,7 +135,32 @@ export const load: PageServerLoad = async ({ url }) => {
 					? await listMentions({ ...common, limit, offset })
 					: await loadChannelPage(channelSources(channel, groups), common, limit, offset);
 
+		const metricSources = !rawMedium && !rawSource && channel !== ''
+			? channelSources(channel, groups)
+			: undefined;
+		let feedStats: FeedStats | null = null;
+		let feedStatsError: string | null = null;
+		try {
+			// [] is unrestricted in the shared query builder, not match-none.
+			feedStats = metricSources?.length === 0
+				? {
+					total: 0,
+					by_source: Object.fromEntries(Object.keys(stats.by_source).map((source) => [source, 0])),
+					by_sentiment: { positive: 0, negative: 0, neutral: 0, none: 0 },
+					news_medium_count: 0,
+					result_group_count: 0
+				}
+				: await getFeedStats({
+					...common, source: rawSource, medium: rawMedium, sources: metricSources
+				});
+		} catch (cause) {
+			// A separate read failing must not discard an already loaded page.
+			feedStatsError = `Indicadores no disponibles: ${errorMessage(cause, 'error desconocido')}`;
+		}
+
 		return {
+			feedStats,
+			feedStatsError,
 			mentions,
 			keywords,
 			digest,

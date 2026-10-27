@@ -18,6 +18,7 @@ function stubFetch(table: RouteTable) {
 		const path = new URL(String(input), 'http://localhost').pathname;
 		if (!(path in table)) throw new Error(`unrouted ${path}`);
 		const body = table[path];
+		if (body instanceof Response) return body;
 		return new Response(JSON.stringify(body ?? null), {
 			status: 200,
 			headers: { 'content-type': 'application/json' }
@@ -26,6 +27,110 @@ function stubFetch(table: RouteTable) {
 	vi.stubGlobal('fetch', fetchMock);
 	return fetchMock;
 }
+
+const metrics = {
+	total: 96,
+	by_source: { news_rss: 48, gdelt: 48 },
+	by_sentiment: { negative: 96, positive: 0, neutral: 0, none: 0 },
+	news_medium_count: 17,
+	result_group_count: 63
+};
+
+it('loads metrics with the same effective filters as the direct result request', async () => {
+	const fetchMock = stubFetch({
+		'/api/stats/overview': { by_source: { news_rss: 200, x_twitter: 0 }, by_medium: { 'global.example': 200 }, news_medium_count: 40 },
+		'/api/keywords': [],
+		'/api/mentions': { items: [], total: 96 },
+		'/api/stats/feed': metrics
+	});
+	const data = await load({ url: new URL('http://localhost/feed?source=%20news_rss%20&channel=social&medium=%20alpha.example%20&sentiment=%20negative%20&keyword_id=0&political=1&q=budget%20%26%20tax&since=2026-10-14&until=2026-10-15&limit=1&offset=5&sort=ignored&sources=x_twitter') } as never);
+	const urls = fetchMock.mock.calls.map(([input]) => new URL(String(input)));
+	const aggregate = urls.filter((u) => u.pathname === '/api/stats/feed');
+	expect(aggregate).toHaveLength(1);
+	const list = urls.find((u) => u.pathname === '/api/mentions')!;
+	const expected = new URLSearchParams(list.search);
+	expected.delete('limit');
+	expected.delete('offset');
+	expect(aggregate[0].searchParams).toEqual(expected);
+	expect(aggregate[0].searchParams.get('since')).toBe('2026-10-14T00:00:00-06:00');
+	expect(aggregate[0].searchParams.get('until')).toBe('2026-10-15T23:59:59-06:00');
+	expect(data).toMatchObject({ feedStats: metrics, feedStatsError: null, mentions: { total: 96 }, sourceCounts: { news_rss: 200, x_twitter: 0 }, mediumCounts: { 'global.example': 200 } });
+});
+
+it('aggregates a channel union once without summing source-distinct units', async () => {
+	const fetchMock = stubFetch({
+		'/api/stats/overview': { by_source: { news_rss: 0, gdelt: 0, x_twitter: 99, field_report: 3 } },
+		'/api/keywords': [],
+		'/api/stats/feed': metrics,
+		'/api/mentions': { items: [], total: 48 }
+	});
+	const data = await load({ url: new URL('http://localhost/feed?channel=news&sentiment=none&limit=1&offset=70') } as never);
+	const urls = fetchMock.mock.calls.map(([input]) => new URL(String(input)));
+	const aggregates = urls.filter((u) => u.pathname === '/api/stats/feed');
+	expect(aggregates).toHaveLength(1);
+	expect(aggregates[0].searchParams.getAll('sources')).toEqual(['gdelt', 'news_rss']);
+	expect(aggregates[0].searchParams.get('sentiment')).toBe('none');
+	expect(aggregates[0].searchParams.has('source')).toBe(false);
+	expect(aggregates[0].searchParams.has('limit')).toBe(false);
+	expect(data).toMatchObject({ feedStats: metrics, mentions: { total: 96 }, channelGroups: { news: ['gdelt', 'news_rss'] } });
+});
+
+it('returns measured zeros for a known empty channel without querying all rows', async () => {
+	const fetchMock = stubFetch({
+		'/api/stats/overview': { by_source: { news_rss: 200, x_twitter: 30 } },
+		'/api/keywords': [],
+		'/api/stats/feed': metrics
+	});
+	const data = await load({ url: new URL('http://localhost/feed?channel=field') } as never);
+	expect(fetchMock.mock.calls.map(([input]) => new URL(String(input)).pathname)).not.toContain('/api/stats/feed');
+	expect(data).toMatchObject({ mentions: { items: [], total: 0 }, feedStats: { total: 0, news_medium_count: 0, result_group_count: 0, by_source: { news_rss: 0, x_twitter: 0 }, by_sentiment: { positive: 0, negative: 0, neutral: 0, none: 0 } }, feedStatsError: null });
+});
+
+it('keeps a successful list and its controls when only the aggregate is unavailable', async () => {
+	const mentions = { items: [{ id: 1, title: 'Retained synthetic card' }], total: 96 };
+	stubFetch({
+		'/api/stats/overview': { by_source: { news_rss: 200 }, news_medium_count: 40 },
+		'/api/keywords': [],
+		'/api/stats/feed': new Response(JSON.stringify({ detail: 'synthetic aggregate failure' }), { status: 503 }),
+		'/api/mentions': mentions
+	});
+	const data = await load({ url: new URL('http://localhost/feed?sentiment=negative&limit=1&offset=5') } as never);
+	expect(data).toMatchObject({ mentions, feedStats: null, feedStatsError: 'Indicadores no disponibles: synthetic aggregate failure', filters: { sentiment: 'negative', limit: 1, offset: 5 } });
+});
+
+it.each([
+	['source=news_rss&channel=social', { source: 'news_rss' }],
+	['medium=alpha.example&channel=field', { medium: 'alpha.example' }],
+	['channel=social', { sources: ['x_twitter'] }],
+	['channel=field', { sources: ['field_report'] }],
+	['channel=unknown&sentiment=invalid&keyword_id=no&political=0', {}],
+	['sentiment=none&keyword_id=0&political=1&q=%20budget%20', { sentiment: 'none', keyword_id: '0', classifier: 'political', label: 'political', q: 'budget' }],
+	['since=2026-10-15&until=2026-10-14', { since: '2026-10-15T00:00:00-06:00', until: '2026-10-14T23:59:59-06:00' }],
+	['source=gdelt&source=news_rss&sentiment=negative&sentiment=positive', { source: 'gdelt', sentiment: 'negative' }],
+	['sort=ignored&sources=gdelt&classifier=other&label=other&person_id=1&topic=other', {}]
+])('keeps accepted filter semantics for %s', async (query, expected) => {
+	const fetchMock = stubFetch({
+		'/api/stats/overview': { by_source: { news_rss: 0, gdelt: 0, x_twitter: 0, field_report: 0 } },
+		'/api/keywords': [], '/api/stats/feed': metrics,
+		'/api/mentions': { items: [], total: 0 }
+	});
+	await load({ url: new URL(`http://localhost/feed?${query}`) } as never);
+	const aggregate = fetchMock.mock.calls.map(([input]) => new URL(String(input))).find((url) => url.pathname === '/api/stats/feed')!;
+	const actual: Record<string, string | string[]> = Object.fromEntries(aggregate.searchParams);
+	if (aggregate.searchParams.has('sources')) actual.sources = aggregate.searchParams.getAll('sources');
+	expect(actual).toEqual(expected);
+});
+
+it.each(['/api/mentions', '/api/stats/overview'])('preserves existing fatal errors for %s', async (path) => {
+	stubFetch({ '/api/stats/overview': { by_source: {} }, '/api/keywords': [], '/api/mentions': { items: [], total: 0 }, [path]: new Response(JSON.stringify({ detail: 'existing failure' }), { status: 422 }) });
+	await expect(load({ url: new URL('http://localhost/feed') } as never)).rejects.toMatchObject({ status: 422, body: { message: 'No se pudo cargar el feed: existing failure' } });
+});
+
+it('keeps missing metrics unavailable rather than inventing a zero response', async () => {
+	stubFetch({ '/api/stats/overview': { by_source: {} }, '/api/keywords': [], '/api/stats/feed': null, '/api/mentions': { items: [], total: 0 } });
+	const data = await load({ url: new URL('http://localhost/feed') } as never);
+	expect(data).toMatchObject({ feedStats: null, mentions: { items: [], total: 0 } });
+});
 
 afterEach(() => {
 	vi.unstubAllGlobals();
@@ -36,6 +141,7 @@ it('keeps every channel pool call within the API limit at deep offsets', async (
 	const fetchMock = stubFetch({
 		'/api/stats/overview': { by_source: { elpopular: 12 } },
 		'/api/keywords': [],
+		'/api/stats/feed': metrics,
 		'/api/mentions': { items: [], total: 0 }
 	});
 
@@ -56,6 +162,7 @@ it('forwards the medium facet as one direct query and echoes it in filters', asy
 	const fetchMock = stubFetch({
 		'/api/stats/overview': { by_source: {}, by_medium: { 'e-consulta.com': 3, 'x.com': 1 } },
 		'/api/keywords': [],
+		'/api/stats/feed': metrics,
 		'/api/mentions': { items: [], total: 0 }
 	});
 

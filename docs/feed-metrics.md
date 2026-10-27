@@ -1,9 +1,8 @@
 # Feed metrics follow the complete filtered result
 
-This backend unit provides `GET /api/stats/feed` with complete filtered-result
-counts. Existing list, grouping, classification and stored data stay unchanged.
-The loader/UI behavior documented below is the integration contract for the next
-frontend work unit; this boundary does not claim the old Feed already uses it.
+The Feed's **Medios con noticias** and **Eventos** indicators now use
+`GET /api/stats/feed`, not the global overview or the loaded page. This implements
+T8.c / S13 without changing list results, grouping, classification or stored data.
 
 ## Query contract
 
