@@ -249,3 +249,38 @@ it('keeps new analysis notes separately linked to their original raw text', asyn
   expect(first.querySelectorAll('details summary')).toHaveLength(4);
   expect([...first.querySelectorAll('a')].every(link => link.getAttribute('href') === 'https://medio.example/0')).toBe(true);
 });
+
+it('renders each optional pick field against its own raw text and scope, never the reason receipt', async () => {
+  const { content, binding } = await linkedContent();
+  const brief = content.brief as { decisiones: Record<string, unknown>[] };
+  const pick = brief.decisiones[0];
+  const action = '  Verificar á <aviso> https://consulta.test/á  ';
+  Object.assign(pick, { accion_sugerida: action, condicion: 'Contar con el acta' });
+  Object.assign(pick.provenance as object, { accion_sugerida: binding(action, 0), condicion: binding('Contar con el acta', 1) });
+  const context = createEvidenceContext(content);
+  await context;
+  const view = render(content);
+  await expect.poll(() => view.target.querySelectorAll('.digest-brief-attention details').length).toBe(1);
+  const paragraphs = [...view.target.querySelectorAll('.digest-brief-attention')];
+  expect(paragraphs[0].textContent).toContain(action.trim());
+  expect(paragraphs[0].querySelector('a')?.getAttribute('href')).toBe('https://medio.example/0');
+  expect(paragraphs[1].textContent).toContain('Condición: Contar con el acta');
+  expect(paragraphs[1].textContent).toContain('No respaldado');
+  expect(paragraphs[1].querySelector('a')).toBeNull();
+  pick.accion_sugerida = action.trim();
+  const changed = render(content);
+  await tick();
+  expect(changed.target.querySelector('.digest-brief-attention')?.textContent).toContain('No respaldado');
+  expect(changed.target.querySelector('.digest-brief-attention details')).toBeNull();
+});
+
+it('does not render optional labels or warnings for absent suggestions or the waiting brief', async () => {
+  const view = render(v3Content());
+  await tick();
+  expect(view.target.querySelector('.digest-brief-attention')).toBeNull();
+  expect(view.text()).not.toContain('Acción sugerida');
+  expect(view.text()).not.toContain('Condición:');
+  const empty = render({ schema: 2, noticias: [], brief: {}, tarjetas: [] });
+  await tick();
+  expect(empty.text()).not.toContain('No respaldado');
+});

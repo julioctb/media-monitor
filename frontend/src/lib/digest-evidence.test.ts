@@ -225,6 +225,20 @@ const comparisonFixture = {
 };
 function comparisonReport() { return structuredClone(comparisonFixture.content); }
 
+it.each(['accion_sugerida', 'condicion'])('resolves the Python story receipt under optional pick field %s', async field => {
+  const content = comparisonReport();
+  const note = content.noticias[0];
+  // The existing Python-produced exact-text receipt is field-name independent.
+  const pick = { [field]: note.summary, provenance: { [field]: note.provenance!.summary } };
+  const catalogue = await createEvidenceContext(content);
+  const request = { target: pick, field, allowed: [0] };
+  expect(resolveEvidence(catalogue, request).groups?.map(group => [group.namespace, group.sources[0].mention_id]))
+    .toEqual([['current', 20], ['prior', 10]]);
+  expect(resolveEvidence(catalogue, { ...request, allowed: [1] }).sources).toEqual([]);
+  pick[field] += ' https://x.test/á <aviso>';
+  expect(resolveEvidence(catalogue, request).sources).toEqual([]);
+});
+
 it('resolves Python two-cut receipts with original zero in each namespace', async () => {
   const content = comparisonReport();
   const context = await createEvidenceContext(content);

@@ -43,20 +43,29 @@
 		descarte?: string | null;
 	} = $props();
 
-	const secciones: {
-		titulo: string;
-		entradas: { principal: string; secundario: string | null; extra: string | null; evidence?: EvidenceRequest }[];
-	}[] = $derived.by(() => {
+	interface PanelEntry {
+		principal: string;
+		secundario: string | null;
+		extra: string | null;
+		evidence?: EvidenceRequest;
+		attention?: { label: string; text: string; evidence: EvidenceRequest }[];
+	}
+	const secciones: { titulo: string; entradas: PanelEntry[] }[] = $derived.by(() => {
 		const pick = (entries: BriefEntry[]) =>
 			entries.map((entry) => ({
 				principal: entry.titulo,
 				secundario: entry.razon,
 				extra: entry.afectacion,
-          evidence: { target: entry.raw, field: 'razon', allowed: entry.sourceRefs ?? null }
+          evidence: { target: entry.raw, field: 'razon', allowed: entry.sourceRefs ?? null },
+          attention: [
+            { field: 'accion_sugerida', label: 'Acción sugerida', text: entry.accionSugerida },
+            { field: 'condicion', label: 'Condición', text: entry.condicion }
+          ].flatMap(({ field, label, text }) => text ? [{ label, text,
+            evidence: { target: entry.raw, field, allowed: entry.sourceRefs ?? null } }] : [])
 			}));
 		const bloques: {
 			titulo: string;
-			entradas: { principal: string; secundario: string | null; extra: string | null; evidence?: EvidenceRequest }[];
+			entradas: PanelEntry[];
 		}[] = [];
 		if (delta.length > 0) {
 			bloques.push({
@@ -101,6 +110,12 @@
 							<strong>{entrada.principal}</strong>
 							{#if entrada.secundario}<span> — {entrada.secundario}</span>{/if}
 							{#if entrada.secundario}<DigestEvidence {context} request={entrada.evidence} />{/if}
+                {#each entrada.attention ?? [] as attention (attention.label)}
+                  <div class="digest-brief-attention">
+                    <p><strong>{attention.label}:</strong> {attention.text}</p>
+                    <DigestEvidence {context} request={attention.evidence} />
+                  </div>
+                {/each}
                 {#if entrada.extra}<span class="digest-brief-afectacion">{entrada.extra}</span><DigestEvidence />{/if}
 						</li>
 					{/each}
@@ -143,3 +158,7 @@
 		<p class="digest-brief-descarte">{descarte}</p>
 	{/if}
 </section>
+
+<style>
+  .digest-brief-attention { overflow-wrap: anywhere; }
+</style>

@@ -753,13 +753,13 @@ solo ese titular, no las sugerencias y sus recibos independientes.
 
 ### Presentación y límites de prueba
 
-El backend y el texto plano transportan cada campo con su marcador propio y
-registran solo publicaciones realmente citadas. Los informes sin estos campos
-conservan su forma anterior, sin claves null añadidas. La adaptación del lector,
-el modelo de vista y los párrafos opcionales de BriefPanel se entregan en la
-siguiente unidad de interfaz; esta unidad backend no afirma que el panel antiguo
-ya los presente. Esa adaptación reutilizará objeto crudo, ámbito propio,
-inspector compartido y texto escapado, sin rediseño ni aprobación automática.
+BriefPanel presenta párrafos opcionales «Acción sugerida» y «Condición» con
+solicitudes separadas al inspector compartido, desde el objeto crudo y su
+ámbito propio antes de limpiar el texto visible. Se conserva prosa no
+respaldada, se escapa el contenido y se ajustan URLs largas sin truncarlas.
+El texto plano emite cada etiqueta con su propio marcador y registra solo
+las publicaciones realmente citadas. Los informes sin campos nuevos conservan
+su forma anterior, sin contaminación por claves null.
 
 Las pruebas offline acreditan instrucciones, transporte, validación,
 persistencia y consumidores, no razonamiento político real. T10 debe evaluar

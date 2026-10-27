@@ -38,6 +38,8 @@ export interface BriefEntryView {
   sourceRefs?: unknown;
   titulo: string;
   razon: string | null;
+  accionSugerida?: string;
+  condicion?: string;
   /** F6 structured afectacion, humanized; null when the entry carries none. */
   afectacion: string | null;
 }
@@ -192,9 +194,12 @@ function seleccionView(
       typeof index === "number" ? `#${index}` : "Nota",
     );
     const razon = textOrNull(record.razon);
+    const accionSugerida = textOrNull(record.accion_sugerida);
+    const condicion = textOrNull(record.condicion);
     const afectacion = afectacionLabel(record.afectacion);
     if (!titulo && !razon && !afectacion) continue;
-    view.push({ titulo, razon, afectacion, raw: record, sourceRefs: fuente?.source_refs ?? null });
+    view.push({ titulo, razon, afectacion, raw: record, sourceRefs: fuente?.source_refs ?? null,
+      ...(accionSugerida ? { accionSugerida } : {}), ...(condicion ? { condicion } : {}) });
   }
   return view;
 }

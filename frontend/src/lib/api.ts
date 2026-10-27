@@ -909,6 +909,8 @@ export interface DigestBriefSeleccion extends DigestProvenanceCarrier {
 	index: number;
 	categoria: 'decision' | 'riesgo' | 'ruido' | 'a_favor';
 	razon?: string | null;
+	accion_sugerida?: string | null;
+	condicion?: string | null;
 	afectacion?: DigestAfectacion;
 }
 

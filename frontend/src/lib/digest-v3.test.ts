@@ -113,6 +113,18 @@ describe("hasDigestV3", () => {
 });
 
 describe("digestV3View", () => {
+  it("preserves optional attention raw targets and own scope before display trimming", () => {
+    const content = v3Content();
+    const pick = { index: 0, categoria: "decision" as const, razon: "Lectura", accion_sugerida: "  Verificar á <aviso> https://fuente.test/á  ", condicion: "  Contar con acta  " };
+    content.brief!.decisiones = [pick];
+    content.tarjetas![0].source_refs = [0];
+    const entry = digestV3View(content)!.decisiones[0];
+    expect(entry.raw).toBe(pick);
+    expect(entry.sourceRefs).toEqual([0]);
+    expect(entry).toMatchObject({ accionSugerida: pick.accion_sugerida.trim(), condicion: "Contar con acta", razon: "Lectura" });
+    expect(pick.accion_sugerida).toMatch(/^  /);
+  });
+
   it("returns null for v2 rows", () => {
     expect(digestV3View(v2Content())).toBeNull();
   });

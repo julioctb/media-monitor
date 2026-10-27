@@ -256,7 +256,7 @@ export function resolveEvidence(catalogue: EvidenceCatalogue | null, request: Ev
         nested.prior_catalogue_fingerprint !== comparison.priorFingerprint ||
         nested.context_fingerprint !== comparison.fingerprint || !strictRefs(allowed, catalogue.sources.length)) return unbacked;
     const kind = request.field === 'headline' ? 'cut' :
-      ['summary', 'why_it_matters', 'confidence_note', 'angulo_nuevo', 'razon', 'hecho', 'por_que', 'titulo', 'title', 'notas'].includes(request.field) ? 'story' : 'unsupported';
+      ['summary', 'why_it_matters', 'confidence_note', 'angulo_nuevo', 'razon', 'accion_sugerida', 'condicion', 'hecho', 'por_que', 'titulo', 'title', 'notas'].includes(request.field) ? 'story' : 'unsupported';
     if (nested.scope !== kind || kind === 'unsupported' || request.channel !== undefined) return unbacked;
     const positions = comparison.snapshot.current_source_scopes.flatMap((scope, i) =>
       scope.length === allowed.length && scope.every((ref, j) => ref === allowed[j]) ? [i] : []);
