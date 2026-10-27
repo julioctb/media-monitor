@@ -36,7 +36,10 @@ it('exposes unavailable metrics without replacing measured values or loaded resu
 	data.feedStats = null;
 	data.feedStatsError = 'Indicadores no disponibles: fallo sintético';
 	const target = await render(data);
-	expect([...target.querySelectorAll('.intro-stat-value')].map((node) => node.textContent)).toEqual(['No disponible', 'No disponible']);
+	expect([...target.querySelectorAll('.intro-stat-value')].map((node) => node.textContent)).toEqual(['—', '—']);
+	for (const node of target.querySelectorAll('.intro-stat-value')) {
+		expect(node.getAttribute('title')).toBe('No disponible');
+	}
 	expect(target.querySelector('[role="status"]')?.textContent).toContain(data.feedStatsError);
 	expect(target.querySelectorAll('.feed-group')).toHaveLength(1);
 	expect(target.querySelector('.result-line')?.textContent).toContain('96 publicaciones encontradas');

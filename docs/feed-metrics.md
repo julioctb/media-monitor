@@ -54,7 +54,8 @@ publication unit; it is not an Event-table count or a two-publication threshold.
 
 - A measured empty result displays zero indicators and the existing empty list.
 - An aggregate-only error retains successful cards, results and controls. Metrics
-  are unavailable, never substituted with zero, global totals or page groups.
+  use a compact `—` marker with a “No disponible” title and an explicit status
+  explanation, never zero, global totals or page groups.
 - Publication text and pagination continue to use `mentions.total`.
 - Sidebar medium/source figures remain global tenant navigation, labeled as not
   applying Feed filters. The global catalogue is not replaced by filtered counts.

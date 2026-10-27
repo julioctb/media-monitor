@@ -154,12 +154,12 @@
 	<div class="intro-stats" aria-label="Números del feed">
 		<article class="intro-stat">
 			<p class="intro-stat-label">Medios con noticias</p>
-			<p class="intro-stat-value">{data.feedStats?.news_medium_count ?? 'No disponible'}</p>
+			<p class="intro-stat-value" title={data.feedStats ? undefined : 'No disponible'}>{data.feedStats?.news_medium_count ?? '—'}</p>
 			<p class="intro-stat-note">Medios con registros en todos los resultados filtrados.</p>
 		</article>
 		<article class="intro-stat">
 			<p class="intro-stat-label">Eventos</p>
-			<p class="intro-stat-value">{data.feedStats?.result_group_count ?? 'No disponible'}</p>
+			<p class="intro-stat-value" title={data.feedStats ? undefined : 'No disponible'}>{data.feedStats?.result_group_count ?? '—'}</p>
 			<p class="intro-stat-note">Eventos y publicaciones sin evento en todos los resultados filtrados.</p>
 		</article>
 	</div>
