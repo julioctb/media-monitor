@@ -71,6 +71,16 @@ class MentionOut(BaseModel):
     event_title: str | None = None
 
 
+class FeedStatsOut(BaseModel):
+    """Measured counts over all matching tenant-owned publications."""
+
+    total: int = Field(ge=0)
+    by_source: dict[str, int]
+    by_sentiment: dict[str, int]
+    news_medium_count: int = Field(ge=0)
+    result_group_count: int = Field(ge=0)
+
+
 class MentionPage(BaseModel):
     items: list[MentionOut]
     total: int

@@ -291,6 +291,43 @@ def count_mentions(
     return session.scalar(stmt)
 
 
+def feed_metrics(session: Session, client_id: int, **filters: Any) -> dict[str, Any]:
+    """Full-result counts with legacy outlet and event-plus-loose units."""
+    stmt = _mention_filters(
+        select(
+            Mention.id,
+            Mention.source,
+            Mention.sentiment,
+            Mention.event_id,
+            Mention.url,
+            Mention.author,
+        ),
+        client_id=client_id,
+        **filters,
+    )
+    by_source = {source.value: 0 for source in MentionSource}
+    by_sentiment = {tone.value: 0 for tone in Sentiment} | {"none": 0}
+    outlets: set[str] = set()
+    groups: set[tuple[str, int]] = set()
+    total = 0
+    for mention_id, source, tone, event_id, url, author in session.execute(stmt):
+        total += 1
+        by_source[source.value] += 1
+        by_sentiment[tone.value if tone is not None else "none"] += 1
+        if source.value not in SOCIAL_SOURCES:
+            outlets.add(_outlet_of(url, author))
+        groups.add(
+            ("event", event_id) if event_id is not None else ("mention", mention_id)
+        )
+    return {
+        "total": total,
+        "by_source": by_source,
+        "by_sentiment": by_sentiment,
+        "news_medium_count": len(outlets),
+        "result_group_count": len(groups),
+    }
+
+
 def sentiment_breakdown(
     session: Session, client_id: int, *, ingested_since: datetime | None = None
 ) -> dict[str, int]:

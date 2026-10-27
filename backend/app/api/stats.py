@@ -3,19 +3,21 @@
 from collections import Counter
 from datetime import date, datetime, time, timedelta, timezone
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 
 from app.api.deps import ClientIdDep, SessionDep
+from app.api.mentions import SentimentFilter
 from app.api.schemas import (
     ClassifierBreakdown,
     DailyVolume,
+    FeedStatsOut,
     KeywordDayCount,
     StatsDayOut,
     StatsOverview,
     ToneSplit,
 )
 from app.models import queries
-from app.models.base import MentionSource
+from app.models.base import MentionSource, Sentiment
 from app.settings_runtime import resolve_effective_settings
 from app.summaries.builder import day_window, today_in
 
@@ -39,6 +41,40 @@ def _utc_day(value: datetime) -> date:
     if value.tzinfo is None:
         value = value.replace(tzinfo=timezone.utc)
     return value.astimezone(timezone.utc).date()
+
+
+@router.get("/stats/feed", response_model=FeedStatsOut)
+def stats_feed(
+    session: SessionDep,
+    client_id: ClientIdDep,
+    source: MentionSource | None = None,
+    sentiment: SentimentFilter | None = None,
+    keyword_id: int | None = None,
+    since: datetime | None = None,
+    until: datetime | None = None,
+    q: str | None = None,
+    classifier: str | None = None,
+    label: str | None = None,
+    medium: str | None = Query(default=None, max_length=200),
+    sources: list[MentionSource] | None = Query(default=None),
+) -> FeedStatsOut:
+    """Feed result counts, independent of list pagination."""
+    counts = queries.feed_metrics(
+        session,
+        client_id,
+        source=source,
+        sources=sources,
+        sentiment=Sentiment(sentiment) if sentiment not in (None, "none") else None,
+        sentiment_null=sentiment == "none",
+        keyword_id=keyword_id,
+        since=since,
+        until=until,
+        q=q,
+        classifier=classifier,
+        label=label,
+        medium=medium,
+    )
+    return FeedStatsOut(**counts)
 
 
 @router.get("/stats/overview", response_model=StatsOverview)
