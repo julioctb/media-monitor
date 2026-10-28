@@ -6557,17 +6557,23 @@ dialog.detail-dialog::backdrop {
 }
 
 /* Detail-dialog CONTENT styles — chrome is shared with the field dialog
-   above (dialog.field-dialog, dialog.detail-dialog). Typography follows the
-   mockup's own dialog rules (styles.css .eyebrow / .dialog-body h2,h3,p /
-   .record / .evidence); palette via @theme tokens. */
+   above (dialog.field-dialog, dialog.detail-dialog). Typography MEASURED on
+   the mockup's rendered #detail-dialog (its cascade resolves .eyebrow/.small
+   inside the dialog at 14px): h2 25/700 display, h3 16/700 display, body p
+   14/400, record title 15/700 display, meta 14 muted. Palette via @theme. */
 .detail-dialog .dialog-body h3 {
   margin: 0 0 4px;
-  font-size: 17px;
+  font-weight: 700;
+  font-family: var(--font-display);
+  font-size: 16px;
   line-height: 1.5;
+}
+.detail-dialog .dialog-body p {
+  font-size: 14px;
 }
 .daily-dialog-eyebrow {
   margin: 0;
-  font-size: 10px;
+  font-size: 14px;
   letter-spacing: 1.8px;
   text-transform: uppercase;
   font-weight: 700;
@@ -6578,11 +6584,13 @@ dialog.detail-dialog::backdrop {
   font-family: var(--font-display);
   font-size: 25px;
   line-height: 1.4;
+  font-weight: 700;
+  color: var(--color-ink);
 }
 .daily-dialog-interpretation p {
   margin: 0 0 8px;
 }
-.daily-dialog-warning {
+.detail-dialog .daily-dialog-warning {
   padding: 8px 10px;
   border-radius: 6px;
   background: var(--color-warn-soft);
@@ -6602,23 +6610,25 @@ dialog.detail-dialog::backdrop {
 }
 .daily-dialog-record h4 {
   margin: 0;
+  font-family: var(--font-display);
   font-size: 15px;
+  line-height: 1.5;
+  font-weight: 700;
+  color: var(--color-ink);
 }
 .daily-dialog-record p {
   margin: 0;
-  font-size: 14px;
   line-height: 1.55;
 }
 .daily-dialog-meta {
   color: var(--color-muted);
-  font-size: 12px;
+  font-size: 14px;
 }
 .daily-dialog-footnote {
   margin: 0;
   padding-top: 12px;
   border-top: 1px solid var(--color-line);
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 14px;
   color: var(--color-muted);
 }
 
