@@ -4800,6 +4800,77 @@ table.coverage th {
   padding: 0;
   border-radius: 9px;
 }
+
+
+/* Floating-query result: mockup .answer/.evidence, scoped to the panel. */
+.floating-error {
+  margin: 0 0 12px;
+  color: var(--color-danger);
+  font-size: 12px;
+  font-weight: 600;
+}
+.query-question {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  margin: 0 0 22px;
+}
+.query-question span {
+  font-size: 11px;
+  color: var(--color-muted);
+  margin-bottom: 6px;
+}
+.query-question p {
+  max-width: 90%;
+  margin: 0;
+  padding: 12px 16px;
+  background: var(--color-line-soft);
+  border-radius: 16px 16px 4px 16px;
+  font-size: 13px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.floating-query-answer .answer {
+  margin: 0;
+  border-top: 0;
+  padding: 0;
+}
+.floating-query-answer .answer h3 {
+  font-size: 14px;
+  margin: 0 0 4px;
+}
+.floating-query-answer .answer p {
+  font-size: 12px;
+  line-height: 1.6;
+  margin: 0;
+  white-space: pre-wrap;
+}
+.floating-query-answer .evidence {
+  margin: 10px 0 0;
+  padding: 12px;
+  border-radius: 10px;
+  font-size: 12px;
+  background: #f8f9fa;
+}
+.floating-query-answer .evidence ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.floating-query-answer .evidence li + li {
+  border-top: 1px solid var(--color-line-soft);
+}
+.floating-query-answer .evidence a {
+  color: var(--color-accent);
+  display: block;
+  padding: 6px 0;
+  overflow-wrap: anywhere;
+}
+.floating-query-composer button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .floating-query-composer > p {
   text-align: center;
   color: var(--color-muted);

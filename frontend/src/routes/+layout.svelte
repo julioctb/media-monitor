@@ -1,9 +1,10 @@
 <script lang="ts">
 	import '../app.css';
 	import { page } from '$app/state';
-	import { goto } from '$app/navigation';
+	import { enhance } from '$app/forms';
 	import pkg from '../../package.json';
 	import type { LayoutProps } from './$types';
+	import type { SubmitFunction } from './consultas/$types';
 
 	let { children }: LayoutProps = $props();
 
@@ -57,6 +58,13 @@
 	let menuButton: HTMLButtonElement | undefined = $state();
 	let closeButton: HTMLButtonElement | undefined = $state();
 	let panelOpen = $state(false);
+	let panelPending = $state(false);
+	let panelError = $state('');
+	let panelResult: {
+		question: string;
+		answer: string;
+		citations: { title: string | null; url: string }[];
+	} | null = $state(null);
 	let queryInput: HTMLTextAreaElement | undefined = $state();
 	let launcherButton: HTMLButtonElement | undefined = $state();
 
@@ -89,10 +97,43 @@
 		if (restoreFocus) launcherButton?.focus();
 	}
 
-	async function submitQuery(event: SubmitEvent): Promise<void> {
-		event.preventDefault();
-		panelOpen = false;
-		await goto('/consultas');
+	// The panel asks the REAL /consultas action (the same handler the page
+	// uses) and renders answer + citations in place; no navigation, no fake data.
+	const panelEnhance: SubmitFunction = () => {
+		panelPending = true;
+		panelError = '';
+		return async ({ result, update }) => {
+			if (result.type === 'success') {
+				const data = (result.data ?? {}) as Record<string, unknown>;
+				if (data.error) {
+					panelError = String(data.error);
+				} else {
+					const raw = Array.isArray(data.citations) ? data.citations : [];
+					panelResult = {
+						question: String(data.question ?? ''),
+						answer: typeof data.answer === 'string' ? data.answer : '',
+						citations: raw
+							.map((c) => {
+								const e = c as { title?: unknown; url?: unknown };
+								return { title: typeof e.title === 'string' ? e.title : null, url: typeof e.url === 'string' ? e.url : '' };
+							})
+							.filter((c) => c.url !== '')
+					};
+					if (queryInput) queryInput.value = '';
+				}
+			} else if (result.type === 'error') {
+				panelError = 'No se pudo consultar la pregunta.';
+			}
+			panelPending = false;
+			await update({ reset: false });
+		};
+	};
+
+	function handleComposerKeydown(event: KeyboardEvent): void {
+		if (event.key === 'Enter' && !event.shiftKey) {
+			event.preventDefault();
+			(event.currentTarget as HTMLTextAreaElement).form?.requestSubmit();
+		}
 	}
 
 	function handleKeydown(event: KeyboardEvent): void {
@@ -278,6 +319,32 @@
 				</header>
 				<div class="floating-query-body">
 					<div class="floating-query-answer" aria-live="polite">
+						{#if panelError}
+							<p class="floating-error" role="alert">{panelError}</p>
+						{/if}
+						{#if panelResult}
+							<div class="query-question">
+								<span>Tu pregunta</span>
+								<p>{panelResult.question}</p>
+							</div>
+							<article class="answer">
+								<h3>Respuesta</h3>
+								<p>{panelResult.answer}</p>
+							</article>
+							{#if panelResult.citations.length > 0}
+								<div class="evidence">
+									<ul>
+										{#each panelResult.citations as citation (citation.url + citation.title)}
+											<li>
+												<a href={citation.url} target="_blank" rel="noopener noreferrer">
+													{citation.title ?? citation.url}
+												</a>
+											</li>
+										{/each}
+									</ul>
+								</div>
+							{/if}
+						{:else}
 						<div class="floating-query-welcome">
 							<span class="query-welcome-icon" aria-hidden="true">
 								<svg class="od-icon" viewBox="0 0 24 24"><path d={ICONS.query} /></svg>
@@ -285,16 +352,30 @@
 							<h3>¿Qué quieres investigar?</h3>
 							<p>Explora las menciones y abre la evidencia de cada resultado.</p>
 						</div>
+					{/if}
 					</div>
-					<form class="floating-query-composer" onsubmit={submitQuery}>
+
+					<form
+						method="POST"
+						action="/consultas"
+						class="floating-query-composer"
+						use:enhance={panelEnhance}
+					>
 						<label class="sr-only" for="floating-query-input">Escribe tu pregunta</label>
 						<div class="floating-query-composer-field">
-							<textarea id="floating-query-input" rows="2" placeholder="Pregunta sobre tu monitoreo..." bind:this={queryInput}></textarea>
-							<button class="button primary" type="submit" aria-label="Enviar consulta">
+							<textarea
+								id="floating-query-input"
+							name="question"
+								rows="2"
+								placeholder="Pregunta sobre tu monitoreo..."
+								bind:this={queryInput}
+								onkeydown={handleComposerKeydown}
+							></textarea>
+							<button class="button primary" type="submit" aria-label="Enviar consulta" disabled={panelPending}>
 								<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true"><path d={ICONS.arrow} /></svg>
 							</button>
 						</div>
-						<p>La consulta completa, con fuentes, vive en la página.</p>
+						<p>Cada respuesta cita las notas que la sustentan.</p>
 					</form>
 				</div>
 			</section>
