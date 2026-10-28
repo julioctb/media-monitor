@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
+
 	import { enhance } from '$app/forms';
 
 	import KeywordsPanel from '$lib/components/KeywordsPanel.svelte';
@@ -91,12 +93,37 @@
 	let dirty = $state(false);
 	let submitting = $state(false);
 
-	// X mode snapshot: like `draft`, a local edit surface published by its own
+	// X mode snapshot: like `draft`, a local edit surface published by its
 	// save; `data` refreshes must not revert an unsaved selection.
 	// svelte-ignore state_referenced_locally
 	let xMode: XMode = $state(data.settings.x_mode);
 	/** Gates the X section's submit while its request is in flight. */
 	let xSaving = $state(false);
+
+	/* ------------------------- Config workspace tabs ------------------------- */
+	// Tab ids mirror the section anchors, so old #hash deep links keep working.
+	const TABS = [
+		{ id: 'keywords', label: 'Palabras clave' },
+		{ id: 'operacion', label: 'Operación' },
+		{ id: 'fuentes', label: 'Fuentes' },
+		{ id: 'llm', label: 'LLM' }
+	] as const;
+
+	type TabId = (typeof TABS)[number]['id'];
+
+	/** One visible panel at a time (mockup config-workspace); client-side only. */
+	let activeTab: TabId = $state('keywords');
+
+	onMount(() => {
+		const hash = window.location.hash.slice(1);
+		if (TABS.some((tab) => tab.id === hash)) activeTab = hash as TabId;
+	});
+
+	function selectTab(tab: TabId): void {
+		activeTab = tab;
+		// Keeps the panel deep-linkable without jumping the scroll position.
+		window.history.replaceState(null, '', `#${tab}`);
+	}
 
 	// Registry snapshot from the load: toggles write to `draft`, never to
 	// page data. Intentional snapshot, like `draft` above.
@@ -329,6 +356,25 @@
 			}
 		};
 	};
+
+	/** Typed X key mirror, so «Descartar cambios» clears it with the draft. */
+	let xApiKey = $state('');
+
+	/** Savebar discard: back to the last loaded state, client-side only. */
+	function discardChanges(): void {
+		if (
+			dirty &&
+			!window.confirm(
+				'¿Descartar los cambios pendientes? Se recuperará la última configuración cargada.'
+			)
+		) {
+			return;
+		}
+		draft = toDraft(data.settings);
+		xMode = data.settings.x_mode;
+		xApiKey = '';
+		dirty = false;
+	}
 </script>
 
 <svelte:head>
@@ -342,30 +388,46 @@
 	</p>
 </header>
 
-{#if form && ['save', 'save-x', 'create', 'toggle', 'delete'].includes(form.action ?? '')}
-	<div
-		role={form.ok ? 'status' : 'alert'}
-		class={`mt-4 rounded-lg px-4 py-3 text-sm ring-1 ring-inset ${
-			form.ok
-				? 'bg-success/10 text-success ring-success/30'
-				: 'bg-danger/10 text-danger ring-danger/30'
-		}`}
-	>
-		{form.message}
-	</div>
-{/if}
-
-<div class="settings-layout">
-	<nav class="section-nav" aria-label="Secciones de configuración">
-		<a href="#palabras-clave">Palabras clave</a>
-		<a href="#operacion">Operación</a>
-		<a href="#fuentes">Fuentes</a>
-		<a href="#llm">LLM</a>
+<div class="config-workspace">
+	<nav class="config-tabs" aria-label="Apartados de configuración">
+		{#each TABS as tab (tab.id)}
+			<button
+				type="button"
+				class={activeTab === tab.id ? 'active' : ''}
+				aria-current={activeTab === tab.id ? 'page' : 'false'}
+				onclick={() => selectTab(tab.id)}
+			>
+				{tab.label}
+			</button>
+		{/each}
 	</nav>
 
-	<div class="settings-flow">
+	<p class="config-disclaimer">
+		Los cambios se aplican al guardar: la ingesta, los cortes del resumen y la purga leen la
+		configuración guardada en cada ciclo.
+	</p>
+
+	{#if form && ['save', 'save-x', 'create', 'toggle', 'delete'].includes(form.action ?? '')}
+		<div
+			role={form.ok ? 'status' : 'alert'}
+			class={`mt-4 rounded-lg px-4 py-3 text-sm ring-1 ring-inset ${
+				form.ok
+					? 'bg-success/10 text-success ring-success/30'
+					: 'bg-danger/10 text-danger ring-danger/30'
+			}`}
+		>
+			{form.message}
+		</div>
+	{/if}
+
+	<div class="config-body">
 		<!-- Keywords panel: own POST forms, so it lives outside the settings form. -->
-		<section id="palabras-clave" class="panel" aria-labelledby="palabras-clave-title">
+		<section
+			id="palabras-clave"
+			class="panel"
+			hidden={activeTab !== 'keywords'}
+			aria-labelledby="palabras-clave-title"
+		>
 			<div class="panel-head">
 				<h2 id="palabras-clave-title">Palabras clave</h2>
 				<p class="panel-note">
@@ -377,9 +439,9 @@
 		</section>
 
 		<form
+			id="settings-save"
 			method="POST"
 			action="?/save"
-			class="settings-flow"
 			oninput={markDirty}
 			onchange={markDirty}
 			use:enhance={handleSubmit}
@@ -398,7 +460,12 @@
 			<input type="hidden" name="facebook_pages" value={facebookPayload} />
 
 			<!-- Operación -->
-			<section id="operacion" class="panel" aria-labelledby="operacion-title">
+			<section
+				id="operacion"
+				class="panel"
+				hidden={activeTab !== 'operacion'}
+				aria-labelledby="operacion-title"
+			>
 				<div class="panel-head">
 					<h2 id="operacion-title">Operación</h2>
 					<p class="panel-note">Ajustes generales de tiempo y conservación de datos.</p>
@@ -529,7 +596,12 @@
 			</section>
 
 			<!-- Fuentes -->
-			<section id="fuentes" class="panel" aria-labelledby="fuentes-title">
+			<section
+				id="fuentes"
+				class="panel"
+				hidden={activeTab !== 'fuentes'}
+				aria-labelledby="fuentes-title"
+			>
 				<div class="panel-head">
 					<h2 id="fuentes-title">Fuentes</h2>
 					<p class="panel-note">Define los orígenes que alimentarán el monitoreo.</p>
@@ -771,6 +843,7 @@
 											id="x-api-key"
 											form="x-save-form"
 											name="x_api_key"
+											bind:value={xApiKey}
 											type="password"
 											placeholder="Dejar vacío para conservar la actual"
 											autocomplete="off"
@@ -825,7 +898,12 @@
 			</section>
 
 			<!-- LLM -->
-			<section id="llm" class="panel" aria-labelledby="llm-title">
+			<section
+				id="llm"
+				class="panel"
+				hidden={activeTab !== 'llm'}
+				aria-labelledby="llm-title"
+			>
 				<div class="panel-head">
 					<h2 id="llm-title">Modelo de lenguaje</h2>
 					<p class="panel-note">Selecciona cómo se procesarán las consultas y el enriquecimiento.</p>
@@ -948,24 +1026,21 @@
 				</div>
 			</section>
 
-			<div class="footer-actions">
-				<button
-					type="submit"
-					disabled={submitting}
-					class="btn-primary inline-flex min-h-[44px] items-center justify-center rounded-full border border-accent bg-accent px-[22px] text-sm font-semibold text-accent-on transition-colors hover:border-accent-hover hover:bg-accent-hover active:border-accent-active active:bg-accent-active disabled:opacity-60"
-				>
-					Guardar configuración
-					{#if dirty}
-						<span
-							class="ml-1.5 inline-block size-1.5 rounded-full bg-warn"
-							title="Cambios sin guardar"
-						></span>
-						<span class="sr-only">(cambios sin guardar)</span>
-					{/if}
-				</button>
-				<p class="storage-note">Los cambios se aplican al pulsar Guardar configuración.</p>
+			</form>
 			</div>
-		</form>
+
+			<footer class="config-savebar">
+			<span>{dirty ? 'Cambios pendientes de guardar' : 'Sin cambios pendientes'}</span>
+			<div>
+				<button type="button" class="button" onclick={discardChanges} disabled={submitting}>
+					Descartar cambios
+				</button>
+				<button type="submit" form="settings-save" class="button primary" disabled={submitting}>
+					Guardar configuración
+				</button>
+			</div>
+			</footer>
+			</div>
 
 	<!-- Source dialogs live at page level: a <dialog> containing a <form>
 		cannot nest inside the main save form (node_invalid_placement); the
@@ -1055,5 +1130,3 @@
 			main save form); its inputs associate via the form="x-save-form"
 			attribute. Same ?/save-x action and handler as before. -->
 		<form id="x-save-form" method="POST" action="?/save-x" use:enhance={handleXSubmit}></form>
-	</div>
-</div>

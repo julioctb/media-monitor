@@ -225,7 +225,7 @@ it('changes and clears the principal without altering the watchlist', () => {
 	});
 	expect(new FormData(select!.form!).getAll('digest_focus_person_id')).toEqual(['8']);
 	expect(new FormData(select!.form!).getAll('watchlist')).toEqual(['2', '5']);
-	expect(text()).toContain('Guardar configuración (cambios sin guardar)');
+	expect(text()).toContain('Cambios pendientes de guardar');
 	flushSync(() => {
 		select!.value = '';
 		select!.dispatchEvent(new Event('change', { bubbles: true }));
@@ -241,6 +241,65 @@ it('preserves the principal when the loaded catalog does not contain it', () => 
 	expect(select.selectedOptions[0].textContent).toContain('no disponible');
 	expect(select.selectedOptions[0].disabled).toBe(false);
 	expect(new FormData(select.form!).getAll('digest_focus_person_id')).toEqual(['7']);
+});
+
+it('renders the v3 tab strip with one visible panel and the savebar', () => {
+	const { target } = renderPage(pageSettings());
+
+	const tabs = [...target.querySelectorAll('.config-tabs button')] as HTMLButtonElement[];
+	expect(tabs.map((tab) => tab.textContent?.trim())).toEqual([
+		'Palabras clave',
+		'Operación',
+		'Fuentes',
+		'LLM'
+	]);
+	expect(tabs[0]?.getAttribute('aria-current')).toBe('page');
+
+	// Every section stays mounted; exactly one is visible per tab.
+	const panelIds = ['palabras-clave', 'operacion', 'fuentes', 'llm'];
+	const visible = panelIds.filter((id) => !target.querySelector(`#${id}`)?.hasAttribute('hidden'));
+	expect(visible).toEqual(['palabras-clave']);
+	// Hidden panels keep their controls mounted for the save payload.
+	expect(target.querySelector('#operacion input[name="retention_days"]')).toBeInstanceOf(
+		HTMLInputElement
+	);
+	expect(target.querySelector('#llm input[name="ai_model"]')).toBeInstanceOf(HTMLInputElement);
+
+	const savebar = target.querySelector('.config-savebar');
+	expect(savebar?.textContent).toContain('Sin cambios pendientes');
+	expect(target.querySelector('button[form="settings-save"]')).toBeInstanceOf(HTMLButtonElement);
+
+	flushSync(() => tabs[2]?.click());
+	expect(target.querySelector('#operacion')?.hasAttribute('hidden')).toBe(true);
+	expect(target.querySelector('#fuentes')?.hasAttribute('hidden')).toBe(false);
+});
+
+it('discard restores the loaded values and clears the pending flag', () => {
+	const confirm = window.confirm;
+	window.confirm = () => true;
+	try {
+		const { target } = renderPage(pageSettings({ digest_focus_person_id: 7 }), [FOCUS_PERSON]);
+		const select = target.querySelector<HTMLSelectElement>('#set-focus-person')!;
+		flushSync(() => {
+			select.value = '8';
+			select.dispatchEvent(new Event('change', { bubbles: true }));
+		});
+		expect(target.querySelector('.config-savebar')?.textContent).toContain(
+			'Cambios pendientes de guardar'
+		);
+
+		const discard = target.querySelector<HTMLButtonElement>(
+			'.config-savebar button[type="button"]'
+		)!;
+		flushSync(() => discard.click());
+
+		expect(select.value).toBe('7');
+		expect(target.querySelector('.config-savebar')?.textContent).toContain(
+			'Sin cambios pendientes'
+		);
+	} finally {
+		window.confirm = confirm;
+	}
 });
 
 it('ignores the legacy keyword focus and keeps keyword CRUD independent', () => {

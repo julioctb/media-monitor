@@ -2192,60 +2192,94 @@ table.coverage th {
 }
 
 /* ============================================================
-   Configuración: layout con nav de secciones, tabla de
-   keywords, source-grid, radio cards y provider panel.
+   Configuración: workspace v3 (mockup settings.js) — tabs con UN
+   panel visible, disclaimer y savebar; keywords, source-grid,
+   radio cards y provider panel dentro de cada pestaña.
    ============================================================ */
 .page-head {
   max-width: 75ch;
 }
-/* Scoped: settings only. The plain .layout (feed) puts the aside on the right. */
-.settings-layout {
-  display: grid;
-  grid-template-columns: 220px minmax(0, 1fr);
-  gap: 24px;
-  margin-top: 28px;
-  align-items: start;
+/* Scoped: settings only. The v3 chrome below mirrors the mockup's final
+   cascade (workspace-scoped); panel interiors keep the shared skin. */
+.config-workspace {
+  /* v3 config palette, verbatim from the mockup workspace scope. */
+  --config-surface: #fff;
+  --config-surface-soft: #f4f6f8;
+  --config-selected: #e5edf4;
+  --config-heading: #293c50;
+  --config-copy: #465668;
+  --config-border: #c7d1dc;
+  max-width: 1120px;
 }
-.section-nav {
-  align-self: start;
-  position: sticky;
-  top: 20px;
-  padding: 12px;
-  border: 1px solid var(--color-line-soft);
-  border-radius: var(--radius-panel);
-  background: #fff;
-  display: grid;
-  gap: 2px;
+.config-workspace .config-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 16px;
+  padding: 8px;
+  background: var(--config-surface);
+  border: 1px solid var(--config-border);
+  border-radius: 6px;
 }
-.section-nav a {
-  display: block;
+.config-workspace .config-tabs button {
+  flex: auto;
   min-height: 44px;
-  padding: 10px 12px;
-  border-radius: 8px;
+  padding: 10px 16px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: none;
+  color: var(--config-heading);
   font-size: 14px;
   font-weight: 600;
-  color: var(--color-ink-2);
 }
-.section-nav a:hover {
-  background: var(--color-surface);
-  color: var(--color-ink);
+.config-workspace .config-tabs button.active {
+  background: var(--config-selected);
+  border-color: #aebdcb;
+  color: var(--config-heading);
+  box-shadow: inset 0 -2px 0 var(--config-heading);
 }
-.settings-flow {
-  display: grid;
-  gap: 16px;
-  min-width: 0;
+.config-workspace > .config-disclaimer {
+  max-width: 80ch;
+  margin: 0 0 20px;
+  color: var(--config-copy);
+  font-size: 13px;
+  line-height: 1.6;
 }
-.settings-flow .panel-head {
+/* Re-hosted panel heading (was .settings-flow .panel-head): the flex
+   head layout the settings panels keep under the v3 chrome. */
+.config-workspace .panel-head {
   display: flex;
   align-items: start;
   justify-content: space-between;
   gap: 16px;
   margin-bottom: 20px;
 }
-.settings-flow .panel-head h2 {
+.config-workspace .panel-head h2 {
   margin: 0;
   font: 600 24px/1.18 var(--font-display);
   letter-spacing: -0.01em;
+}
+.config-savebar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 24px;
+  padding: 20px 0;
+  border-top: 1px solid var(--color-line);
+  color: var(--color-muted);
+  font-size: 14px;
+}
+@media (max-width: 600px) {
+  .config-workspace .config-tabs button {
+    padding: 12px;
+  }
+  .config-savebar > div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
 }
 .field-label {
   display: block;
@@ -2670,30 +2704,7 @@ table.coverage th {
   background: var(--color-surface-warm);
   padding: 16px;
 }
-.footer-actions {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 14px;
-  padding: 4px 2px;
-}
-.footer-actions .btn-primary {
-  min-width: 190px;
-}
 @media (max-width: 900px) {
-  .settings-layout {
-    grid-template-columns: 1fr;
-  }
-  .section-nav {
-    position: static;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-  }
-  .section-nav a {
-    flex: 1 1 auto;
-    text-align: center;
-  }
   .field-grid,
   .source-grid,
   .keyword-form,
@@ -4662,14 +4673,6 @@ table.coverage th {
    Page-scoped fixes only; every shared block above stays as is.
    The orphan/duplicate sweep is T11, not here.
    ============================================================ */
-
-/* /settings: the implicit single column of .settings-flow sizes to the
-   widest min-content (the focus-person select's longest option, 376px)
-   and overflows the shell on narrow viewports. Give the flow one
-   shrinkable track; children already carry min-width: 0. */
-.settings-flow {
-  grid-template-columns: minmax(0, 1fr);
-}
 
 /* /revisiones: the card list is a column track sized to min-content
    (nowrap header row) and the two-column layout kept a 86px content
