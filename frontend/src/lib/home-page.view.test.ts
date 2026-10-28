@@ -84,35 +84,29 @@ afterEach(() => {
   while (mounted.length) void unmount(mounted.pop() as never);
 });
 
-it('shows new indicators in the existing home card and detail surfaces', async () => {
-  const summary = summaryFixture();
-  const metric = { media_diversity: { identified_outlet_count: 0 }, veracity: 'not_evaluated' };
-  summary.content = { indicators_version: 1,
-    noticias: [{ title: 'Historia', event_id: 7, summary: 'Reseña íntegra.', sources: [], ...metric }],
-    tarjetas: [{ titulo: 'Historia', hecho: 'Reseña íntegra.', ...metric }] } as never;
-  const { container, text } = renderPage({ ...emptyDayData(), summary }); await tick();
-  expect(container.querySelector('.digest-tarjeta')?.textContent).toContain('Diversidad de medios: 0 medios identificados');
-  expect(container.querySelector('.daily-detail-entry')?.textContent).toContain('Veracidad no evaluada');
-  expect(text()).not.toContain('Confianza');
-});
-
 const PLACEHOLDER = "En espera de generar el resumen del día";
 
-it("keeps the daily structure with placeholders when the digest is missing", () => {
-  const { text } = renderPage(emptyDayData());
+it("shows the mockup empty panel when the day has no digest", () => {
+  const { container, text } = renderPage(emptyDayData());
 
-  // Synthesis wait state + cutoff copy under the mockup headings.
-  expect(text()).toContain("Resumen diario / BUAP");
-  expect(text()).toContain("Síntesis del día");
-  expect(text()).toContain(PLACEHOLDER);
+  // Mockup empty state: date control + panel.empty, no synthesis panel.
+  expect(container.querySelector(".daily-page .panel.empty")).toBeTruthy();
+  expect(text()).toContain("Sin información para elaborar el resumen");
+  expect(text()).toContain(
+    "No hay registros en esta fecha. La ausencia de datos no implica ausencia de incidentes."
+  );
   expect(text()).toContain("En espera del primer corte del día");
+  expect(container.querySelector(".daily-synthesis")).toBeNull();
 
-  // The daily skeleton stays in place: agenda + coverage method panels.
-  expect(text()).toContain("Agenda y plazos");
-  expect(text()).toContain("Cobertura y método");
+  // Picker disabled without recorded days (mockup: «Sin fechas con registros»).
+  const select = container.querySelector("#day-jump") as HTMLSelectElement | null;
+  expect(select?.disabled).toBe(true);
+  expect(text()).toContain("Sin fechas con registros");
 
-  // Old single-legend empty state is gone.
-  expect(text()).not.toContain("Todavía no se genera el resumen del día");
+  // No fabricated panels on an empty day.
+  expect(container.querySelector(".executive-priorities")).toBeNull();
+  expect(container.querySelector(".daily-actors")).toBeNull();
+  expect(container.querySelector(".executive-coverage")).toBeNull();
 });
 
 it("renders the narrative and hides the placeholder once the digest exists", () => {
@@ -174,22 +168,25 @@ it("renders the v3 brief as executive panels without the plain narrative block",
 
   // The brief feeds the executive panels; the promoted prose leads the synthesis.
   expect(copy).toContain("Qué requiere atención");
-  expect(copy).toContain("Qué cambió");
-  // Delta lines resolve their story against the tarjeta pool (title, not raw line).
-  expect(container.querySelector('.daily-changes')?.querySelectorAll('li').length).toBe(1);
+  expect(copy).toContain("Hasta tres asuntos");
+  // Delta lives INSIDE the cards as the «cambio» row — no standalone section.
+  expect(copy).toContain("Cambio respecto al corte anterior");
+  expect(container.querySelector(".daily-changes")).toBeNull();
   expect(copy).toContain("Narrativa editorial del día.");
-  expect(copy).toContain("Hecho uno");
   // F4: the campo key may travel, but the digest no longer renders it.
   expect(copy).not.toContain("reportes en la ventana");
+  // Tarjetas/evidencia grid left home with the sweep (evidence is inline).
+  expect(copy).not.toContain("Hecho uno");
+  expect(copy).not.toContain("Evidencia del día");
 });
 
 it("keeps the legacy narrative on v2 rows without brief keys", () => {
-  const { text } = renderPage({ ...emptyDayData(), summary: summaryFixture() });
+  const { container, text } = renderPage({ ...emptyDayData(), summary: summaryFixture() });
 
   expect(text()).toContain("Síntesis del día");
   // No brief keys: no fabricated executive panels.
+  expect(container.querySelector(".executive-priorities")).toBeNull();
   expect(text()).not.toContain("Qué requiere atención");
-  expect(text()).not.toContain("Qué cambió");
   expect(text()).not.toContain("Decisiones y acciones sugeridas");
 });
 
@@ -219,9 +216,9 @@ it("keeps the acciones section visible without actions, per the mockup anatomy",
   expect(container.querySelector(".executive-action")).toBeNull();
 });
 
-it('does not mark the waiting placeholder as unbacked', async () => {
+it('does not mark the empty-day panel as unbacked', async () => {
   const { text } = renderPage(emptyDayData()); await tick();
-  expect(text()).toContain(PLACEHOLDER);
+  expect(text()).toContain('Sin información para elaborar el resumen');
   expect(text()).not.toContain('No respaldado');
 });
 it('marks a historical narrative without removing any prose', async () => {
@@ -291,7 +288,7 @@ function v3Content(): DailySummaryContent {
         },
       ],
       ruido: [{ index: 1, categoria: 'ruido' }],
-      a_favor: [],
+      a_favor: [{ index: 0, categoria: 'a_favor', razon: 'Postura favorable documentada' }],
       vigilancia: [
         {
           persona: 'Lilia Cedillo',
@@ -383,62 +380,76 @@ describe('home daily structure (v3 mockup)', () => {
     const calendar = container.querySelector('.briefing-calendar');
     expect(calendar?.getAttribute('datetime')).toBe('2026-10-28');
     expect(calendar?.querySelector('.briefing-day')?.textContent?.trim()).toBe('28');
-    expect(calendar?.querySelector('.briefing-weekday')?.textContent?.trim()?.length ?? 0).toBeGreaterThan(2);
+    expect((calendar?.querySelector('.briefing-weekday')?.textContent?.trim() ?? '').length).toBeGreaterThan(2);
 
-    // Executive priorities: numbered cards with category badge.
+    // Priorities cap at three; the fourth pick folds into «otros asuntos».
     const priorities = [...container.querySelectorAll('.executive-priority')];
-    expect(priorities.length).toBeGreaterThanOrEqual(3);
+    expect(priorities.length).toBe(3);
     expect(priorities[0].querySelector('.daily-number')?.textContent?.trim()).toBe('01');
-    expect(priorities[0].querySelector('.source-badge')?.textContent?.trim()?.length ?? 0).toBeGreaterThan(3);
+    expect((priorities[0].querySelector('.source-badge')?.textContent?.trim() ?? '').length).toBeGreaterThan(3);
+    const other = container.querySelector('.executive-other');
+    expect(other?.querySelector('summary')?.textContent).toContain('Otros asuntos del análisis');
+    expect(other?.querySelector('summary span')?.textContent?.trim()).toBe('1');
 
-    // Parallel actions panel: mockup anatomy with per-item plazo row.
+    // Card facts: mockup copy with the delta-driven cambio row.
+    const firstCard = (priorities[0].textContent ?? '').replace(/\s+/g, ' ');
+    expect(firstCard).toContain('Por qué importa · lectura política');
+    expect(firstCard).toContain('Cambio respecto al corte anterior');
+
+    // Actions panel: mockup anatomy with per-item plazo row.
     const actions = container.querySelector('.executive-actions');
     expect(actions?.textContent).toContain('Guardar minuta y dar seguimiento');
-    expect(actions?.textContent).toContain('Si el colegiado aprueba el punto');
     expect(actions?.textContent).toContain('Plazo documentado');
     expect(actions?.textContent).toContain('No consta un plazo en los registros.');
 
-    // Delta (Qué cambió) and vigilancia map their brief rows.
-    expect(container.querySelector('.daily-changes')?.querySelectorAll('li').length).toBe(2);
-    expect(container.querySelector('[aria-labelledby="daily-vigilancia-heading"]')?.textContent)
-      .toContain('Lilia Cedillo');
-
-    // Actors: the name is the link to the person page.
+    // Actors: static non-attribution note; the name links to the person page.
+    expect(text()).toContain('Una mención no atribuye responsabilidad.');
     expect(container.querySelector('[aria-labelledby="daily-actors-heading"] a')?.getAttribute('href'))
       .toBe('/persons/4');
 
-    // Agenda deadlines keep their estado chip; coverage counts the day.
-    expect(container.querySelectorAll('.daily-deadline').length).toBe(3);
+    // Agenda: mockup daily-upcoming items with date-box and honest estado.
+    const upcoming = [...container.querySelectorAll('.daily-upcoming')];
+    expect(upcoming.length).toBe(3);
+    const firstDateBox = upcoming[0].querySelector('.date-box');
+    expect(firstDateBox?.querySelector('span')?.textContent?.trim()).toBe('OCT');
+    expect(firstDateBox?.querySelector('strong')?.textContent?.trim()).toBe('27');
+    expect(upcoming[0].textContent ?? '').toContain('Fecha detectada en publicación');
+    expect(upcoming[0].textContent ?? '').toContain('compromiso no confirmado');
+
+    // Coverage: mockup copy + veracity badge.
     const coverageSummary =
       (container.querySelector('.executive-coverage summary')?.textContent ?? '').replace(/\s+/g, ' ');
-    expect(coverageSummary).toContain('8 notas registradas');
+    expect(coverageSummary).toContain('8 publicaciones analizadas');
+    expect(container.querySelector('.daily-veracity')?.textContent?.trim()).toBe('Veracidad no evaluada');
+
+    // Surplus legacy sections are gone (v3 sweep).
+    expect(container.querySelector('.daily-changes')).toBeNull();
+    expect(container.querySelector('[aria-labelledby="daily-vigilancia-heading"]')).toBeNull();
+    expect(container.querySelector('.digest-evidencia')).toBeNull();
+    expect(text()).not.toContain('Resumen general');
   });
 
   it('offers archive days and the older-month link', () => {
     const { container } = renderPage(populatedDayData());
 
+    const picker = container.querySelector('.briefing-date-picker');
+    expect(picker?.querySelector('label')?.textContent).toContain('Cambiar fecha');
     const select = container.querySelector('#day-jump') as HTMLSelectElement | null;
+    expect(select?.disabled).toBeFalsy();
     expect(select?.querySelectorAll('option').length).toBe(2);
     expect(select?.value).toBe('2026-10-28');
 
-    const older = container.querySelector('.briefing-date-picker a.text-link');
+    const older = picker?.querySelector('a.text-link');
     expect(older?.getAttribute('href')).toContain('before=2026-09-01');
     expect(older?.textContent).toContain('ver mes anterior');
   });
 
-  it('degrades to waiting copy with an empty day, keeping the shell', () => {
-    const { container, text } = renderPage(emptyDayData());
+  it('empty day renders only the date control and the mockup empty panel', () => {
+    const { container } = renderPage(emptyDayData());
 
     expect(container.querySelector('.daily-page')).toBeTruthy();
-    expect(text()).toContain(PLACEHOLDER);
-    expect(text()).toContain('No se identifican personas en los registros de esta fecha.');
-
-    // No fabricated panels when the day has no brief.
-    expect(container.querySelector('.executive-priorities')).toBeNull();
+    expect(container.querySelector('.panel.empty')).toBeTruthy();
     expect(container.querySelector('.executive-actions')).toBeNull();
-    expect(container.querySelector('.daily-changes')).toBeNull();
-    const coverageSummary =
-      (container.querySelector('.executive-coverage summary')?.textContent ?? '').replace(/\s+/g, ' ');
-    expect(coverageSummary).toContain('— notas registradas');
+    expect(container.querySelector('.daily-actors')).toBeNull();
   });
 });

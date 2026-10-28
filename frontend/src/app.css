@@ -1513,35 +1513,6 @@ html {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
-.day-terms {
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid var(--color-line-soft);
-}
-.day-terms h3 {
-  margin: 0 0 10px;
-  color: var(--color-ink);
-  font-size: 14px;
-  line-height: 1.4;
-  font-weight: 600;
-}
-.day-terms-list {
-  display: grid;
-  gap: 10px;
-  margin: 0;
-  font-size: 14px;
-  line-height: 1.5;
-}
-.day-terms-list > div {
-  display: flex;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 2px 8px;
-}
-.day-terms-list dd {
-  margin: 0;
-  color: var(--color-muted);
-}
 
 /* --- Responsive: 1180 / 1020 / 800 / 600 --- */
 @media (max-width: 1180px) {
@@ -6073,11 +6044,6 @@ dialog.field-dialog::backdrop {
 .executive-evidence .text-link {
   justify-self: start;
 }
-.daily-brief-note {
-  margin: -16px 0 24px;
-  font-size: 12px;
-  color: var(--color-muted);
-}
 
 /* Support layout: main column + side rail. */
 .daily-layout {
@@ -6146,17 +6112,6 @@ dialog.field-dialog::backdrop {
   line-height: 1.7;
   color: var(--color-muted);
 }
-.daily-changes ul {
-  display: grid;
-  gap: 10px;
-  margin: 0;
-  padding: 0;
-  font-size: 14px;
-  line-height: 1.6;
-}
-.daily-changes li span {
-  color: var(--color-muted);
-}
 .daily-actor {
   display: grid;
   gap: 4px;
@@ -6185,20 +6140,6 @@ dialog.field-dialog::backdrop {
   font-size: 12px;
   color: var(--color-muted);
   overflow-wrap: anywhere;
-}
-.daily-deadline {
-  display: grid;
-  gap: 4px;
-  padding: 14px 0;
-  border-top: 1px solid var(--color-line);
-  justify-items: start;
-}
-.daily-deadline strong {
-  font-size: 14px;
-  line-height: 1.5;
-}
-.daily-deadline .chip {
-  justify-self: start;
 }
 .daily-empty-note {
   margin: 0;
@@ -6251,15 +6192,6 @@ dialog.field-dialog::backdrop {
   margin: 0;
   font-size: 14px;
   overflow-wrap: anywhere;
-}
-.coverage-extra h3 {
-  margin: 16px 0 0;
-  font-size: 14px;
-}
-.coverage-extra > p {
-  margin: 4px 0 0;
-  font-size: 13px;
-  color: var(--color-muted);
 }
 
 /* --- Responsive: mockup breakpoints, adapted --- */
@@ -6317,4 +6249,88 @@ dialog.field-dialog::backdrop {
   .daily-summary-row {
     margin-bottom: 20px;
   }
+}
+
+/* Home daily structure — additions per v3 mockup: empty panel, otros
+   asuntos, upcoming agenda items, veracity badge, static panel notes. */
+.daily-page .panel.empty {
+  padding: 28px 24px;
+}
+.daily-page .panel.empty h2 {
+  margin: 0 0 8px;
+  font-size: 18px;
+}
+.daily-page .panel.empty p {
+  margin: 0;
+  color: var(--color-muted);
+}
+.panel.executive-other {
+  margin-top: 16px;
+  padding: 18px 24px;
+}
+.executive-other > summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.executive-other > summary span {
+  margin-left: 8px;
+  font-weight: 400;
+  color: var(--color-muted);
+}
+.executive-other > div {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+.executive-other-item {
+  margin: 0;
+  color: var(--color-muted);
+}
+.daily-actors-note {
+  margin: 0 0 12px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--color-muted);
+}
+.daily-upcoming {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--color-border, #e3e7ec);
+}
+.daily-upcoming:last-of-type {
+  border-bottom: 0;
+}
+.daily-upcoming .date-box {
+  display: grid;
+  gap: 2px;
+  min-width: 52px;
+  padding: 8px 10px;
+  text-align: center;
+  background: var(--color-bg-soft, #f5f7f9);
+  border-radius: 10px;
+}
+.daily-upcoming .date-box span {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--color-muted);
+}
+.daily-upcoming .date-box strong {
+  font-size: 20px;
+  line-height: 1;
+}
+.daily-upcoming > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.daily-upcoming > div > strong {
+  font-size: 14px;
+}
+.daily-veracity {
+  margin: 14px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-muted);
 }

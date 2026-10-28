@@ -56,6 +56,8 @@ export interface BriefFechaView {
   cuando: string;
   /** Human label for the caducada/proxima estado; unknown values pass through. */
   estado: string;
+  /** Raw ISO date (YYYY-MM-DD) when the brief row carries one; null otherwise. */
+  fechaIso: string | null;
 }
 
 export interface TarjetaView {
@@ -282,6 +284,7 @@ export function digestV3View(
           FECHA_ESTADO_LABELS[estadoKey] ??
           textOrNull(recordFecha.estado) ??
           "Fecha",
+        fechaIso: textOrNull(recordFecha.fecha),
       });
     }
   }
