@@ -58,6 +58,7 @@
 	let menuButton: HTMLButtonElement | undefined = $state();
 	let closeButton: HTMLButtonElement | undefined = $state();
 	let panelOpen = $state(false);
+	let panelQuestion = $state('');
 	let panelPending = $state(false);
 	let panelError = $state('');
 	let panelResult: {
@@ -99,9 +100,13 @@
 
 	// The panel asks the REAL /consultas action (the same handler the page
 	// uses) and renders answer + citations in place; no navigation, no fake data.
-	const panelEnhance: SubmitFunction = () => {
+	const panelEnhance: SubmitFunction = ({ formData }) => {
+		const question = String((formData.get('question') ?? '') as string).trim();
+		panelQuestion = question;
+		panelResult = null;
 		panelPending = true;
 		panelError = '';
+		if (queryInput) queryInput.value = '';
 		return async ({ result, update }) => {
 			if (result.type === 'success') {
 				const data = (result.data ?? {}) as Record<string, unknown>;
@@ -119,7 +124,6 @@
 							})
 							.filter((c) => c.url !== '')
 					};
-					if (queryInput) queryInput.value = '';
 				}
 			} else if (result.type === 'error') {
 				panelError = 'No se pudo consultar la pregunta.';
@@ -322,19 +326,22 @@
 						{#if panelError}
 							<p class="floating-error" role="alert">{panelError}</p>
 						{/if}
-						{#if panelResult}
+						{#if panelQuestion}
 							<div class="query-question">
 								<span>Tu pregunta</span>
-								<p>{panelResult.question}</p>
+								<p>{panelQuestion}</p>
 							</div>
+							{#if panelPending}
+								<p class="thinking" role="status">Pensando…</p>
+							{/if}
 							<article class="answer">
 								<h3>Respuesta</h3>
-								<p>{panelResult.answer}</p>
+								<p>{panelResult?.answer ?? ''}</p>
 							</article>
-							{#if panelResult.citations.length > 0}
+							{#if (panelResult?.citations?.length ?? 0) > 0}
 								<div class="evidence">
 									<ul>
-										{#each panelResult.citations as citation (citation.url + citation.title)}
+										{#each panelResult?.citations ?? [] as citation (citation.url + citation.title)}
 											<li>
 												<a href={citation.url} target="_blank" rel="noopener noreferrer">
 													{citation.title ?? citation.url}
@@ -344,7 +351,7 @@
 									</ul>
 								</div>
 							{/if}
-						{:else}
+						{:else if !panelPending && !panelResult}
 						<div class="floating-query-welcome">
 							<span class="query-welcome-icon" aria-hidden="true">
 								<svg class="od-icon" viewBox="0 0 24 24"><path d={ICONS.query} /></svg>
