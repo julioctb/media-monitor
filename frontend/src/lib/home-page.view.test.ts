@@ -403,8 +403,14 @@ describe('home daily structure (v3 mockup)', () => {
 
     // Actors: static non-attribution note; the name links to the person page.
     expect(text()).toContain('Una mención no atribuye responsabilidad.');
-    expect(container.querySelector('[aria-labelledby="daily-actors-heading"] a')?.getAttribute('href'))
-      .toBe('/persons/4');
+    expect(container.querySelector('.daily-actor strong a')?.getAttribute('href')).toBe('/persons/4');
+    // Missing links (mockup affordances): panel-level directory link plus a
+    // per-actor explicit CTA to the ficha.
+    const actorsPanel = container.querySelector('.daily-actors');
+    expect(actorsPanel?.querySelector('.daily-panel-head a')?.getAttribute('href')).toBe('/persons');
+    expect(actorsPanel?.querySelector('.daily-panel-head a')?.textContent).toContain('Ver directorio');
+    const personLinks = [...(actorsPanel?.querySelectorAll('a[href="/persons/4"]') ?? [])];
+    expect(personLinks.some((a) => a.textContent?.includes('Ver ficha y menciones'))).toBe(true);
 
     // Agenda: mockup daily-upcoming items with date-box and honest estado.
     const upcoming = [...container.querySelectorAll('.daily-upcoming')];

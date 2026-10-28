@@ -6318,8 +6318,8 @@ dialog.field-dialog::backdrop {
 .daily-page .intro .intro-title {
   margin: 0;
   font-family: Georgia, 'Times New Roman', serif;
-  /* Mockup fluid scale: 26px @768 → 32.89px @1280. */
-  font-size: calc(15.67px + 1.3457vw);
+  /* Mockup scale floor: never below 26px (its own mobile computed size). */
+  font-size: clamp(26px, calc(15.67px + 1.3457vw), 32.89px);
   line-height: 1.25;
   font-weight: 700;
   color: #222b36;
@@ -6430,20 +6430,110 @@ dialog.field-dialog::backdrop {
   border-radius: 6px;
 }
 
-/* Fidelity pass — small-viewport adaptation (mockup wraps the intro row). */
-@media (max-width: 600px) {
+/* Daily responsive — ported wholesale from the mockup's own breakpoints
+   (referencia_visual/v3/.../assets/css/tailwind.css: @media 1250/1150/1024/
+   768/600). This block is the single source for daily-class media queries:
+   add breakpoint rules HERE, never as scattered one-off patches. */
+@media (max-width: 1250px) {
+  .daily-page .executive-priorities {
+    grid-template-columns: 1fr;
+  }
+  .daily-page .executive-facts {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .daily-page .executive-priority h3 {
+    max-width: 65ch;
+  }
+}
+@media (max-width: 1150px) {
+  .daily-page .daily-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .daily-page .daily-side {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 1024px) {
+  .daily-page .daily-summary-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+  }
+  /* Mockup hides the duplicated date control once the picker owns the intro. */
+  .daily-page .daily-summary-row .daily-selection {
+    display: none;
+  }
+}
+@media (max-width: 768px) {
+  .daily-page .daily-side {
+    grid-template-columns: 1fr;
+  }
+  .daily-page .daily-selection {
+    gap: 16px;
+  }
+  .daily-page .daily-date-control {
+    width: 100%;
+  }
+  .daily-page .executive-facts,
+  .daily-page .executive-action-meta {
+    grid-template-columns: 1fr;
+  }
+  .daily-page .executive-priority,
+  .daily-page .panel.executive-actions {
+    padding: 20px;
+  }
+  .daily-page .daily-synthesis {
+    margin-bottom: 24px;
+    padding-top: 0;
+  }
+  .daily-page .daily-synthesis-sources {
+    gap: 8px 16px;
+  }
+  .daily-page .daily-synthesis-sources > span {
+    flex-basis: 100%;
+  }
   .daily-page .intro {
     flex-wrap: wrap;
     align-items: flex-start;
   }
-  .daily-page .briefing-date-picker {
-    width: 100%;
-    flex-wrap: wrap;
+  .daily-page .intro .briefing-date-picker {
+    display: grid;
+    grid-template-columns: 1fr;
+    justify-items: center;
+    gap: 6px;
+    width: min(100%, 360px);
+    margin-inline: auto;
   }
-  .daily-page .briefing-date-picker select {
-    width: 100%;
-    flex: 1 1 160px;
+  .daily-page .intro .briefing-date-picker label {
+    justify-self: center;
   }
+  .daily-page .intro .briefing-date-picker select {
+    flex: none;
+    width: 100%;
+    min-width: 0;
+    text-align: center;
+    text-align-last: center;
+  }
+}
+@media (max-width: 600px) {
+  .daily-page .daily-summary-row .daily-synthesis {
+    padding: 20px 20px 0;
+  }
+  .daily-page .daily-synthesis .daily-synthesis-heading {
+    gap: 8px;
+  }
+}
+
+/* Panel heading row with a section action (mockup «Personas identificadas …
+   Ver directorio» pattern). */
+.daily-page .daily-panel-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+.daily-page .daily-panel-head h2 {
+  margin: 0;
 }
 
 /* Evidence dialog (mockup dailyEvidence pattern, campo dialog chrome). */

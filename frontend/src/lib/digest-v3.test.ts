@@ -53,6 +53,7 @@ function v3Content(): DailySummaryContent {
           when: "27 oct.",
           estado: "proxima",
           fecha: "2026-10-27",
+          source: "tribunanoticias.mx",
         },
         {
           title: "Vencido",
@@ -161,6 +162,11 @@ describe("digestV3View", () => {
       "Próxima",
       "Caducada",
       "otro",
+    ]);
+    expect(view?.fechas.map((fecha) => fecha.fuente)).toEqual([
+      "tribunanoticias.mx",
+      null,
+      null,
     ]);
     expect(view?.tarjetas[0]).toMatchObject({
       titulo: "A",

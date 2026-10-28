@@ -330,18 +330,23 @@
 				{/if}
 
 				<section class="panel daily-side-panel daily-actors" aria-labelledby="daily-actors-heading">
-					<h2 id="daily-actors-heading">Quién aparece y en qué contexto</h2>
+					<div class="daily-panel-head">
+						<h2 id="daily-actors-heading">Quién aparece y en qué contexto</h2>
+						<a class="text-link" href="/persons">Ver directorio</a>
+					</div>
 					<p class="daily-actors-note">Una mención no atribuye responsabilidad.</p>
 					{#if data.persons.length > 0}
 						{#each data.persons as person (person.id)}
 							<div class="daily-actor">
-								<!-- The name is the link: no separate «ver cobertura» CTA. -->
 								<strong><a href="/persons/{person.id}">{person.name}</a></strong>
 								<span class="daily-actor-meta">
 									{[person.role ?? person.org, `${person.mention_count} menciones`]
 										.filter(Boolean)
 										.join(' · ')}
 								</span>
+								<a class="text-link" href="/persons/{person.id}">
+									Ver ficha y menciones
+								</a>
 							</div>
 						{/each}
 					{:else}
@@ -372,6 +377,9 @@
 										<span class="daily-actor-meta">{fecha.cuando} · Fecha detectada en publicación</span>
 									{/if}
 									<span class="daily-actor-meta">Estado: {fecha.estado}; compromiso no confirmado</span>
+									{#if fecha.fuente}
+										<span class="daily-actor-meta">Fuente: {fecha.fuente}</span>
+									{/if}
 								</div>
 							</div>
 						{/each}

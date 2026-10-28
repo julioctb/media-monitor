@@ -990,6 +990,8 @@ export interface DigestBriefFecha {
   estado?: string | null;
   /** ISO date the label was parsed to. */
   fecha?: string | null;
+  /** Source named by the narrator agenda row; absent rows render no label. */
+  source?: string | null;
 }
 
 /** Evidence card for one digest story; mirrors the aligned noticia. */

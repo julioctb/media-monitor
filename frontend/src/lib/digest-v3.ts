@@ -58,6 +58,8 @@ export interface BriefFechaView {
   estado: string;
   /** Raw ISO date (YYYY-MM-DD) when the brief row carries one; null otherwise. */
   fechaIso: string | null;
+  /** Source named by the brief row (narrator agenda `source`); null when absent. */
+  fuente: string | null;
 }
 
 export interface TarjetaView {
@@ -285,6 +287,7 @@ export function digestV3View(
           textOrNull(recordFecha.estado) ??
           "Fecha",
         fechaIso: textOrNull(recordFecha.fecha),
+        fuente: textOrNull(recordFecha.source),
       });
     }
   }
