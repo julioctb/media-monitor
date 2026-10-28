@@ -30,8 +30,8 @@ Route: inline unless noted. Phase order confirmed by the T0 map; one work-unit c
 - [x] T5 [S5] Eventos view — restyle v3: intro `events-intro` + segmented de alcance, grid `events-list`, tarjeta `event-card` v3 (mini-id `EVENTO #id`, headline link, summary, footer de conteos); detalle /events/[id] con badges fuente/tono del kit en menciones. Slots mockup sin datos en la app omitidos (prioridad, tipos de fuente, seguir, búsqueda).
 - [x] T6 [S5] Agenda view — restyle v3 (L8): panel calendar + skin schedule-row; mecanismo de calendario propio preservado.
 - [x] T7 [S5] Personas view — restyle v3 (L9): panel directorio + ficha con timeline por día.
-- [ ] T8 [S5] Detalle (dialog) + query launcher: presentation over EXISTING data/routes only; report any capability gap instead of inventing it.
-- [ ] T9 [S5] Remaining pages under the new shell (home digest, campo, consultas, stats, settings, revisiones, saved-searches, events/[id], persons/[id]): compatibility pass only.
+- [x] T8 [S5] Launcher consultas fijo → /consultas (hidden en la propia ruta); panel flotante/detail-dialog/toast OMITIDOS sin consumidor real (decisión L10). Commit en curso.
+- [ ] T9 [S5] Remaining pages under the new shell (home digest, campo, consultas, stats, settings, revisiones, saved-searches, events/[id], persons/[id]): compatibilidad, no rediseño estructural.
 - [ ] T10 [S5] Login route — OPEN DECISION: the app has no auth by design (dev phase); visual-only route vs skip → ask Julio when reached.
 - [ ] T11 [S5] Close-out: orphan sweep, accidental-duplicate selector sweep, per-screen structural verification vs mockup DOM, responsive/overflow probes, full gates, delivery report [S9 S10].
 

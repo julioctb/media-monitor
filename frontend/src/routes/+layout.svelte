@@ -217,3 +217,10 @@
 		</main>
 	</div>
 </div>
+
+{#if page.url.pathname !== '/consultas'}
+	<a class="query-launcher" href="/consultas">
+		<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true"><path d={ICONS.query} /></svg>
+		Consultas
+	</a>
+{/if}

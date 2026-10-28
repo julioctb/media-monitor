@@ -609,6 +609,37 @@ h4 {
   background: var(--tone-negative-bg);
 }
 
+/* Query launcher v3 — persistent consultas access. The floating panel,
+   detail dialog and toast have no real consumer in the app yet: omitted
+   (see odd/tasks/panel-v3-ui.md) rather than shipped dead. */
+.query-launcher {
+  position: fixed;
+  right: var(--query-edge);
+  bottom: calc(var(--query-edge) + env(safe-area-inset-bottom, 0px));
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: var(--query-launcher-height);
+  padding: 12px 20px;
+  border: 1px solid var(--color-ink);
+  border-radius: 28px;
+  background: var(--color-ink);
+  color: var(--color-surface-warm);
+  box-shadow: var(--query-shadow);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+@media (hover: hover) {
+  .query-launcher:hover {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+    color: var(--color-surface-warm);
+  }
+}
+
 /* --- Page intro: titles/leads are page-level --- */
 .page-title {
   margin: 0 0 8px;
