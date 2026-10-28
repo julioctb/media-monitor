@@ -190,6 +190,33 @@ it("keeps the legacy narrative on v2 rows without brief keys", () => {
   // No brief keys: no fabricated executive panels.
   expect(text()).not.toContain("Qué requiere atención");
   expect(text()).not.toContain("Qué cambió");
+  expect(text()).not.toContain("Decisiones y acciones sugeridas");
+});
+
+it("keeps the acciones section visible without actions, per the mockup anatomy", () => {
+  const noActionSummary: DailySummary = {
+    ...summaryFixture(),
+    content: {
+      ...summaryFixture().content,
+      brief: {
+        headline: "Narrativa editorial del día.",
+        delta: ["Nueva historia: A"],
+        decisiones: [{ index: 0, categoria: "decision", razon: "Impacto" }],
+        ruido: [],
+        a_favor: [],
+        fechas: [],
+      },
+      tarjetas: [],
+      campo: [],
+    } as never,
+  };
+  const { container } = renderPage({ ...emptyDayData(), summary: noActionSummary });
+
+  // The section is first-class mockup anatomy: present with an honest note.
+  const section = container.querySelector(".executive-actions");
+  expect(section).toBeTruthy();
+  expect(section?.textContent).toContain("Sin acciones sugeridas en el corte de este día.");
+  expect(container.querySelector(".executive-action")).toBeNull();
 });
 
 it('does not mark the waiting placeholder as unbacked', async () => {
@@ -364,10 +391,12 @@ describe('home daily structure (v3 mockup)', () => {
     expect(priorities[0].querySelector('.daily-number')?.textContent?.trim()).toBe('01');
     expect(priorities[0].querySelector('.source-badge')?.textContent?.trim()?.length ?? 0).toBeGreaterThan(3);
 
-    // Parallel actions panel only lists picks with an action/condition.
+    // Parallel actions panel: mockup anatomy with per-item plazo row.
     const actions = container.querySelector('.executive-actions');
     expect(actions?.textContent).toContain('Guardar minuta y dar seguimiento');
     expect(actions?.textContent).toContain('Si el colegiado aprueba el punto');
+    expect(actions?.textContent).toContain('Plazo documentado');
+    expect(actions?.textContent).toContain('No consta un plazo en los registros.');
 
     // Delta (Qué cambió) and vigilancia map their brief rows.
     expect(container.querySelector('.daily-changes')?.querySelectorAll('li').length).toBe(2);

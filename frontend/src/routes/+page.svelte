@@ -266,28 +266,44 @@
 	<!-- Mockup daily-layout: actions/changes/people main column + agenda/coverage side. -->
 	<div class="daily-layout executive-support">
 		<div class="daily-main">
-			{#if acciones.length > 0}
+			{#if view}
 				<section class="panel executive-actions" aria-labelledby="executive-actions-heading">
 					<h2 id="executive-actions-heading">Decisiones y acciones sugeridas</h2>
-					<p>Propuestas de seguimiento; no decisiones aprobadas ni verificación de hechos.</p>
-					{#each acciones as pick, i (`accion-${i}`)}
-						<article class="executive-action">
-							<h3>{pick.titulo}</h3>
-							{#if pick.accionSugerida}
-								<p>{pick.accionSugerida}</p>
-								<DigestEvidence context={evidenceContext} request={entryEvidence(pick, 'accion_sugerida')} />
-							{/if}
-							{#if pick.condicion}
+					<p>Propuestas de seguimiento, no decisiones aprobadas ni verificación de hechos.</p>
+					{#if acciones.length > 0}
+						{#each acciones as pick, i (`accion-${i}`)}
+							<article class="executive-action">
+								<h3>{pick.titulo}</h3>
+								{#if pick.accionSugerida}
+									<p>{pick.accionSugerida}</p>
+									<DigestEvidence
+										context={evidenceContext}
+										request={entryEvidence(pick, 'accion_sugerida')}
+									/>
+								{/if}
 								<dl class="executive-action-meta">
+									{#if pick.condicion}
+										<div>
+											<dt>Condición para actuar</dt>
+											<dd>{pick.condicion}</dd>
+										</div>
+									{/if}
 									<div>
-										<dt>Condición para actuar</dt>
-										<dd>{pick.condicion}</dd>
+										<dt>Plazo documentado</dt>
+										<dd>No consta un plazo en los registros.</dd>
 									</div>
 								</dl>
-								<DigestEvidence context={evidenceContext} request={entryEvidence(pick, 'condicion')} />
-							{/if}
-						</article>
-					{/each}
+								{#if pick.condicion}
+									<DigestEvidence
+										context={evidenceContext}
+										request={entryEvidence(pick, 'condicion')}
+									/>
+								{/if}
+							</article>
+						{/each}
+					{:else}
+						<p class="daily-empty-note">Sin acciones sugeridas en el corte de este día.</p>
+					{/if}
 				</section>
 			{/if}
 
