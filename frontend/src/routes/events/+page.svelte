@@ -22,19 +22,16 @@
 	<title>Eventos | Media Monitor</title>
 </svelte:head>
 
-<header class="flex flex-wrap items-end justify-between gap-4">
+<header class="events-intro">
 	<div>
 		<h1 class="page-title">Eventos</h1>
-		<p class="lead">
-			Cada evento agrupa las notas que cubren el mismo hecho, aunque sea en distintos medios. El
-			<span class="font-medium">feed</span> muestra cada nota individual tal como entró. La vista
-			<span class="font-medium">Con eco de medios</span> muestra solo los hechos que dos o más
-			medios cubrieron — la cobertura merece seguimiento; los eventos con una sola nota, que son
-			repetidos del feed, quedan disponibles en <span class="font-medium">Todas</span>.
+		<p>
+			Hechos agrupados a partir de las menciones captadas. «Con eco de medios» reúne los que
+			dos o más fuentes cubrieron; «Todas» añade los que tienen una sola nota.
 		</p>
 	</div>
 
-	<!-- Scope toggle -->
+	<!-- Scope toggle: eco = cobertura de 2+ medios; el resto vive en Todas. -->
 	<div class="segmented" role="group" aria-label="Alcance de eventos">
 		<a href={scopeHref('eco')} aria-current={data.scope === 'eco' ? 'page' : undefined}>
 			Con eco de medios
@@ -46,28 +43,25 @@
 </header>
 
 {#if data.events.length === 0}
-	<div class="empty mt-6">
+	<div class="events-empty">
 		{#if data.scope === 'eco'}
-			<p class="font-medium text-ink">Ningún evento con eco de varios medios todavía.</p>
-			<p class="mt-1">
-				Cuando dos o más notas cubran el mismo hecho, aparecerá aquí. También
-				puedes ver
+			<h3>Ningún evento con eco de varios medios todavía.</h3>
+			<p>
+				Cuando dos o más notas cubran el mismo hecho, aparecerá aquí. También puedes ver
 				<a href={scopeHref('todas')} class="underline hover:text-ink">todas</a>.
 			</p>
 		{:else}
-			<p class="font-medium text-ink">Sin eventos registrados todavía.</p>
-			<p class="mt-1">
-				Los eventos aparecen cuando la ingesta agrupa menciones del mismo suceso.
-			</p>
+			<h3>Sin eventos registrados todavía.</h3>
+			<p>Los eventos aparecen cuando la ingesta agrupa menciones del mismo suceso.</p>
 		{/if}
 	</div>
 {:else}
-	<p class="mt-4 text-sm text-muted" role="status" aria-live="polite">
+	<p class="text-xs text-muted tabular-nums" role="status" aria-live="polite">
 		{data.events.length}
 		{data.scope === 'eco' ? 'historias con cobertura de varios medios' : 'eventos'} ·
 		{ecoCount} con eco de 2+ medios
 	</p>
-	<ul class="events" aria-label="Eventos">
+	<ul class="events-list" aria-label="Eventos">
 		{#each data.events as event (event.id)}
 			<li>
 				<EventCard {event} />

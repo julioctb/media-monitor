@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { formatDisplayDateTime } from '$lib/format';
 	import type { EventSummary } from '$lib/api';
 
 	interface Props {
@@ -9,27 +8,28 @@
 	let { event }: Props = $props();
 </script>
 
+<!-- v3 event card («Panel de monitoreo», eventCard): mini-id, headline
+	link, optional summary, counts footer. Fields the app does not track
+	(priority, per-source types, follow) are intentionally absent. -->
 <article class="event-card" aria-labelledby={`event-${event.id}-title`}>
-	<p class="event-meta">
-		<span>{`${event.mention_count} ${event.mention_count === 1 ? 'mención' : 'menciones'}`}</span>
-		<span>{`${event.source_count} ${event.source_count === 1 ? 'fuente' : 'fuentes'}`}</span>
-		<span>
-			Última detección:
-			<time datetime={event.last_seen_at}>{formatDisplayDateTime(event.last_seen_at)}</time>
-		</span>
-	</p>
+	<div class="mini-id">
+		<span>EVENTO #{event.id}</span>
+	</div>
 
-	<h2 id={`event-${event.id}-title`}>
-		<!-- Hover underlines the title only, never the whole card. -->
+	<h3 id={`event-${event.id}-title`} class="headline">
 		<a href={`/events/${event.id}`}>{event.title}</a>
-	</h2>
+	</h3>
 
 	{#if event.summary?.trim()}
 		<p class="event-summary">{event.summary}</p>
 	{/if}
 
-	<p class="event-first">
-		Primera detección:
-		<time datetime={event.first_seen_at}>{formatDisplayDateTime(event.first_seen_at)}</time>
-	</p>
+	<div class="event-card-footer">
+		<span class="text-xs text-muted tabular-nums">
+			{event.mention_count}
+			{event.mention_count === 1 ? 'mención' : 'menciones'} ·
+			{event.source_count}
+			{event.source_count === 1 ? 'fuente' : 'fuentes'}
+		</span>
+	</div>
 </article>

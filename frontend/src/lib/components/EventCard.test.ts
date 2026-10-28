@@ -27,6 +27,12 @@ function renderCard(event: EventSummary): { card: HTMLElement } {
 	return { card: target.querySelector('article') as HTMLElement };
 }
 
+function footerText(card: HTMLElement): string {
+	return (card.querySelector('.event-card-footer')?.textContent ?? '')
+		.replace(/\s+/g, ' ')
+		.trim();
+}
+
 afterEach(() => {
 	for (const { instance } of mounted) unmount(instance as never);
 	mounted.length = 0;
@@ -34,26 +40,36 @@ afterEach(() => {
 });
 
 describe('EventCard', () => {
+	it('renders the v3 anatomy: mini-id, headline link and footer', () => {
+		const { card } = renderCard(eventFixture());
+
+		expect(card.classList.contains('event-card')).toBe(true);
+		expect(card.querySelector('.mini-id')?.textContent).toContain('EVENTO #5');
+		const title = card.querySelector('h3.headline a') as HTMLAnchorElement | null;
+		expect(title).not.toBeNull();
+		expect(card.querySelector('.event-card-footer')).not.toBeNull();
+		// The v3 card carries no timestamp row; dates live on the detail page.
+		expect(card.querySelector('time')).toBeNull();
+	});
+
 	it('links the title to the event detail page', () => {
 		const { card } = renderCard(eventFixture());
 
-		const link = card.querySelector('h2 a[href="/events/5"]') as HTMLAnchorElement;
+		const link = card.querySelector('h3 a[href="/events/5"]') as HTMLAnchorElement;
 		expect(link).not.toBeNull();
 		expect(link.textContent).toContain('Anuncio de inversión');
 	});
 
-	it('shows mention and source counts', () => {
+	it('shows mention and source counts in the footer', () => {
 		const { card } = renderCard(eventFixture());
 
-		expect(card.textContent).toContain('4 menciones');
-		expect(card.textContent).toContain('2 fuentes');
+		expect(footerText(card)).toBe('4 menciones · 2 fuentes');
 	});
 
 	it('uses singular wording for a lone mention', () => {
 		const { card } = renderCard(eventFixture({ mention_count: 1, source_count: 1 }));
 
-		expect(card.textContent).toContain('1 mención');
-		expect(card.textContent).toContain('1 fuente');
+		expect(footerText(card)).toBe('1 mención · 1 fuente');
 	});
 
 	it('renders the summary when present', () => {
@@ -66,14 +82,5 @@ describe('EventCard', () => {
 		const { card } = renderCard(eventFixture({ summary: null }));
 
 		expect(card.querySelector('p.event-summary')).toBeNull();
-	});
-
-	it('timestamps first and last sight', () => {
-		const { card } = renderCard(eventFixture());
-
-		const times = card.querySelectorAll('time');
-		const datetimes = Array.from(times).map((t) => t.getAttribute('datetime'));
-		expect(datetimes).toContain('2026-10-01T08:00:00Z');
-		expect(datetimes).toContain('2026-10-02T17:30:00Z');
 	});
 });

@@ -586,6 +586,29 @@ h4 {
   --od-icon-size: 13px;
 }
 
+/* Tone state pill (mockup .tone-badge): shared by feed meta rows and
+   the event-detail mention list; the :root --tone-*-bg mixes stay the
+   single color source. Unclassified keeps the neutral base. */
+.tone-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  border: 1px solid var(--color-line);
+  border-radius: 5px;
+  background: var(--color-surface);
+  color: var(--color-ink-2);
+  font-size: 11px;
+  line-height: 1.3;
+}
+.tone-badge.tone-positive {
+  color: color-mix(in oklch, var(--color-success) 72%, var(--color-ink));
+  background: var(--tone-positive-bg);
+}
+.tone-badge.tone-negative {
+  color: color-mix(in oklch, var(--color-danger) 72%, var(--color-ink));
+  background: var(--tone-negative-bg);
+}
+
 /* --- Page intro: titles/leads are page-level --- */
 .page-title {
   margin: 0 0 8px;
@@ -1565,79 +1588,8 @@ html {
    Events (eventos / detalle-evento) and actor timeline
    (detalle-actor) mockups.
    ============================================================ */
-.events {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-  list-style: none;
-  margin: 16px 0 0;
-  padding: 0;
-}
-.event-card {
-  position: relative;
-  height: 100%;
-  padding: 23px 26px;
-  border: 1px solid var(--color-line);
-  border-radius: 18px;
-  background: #fff;
-}
-.event-card:focus-within {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 3px;
-}
-.event-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 10px;
-  margin: 0 0 12px;
-  color: var(--color-ink-2);
-  font-size: 14px;
-  font-variant-numeric: tabular-nums;
-}
-.event-meta span:not(:last-child)::after {
-  content: "·";
-  margin-left: 10px;
-  color: var(--color-meta);
-}
-.event-card h2 {
-  margin: 0 0 10px;
-  font-size: 21px;
-  font-weight: 600;
-  line-height: 1.3;
-  letter-spacing: -0.015em;
-}
-.event-card h2 a {
-  color: var(--color-ink);
-}
-/* Whole card clickable; hover underlines the title only. */
-.event-card h2 a:hover {
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-.event-card h2 a::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-}
-.event-summary {
-  margin: 0;
-  color: var(--color-ink-2);
-  font-size: 14px;
-  line-height: 1.5;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
-  overflow: hidden;
-}
-.event-first {
-  margin: 16px 0 0;
-  color: var(--color-muted);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-}
-
-/* Event detail: bare sections, coverage table, mention list. */
+/* Event detail: bare sections, coverage table, mention list. The v3
+   list card (.event-card) lives in the events v3 block at the end. */
 .block {
   margin-top: 38px;
 }
@@ -1801,12 +1753,6 @@ table.coverage th {
 }
 
 @media (max-width: 900px) {
-  .events {
-    grid-template-columns: 1fr;
-  }
-  .event-card {
-    padding: 20px;
-  }
   .timeline .mention {
     padding: 17px;
   }
@@ -4067,5 +4013,107 @@ table.coverage th {
   }
   .keyword-chip:hover {
     border-color: var(--color-meta);
+  }
+}
+
+/* ============================================================
+   Events view v3 — «Panel de monitoreo informativo».
+   Ported from referencia_visual/v3/Panel-de-monitoreo-informativo
+   (app.js eventView/eventCard + late .events-* block of styles.css).
+   Card anatomy: mini-id EVENTO #id, headline link (shares .headline),
+   summary, counts over a footer rule. Mockup slots without app data,
+   omitted by design: priority chip, per-source type badges, follow
+   button, search box; the demo note and seguimiento grouping have no
+   persisted equivalent. Breakpoints 768 / 480 + hover (title hover
+   rides the shared .headline a:hover rule above).
+   ============================================================ */
+.events-intro {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 24px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--color-line);
+}
+.events-intro h1 {
+  margin: 0;
+}
+.events-intro p {
+  margin: 0;
+  max-width: 75ch;
+  color: var(--color-muted);
+  font-size: 14px;
+}
+.events-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  margin: 20px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.event-card {
+  min-width: 0;
+  padding: 24px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-panel);
+  background: #fff;
+}
+.event-card h3 {
+  margin: 12px 0;
+}
+.event-summary {
+  margin: 0;
+  color: var(--color-ink-2);
+  font-size: 13px;
+}
+.mini-id {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 0 5px;
+  color: var(--color-muted);
+  font-size: 10px;
+}
+.event-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-line);
+}
+.events-empty {
+  padding: 48px 24px;
+  color: var(--color-muted);
+  text-align: center;
+}
+.events-empty h3 {
+  color: var(--color-ink);
+}
+
+/* --- Responsive: mockup breakpoints 768 / 480 --- */
+@media (max-width: 768px) {
+  .events-intro {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  .events-intro p {
+    font-size: 13px;
+  }
+  .events-list {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 480px) {
+  .event-card {
+    padding: 20px;
+  }
+  .event-card-footer {
+    flex-wrap: wrap;
   }
 }

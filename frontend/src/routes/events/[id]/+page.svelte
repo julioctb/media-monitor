@@ -112,8 +112,10 @@
 			<ol class="list" aria-label="Menciones del evento">
 				{#each event.mentions as mention (mention.id)}
 					<li class="mention">
-						<span class="tag">{sourceLabel(mention.source)}</span>
-						<span class={`tag${mention.sentiment ? ` tone ${mention.sentiment}` : ''}`}>
+						<span class="source-badge">{sourceLabel(mention.source)}</span>
+						<span
+							class={`tone-badge${mention.sentiment ? ` tone-${mention.sentiment}` : ''}`}
+						>
 							{mention.sentiment ? sentimentLabel(mention.sentiment) : sentimentLabel(null)}
 						</span>
 						<p class="mention-title">
