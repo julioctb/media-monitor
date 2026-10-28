@@ -1594,7 +1594,7 @@ html {
   margin-top: 38px;
 }
 .block > h2,
-.timeline-section > h2 {
+.person-timeline > h2 {
   margin: 0 0 16px;
   font-size: 21px;
   font-weight: 600;
@@ -1697,65 +1697,13 @@ table.coverage th {
   text-underline-offset: 3px;
 }
 
-/* Actor timeline: mention cards. */
-.timeline-section {
-  margin-top: 36px;
-}
-.timeline {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 14px;
-}
-.timeline .mention {
-  padding: 20px 24px;
-  border: 1px solid var(--color-line-soft);
-  border-radius: 18px;
-  background: #fff;
-}
-.mention-top {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-bottom: 9px;
-}
-.timeline .mention time {
-  margin-left: 4px;
-}
-.timeline .mention h3 {
-  margin: 0;
-  font-size: 19px;
-  font-weight: 600;
-  line-height: 1.35;
-}
-.mention-role {
-  margin: 7px 0 0;
-  color: var(--color-ink-2);
-  font-size: 14px;
-}
+/* Excerpt: quoted snippet inside cards (shared with persons v3 detail). */
 .excerpt {
   margin: 11px 0 0;
   padding-left: 14px;
   border-left: 2px solid var(--color-line-soft);
   color: var(--color-ink-2);
   font-size: 14px;
-}
-.event-ref {
-  margin: 11px 0 0;
-  color: var(--color-ink-2);
-  font-size: 14px;
-}
-.event-ref strong {
-  font-weight: 600;
-  color: var(--color-ink);
-}
-
-@media (max-width: 900px) {
-  .timeline .mention {
-    padding: 17px;
-  }
 }
 
 /* ============================================================
@@ -4181,5 +4129,423 @@ table.coverage th {
   }
   .form-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ============================================================
+   Persons view v3 — «Panel de monitoreo informativo».
+   Ported from the directory (people) view of the v3 reference
+   (app.js peopleView / directoryDetail; final cascade of
+   styles.css → tailwind.css). Product copy prevails over the
+   mockup: the page says «Actores» (mockup «Personajes») and
+   keeps the fixed relevance order — sin toggle de vista, sin
+   selector de orden, sin filtros avanzados (la app tiene una
+   sola búsqueda). Slots del mockup sin dato en la app,
+   omitidos: seguimiento (localStorage), identidad por validar /
+   posibles homónimos, paginación de tabla (resultado único),
+   details «cómo se organiza», chips de fuente por celda.
+   Extras de la app preservados: columnas Cargo/Institución,
+   línea de alias, conteos por tono, rol en la mención, link a
+   evento. Breakpoints 768 / 600 / 480 + hover.
+   ============================================================ */
+.persons-intro p {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 14px;
+}
+.directory-panel {
+  margin-top: 24px;
+  border: 1px solid var(--color-line-soft);
+  border-radius: var(--radius-panel);
+  background: #fff;
+  overflow: hidden;
+  box-shadow: 0 8px 28px rgba(36, 50, 65, 0.04);
+}
+.directory-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 28px 28px 20px;
+}
+.directory-header h2 {
+  margin: 0 0 4px;
+  font: 700 21px / 1.4 var(--font-display);
+  color: var(--color-ink);
+}
+.directory-header p {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 14px;
+}
+.person-search {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  width: min(100%, 380px);
+}
+.person-search .search {
+  background: #fff;
+}
+.directory-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+.directory-table {
+  width: 100%;
+  min-width: 820px;
+  border-collapse: collapse;
+  table-layout: fixed;
+  text-align: left;
+  font-size: 14px;
+}
+.directory-table th {
+  padding: 14px 18px;
+  border-block: 1px solid var(--color-line);
+  background: var(--color-surface);
+  color: var(--color-ink-2);
+  font-size: 12px;
+  font-weight: 600;
+}
+.directory-table th:first-child {
+  width: 30%;
+}
+.directory-table th:nth-child(2) {
+  width: 16%;
+}
+.directory-table th:nth-child(3) {
+  width: 12%;
+}
+.directory-table th:nth-child(4) {
+  width: 22%;
+}
+.directory-table th:nth-child(5) {
+  width: 20%;
+}
+.directory-table td {
+  padding: 16px 18px;
+  border-top: 0;
+  border-bottom: 1px solid var(--color-line);
+  color: var(--color-ink);
+  vertical-align: middle;
+  overflow-wrap: anywhere;
+}
+.directory-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+.directory-person-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.directory-monogram {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--color-surface);
+  color: var(--color-accent);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.directory-person-copy {
+  min-width: 0;
+}
+.directory-name {
+  display: block;
+  color: var(--color-ink);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.45;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.person-aliases {
+  margin: 4px 0 0;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+.person-empty {
+  margin: 24px 28px 28px;
+}
+.directory-disclaimer {
+  margin: 16px 0 0;
+  color: var(--color-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* --- /persons/[id]: ficha --- */
+.person-head {
+  margin: 16px 0 24px;
+}
+.person-head .eyebrow {
+  margin: 0 0 6px;
+}
+.person-head .person-aliases {
+  margin: 6px 0 0;
+}
+.directory-detail-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 24px 0;
+}
+.directory-detail-meta dt {
+  color: var(--color-muted);
+  font-size: 12px;
+}
+.directory-detail-meta dd {
+  margin: 4px 0 0;
+  font-size: 14px;
+}
+.person-timeline {
+  margin-top: 4px;
+}
+.mention-timeline {
+  margin-top: 8px;
+}
+.mention-day {
+  margin: 24px 0;
+}
+.mention-day-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 0 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-line);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.mention-day-title span {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--color-muted);
+}
+.mention-timeline-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.mention-timeline-item {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 16px;
+  padding-bottom: 24px;
+}
+.mention-timeline-item:last-child {
+  padding-bottom: 0;
+}
+.mention-timeline-stamp {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.mention-timeline-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-top: 8px;
+  border-radius: 50%;
+  background: var(--color-accent);
+}
+.mention-timeline-stamp::after {
+  content: '';
+  display: block;
+  flex: 1;
+  width: 1px;
+  min-height: 24px;
+  background: var(--color-line);
+}
+.mention-timeline-item:last-child .mention-timeline-stamp::after {
+  display: none;
+}
+.mention-timeline-content {
+  min-width: 0;
+}
+.mention-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.mention-timeline-content h4 {
+  margin: 8px 0;
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.mention-timeline-content h4 a {
+  color: var(--color-ink);
+  text-decoration: none;
+}
+.mention-role {
+  margin: 8px 0 0;
+  color: var(--color-ink-2);
+  font-size: 13px;
+}
+.directory-quote {
+  margin: 12px 0;
+  padding: 16px;
+  border-radius: 8px;
+  background: var(--color-surface);
+  font-size: 14px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.event-ref {
+  margin: 11px 0 0;
+  color: var(--color-ink-2);
+  font-size: 13px;
+}
+.event-ref strong {
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+/* Responsive del mockup: 768 / 600 / 480 + hover. */
+@media (hover: hover) {
+  .directory-name:hover {
+    color: var(--color-accent);
+    text-decoration: underline;
+  }
+  .directory-table tbody tr:hover {
+    background: var(--color-surface);
+  }
+  .mention-timeline-content h4 a:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+@media (max-width: 768px) {
+  .directory-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+    padding: 20px 20px 16px;
+  }
+  .person-search {
+    width: 100%;
+  }
+  .directory-table {
+    min-width: 0;
+  }
+  .directory-table thead {
+    position: absolute;
+    clip: rect(0, 0, 0, 0);
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+  }
+  .directory-table {
+    display: block;
+  }
+  .directory-table tbody {
+    display: grid;
+    gap: 8px;
+    padding: 0 20px 20px;
+  }
+  .directory-table tbody tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 12px;
+    padding: 12px;
+    border: 1px solid var(--color-line);
+    border-radius: 10px;
+    background: #fff;
+    box-shadow: 0 3px 12px rgba(36, 50, 65, 0.03);
+  }
+  .directory-table td {
+    display: block;
+    padding: 0;
+    border: 0;
+  }
+  .directory-table td::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 2px;
+    color: var(--color-muted);
+    font-size: 11px;
+  }
+  .directory-table td:first-child::before {
+    display: none;
+  }
+  .directory-table tbody td:first-child {
+    order: 1;
+    grid-column: 1 / -1;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--color-line);
+  }
+  .directory-table tbody td:nth-child(2) {
+    order: 2;
+  }
+  .directory-table tbody td:nth-child(3) {
+    order: 3;
+  }
+  .directory-table tbody td:nth-child(5) {
+    order: 4;
+    grid-column: 1 / -1;
+  }
+  .directory-table tbody td:nth-child(4) {
+    order: 5;
+    grid-column: 1 / -1;
+  }
+  .directory-table tbody .directory-person-cell {
+    gap: 10px;
+  }
+  .directory-table tbody .directory-monogram {
+    width: 36px;
+    height: 36px;
+  }
+  .directory-table tbody .directory-name {
+    min-height: 44px;
+  }
+  .person-empty {
+    margin: 24px 20px;
+  }
+}
+@media (max-width: 600px) {
+  .directory-header {
+    padding: 20px 16px 16px;
+  }
+  .directory-table tbody {
+    padding: 0 16px 16px;
+  }
+  .directory-table tbody tr {
+    padding: 16px;
+  }
+  .directory-table tbody td:nth-child(4),
+  .directory-table tbody td:nth-child(5) {
+    grid-column: auto;
+  }
+  .directory-detail-meta {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 480px) {
+  .mention-timeline-item {
+    grid-template-columns: 40px minmax(0, 1fr);
+    gap: 8px;
+  }
+  .mention-timeline-content .directory-quote {
+    padding: 12px;
+  }
+  .mention-day-title span {
+    display: block;
+    width: 100%;
   }
 }

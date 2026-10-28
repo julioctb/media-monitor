@@ -267,6 +267,17 @@ export function zonedDayBounds(
 	return { since: `${dayIso}T00:00:00${offset}`, until: `${dayIso}T23:59:59${offset}` };
 }
 
+/**
+ * Calendar day (YYYY-MM-DD) of a timestamp in the display timezone —
+ * the group-by-day key for timeline listings; never the UTC date.
+ */
+export function displayDayKey(value: string | null | undefined): string {
+	if (!value) return '';
+	const date = new Date(value);
+	if (Number.isNaN(date.getTime())) return '';
+	return new Intl.DateTimeFormat('en-CA', { timeZone: DISPLAY_TIMEZONE }).format(date);
+}
+
 /** HH:MM in the display timezone; raw string when unparseable, '—' when absent. */
 export function formatDisplayTime(value: string | null | undefined): string {
 	if (!value) return '—';
