@@ -443,6 +443,27 @@ describe('home daily structure (v3 mockup)', () => {
     expect(older?.textContent).toContain('ver mes anterior');
   });
 
+  it('opens the evidence dialog from a priority card', async () => {
+    const { container } = renderPage(populatedDayData());
+
+    const button = container.querySelector<HTMLButtonElement>(
+      '.executive-priority .executive-evidence button'
+    );
+    expect(button?.textContent).toContain('Ver fuentes y detalle');
+    button?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    await tick();
+
+    const dialog = container.querySelector('dialog.daily-evidence-dialog');
+    expect(dialog).toBeTruthy();
+    const text = (dialog?.textContent ?? '').replace(/\s+/g, ' ');
+    expect(text).toContain('Materiales del corte actual · 0');
+    expect(text).toContain('No hay fuentes vinculadas a esta entrada en el corte.');
+    expect(text).toContain('Lectura política · interpretación');
+    expect(text).toContain('No respaldada como hecho.');
+    expect(text).toContain('Veracidad no evaluada');
+  });
+
   it('empty day renders only the date control and the mockup empty panel', () => {
     const { container } = renderPage(emptyDayData());
 

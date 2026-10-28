@@ -6445,3 +6445,88 @@ dialog.field-dialog::backdrop {
     flex: 1 1 160px;
   }
 }
+
+/* Evidence dialog (mockup dailyEvidence pattern, campo dialog chrome). */
+dialog.daily-evidence-dialog {
+  width: min(560px, calc(100vw - 32px));
+  max-height: min(640px, calc(100vh - 48px));
+  padding: 0;
+  border: 1px solid #dce1e6;
+  border-radius: 12px;
+  overflow: hidden;
+  color: #222b36;
+}
+dialog.daily-evidence-dialog::backdrop {
+  background: rgba(34, 43, 54, 0.35);
+}
+.daily-evidence-dialog .dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 20px;
+  border-bottom: 1px solid #dce1e6;
+}
+.daily-evidence-dialog .dialog-body {
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+  overflow-y: auto;
+}
+.daily-evidence-dialog .dialog-body h3 {
+  margin: 0 0 4px;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+}
+.daily-dialog-eyebrow {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.daily-dialog-title {
+  margin: 0;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 20px;
+  line-height: 1.35;
+}
+.daily-dialog-interpretation p {
+  margin: 0 0 8px;
+}
+.daily-dialog-warning {
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: #f1eee7;
+  color: #716044;
+  font-size: 12.5px;
+}
+.daily-dialog-record {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+  padding: 12px;
+  border: 1px solid #dce1e6;
+  border-radius: 8px;
+}
+.daily-dialog-record h4 {
+  margin: 0;
+  font-size: 14px;
+}
+.daily-dialog-record p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+}
+.daily-dialog-meta {
+  color: var(--color-muted);
+  font-size: 12px;
+}
+.daily-dialog-footnote {
+  margin: 0;
+  padding-top: 12px;
+  border-top: 1px solid #dce1e6;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-muted);
+}
