@@ -4580,3 +4580,55 @@ table.coverage th {
     width: 100%;
   }
 }
+
+/* ============================================================
+   T9 compatibility pass — secondary pages under the v3 system.
+   Page-scoped fixes only; every shared block above stays as is.
+   The orphan/duplicate sweep is T11, not here.
+   ============================================================ */
+
+/* /settings: the implicit single column of .settings-flow sizes to the
+   widest min-content (the focus-person select's longest option, 376px)
+   and overflows the shell on narrow viewports. Give the flow one
+   shrinkable track; children already carry min-width: 0. */
+.settings-flow {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* /revisiones: the card list is a column track sized to min-content
+   (nowrap header row) and the two-column layout kept a 86px content
+   column on small screens. Let the track shrink, let the header wrap
+   and collapse to one column at the same 900px breakpoint the settings
+   and consultas layouts use. */
+.revisions-list {
+  grid-template-columns: minmax(0, 1fr);
+}
+.revision-card header {
+  flex-wrap: wrap;
+}
+@media (max-width: 900px) {
+  .revisions-layout {
+    grid-template-columns: 1fr;
+  }
+  /* /settings fuentes: the collapsed single track takes the source-card
+     min-content (header row + long URLs) and pushes past the shell;
+     the card internals already shrink (min-width: 0 + overflow-wrap). */
+  .source-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* / (digest v3.1 brief): the tarjeta head is a nowrap flex; on a 320px
+   viewport the no-shrink badge cluster (fixed min-content) pushes past
+   the card by a few px. Let the head wrap instead - the badge row drops
+   below the hecho text only when the row is the widest thing. */
+.digest-tarjeta-head {
+  flex-wrap: wrap;
+}
+
+/* /settings scrapers: name + base URL on one flex row cannot shrink to
+   the card below ~340px (the hostname alone is ~150px of min-content);
+   let the URL drop to its own line instead of pushing past the card. */
+.source-check {
+  flex-wrap: wrap;
+}

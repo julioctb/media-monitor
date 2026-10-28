@@ -220,7 +220,7 @@
 </div>
 
 <div class="mt-4 grid gap-4 lg:grid-cols-3">
-	<section class="mt-4 rounded-2xl border border-line-soft bg-white p-5 lg:col-span-2">
+	<section class="mt-4 min-w-0 rounded-2xl border border-line-soft bg-white p-5 lg:col-span-2">
 		<h2 class="text-lg font-semibold text-ink">Volumen diario (últimos 30 días)</h2>
 		<div class="relative mt-4 h-72" role="img" aria-label="Volumen diario de menciones">
 			<canvas bind:this={volumeCanvas}></canvas>
@@ -231,7 +231,7 @@
 		</p>
 	</section>
 
-	<section class="rounded-2xl border border-line-soft bg-white p-5">
+	<section class="min-w-0 rounded-2xl border border-line-soft bg-white p-5">
 		<h2 class="text-lg font-semibold text-ink">Sentimiento</h2>
 		<div class="relative mt-4 h-72" role="img" aria-label="Distribución por sentimiento">
 			<canvas bind:this={sentimentCanvas}></canvas>
@@ -239,7 +239,7 @@
 	</section>
 </div>
 
-<section class="mt-4 rounded-2xl border border-line-soft bg-white p-5">
+<section class="mt-4 min-w-0 rounded-2xl border border-line-soft bg-white p-5">
 	<h2 class="text-lg font-semibold text-ink">Spikes (últimos 30 días)</h2>
 	{#if data.spikes.length === 0}
 		<p class="mt-3 text-sm text-muted">
@@ -265,7 +265,7 @@
 	{/if}
 </section>
 
-<section class="mt-4 rounded-2xl border border-line-soft bg-white p-5">
+<section class="mt-4 min-w-0 rounded-2xl border border-line-soft bg-white p-5">
 	<div class="flex flex-wrap items-baseline justify-between gap-2">
 		<h2 class="text-lg font-semibold text-ink">Clasificaciones</h2>
 		{#if political}
@@ -281,7 +281,7 @@
 			Sin clasificaciones todavía: ejecuta el backfill o espera al próximo ciclo de ingesta.
 		</p>
 	{:else}
-		<div class="mt-4 grid gap-6 sm:grid-cols-2">
+		<div class="mt-4 grid grid-cols-1 gap-6 sm:grid-cols-2">
 			<div class="relative h-64" role="img" aria-label="Distribución de la clasificación política">
 				<canvas bind:this={politicalCanvas}></canvas>
 			</div>
@@ -307,7 +307,7 @@
 	{/if}
 </section>
 
-<section class="mt-4 rounded-2xl border border-line-soft bg-white p-5">
+<section class="mt-4 min-w-0 rounded-2xl border border-line-soft bg-white p-5">
 	<div class="flex flex-wrap items-baseline justify-between gap-2">
 		<h2 class="text-lg font-semibold text-ink">Temas</h2>
 		{#if topicRows.length > 0}
@@ -339,7 +339,7 @@
 	{/if}
 </section>
 
-<section class="mt-4 rounded-2xl border border-line-soft bg-white p-5">
+<section class="mt-4 min-w-0 rounded-2xl border border-line-soft bg-white p-5">
 	<h2 class="text-lg font-semibold text-ink">Por fuente</h2>
 	{#if sourceRows.length === 0}
 		<p class="mt-3 text-sm text-muted">Sin datos todavía.</p>
