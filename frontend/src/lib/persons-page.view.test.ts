@@ -10,7 +10,7 @@ import PersonDetailPage from '../routes/persons/[id]/+page.svelte';
 /**
  * Persons views (v3 «Panel de monitoreo»): directory panel with the
  * monogram/name/alias cell, plus the day-grouped mention timeline with
- * stamp/badges/quote. Copy stays «Actores»; aliases render as
+ * stamp/badges/quote. Copy stays «Personajes»; aliases render as
  * «También mencionado como»; no view toggle or sort selector.
  */
 
@@ -86,8 +86,8 @@ describe('persons list', () => {
 	it('renders the v3 directory panel with monogram, alias line and counts', () => {
 		const { text, root } = renderList([person(), person({ id: 2, name: 'Beto Lara', aliases: [] })]);
 
-		expect(text()).toContain('Actores');
-		expect(text()).toContain('Actores en seguimiento');
+		expect(text()).toContain('Personajes');
+		expect(text()).toContain('Personajes en seguimiento');
 		expect(text()).toContain('También mencionado como: Mejía Ruiz');
 		expect(root.querySelector('section.directory-panel')).toBeTruthy();
 		expect(root.querySelector('.directory-header h2')).toBeTruthy();
@@ -111,7 +111,7 @@ describe('persons list', () => {
 		expect(input?.value).toBe('rectoría');
 		expect(root.querySelector('.person-empty .empty')).toBeTruthy();
 		expect(root.querySelector('.directory-table')).toBeNull();
-		expect(text()).toContain('Sin actores registrados');
+		expect(text()).toContain('Sin personajes registrados');
 	});
 });
 

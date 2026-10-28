@@ -43,7 +43,7 @@
 		{ label: 'Campo', href: '/campo', icon: 'field' },
 		{ label: 'Eventos', href: '/events', icon: 'events' },
 		{ label: 'Agenda', href: '/agenda', icon: 'agenda' },
-		{ label: 'Actores', href: '/persons', icon: 'people' },
+		{ label: 'Personajes', href: '/persons', icon: 'people' },
 		{ label: 'Consultas', href: '/consultas', icon: 'query' },
 		{ label: 'Estadísticas', href: '/stats', icon: 'stats' },
 		{ label: 'Búsquedas', href: '/saved-searches', icon: 'search' },

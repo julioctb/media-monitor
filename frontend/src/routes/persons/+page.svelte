@@ -16,7 +16,7 @@
 </script>
 
 <svelte:head>
-	<title>Actores | Media Monitor</title>
+	<title>Personajes | Media Monitor</title>
 </svelte:head>
 
 <header class="persons-intro">
@@ -30,7 +30,7 @@
 <section class="directory-panel" aria-labelledby="persons-list-title">
 	<div class="directory-header">
 		<div>
-			<h2 id="persons-list-title">Actores en seguimiento</h2>
+			<h2 id="persons-list-title">Personajes en seguimiento</h2>
 			<p role="status" aria-live="polite">
 				{data.persons.length}
 				{data.persons.length === 1 ? 'persona' : 'personas'} con menciones registradas
@@ -41,7 +41,7 @@
 				<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true">
 					<path d="M20 20l-5-5 M10 17a7 7 0 1 0 0-14 7 7 0 0 0 0 14" />
 				</svg>
-				<span class="sr-only">Buscar actores</span>
+				<span class="sr-only">Buscar personajes</span>
 				<input
 					type="search"
 					id="q"
@@ -57,7 +57,7 @@
 	{#if data.persons.length === 0}
 		<div class="person-empty">
 			<p class="empty">
-				Sin actores registrados todavía. Los actores se detectan al enriquecer las menciones
+				Sin personajes registrados todavía. Los personajes se detectan al enriquecer las menciones
 				(protagonistas de cada nota).
 			</p>
 		</div>
@@ -112,6 +112,6 @@
 </section>
 
 <p class="directory-disclaimer">
-	Los actores se detectan automáticamente en el enriquecimiento de las notas; la columna «última
+	Los personajes se detectan automáticamente en el enriquecimiento de las notas; la columna «última
 	vez» refleja la última mención registrada.
 </p>

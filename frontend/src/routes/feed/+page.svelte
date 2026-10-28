@@ -562,7 +562,7 @@
 					<a class="text-link" href="/">Volver al resumen</a>
 				</div>
 				<p class="aside-note">
-					Los actores, categorías y temas prioritarios se resumen en la página principal.
+					Los personajes, categorías y temas prioritarios se resumen en la página principal.
 				</p>
 			</section>
 		</aside>

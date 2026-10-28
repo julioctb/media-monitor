@@ -45,7 +45,7 @@
 </svelte:head>
 
 <a href="/persons" class="text-sm font-medium text-muted transition-colors hover:text-ink">
-	← Volver a actores
+	← Volver a personajes
 </a>
 
 <header class="person-head">
@@ -160,5 +160,5 @@
 
 <p class="directory-disclaimer">
 	Los recuentos corresponden al histórico completo del cliente; el timeline refleja las menciones
-	vinculadas al actor durante el enriquecimiento.
+	vinculadas al personaje durante el enriquecimiento.
 </p>

@@ -345,7 +345,7 @@
 							</div>
 						{/each}
 					{:else}
-						<p class="daily-empty-note">No se identifican actores en los registros de esta fecha.</p>
+						<p class="daily-empty-note">No se identifican personajes en los registros de esta fecha.</p>
 					{/if}
 				</section>
 			</div>
