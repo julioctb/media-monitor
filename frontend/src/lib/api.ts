@@ -668,7 +668,7 @@ export interface PersonSummary {
 }
 
 /** One mention of the person: quote, source and context (F3 exit gate). */
-interface PersonTimelineItem {
+export interface PersonTimelineItem {
   mention_id: number;
   title: string | null;
   url: string;

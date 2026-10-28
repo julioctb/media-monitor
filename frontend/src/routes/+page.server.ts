@@ -5,6 +5,7 @@ import {
 	getClientSettings,
 	getDayStats,
 	getDailySummary,
+	getPerson,
 	listSummaryDays,
 	listMentions,
 	listPersons,
@@ -136,6 +137,19 @@ export const load: PageServerLoad = async ({ url }) => {
 		// The mention page feeds the live coverage and the negative-events
 		// scan; tone buckets come from /stats/day (media/social/field).
 		const liveItems = mentionsPage?.items ?? [];
+		// Person popups: same person API the ficha page uses, capped so the
+		// payload stays small. A failed lookup degrades to an empty timeline
+		// (the popup then shows its honest empty note).
+		const personsWithTimeline = await Promise.all(
+			persons.map(async (person) => {
+				try {
+					const detail = await getPerson(person.id);
+					return { ...person, timeline: detail.timeline.slice(0, 3) };
+				} catch {
+					return { ...person, timeline: [] };
+				}
+			})
+		);
 		return {
 			day,
 			before,
@@ -147,7 +161,7 @@ export const load: PageServerLoad = async ({ url }) => {
 			keywordCounts: dayStats?.keywords ?? [],
 			negativeEvents: mentionsPage ? negativeNewsItems(liveItems) : [],
 			liveCoverage: mentionsPage ? coverageOf(liveItems) : null,
-			persons,
+			persons: personsWithTimeline,
 			keywords,
 			digestHours: settings?.digest_hours ?? [],
 			sourcesCount: activeSourceCount(settings),

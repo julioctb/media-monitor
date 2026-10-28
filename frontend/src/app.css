@@ -59,7 +59,11 @@
   --color-accent-on: #ffffff;
   --color-success: #346e5a;
   --color-warn: #716044;
+  /* Mockup styles.css --amber-soft: veracidad / advertencia no respaldada. */
+  --color-warn-soft: #f1eee7;
   --color-danger: #96505a;
+  /* Mockup styles.css dialog::backdrop base tint (#13253a66 = 40%). */
+  --color-backdrop: #13253a;
 
   /* Typography (v3: Helvetica body, Georgia display) */
   --font-display:
@@ -5362,9 +5366,10 @@ table.coverage th {
 .field-actions .button {
   min-height: 44px;
 }
-/* Dialog chrome (mockup dialog base + .dialog-head/.dialog-body); scoped to
-   the field dialog: no other <dialog> exists in the app today. */
-dialog.field-dialog {
+/* Dialog chrome (mockup dialog base + .dialog-head/.dialog-body); shared by
+   the field dialog and every DetailDialog instance (single source). */
+dialog.field-dialog,
+dialog.detail-dialog {
   border: 1px solid var(--color-line);
   border-radius: 16px;
   padding: 0;
@@ -5374,11 +5379,13 @@ dialog.field-dialog {
   color: var(--color-ink);
   box-shadow: 0 24px 80px #10243e30;
 }
-dialog.field-dialog::backdrop {
-  background: #13253a66;
+dialog.field-dialog::backdrop,
+dialog.detail-dialog::backdrop {
+  background: color-mix(in srgb, var(--color-backdrop) 40%, transparent);
   backdrop-filter: blur(3px);
 }
-.field-dialog .dialog-head {
+.field-dialog .dialog-head,
+.detail-dialog .dialog-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -5389,8 +5396,11 @@ dialog.field-dialog::backdrop {
   top: 0;
   background: var(--color-surface-warm);
 }
-.field-dialog .dialog-body {
+.field-dialog .dialog-body,
+.detail-dialog .dialog-body {
   padding: 28px;
+  display: grid;
+  gap: 16px;
 }
 .field-report-dialog h2 {
   font-size: 24px;
@@ -6536,50 +6546,28 @@ dialog.field-dialog::backdrop {
   margin: 0;
 }
 
-/* Evidence dialog (mockup dailyEvidence pattern, campo dialog chrome). */
-dialog.detail-dialog {
-  width: min(560px, calc(100vw - 32px));
-  max-height: min(640px, calc(100vh - 48px));
-  padding: 0;
-  border: 1px solid #dce1e6;
-  border-radius: 12px;
-  overflow: hidden;
-  color: #222b36;
-}
-dialog.detail-dialog::backdrop {
-  background: rgba(34, 43, 54, 0.35);
-}
-.detail-dialog .dialog-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 14px 20px;
-  border-bottom: 1px solid #dce1e6;
-}
-.detail-dialog .dialog-body {
-  display: grid;
-  gap: 16px;
-  padding: 20px;
-  overflow-y: auto;
-}
+/* Detail-dialog CONTENT styles — chrome is shared with the field dialog
+   above (dialog.field-dialog, dialog.detail-dialog). Typography follows the
+   mockup's own dialog rules (styles.css .eyebrow / .dialog-body h2,h3,p /
+   .record / .evidence); palette via @theme tokens. */
 .detail-dialog .dialog-body h3 {
   margin: 0 0 4px;
-  font-size: 13px;
-  letter-spacing: 0.02em;
+  font-size: 17px;
+  line-height: 1.5;
 }
 .daily-dialog-eyebrow {
   margin: 0;
-  font-size: 11px;
-  letter-spacing: 0.08em;
+  font-size: 10px;
+  letter-spacing: 1.8px;
   text-transform: uppercase;
-  color: var(--color-muted);
+  font-weight: 700;
+  color: var(--color-accent);
 }
 .daily-dialog-title {
   margin: 0;
-  font-family: Georgia, 'Times New Roman', serif;
-  font-size: 20px;
-  line-height: 1.35;
+  font-family: var(--font-display);
+  font-size: 25px;
+  line-height: 1.4;
 }
 .daily-dialog-interpretation p {
   margin: 0 0 8px;
@@ -6587,25 +6575,28 @@ dialog.detail-dialog::backdrop {
 .daily-dialog-warning {
   padding: 8px 10px;
   border-radius: 6px;
-  background: #f1eee7;
-  color: #716044;
+  background: var(--color-warn-soft);
+  color: var(--color-warn);
   font-size: 12.5px;
 }
 .daily-dialog-record {
   display: grid;
   gap: 6px;
   justify-items: start;
-  padding: 12px;
-  border: 1px solid #dce1e6;
-  border-radius: 8px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--color-line);
+}
+.daily-dialog-record:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
 }
 .daily-dialog-record h4 {
   margin: 0;
-  font-size: 14px;
+  font-size: 15px;
 }
 .daily-dialog-record p {
   margin: 0;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.55;
 }
 .daily-dialog-meta {
@@ -6615,7 +6606,7 @@ dialog.detail-dialog::backdrop {
 .daily-dialog-footnote {
   margin: 0;
   padding-top: 12px;
-  border-top: 1px solid #dce1e6;
+  border-top: 1px solid var(--color-line);
   font-size: 12px;
   font-weight: 600;
   color: var(--color-muted);
@@ -6630,9 +6621,10 @@ dialog.detail-dialog::backdrop {
 .detail-dialog .evidence-text {
   max-height: 40vh;
   overflow-y: auto;
-  padding: 12px;
-  border: 1px solid #dce1e6;
+  padding: 16px;
+  border: 1px solid var(--color-line);
   border-radius: 8px;
+  background: var(--color-surface);
   font-size: 13px;
   line-height: 1.55;
   white-space: pre-wrap;

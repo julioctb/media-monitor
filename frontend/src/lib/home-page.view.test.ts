@@ -337,7 +337,7 @@ function populatedDayData(): HomeData {
     is_active: true,
     created_at: '2026-10-01T00:00:00-06:00',
   };
-  const person: PersonSummary = {
+  const person = {
     id: 4,
     name: 'Lilia Cedillo',
     name_key: 'lilia-cedillo',
@@ -347,7 +347,24 @@ function populatedDayData(): HomeData {
     first_seen_at: '2026-10-01T08:00:00-06:00',
     last_seen_at: '2026-10-28T09:00:00-06:00',
     mention_count: 9,
-  };
+    timeline: [
+      {
+        mention_id: 51,
+        title: 'Inauguran evento BUAP',
+        url: 'https://tribunanoticias.mx/51',
+        source: 'news_rss',
+        published_at: '2026-10-28T09:00:00-06:00',
+        ingested_at: '2026-10-28T09:05:00-06:00',
+        sentiment: null,
+        role: null,
+        org: null,
+        context: 'La rectora encabezó el acto.',
+        event_id: null,
+        event_title: null,
+        political_label: null,
+      },
+    ],
+  } as unknown as PersonSummary;
   return {
     day: '2026-10-28',
     before: null,
@@ -409,8 +426,6 @@ describe('home daily structure (v3 mockup)', () => {
     const actorsPanel = container.querySelector('.daily-actors');
     expect(actorsPanel?.querySelector('.daily-panel-head a')?.getAttribute('href')).toBe('/persons');
     expect(actorsPanel?.querySelector('.daily-panel-head a')?.textContent).toContain('Ver directorio');
-    const personLinks = [...(actorsPanel?.querySelectorAll('a[href="/persons/4"]') ?? [])];
-    expect(personLinks.some((a) => a.textContent?.includes('Ver ficha y menciones'))).toBe(true);
 
     // Agenda: mockup daily-upcoming items with date-box and honest estado.
     const upcoming = [...container.querySelectorAll('.daily-upcoming')];
@@ -468,6 +483,28 @@ describe('home daily structure (v3 mockup)', () => {
     expect(text).toContain('Lectura política · interpretación');
     expect(text).toContain('No respaldada como hecho.');
     expect(text).toContain('Veracidad no evaluada');
+  });
+
+  it('opens the person popup with its mentions from the load', async () => {
+    const { container } = renderPage(populatedDayData());
+
+    const cta = [...container.querySelectorAll<HTMLButtonElement>('.daily-actor button')].find((b) =>
+      (b.textContent ?? '').includes('Ver mención y fuente')
+    );
+    expect(cta).toBeTruthy();
+    cta!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    await tick();
+
+    const dialog = container.querySelector('dialog.person-detail');
+    expect(dialog).toBeTruthy();
+    const text = (dialog?.textContent ?? '').replace(/\s+/g, ' ');
+    expect(text).toContain('Lilia Cedillo');
+    expect(text).toContain('Menciones textuales');
+    expect(text).toContain('La rectora encabezó el acto.');
+    expect(text).toContain('Leer registro original');
+    expect(text).toContain('Ver ficha completa');
+    expect(dialog?.querySelector('.dialog-actions a')?.getAttribute('href')).toBe('/persons/4');
   });
 
   it('empty day renders only the date control and the mockup empty panel', () => {

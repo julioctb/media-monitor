@@ -12,6 +12,7 @@
 		sourceLabel
 	} from '$lib/format';
 	import DigestEvidence from '$lib/components/DigestEvidence.svelte';
+	import DetailDialog from '$lib/components/DetailDialog.svelte';
 	import { createEvidenceContext } from '$lib/digest-evidence';
 	import { digestV3View, type BriefEntryView } from '$lib/digest-v3';
 	import type { PageProps } from './$types';
@@ -126,12 +127,11 @@
 
 	/** Evidence dialog (mockup dailyEvidence): one open asunto at a time. */
 	let evidencePick: AttentionPick | null = $state(null);
-	let evidenceDialog: HTMLDialogElement | null = null;
+	/** Person popup (mockup dailyPerson): the open personaje. */
+	let personPick: (typeof data.persons)[number] | null = $state(null);
 
 	function openEvidence(pick: AttentionPick) {
 		evidencePick = pick;
-		// jsdom no implementa showModal; los navegadores reales sí (patrón campo).
-		if (typeof evidenceDialog?.showModal === 'function') evidenceDialog.showModal();
 	}
 
 	/** Documented fact for a story, from the tarjeta pool (no invention). */
@@ -344,9 +344,9 @@
 										.filter(Boolean)
 										.join(' · ')}
 								</span>
-								<a class="text-link" href="/persons/{person.id}">
-									Ver ficha y menciones
-								</a>
+								<button type="button" class="text-link" onclick={() => (personPick = person)}>
+									Ver mención y fuente
+								</button>
 							</div>
 						{/each}
 					{:else}
@@ -425,75 +425,106 @@
 
 	<!-- Mockup dailyEvidence dialog: hecho reportado, lectura política y
 	     materiales del corte para el asunto abierto. -->
-	<dialog
-		class="detail-dialog"
-		bind:this={evidenceDialog}
-		aria-labelledby="daily-evidence-title"
+	<DetailDialog
+		titleId="daily-evidence-title"
+		title="Evidencia del asunto"
+		open={evidencePick}
 		onclose={() => (evidencePick = null)}
 	>
-		<div class="dialog-head">
-			<strong id="daily-evidence-title">Evidencia del asunto</strong>
-			<button type="button" class="icon-button" onclick={() => evidenceDialog?.close()} aria-label="Cerrar">
-				Cerrar
-			</button>
-		</div>
-		<div class="dialog-body">
-			{#if evidencePick}
-				<p class="daily-dialog-eyebrow">Resumen del {formatDayLabel(day)}</p>
-				<h2 class="daily-dialog-title">{evidencePick.titulo}</h2>
-				{#if hechoFor(evidencePick.titulo)}
-					<section>
-						<h3>Hecho reportado</h3>
-						<p>{hechoFor(evidencePick.titulo)}</p>
-					</section>
-				{/if}
-				{#if evidencePick.razon}
-					<section class="daily-dialog-interpretation">
-						<h3>Lectura política · interpretación</h3>
-						<p>{evidencePick.razon}</p>
-						<p class="daily-dialog-warning">
-							<strong>No respaldada como hecho.</strong>
-							Esta lectura editorial no acredita por sí misma el impacto descrito.
-						</p>
-					</section>
-				{/if}
-				{#await evidenceContext}
-					<p class="daily-empty-note">Cargando evidencia…</p>
-				{:then catalogue}
-					{@const refs = Array.isArray(evidencePick.sourceRefs)
-						? evidencePick.sourceRefs.filter((ref): ref is number => Number.isInteger(ref))
-						: []}
-					{@const materials = refs
-						.map((idx) => catalogue?.sources[idx])
-						.filter((m): m is NonNullable<typeof m> => Boolean(m))}
-					<h3>Materiales del corte actual · {materials.length}</h3>
-					{#if materials.length === 0}
-						<p class="daily-empty-note">No hay fuentes vinculadas a esta entrada en el corte.</p>
-					{:else}
-						{#each materials as material (material.index)}
-							<article class="daily-dialog-record">
-								<span class="source-badge">{sourceLabel(material.source)}</span>
-								{#if material.title}<h4>{material.title}</h4>{/if}
-								{#if material.excerpt ?? material.summary}
-									<p>{material.excerpt ?? material.summary}</p>
-								{/if}
-								<p class="daily-dialog-meta">
-									{material.outlet}
-									{material.published_at ? ` · ${formatDisplayDateTime(material.published_at)}` : ''}
-								</p>
-								{#if material.url}
-									<a class="text-link" href={material.url} target="_blank" rel="noreferrer">
-										Leer registro original
-									</a>
-								{/if}
-							</article>
-						{/each}
-					{/if}
-				{:catch}
-					<p class="daily-empty-note">Sin catálogo de evidencia en este corte.</p>
-				{/await}
-				<p class="daily-dialog-footnote">Veracidad no evaluada</p>
+		{#if evidencePick}
+			<p class="daily-dialog-eyebrow">Resumen del {formatDayLabel(day)}</p>
+			<h2 class="daily-dialog-title">{evidencePick.titulo}</h2>
+			{#if hechoFor(evidencePick.titulo)}
+				<section>
+					<h3>Hecho reportado</h3>
+					<p>{hechoFor(evidencePick.titulo)}</p>
+				</section>
 			{/if}
-		</div>
-	</dialog>
+			{#if evidencePick.razon}
+				<section class="daily-dialog-interpretation">
+					<h3>Lectura política · interpretación</h3>
+					<p>{evidencePick.razon}</p>
+					<p class="daily-dialog-warning">
+						<strong>No respaldada como hecho.</strong>
+						Esta lectura editorial no acredita por sí misma el impacto descrito.
+					</p>
+				</section>
+			{/if}
+			{#await evidenceContext}
+				<p class="daily-empty-note">Cargando evidencia…</p>
+			{:then catalogue}
+				{@const refs = Array.isArray(evidencePick.sourceRefs)
+					? evidencePick.sourceRefs.filter((ref): ref is number => Number.isInteger(ref))
+					: []}
+				{@const materials = refs
+					.map((idx) => catalogue?.sources[idx])
+					.filter((m): m is NonNullable<typeof m> => Boolean(m))}
+				<h3>Materiales del corte actual · {materials.length}</h3>
+				{#if materials.length === 0}
+					<p class="daily-empty-note">No hay fuentes vinculadas a esta entrada en el corte.</p>
+				{:else}
+					{#each materials as material (material.index)}
+						<article class="daily-dialog-record">
+							<span class="source-badge">{sourceLabel(material.source)}</span>
+							{#if material.title}<h4>{material.title}</h4>{/if}
+							{#if material.excerpt ?? material.summary}
+								<p>{material.excerpt ?? material.summary}</p>
+							{/if}
+							<p class="daily-dialog-meta">
+								{material.outlet}
+								{material.published_at ? ` · ${formatDisplayDateTime(material.published_at)}` : ''}
+							</p>
+							{#if material.url}
+								<a class="text-link" href={material.url} target="_blank" rel="noreferrer">
+									Leer registro original
+								</a>
+							{/if}
+						</article>
+					{/each}
+				{/if}
+			{:catch}
+				<p class="daily-empty-note">Sin catálogo de evidencia en este corte.</p>
+			{/await}
+			<p class="daily-dialog-footnote">Veracidad no evaluada</p>
+		{/if}
+	</DetailDialog>
+
+	<!-- Mockup dailyPerson dialog: las menciones textuales del personaje,
+	     mismas filas que su ficha (misma API, carga del servidor). -->
+	<DetailDialog
+		titleId="person-detail-title"
+		title={personPick?.name ?? 'Personaje'}
+		open={personPick}
+		variant="person-detail"
+		onclose={() => (personPick = null)}
+	>
+		{#if personPick}
+			<p class="daily-dialog-meta">
+				{[personPick.role ?? personPick.org, `${personPick.mention_count} menciones`]
+					.filter(Boolean)
+					.join(' · ') || 'Entidad mencionada'}
+			</p>
+			<h3>Menciones textuales</h3>
+			{#if personPick.timeline?.length}
+				{#each personPick.timeline as item (item.mention_id)}
+					<article class="daily-dialog-record">
+						{#if item.title}<h4>{item.title}</h4>{/if}
+						{#if item.context}<div class="evidence-text">{item.context}</div>{/if}
+						<p class="daily-dialog-meta">
+							{sourceLabel(item.source)}
+							· {formatDisplayDateTime(item.published_at ?? item.ingested_at)}
+						</p>
+						<a class="text-link" href={item.url} target="_blank" rel="noreferrer">
+							Leer registro original
+						</a>
+					</article>
+				{/each}
+			{:else}
+				<p class="daily-empty-note">Sin menciones registradas en el corte.</p>
+			{/if}
+			<div class="dialog-actions">
+				<a class="text-link" href="/persons/{personPick.id}">Ver ficha completa</a>
+			</div>
+		{/if}
+	</DetailDialog>
 </div>
