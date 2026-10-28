@@ -23,9 +23,9 @@ Verification: from `frontend/` → `npm run check` · `npx vitest run` · `npm r
 Route: inline unless noted. Phase order confirmed by the T0 map; one work-unit commit per phase.
 
 - [x] T0 [S2 S8] Design/runtime map — delegated read-only explorer; mapa recibido íntegro (Log L4).
-- [ ] T1 [S5] Tokens & base: port `:root` tokens / type / spacing into `app.css` (name-collision audit first), global body & page chrome.
-- [ ] T2 [S5] Shell: sidebar (+collapse, mobile menu, breakpoints), header, content grid, active-nav and page-title patterns; presentational state only.
-- [ ] T3 [S5] Shared pieces: `.btn` skins, tone pills/badges, dialog base, toast — deduped against existing rules; per-page mockup audit.
+- [x] T1 [S5] Tokens & base: remap de valores `@theme` a la paleta v3 (pasos derivados marcados), Georgia/Helvetica, 16/1.6, radius-panel 12, focus ring v3. Commit ef4158f9.
+- [x] T2 [S5] Shell: sidebar rail 232/88 + collapse, drawer móvil ≤768 (focus trap + inert), mobile-header, versión; estado presentacional (Svelte 5 runes). Commit fbb08d25.
+- [ ] T3 [S5] Shared pieces: `.button` skins, tone pills/badges, dialog base, toast — deduped against existing rules; per-page mockup audit.
 - [ ] T4 [S5] Feed view.
 - [ ] T5 [S5] Eventos view.
 - [ ] T6 [S5] Agenda view.
@@ -41,3 +41,4 @@ Route: inline unless noted. Phase order confirmed by the T0 map; one work-unit c
 - L2 (2026-10-28): Julio eligió **«Redesign v3 completo, por fases»** (clarify). T0 mapper delegado (read-only) antes de tocar código.
 - L3 (2026-10-28): CodeGraph del worktree inicializado. Preview dev (baseline pre-redesign, árbol de desarrollo del worktree): `http://127.0.0.1:5177/` — SSR 200 ~206KB con datos reales vía API 127.0.0.1:8000; sin `.env` (API_BASE_URL por env del proceso).
 - L4 (2026-10-28): Mapa T0 (íntegro en transcript `~/.hermes/cache/delegation/live/deleg_2ff4b992/task-0.log`). Claves: `styles.css` del mockup es INPUT tailwind (`@apply tw:*`); lo servido es `assets/css/tailwind.css` compilado → portar resolviendo utilidades. Shell = inversión topbar→sidebar 232/88px, overlay ≤768 (`body.sidebar-collapsed` NO persistido). Colisiones de nombre con app.css: `.sidebar`(:2084) `.topbar`(:91) `.chip` `.intro` `.field` `.active/.error`, 3 skins de botón → puertos con scope + auditoría por página. MQ mockup: 480/600/768/1024/1050/1100/1150/1250/1440min/769min/hover/reduced-motion/print/max-h600. Interacciones demo selladas (localStorage `mine-*`, `ask()` grep local). Decisiones diferidas A SU FASE: (a) daily-view vs home digest v2 — el mockup manda look, no features; (b) login sin backend auth; (c) semántica real del query launcher; (d) detail-dialog ruta vs dialog. Empieza T1 (tokens).
+- L5 (2026-10-28): Verificación T1+T2. Gates: svelte-check 0/0, vitest 355 OK, build OK (×2). Fidelidad: computed styles del shell = 0 deltas vs mockup servido estático (1280; server python :8901 sobre el directorio de referencia, solo lectura). Móvil 390: sin overflow, drawer/header correctos. Pendiente T11: barrer la matriz responsive completa. Lección de herramienta: el wrapper `js()` del browser exige IIFE invocada y devuelve string.

@@ -1,74 +1,219 @@
 <script lang="ts">
 	import '../app.css';
 	import { page } from '$app/state';
+	import pkg from '../../package.json';
 	import type { LayoutProps } from './$types';
 
 	let { children }: LayoutProps = $props();
 
-	interface NavGroup {
+	const APP_VERSION: string = pkg.version;
+
+	interface NavItem {
 		label: string;
 		href: string;
+		icon: keyof typeof ICONS;
 	}
 
-	// Flat nav, mockup order. Configuración is a single page: its sections
-	// (keywords included) are anchors inside /settings, not sub-tabs.
-	const navGroups: NavGroup[] = [
-		{ label: 'Resumen', href: '/' },
-		{ label: 'Feed', href: '/feed' },
-		{ label: 'Campo', href: '/campo' },
-		{ label: 'Eventos', href: '/events' },
-		{ label: 'Agenda', href: '/agenda' },
-		{ label: 'Actores', href: '/persons' },
-		{ label: 'Consultas', href: '/consultas' },
-		{ label: 'Estadísticas', href: '/stats' },
-		{ label: 'Búsquedas', href: '/saved-searches' },
-		{ label: 'Revisiones', href: '/revisiones' },
-		{ label: 'Configuración', href: '/settings' }
+	// Icon paths from the v3 mockup (app.js `paths` map); `stats` added in the
+	// same 24px stroke language for the three routes the mockup lacks.
+	const ICONS = {
+		layers: 'm12 3 10 6-10 6L2 9l10-6z M2 14l10 6 10-6',
+		feed: 'M4 4h16v16H4z M8 8h8 M8 12h8 M8 16h5',
+		field: 'm21 3-7 18-4-7-7-4 18-7z M10 14 21 3',
+		events: 'M5 5h5v5H5z M14 5h5v5h-5z M5 14h5v5H5z M14 14h5v5h-5z',
+		agenda: 'M5 5h14v15H5z M8 3v4 M16 3v4 M5 10h14 M9 14h2',
+		people: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M20 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75',
+		query: 'M4 4h16v13H9l-5 4z M8 8h8 M8 12h5',
+		settings: 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8 M12 2v3 M12 19v3 M2 12h3 M19 12h3 M5 5l2 2 M17 17l2 2 M5 19l2-2 M17 7l2-2',
+		stats: 'M5 20V10 M12 20V4 M19 20v-8',
+		search: 'M20 20l-5-5 M10 17a7 7 0 1 0 0-14 7 7 0 0 0 0 14',
+		check: 'm5 12 4 4L19 6',
+		close: 'M6 6l12 12 M6 18 18 6',
+		menu: 'M4 6h16 M4 12h16 M4 18h16'
+	};
+
+	// Same routes and copy as the previous topbar; the v3 mockup govern the
+	// shell look, not the nav set (11 entries > 8 in the prototype).
+	const navItems: NavItem[] = [
+		{ label: 'Resumen', href: '/', icon: 'layers' },
+		{ label: 'Feed', href: '/feed', icon: 'feed' },
+		{ label: 'Campo', href: '/campo', icon: 'field' },
+		{ label: 'Eventos', href: '/events', icon: 'events' },
+		{ label: 'Agenda', href: '/agenda', icon: 'agenda' },
+		{ label: 'Actores', href: '/persons', icon: 'people' },
+		{ label: 'Consultas', href: '/consultas', icon: 'query' },
+		{ label: 'Estadísticas', href: '/stats', icon: 'stats' },
+		{ label: 'Búsquedas', href: '/saved-searches', icon: 'search' },
+		{ label: 'Revisiones', href: '/revisiones', icon: 'check' },
+		{ label: 'Configuración', href: '/settings', icon: 'settings' }
 	];
 
+	let collapsed = $state(false);
 	let menuOpen = $state(false);
+
+	let sidebarEl: HTMLElement | undefined = $state();
+	let menuButton: HTMLButtonElement | undefined = $state();
+	let closeButton: HTMLButtonElement | undefined = $state();
 
 	function isActive(href: string): boolean {
 		const path = page.url.pathname;
 		return href === '/' ? path === '/' : path === href || path.startsWith(`${href}/`);
 	}
 
-	function closeMenu(): void {
-		menuOpen = false;
+	function toggleCollapsed(): void {
+		collapsed = !collapsed;
 	}
+
+	function openMenu(): void {
+		menuOpen = true;
+	}
+
+	function closeMenu(restoreFocus = false): void {
+		if (!menuOpen) return;
+		menuOpen = false;
+		if (restoreFocus) menuButton?.focus();
+	}
+
+	function handleKeydown(event: KeyboardEvent): void {
+		if (!menuOpen) return;
+		if (event.key === 'Escape') {
+			event.preventDefault();
+			closeMenu(true);
+			return;
+		}
+		if (event.key !== 'Tab' || !sidebarEl) return;
+		const focusables = [
+			...sidebarEl.querySelectorAll<HTMLElement>('a[href], button:not([disabled])')
+		];
+		if (focusables.length === 0) return;
+		const first = focusables[0];
+		const last = focusables[focusables.length - 1];
+		const active = document.activeElement;
+		if (event.shiftKey && active === first) {
+			event.preventDefault();
+			last.focus();
+		} else if (!event.shiftKey && active === last) {
+			event.preventDefault();
+			first.focus();
+		}
+	}
+
+	$effect(() => {
+		document.body.classList.toggle('sidebar-collapsed', collapsed);
+	});
+
+	$effect(() => {
+		document.body.classList.toggle('mobile-nav-open', menuOpen);
+	});
+
+	// The drawer owns focus while open: the rest of the shell goes inert and
+	// the close control receives focus (mockup behavior).
+	$effect(() => {
+		if (menuOpen) closeButton?.focus();
+	});
+
+	$effect(() => {
+		const query = window.matchMedia('(min-width: 769px)');
+		const onChange = (event: MediaQueryListEvent): void => {
+			if (event.matches) closeMenu(false);
+		};
+		query.addEventListener('change', onChange);
+		return () => query.removeEventListener('change', onChange);
+	});
 </script>
 
-<div class="flex min-h-screen flex-col">
-	<header class="topbar">
-		<div class="topbar-inner">
-			<a href="/" class="brand">Media Monitor</a>
+<svelte:window onkeydown={handleKeydown} />
 
+<div class="shell">
+	<aside
+		id="app-sidebar"
+		class="sidebar"
+		class:mobile-open={menuOpen}
+		aria-label="Navegación principal"
+		bind:this={sidebarEl}
+	>
+		<div class="sidebar-head">
 			<button
 				type="button"
-				class="menu-toggle"
-				aria-expanded={menuOpen}
-				aria-controls="primary-nav"
-				aria-label={menuOpen ? 'Cerrar menú' : 'Abrir menú'}
-				onclick={() => (menuOpen = !menuOpen)}
+				class="sidebar-toggle"
+				aria-controls="app-sidebar"
+				aria-expanded={!collapsed}
+				aria-label={collapsed ? 'Expandir menú' : 'Contraer menú'}
+				title={collapsed ? 'Expandir menú' : 'Contraer menú'}
+				onclick={toggleCollapsed}
 			>
-				{menuOpen ? 'Cerrar' : 'Menú'}
+				<span class="sidebar-toggle-arrow" aria-hidden="true">{collapsed ? '›' : '‹'}</span>
 			</button>
+			<div class="brand">
+				<img
+					class="brand-logo"
+					src="/brand/mine-logo.png"
+					width="1983"
+					height="793"
+					alt="Monitoreo Integral"
+				/>
+				<img
+					class="brand-logo-compact"
+					src="/brand/mine-monogram.png"
+					width="1254"
+					height="1254"
+					alt="Monitoreo Integral"
+				/>
+			</div>
+		</div>
 
-			<nav class={`nav${menuOpen ? ' open' : ''}`} id="primary-nav" aria-label="Navegación principal">
-				{#each navGroups as group (group.href)}
+		<button type="button" class="mobile-menu-close" aria-label="Cerrar menú" onclick={() => closeMenu()} bind:this={closeButton}>
+			<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true"><path d={ICONS.close} /></svg>
+		</button>
+
+		<div>
+			<nav class="nav" aria-label="Secciones">
+				{#each navItems as item (item.href)}
 					<a
-						href={group.href}
-						aria-current={isActive(group.href) ? 'page' : undefined}
-						onclick={closeMenu}
+						href={item.href}
+						class="nav-button"
+						class:active={isActive(item.href)}
+						aria-current={isActive(item.href) ? 'page' : undefined}
+						aria-label={collapsed ? item.label : undefined}
+						title={collapsed ? item.label : undefined}
+						onclick={() => closeMenu()}
 					>
-						{group.label}
+						<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true"><path d={ICONS[item.icon]} /></svg>
+						<span class="nav-label">{item.label}</span>
 					</a>
 				{/each}
 			</nav>
 		</div>
-	</header>
 
-	<main class="page flex-1 w-full">
-		{@render children?.()}
-	</main>
+		<div class="sidebar-version" aria-label={`Versión de la plataforma ${APP_VERSION}`}>
+			<span class="sidebar-version-number">Versión {APP_VERSION}</span>
+		</div>
+	</aside>
+
+	<div class="main-shell" inert={menuOpen}>
+		<header class="mobile-header">
+			<button
+				type="button"
+				class="mobile-menu"
+				aria-label={menuOpen ? 'Cerrar menú' : 'Abrir menú'}
+				aria-controls="app-sidebar"
+				aria-expanded={menuOpen}
+				onclick={() => (menuOpen ? closeMenu() : openMenu())}
+				bind:this={menuButton}
+			>
+				<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true"><path d={ICONS.menu} /></svg>
+			</button>
+			<img
+				class="mobile-header-logo"
+				src="/brand/mine-logo.png"
+				width="1983"
+				height="793"
+				alt="Monitoreo Integral"
+			/>
+		</header>
+
+		<main class="main">
+			{@render children?.()}
+		</main>
+	</div>
 </div>
