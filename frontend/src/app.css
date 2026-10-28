@@ -2791,447 +2791,6 @@ table.coverage th {
   }
 }
 
-/* --- Agenda (mockup agenda-media-monitor: valores literales del contrato) --- */
-.agenda-intro {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-.agenda-intro h1 {
-  margin: 0;
-}
-
-/* Skin de botón (mockup .btn): radio de control, blanco, 44px. Los contenedores
-   agenda son únicos en la app, el binding por contenedor evita colisiones;
-   las variantes son sólo color (primario tinta, delete quiet, pressed). */
-.agenda-intro > button,
-.agenda-form-panel button,
-.month-controls button,
-.view-controls button,
-.activity-actions button {
-  min-height: 44px;
-  padding: 10px 18px;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-control);
-  background: #fff;
-  color: var(--color-ink);
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-}
-.agenda-intro > button:hover,
-.agenda-form-panel button:hover,
-.month-controls button:hover,
-.view-controls button:hover,
-.activity-actions button:hover {
-  background: var(--color-surface);
-  border-color: var(--color-ink-2);
-}
-.agenda-intro > button:disabled,
-.agenda-form-panel button:disabled,
-.month-controls button:disabled,
-.view-controls button:disabled,
-.activity-actions button:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-.agenda-intro .btn-primary,
-.agenda-form-panel .btn-primary {
-  background: var(--color-ink);
-  border-color: var(--color-ink);
-  color: #fff;
-}
-.agenda-intro .btn-primary:hover,
-.agenda-form-panel .btn-primary:hover {
-  background: var(--color-ink-2);
-}
-.activity-actions .btn-delete {
-  padding: 8px 12px;
-  background: transparent;
-  color: var(--color-ink-2);
-}
-.activity-actions .btn-delete:hover {
-  background: var(--color-surface);
-  color: var(--color-ink);
-}
-.view-controls button[aria-pressed="true"] {
-  background: var(--color-ink);
-  border-color: var(--color-ink);
-  color: #fff;
-}
-
-/* Toolbar de filtros: fila flexible sin caja (mockup .toolbar). */
-.agenda-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 12px;
-  margin: 20px 0 12px;
-}
-.agenda-toolbar .field {
-  display: grid;
-  gap: 6px;
-  min-width: 0;
-}
-.agenda-toolbar .field-search {
-  flex: 1 1 300px;
-}
-.agenda-toolbar .field-filter {
-  flex: 0 1 230px;
-}
-.agenda-toolbar label,
-.form-grid label {
-  font-size: 14px;
-  font-weight: 600;
-}
-.agenda-form-panel .field {
-  display: grid;
-  gap: 6px;
-  min-width: 0;
-}
-.agenda-form-panel input,
-.agenda-form-panel select,
-.agenda-form-panel textarea,
-.agenda-toolbar input,
-.agenda-toolbar select {
-  width: 100%;
-  min-height: 44px;
-  padding: 10px 12px;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-control);
-  background: #fff;
-  color: var(--color-ink);
-  font: inherit;
-}
-.agenda-toolbar input::placeholder {
-  color: var(--color-muted);
-}
-.form-intro,
-.edit-context {
-  margin: 0;
-  color: var(--color-ink-2);
-  font-size: 14px;
-  line-height: 1.5;
-}
-.form-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-  margin: 20px 0;
-}
-.form-grid .span-all {
-  grid-column: 1 / -1;
-}
-.form-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 12px;
-  margin-top: 24px;
-}
-.agenda-status {
-  margin: 12px 0;
-  color: var(--color-ink-2);
-  font-size: 14px;
-}
-.agenda-error {
-  margin: 12px 0 0;
-  color: var(--color-danger);
-  font-size: 13px;
-}
-
-/* Vista mes: cabecera mes+controles, grilla unida con celdas fijas. */
-.month-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin: 48px 0 12px;
-}
-.month-head h3 {
-  margin: 0;
-  font: 600 19px / 1.35 var(--font-display);
-  text-transform: capitalize;
-}
-.view-controls,
-.month-controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-.calendar {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  border: 1px solid var(--color-line);
-  border-radius: 12px;
-  overflow: hidden;
-  background: #fff;
-}
-.calendar-head {
-  padding: 12px 2px;
-  background: var(--color-surface);
-  font-size: 12px;
-  text-align: center;
-  color: var(--color-ink-2);
-}
-.calendar-cell {
-  min-width: 0;
-  min-height: 98px;
-  padding: 8px;
-  border-top: 1px solid var(--color-line-soft);
-  border-right: 1px solid var(--color-line-soft);
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-size: 14px;
-}
-/* 7 cabeceras + 7 celdas por fila: el borde derecho cae en la última col. */
-.calendar-cell:nth-child(7n) {
-  border-right: 0;
-}
-.calendar-cell.today {
-  background: var(--color-surface-warm);
-}
-.calendar-cell.today .calendar-num {
-  font-weight: 700;
-  text-decoration: underline;
-  text-underline-offset: 4px;
-}
-.calendar-cell.empty-cell {
-  background: var(--color-surface);
-}
-.day-button {
-  width: 100%;
-  min-height: 44px;
-  padding: 6px 3px;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-control);
-  background: var(--color-surface);
-  color: var(--color-ink);
-  font: 600 12px / 1.3 var(--font-body);
-  overflow-wrap: anywhere;
-  cursor: pointer;
-}
-.day-button:hover {
-  background: var(--color-line-soft);
-}
-.month-notice {
-  margin: 16px 0 24px;
-  font-size: 14px;
-  color: var(--color-ink-2);
-}
-
-/* Detalle del día y pendientes: sección plana, las cards viven en la lista. */
-.day-detail {
-  margin: 24px 0;
-}
-.day-detail h3 {
-  margin: 0 0 16px;
-  font: 600 19px / 1.35 var(--font-display);
-}
-.pending-title {
-  margin: 28px 0 8px;
-  font: 600 19px / 1.35 var(--font-display);
-}
-.agenda-list {
-  display: grid;
-  gap: 16px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-/* Card de actividad (mockup .activity): caja blanca fecha | cuerpo | acciones. */
-.activity {
-  display: grid;
-  grid-template-columns: 140px minmax(0, 1fr) auto;
-  gap: 24px;
-  align-items: start;
-  padding: 24px;
-  background: #fff;
-  border: 1px solid var(--color-line-soft);
-  border-radius: var(--radius-panel);
-}
-.activity .date {
-  display: grid;
-  gap: 4px;
-  color: var(--color-ink);
-  font-variant-numeric: tabular-nums;
-  font-size: 17px;
-  font-weight: 600;
-}
-.activity .date small {
-  font-size: 12px;
-  font-weight: 400;
-  color: var(--color-muted);
-}
-.activity-body {
-  min-width: 0;
-}
-.activity .badge {
-  display: inline-block;
-  margin: 0 0 10px;
-  padding: 3px 8px;
-  border: 1px solid var(--color-line-soft);
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--color-ink-2);
-}
-.activity h3 {
-  margin: 0;
-  font: 600 19px / 1.35 var(--font-display);
-  overflow-wrap: anywhere;
-}
-.activity .details {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 24px;
-  margin: 16px 0 0;
-  font-size: 14px;
-  color: var(--color-ink-2);
-}
-.activity .details div {
-  min-width: 0;
-}
-.activity dt {
-  margin-bottom: 3px;
-  color: var(--color-muted);
-  font-size: 12px;
-}
-.activity dd {
-  margin: 0;
-  overflow-wrap: anywhere;
-}
-.activity dd a {
-  color: inherit;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-.activity .notes {
-  margin: 12px 0 0;
-  color: var(--color-ink-2);
-  font-size: 14px;
-  white-space: pre-wrap;
-}
-.activity-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  align-items: stretch;
-}
-.delete-form {
-  display: contents;
-}
-
-/* Empty y acerca-de. */
-.agenda-empty {
-  padding: 40px 24px;
-  border: 1px solid var(--color-line-soft);
-  border-radius: var(--radius-panel);
-  background: #fff;
-  text-align: center;
-}
-.agenda-empty p {
-  margin: 8px 0 0;
-  color: var(--color-muted);
-  font-size: 14px;
-}
-.agenda-about {
-  margin-top: 28px;
-  padding-top: 16px;
-  border-top: 1px solid var(--color-line);
-}
-.agenda-about summary {
-  width: max-content;
-  min-height: 44px;
-  display: flex;
-  align-items: center;
-  color: var(--color-ink-2);
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-}
-.agenda-about summary:hover {
-  color: var(--color-ink);
-}
-.agenda-about p {
-  max-width: 76ch;
-  margin: 8px 0;
-  color: var(--color-ink-2);
-  font-size: 14px;
-}
-.agenda-about a {
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
-/* Responsive del mockup: 800 / 480. */
-@media (max-width: 800px) {
-  .agenda-intro {
-    flex-wrap: wrap;
-    gap: 12px;
-  }
-  .agenda-toolbar {
-    margin-top: 16px;
-  }
-  .view-controls {
-    width: 100%;
-  }
-  .agenda-toolbar .field-filter {
-    flex: 1 1 200px;
-  }
-  .activity {
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 12px 16px;
-  }
-  .activity .date {
-    grid-column: 1 / -1;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px;
-  }
-}
-@media (max-width: 480px) {
-  .activity {
-    padding: 20px;
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .activity-actions {
-    flex-direction: row;
-    flex-wrap: wrap;
-  }
-  .activity .details {
-    display: grid;
-    gap: 12px;
-  }
-  .form-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .calendar-cell {
-    padding: 6px 2px;
-    min-height: 82px;
-    font-size: 12px;
-  }
-  .calendar-head {
-    font-size: 11px;
-  }
-  .day-button {
-    font-size: 11px;
-    padding: 4px 1px;
-  }
-  .month-controls button {
-    padding-inline: 12px;
-  }
-  .month-head {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-}
-
 /* --- digest-brief-v3: brief hero + evidencia + campo --- */
 .digest-brief {
   margin-top: 16px;
@@ -4115,5 +3674,512 @@ table.coverage th {
   }
   .event-card-footer {
     flex-wrap: wrap;
+  }
+}
+
+/* ============================================================
+   Agenda view v3 — «Panel de monitoreo informativo».
+   Ported from referencia_visual/v3/Panel-de-monitoreo-informativo
+   (app.js agendaView + the late calendar block of styles.css).
+   Mechanism preserved: the month grid stays the app's own
+   client-side calendar (itemsByDay + Monday-first cells); days
+   with events remain the only interactive cells. Mockup slots
+   without an app equivalent, omitted: seguimiento checkbox / done
+   state (no persisted field), clickable empty days, example-data
+   reset copy. App extras kept by design: search + «Mostrar»
+   filter, create / edit-date / delete forms, «Sin fecha
+   completa» bucket, today marker. Breakpoints 1024 / 768 / 480
+   + hover.
+   ============================================================ */
+.agenda-intro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 24px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--color-line);
+}
+.agenda-intro h1 {
+  margin: 0;
+}
+.agenda-intro p {
+  max-width: 75ch;
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 14px;
+}
+
+/* Filtros propios de la app (búsqueda + mostrar): fila plana sobre el panel. */
+.agenda-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin: 0 0 20px;
+}
+.agenda-toolbar .field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.agenda-toolbar .field-search {
+  flex: 1 1 300px;
+}
+.agenda-toolbar .field-filter {
+  flex: 0 1 230px;
+}
+.agenda-toolbar label,
+.agenda-form-panel label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+.agenda-form-panel .field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.agenda-toolbar input,
+.agenda-toolbar select,
+.agenda-form-panel input,
+.agenda-form-panel select,
+.agenda-form-panel textarea {
+  width: 100%;
+  min-height: 44px;
+  padding: 9px 12px;
+  border: 1px solid var(--color-line);
+  border-radius: 7px;
+  background: var(--color-surface-warm);
+  color: var(--color-ink);
+  font: inherit;
+  font-size: 14px;
+}
+.agenda-toolbar input::placeholder {
+  color: var(--color-meta);
+}
+.form-intro,
+.edit-context {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin: 20px 0;
+}
+.form-grid .span-all {
+  grid-column: 1 / -1;
+}
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+}
+.agenda-status {
+  margin: 0 0 16px;
+  color: var(--color-ink-2);
+  font-size: 14px;
+}
+.agenda-error {
+  margin: 12px 0 0;
+  color: var(--color-danger);
+  font-size: 13px;
+}
+.agenda-intro .button:disabled,
+.agenda-form-panel .button:disabled,
+.activity-actions .button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Panel calendario: el mockup pinta el marco sin padding; cada banda
+   (toolbar / mes / filas) aporta el propio. */
+.calendar-panel {
+  --calendar-gap: 8px;
+  --calendar-pad: 24px;
+  --calendar-day-height: 112px;
+  --calendar-day-soft: color-mix(in oklch, var(--color-accent) 9%, #fff);
+  --calendar-day-edge: color-mix(in oklch, var(--color-ink) 16%, #fff);
+  --calendar-day-selected: var(--color-line);
+  margin-top: 0;
+  padding: 0;
+  overflow: hidden;
+}
+.calendar-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: var(--calendar-pad);
+  border-bottom: 1px solid var(--color-line);
+}
+.calendar-month-field {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.calendar-month-field h2 {
+  margin: 0;
+  text-transform: capitalize;
+}
+.calendar-count {
+  color: var(--color-muted);
+  font-size: 12px;
+}
+.calendar-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+.calendar-view-switch {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 8px;
+  background: var(--color-surface);
+}
+.calendar-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.calendar-controls .button {
+  min-height: 44px;
+}
+.calendar-month {
+  padding: var(--calendar-pad);
+}
+.calendar-hint {
+  margin: 0 0 16px;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+.calendar-week,
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--calendar-gap);
+}
+.calendar-week {
+  margin-bottom: 8px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+.calendar-day {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
+  min-height: var(--calendar-day-height);
+  padding: 12px;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: var(--color-surface-warm);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+.calendar-day.has-events {
+  border-color: var(--calendar-day-edge);
+  background: var(--calendar-day-soft);
+  cursor: pointer;
+}
+.calendar-day.selected {
+  padding: 11px;
+  border: 2px solid var(--color-accent);
+  background: var(--calendar-day-selected);
+}
+.calendar-number {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+}
+/* Marker propio de la app (sin análogo en el mockup): el día de hoy. */
+.calendar-day.today .calendar-number {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.calendar-event-count {
+  color: var(--color-accent);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.calendar-preview {
+  color: var(--color-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.calendar-list-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px var(--calendar-pad);
+  border-top: 1px solid var(--color-line);
+  border-bottom: 1px solid var(--color-line);
+}
+.calendar-list-heading h3 {
+  margin: 0;
+  font-size: 15px;
+}
+.pending-title {
+  margin: 0;
+  padding: 18px var(--calendar-pad) 6px;
+  border-top: 1px solid var(--color-line-soft);
+  font: 600 15px / 1.4 var(--font-display);
+}
+.agenda-day-empty {
+  margin: 0;
+  padding: 16px var(--calendar-pad) 20px;
+  color: var(--color-muted);
+  font-size: 13px;
+}
+.agenda-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.agenda-list li + li {
+  border-top: 1px solid var(--color-line-soft);
+}
+
+/* Card de actividad: anatomía schedule-row del mockup
+   (date-box | cuerpo | acciones) sobre fila separada por regla. */
+.activity {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  gap: 20px;
+  align-items: center;
+  padding: 24px;
+}
+.activity .date-box {
+  display: grid;
+  place-items: center;
+  gap: 0;
+  min-width: 52px;
+  padding: 6px 8px;
+  border-radius: 7px;
+  background: var(--color-surface);
+  color: var(--color-muted);
+  font-size: 10px;
+  text-transform: uppercase;
+  text-align: center;
+}
+.activity .date-box strong {
+  color: var(--color-ink);
+  font-size: 19px;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+}
+.activity-body {
+  min-width: 0;
+}
+.activity-body > .tone-badge {
+  display: inline-flex;
+  margin-bottom: 8px;
+}
+.activity h3 {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.activity .details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+  margin: 10px 0 0;
+}
+.activity .details div {
+  min-width: 0;
+}
+.activity dt {
+  margin-bottom: 2px;
+  color: var(--color-meta);
+  font-size: 11px;
+}
+.activity dd {
+  margin: 0;
+  color: var(--color-ink-2);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.activity dd a {
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.activity .notes {
+  margin: 10px 0 0;
+  color: var(--color-ink-2);
+  font-size: 13px;
+  white-space: pre-wrap;
+}
+.activity-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+}
+.delete-form {
+  display: contents;
+}
+
+/* Empty y acerca-de. */
+.agenda-empty {
+  padding: 48px 24px;
+  color: var(--color-muted);
+  text-align: center;
+}
+.agenda-empty h3 {
+  color: var(--color-ink);
+}
+.agenda-empty p {
+  margin: 8px 0 0;
+  font-size: 13px;
+}
+.agenda-about {
+  margin-top: 28px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-line);
+}
+.agenda-about summary {
+  display: flex;
+  align-items: center;
+  width: max-content;
+  min-height: 44px;
+  color: var(--color-ink-2);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.agenda-about summary:hover {
+  color: var(--color-accent);
+}
+.agenda-about p {
+  max-width: 76ch;
+  margin: 8px 0;
+  color: var(--color-ink-2);
+  font-size: 14px;
+}
+.agenda-about a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+@media (hover: hover) {
+  .calendar-day.has-events:hover {
+    border-color: var(--color-accent);
+    background: var(--calendar-day-soft);
+  }
+  .agenda-intro .button:hover,
+  .agenda-form-panel .button:hover,
+  .calendar-controls .button:not(.primary):hover,
+  .activity-actions .button:not(.primary):hover {
+    background: var(--color-line-soft);
+    color: var(--color-accent);
+  }
+  .agenda-intro .button.primary:hover,
+  .agenda-form-panel .button.primary:hover,
+  .calendar-controls .button.primary:hover {
+    background: var(--color-accent-hover);
+    border-color: var(--color-accent-hover);
+    color: var(--color-accent-on);
+  }
+}
+
+/* Responsive del mockup: 1024 / 768 / 480. */
+@media (max-width: 1024px) {
+  .calendar-panel {
+    --calendar-gap: 4px;
+    --calendar-day-height: 88px;
+  }
+  .calendar-day {
+    padding: 8px;
+  }
+  .calendar-day.selected {
+    padding: 7px;
+  }
+  .calendar-count-label,
+  .calendar-preview {
+    display: none;
+  }
+}
+@media (max-width: 768px) {
+  .agenda-intro {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  .agenda-intro p {
+    font-size: 13px;
+  }
+  .activity {
+    grid-template-columns: 44px minmax(0, 1fr);
+    gap: 12px;
+    padding: 20px;
+  }
+  .activity .date-box {
+    min-width: 0;
+    padding: 6px 4px;
+  }
+  .activity-actions {
+    grid-column: 2;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+}
+@media (max-width: 480px) {
+  .calendar-panel {
+    --calendar-pad: 12px;
+    --calendar-day-height: 72px;
+  }
+  .calendar-day {
+    padding: 6px;
+  }
+  .calendar-day.selected {
+    padding: 5px;
+  }
+  .calendar-toolbar {
+    gap: 12px;
+  }
+  .calendar-controls {
+    gap: 8px;
+    width: 100%;
+  }
+  .calendar-controls .button {
+    padding: 8px 12px;
+  }
+  .calendar-week {
+    font-size: 11px;
+  }
+  .calendar-number {
+    font-size: 14px;
+  }
+  .calendar-event-count {
+    font-size: 10px;
+  }
+  .calendar-list-heading {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+  .activity .details {
+    display: grid;
+    gap: 10px;
+  }
+  .form-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

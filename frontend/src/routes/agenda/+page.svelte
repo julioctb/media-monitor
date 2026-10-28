@@ -1,10 +1,9 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-
-	import type { SubmitFunction } from './$types';
 	import { invalidateAll } from '$app/navigation';
 
-	import { formatDateLong, formatDayLabel } from '$lib/format';
+	import type { SubmitFunction } from './$types';
+	import { formatDateLong } from '$lib/format';
 	import type { AgendaItem } from '$lib/api';
 	import type { PageProps } from './$types';
 
@@ -35,8 +34,9 @@
 	const filteredDated = $derived(matches.filter((item) => item.event_date !== null));
 	const filteredUndated = $derived(matches.filter((item) => item.event_date === null));
 
-	/* Calendar month cursor: today's month on load; mocked-up views toggle
-	   between the grid and the flat list. */
+	/* Calendar month cursor: today's month on load; the segmented switch only
+	   toggles the grid, the list stays the filtered set (mockup
+	   calendar-view-switch). */
 	const now = new Date();
 	const cursor = $state({ year: now.getFullYear(), month: now.getMonth() });
 	let view = $state<'month' | 'list'>('month');
@@ -96,23 +96,53 @@
 		return map;
 	});
 
-	/* Month view status line (mockup #month-notice). */
+	/* Month view status (mockup .calendar-toolbar count line). */
 	const monthItemCount = $derived.by(() => {
 		const prefix = `${cursor.year}-${String(cursor.month + 1).padStart(2, '0')}`;
 		return filteredDated.filter((item) => item.event_date?.startsWith(prefix)).length;
 	});
+	const monthCountLabel = $derived(
+		`${monthItemCount} ${monthItemCount === 1 ? 'actividad con fecha' : 'actividades con fecha'} en el mes`
+	);
 
 	/* The shared list: pending cards under the month grid, everything filtered
-	   in list view (mockup render(): month → pending, list → visible). */
+	   in list view. */
 	const listItems = $derived(view === 'month' ? filteredUndated : matches);
 
 	let selectedDay = $state<string | null>(null);
 	const selectedDayLabel = $derived(
-		selectedDay ? formatDateLong(selectedDay) : ''
+		/* Noon anchor: date-only strings parse as UTC and the Mexico City
+		   formatter would show the previous evening's date. */
+		selectedDay ? formatDateLong(`${selectedDay}T12:00:00Z`) : ''
 	);
 	const selectedDayItems = $derived(
 		selectedDay ? (itemsByDay.get(selectedDay) ?? []) : []
 	);
+
+	/** schedule-row date box (mockup .date-box): month abbr + day via pure
+	    string math on the ISO date, so no timezone can shift the day. */
+	const MONTHS_ABBR = [
+		'ene',
+		'feb',
+		'mar',
+		'abr',
+		'may',
+		'jun',
+		'jul',
+		'ago',
+		'sep',
+		'oct',
+		'nov',
+		'dic'
+	];
+	function monthAbbrOf(eventDate: string): string {
+		const match = /^(\d{4})-(\d{2})/.exec(eventDate);
+		return match ? MONTHS_ABBR[Number(match[2]) - 1] : '';
+	}
+	function dayNumberOf(eventDate: string): string {
+		const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(eventDate);
+		return match ? String(Number(match[3])) : eventDate;
+	}
 
 	const KIND_LABEL: Record<string, string> = {
 		activity: 'Actividad',
@@ -182,15 +212,17 @@
 
 {#snippet activityCard(item: AgendaItem)}
 	<article class="activity">
-		<div class="date">
-			<span>
-				{item.event_date ? formatDayLabel(item.event_date) : (item.date_label ?? 'Por confirmar')}
-			</span>
+		<div class="date-box">
+			{#if item.event_date}
+				<span>{monthAbbrOf(item.event_date)}</span>
+				<strong>{dayNumberOf(item.event_date)}</strong>
+			{:else}
+				<span>{item.date_label ?? 'Por confirmar'}</span>
+			{/if}
 			{#if item.time_label}<span>{item.time_label}</span>{/if}
-			{#if !item.event_date}<small>Fecha por confirmar</small>{/if}
 		</div>
 		<div class="activity-body">
-			<span class="badge">{KIND_LABEL[item.kind] ?? item.kind}</span>
+			<span class="tone-badge">{KIND_LABEL[item.kind] ?? item.kind}</span>
 			<h3>{item.title}</h3>
 			<dl class="details">
 				<div>
@@ -218,21 +250,26 @@
 			{#if item.notes}<p class="notes">{item.notes}</p>{/if}
 		</div>
 		<div class="activity-actions">
-			<button type="button" onclick={() => (editTarget = item)}>Editar fecha</button>
+			<button type="button" class="button" onclick={() => (editTarget = item)}>
+				Editar fecha
+			</button>
 			<form class="delete-form" method="POST" action="?/remove" use:enhance={handleDelete}>
 				<input type="hidden" name="id" value={item.id} />
-				<button type="submit" class="btn-delete" disabled={submitting}>Eliminar</button>
+				<button type="submit" class="button subtle" disabled={submitting}>Eliminar</button>
 			</form>
 		</div>
 	</article>
 {/snippet}
 
-<section class="agenda-intro" aria-labelledby="agenda-title">
-	<h1 id="agenda-title" class="page-title">Agenda</h1>
-	<button class="btn-primary" type="button" onclick={() => (showForm = !showForm)}>
+<header class="agenda-intro">
+	<div>
+		<h1 class="page-title">Agenda</h1>
+		<p>Las fechas del monitoreo, convertidas en próximos pasos.</p>
+	</div>
+	<button class="button primary" type="button" onclick={() => (showForm = !showForm)}>
 		Añadir actividad
 	</button>
-</section>
+</header>
 
 <section class="panel agenda-form-panel" aria-labelledby="form-title" hidden={!showForm}>
 	<h2 id="form-title">Nueva actividad</h2>
@@ -282,8 +319,10 @@
 			<p class="agenda-error" role="alert">{form.message}</p>
 		{/if}
 		<div class="form-actions">
-			<button type="button" onclick={() => (showForm = false)}>Cancelar</button>
-			<button type="submit" class="btn-primary" disabled={submitting}>Guardar actividad</button>
+			<button type="button" class="button" onclick={() => (showForm = false)}>Cancelar</button>
+			<button type="submit" class="button primary" disabled={submitting}>
+				Guardar actividad
+			</button>
 		</div>
 	</form>
 </section>
@@ -302,75 +341,114 @@
 			<option value="undated">Fecha por confirmar</option>
 		</select>
 	</div>
-	<div class="view-controls" role="group" aria-label="Vista de agenda">
-		<button type="button" aria-pressed={view === 'month'} onclick={() => (view = 'month')}>
-			Calendario
-		</button>
-		<button type="button" aria-pressed={view === 'list'} onclick={() => (view = 'list')}>
-			Lista
-		</button>
-	</div>
 </section>
 
 {#if statusMessage}
 	<p class="agenda-status" role="status">{statusMessage}</p>
 {/if}
 
-<section aria-label="Actividades de la agenda">
-	{#if view === 'month'}
-		<div class="month-head">
-			<h3>{monthLabel}</h3>
-			<div class="month-controls">
-				<button type="button" aria-label="Mes anterior" onclick={() => shiftMonth(-1)}>
+<section class="panel calendar-panel" aria-label="Actividades de la agenda">
+	<div class="calendar-toolbar">
+		<div class="calendar-month-field">
+			<h2 id="calendar-month" aria-live="polite">{monthLabel}</h2>
+			<span class="calendar-count">{monthCountLabel}</span>
+		</div>
+		<div class="calendar-controls">
+			<div class="calendar-view-switch" role="group" aria-label="Vista de la agenda">
+				<button
+					type="button"
+					class="button"
+					class:primary={view === 'month'}
+					aria-pressed={view === 'month'}
+					onclick={() => (view = 'month')}
+				>
+					Mes
+				</button>
+				<button
+					type="button"
+					class="button"
+					class:primary={view === 'list'}
+					aria-pressed={view === 'list'}
+					onclick={() => (view = 'list')}
+				>
+					Lista
+				</button>
+			</div>
+			<div class="calendar-nav">
+				<button type="button" class="button" aria-label="Mes anterior" onclick={() => shiftMonth(-1)}>
 					Anterior
 				</button>
-				<button type="button" onclick={goToday}>Mes actual</button>
-				<button type="button" aria-label="Mes siguiente" onclick={() => shiftMonth(1)}>
+				<button type="button" class="button" onclick={goToday}>Mes actual</button>
+				<button type="button" class="button" aria-label="Mes siguiente" onclick={() => shiftMonth(1)}>
 					Siguiente
 				</button>
 			</div>
 		</div>
-		<div class="calendar" aria-label="Calendario mensual">
-			{#each ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'] as head (head)}
-				<div class="calendar-head">{head}</div>
-			{/each}
-			{#each monthCells as day, i (`cell-${i}`)}
-				{#if day === null}
-					<div class="calendar-cell empty-cell" aria-hidden="true"></div>
-				{:else}
-					{@const key = dayKey(day)}
-					{@const dayItems = itemsByDay.get(key) ?? []}
-					<div class="calendar-cell" class:today={key === todayKey}>
-						<span class="calendar-num">{day}</span>
+	</div>
+
+	{#if view === 'month'}
+		<div class="calendar-month">
+			<p class="calendar-hint">Selecciona un día para consultar sus actividades y fuentes.</p>
+			<div class="calendar-week" aria-hidden="true">
+				{#each ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'] as head (head)}
+					<span>{head}</span>
+				{/each}
+			</div>
+			<div class="calendar-grid" role="group" aria-labelledby="calendar-month">
+				{#each monthCells as day, i (`cell-${i}`)}
+					{#if day === null}
+						<div class="calendar-blank" aria-hidden="true"></div>
+					{:else}
+						{@const key = dayKey(day)}
+						{@const dayItems = itemsByDay.get(key) ?? []}
 						{#if dayItems.length > 0}
 							<button
 								type="button"
-								class="day-button"
+								class="calendar-day has-events"
+								class:today={key === todayKey}
+								class:selected={selectedDay === key}
+								aria-pressed={selectedDay === key}
 								aria-label={`${day} de ${monthLabel}: ${dayItems.map((it) => it.title).join('; ')}`}
 								onclick={() => (selectedDay = key)}
 							>
-								{dayItems.length}
-								{dayItems.length === 1 ? 'evento' : 'eventos'}
+								<span class="calendar-number">{day}</span>
+								<span class="calendar-event-count">
+									{dayItems.length}
+									<span class="calendar-count-label">
+										{dayItems.length === 1 ? 'actividad' : 'actividades'}
+									</span>
+								</span>
+								<span class="calendar-preview od-clamp-2" aria-hidden="true">
+									{dayItems[0].title}
+								</span>
 							</button>
+						{:else}
+							<div class="calendar-day" class:today={key === todayKey}>
+								<span class="calendar-number">{day}</span>
+							</div>
 						{/if}
-					</div>
-				{/if}
-			{/each}
+					{/if}
+				{/each}
+			</div>
 		</div>
-		<p class="month-notice" role="status">
-			{monthItemCount
-				? `${monthItemCount} actividades con fecha completa en este mes. Selecciona un día para ver los detalles.`
-				: 'No hay actividades con fecha completa en este mes para los filtros seleccionados.'}
-		</p>
-		{#if selectedDay && selectedDayItems.length > 0}
-			<section class="day-detail" aria-labelledby="day-title">
-				<h3 id="day-title" tabindex="-1">{selectedDayLabel}</h3>
+		{#if selectedDay}
+			<div class="calendar-list-heading">
+				<h3 id="day-title">Actividades del {selectedDayLabel}</h3>
+				<button type="button" class="text-link" onclick={() => (selectedDay = null)}>
+					Ver todo el mes
+				</button>
+			</div>
+			{#if selectedDayItems.length > 0}
 				<ul class="agenda-list">
 					{#each selectedDayItems as item (item.id)}
 						<li>{@render activityCard(item)}</li>
 					{/each}
 				</ul>
-			</section>
+			{:else if filteredUndated.length === 0}
+				<p class="agenda-day-empty">
+					Sin actividades este día; selecciona otra fecha o revisa la lista completa.
+				</p>
+			{/if}
 		{/if}
 		{#if filteredUndated.length > 0}
 			<h3 class="pending-title">Sin fecha completa ({filteredUndated.length})</h3>
@@ -418,8 +496,8 @@
 				<p class="agenda-error" role="alert">{form.message}</p>
 			{/if}
 			<div class="form-actions">
-				<button type="button" onclick={() => (editTarget = null)}>Cancelar</button>
-				<button type="submit" class="btn-primary" disabled={submitting}>Guardar fecha</button>
+				<button type="button" class="button" onclick={() => (editTarget = null)}>Cancelar</button>
+				<button type="submit" class="button primary" disabled={submitting}>Guardar fecha</button>
 			</div>
 		</form>
 	</section>
