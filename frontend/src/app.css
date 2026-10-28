@@ -6286,6 +6286,10 @@ dialog.field-dialog::backdrop {
   margin: 0;
   color: var(--color-muted);
 }
+.daily-page .executive-other-item strong {
+  color: #222b36;
+  font-weight: 600;
+}
 .daily-actors-note {
   margin: 0 0 12px;
   font-size: 13px;

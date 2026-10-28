@@ -114,6 +114,18 @@
 	const topPicks = $derived(picks.slice(0, MAX_PRIORITIES));
 	const otherPicks = $derived(picks.slice(MAX_PRIORITIES));
 
+	/** «Otros asuntos» groups by STORY (mockup semantic), not by pick: the
+	 * same headline can appear as riesgo and decisión — one line per asunto. */
+	const otherGroups = $derived.by(() => {
+		const groups = new Map<string, { titulo: string; categories: string[] }>();
+		for (const pick of otherPicks) {
+			const group = groups.get(pick.titulo) ?? { titulo: pick.titulo, categories: [] };
+			if (!group.categories.includes(pick.category)) group.categories.push(pick.category);
+			groups.set(pick.titulo, group);
+		}
+		return [...groups.values()];
+	});
+
 	/** Delta lines keyed by their resolved story title — feeds each card's
 	 * «Cambio respecto al corte anterior» row (mockup inline facts row). */
 	const deltaByTitle = $derived(
@@ -273,17 +285,17 @@
 					</article>
 				{/each}
 			</div>
-			{#if otherPicks.length > 0}
+			{#if otherGroups.length > 0}
 				<details class="panel executive-other">
 					<summary>
 						Otros asuntos del análisis
-						<span>{otherPicks.length}</span>
+						<span>{otherGroups.length}</span>
 					</summary>
 					<div>
-						{#each otherPicks as pick, i (`other-${i}`)}
+						{#each otherGroups as group (group.titulo)}
 							<p class="executive-other-item">
-								{pick.category} · {pick.titulo}
-								{#if pick.razon} — {pick.razon}{/if}
+								<strong>{group.titulo}</strong>
+								<span> · {group.categories.join(', ')}</span>
 							</p>
 						{/each}
 					</div>
