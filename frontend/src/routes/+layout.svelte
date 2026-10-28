@@ -35,19 +35,18 @@
 		menu: 'M4 6h16 M4 12h16 M4 18h16'
 	};
 
-	// Same routes and copy as the previous topbar; the v3 mockup govern the
-	// shell look, not the nav set (11 entries > 8 in the prototype).
+	// Nav per the v3 contract (Panel-de-monitoreo-informativo app.js labels):
+	// exactly these eight views, this order. Legacy routes (/stats,
+	// /saved-searches, /revisiones) stay reachable by URL but are not part
+	// of the v3 menu.
 	const navItems: NavItem[] = [
-		{ label: 'Resumen', href: '/', icon: 'layers' },
-		{ label: 'Feed', href: '/feed', icon: 'feed' },
-		{ label: 'Campo', href: '/campo', icon: 'field' },
+		{ label: 'Resumen diario', href: '/', icon: 'layers' },
+		{ label: 'Feed de noticias', href: '/feed', icon: 'feed' },
 		{ label: 'Eventos', href: '/events', icon: 'events' },
 		{ label: 'Agenda', href: '/agenda', icon: 'agenda' },
 		{ label: 'Personajes', href: '/persons', icon: 'people' },
+		{ label: 'Campo', href: '/campo', icon: 'field' },
 		{ label: 'Consultas', href: '/consultas', icon: 'query' },
-		{ label: 'Estadísticas', href: '/stats', icon: 'stats' },
-		{ label: 'Búsquedas', href: '/saved-searches', icon: 'search' },
-		{ label: 'Revisiones', href: '/revisiones', icon: 'check' },
 		{ label: 'Configuración', href: '/settings', icon: 'settings' }
 	];
 
