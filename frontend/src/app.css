@@ -755,11 +755,6 @@ h4 {
 }
 
 /* --- Small shared bits --- */
-.sample-note {
-  margin: 22px 0 0;
-  color: var(--color-muted);
-  font-size: 12px;
-}
 .count {
   font-variant-numeric: tabular-nums;
   font-weight: 600;
@@ -3565,12 +3560,19 @@ table.coverage th {
    Events view v3 — «Panel de monitoreo informativo».
    Ported from referencia_visual/v3/Panel-de-monitoreo-informativo
    (app.js eventView/eventCard + late .events-* block of styles.css).
-   Card anatomy: mini-id EVENTO #id, headline link (shares .headline),
-   summary, counts over a footer rule. Mockup slots without app data,
-   omitted by design: priority chip, per-source type badges, follow
-   button, search box; the demo note and seguimiento grouping have no
-   persisted equivalent. Breakpoints 768 / 480 + hover (title hover
-   rides the shared .headline a:hover rule above).
+   Anatomy: aside-note, toolbar (client-side search + «N de M»
+   count), events-list of grouped sections (h2 + .sub-count +
+   .section-grid). The mockup splits followed vs rest by a stored
+   follow state the app does not keep, so the section split rides
+   the coverage axis (2+ sources = «Con eco de medios», rest =
+   «Otros eventos»/«Eventos identificados»); the eco/todas segmented
+   v1 control was removed with it — ?scope= survives server-side
+   only (load default eco = 2+ mentions). Card anatomy: mini-id
+   EVENTO #id, headline link (shares .headline), summary, counts
+   over a footer rule. Mockup slots without app data, omitted by
+   design: priority chip, per-source type badges, follow button.
+   Breakpoints 768 / 600 / 480 + hover (title hover rides the
+   shared .headline a:hover rule above).
    ============================================================ */
 .events-intro {
   display: flex;
@@ -3590,13 +3592,37 @@ table.coverage th {
   color: var(--color-muted);
   font-size: 14px;
 }
+/* Mockup .aside-note base + .events-note spacing; the app's plain-text
+   .aside-note (feed) stays untouched — the box values live here. */
+.events-note {
+  margin-bottom: 24px;
+  padding: 16px;
+  border-radius: 10px;
+  background: var(--color-line-soft);
+  color: var(--color-ink-2);
+  font-size: 11px;
+  line-height: 1.7;
+}
+.events-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.events-search {
+  flex: 0 1 400px;
+  min-height: 44px;
+  background: #fff;
+}
+.events-search input {
+  height: 44px;
+  font-size: 14px;
+}
 .events-list {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 20px;
-  margin: 20px 0 0;
-  padding: 0;
-  list-style: none;
+  gap: 28px;
 }
 .event-card {
   min-width: 0;
@@ -3631,8 +3657,34 @@ table.coverage th {
   padding-top: 16px;
   border-top: 1px solid var(--color-line);
 }
+.events-group h2 {
+  margin-bottom: 16px;
+  color: var(--color-ink);
+}
+.events-group + .events-group {
+  padding-top: 24px;
+  border-top: 1px solid var(--color-line);
+}
+.sub-count {
+  margin-left: 8px;
+  padding: 4px 7px;
+  border-radius: 5px;
+  background: var(--color-surface);
+  color: var(--color-muted);
+  font-size: 11px;
+  font-weight: 500;
+}
+.section-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
 .events-empty {
+  grid-column: 1 / -1;
   padding: 48px 24px;
+  border: 1px solid var(--color-line-soft);
+  border-radius: var(--radius-panel);
+  background: #fff;
   color: var(--color-muted);
   text-align: center;
 }
@@ -3640,7 +3692,7 @@ table.coverage th {
   color: var(--color-ink);
 }
 
-/* --- Responsive: mockup breakpoints 768 / 480 --- */
+/* --- Responsive: mockup breakpoints 768 / 600 / 480 --- */
 @media (max-width: 768px) {
   .events-intro {
     flex-direction: column;
@@ -3650,8 +3702,16 @@ table.coverage th {
   .events-intro p {
     font-size: 13px;
   }
-  .events-list {
+  .section-grid {
     grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 600px) {
+  .events-search {
+    flex-basis: 100%;
+  }
+  .events-toolbar {
+    margin-bottom: 16px;
   }
 }
 @media (max-width: 480px) {

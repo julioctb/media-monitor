@@ -1,21 +1,29 @@
 <script lang="ts">
-	import { page } from '$app/state';
 	import EventCard from '$lib/components/EventCard.svelte';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
 
-	function scopeHref(scope: 'eco' | 'todas'): string {
-		const params = new URLSearchParams(page.url.searchParams);
-		params.set('scope', scope);
-		return `${page.url.pathname}?${params.toString()}`;
-	}
+	// Mockup search (eventView): client-side over the loaded set. EventSummary
+	// carries id/title/summary only — no per-event source, topic or priority
+	// data to match, so the«fuente» leg of the mockup placeholder is omitted.
+	let query = $state('');
 
-	const ecoCount = $derived(
-		data.scope === 'eco'
-			? data.events.length
-			: data.events.filter((event) => event.mention_count >= 2).length
-	);
+	const matches = $derived.by(() => {
+		const term = query.trim().toLowerCase();
+		if (!term) return data.events;
+		return data.events.filter((event) =>
+			`${event.id} ${event.title} ${event.summary ?? ''}`.toLowerCase().includes(term),
+		);
+	});
+
+	// The mockup splits «En seguimiento» vs rest by a persisted follow state the
+	// app does not track; the honest proxy is the coverage axis the load itself
+	// is built on: eco = the story reached two or more sources. Single-source
+	// events land in the mockup's «Otros eventos» / «Eventos identificados»
+	// group, exactly its fallback when nothing is followed.
+	const withEcho = $derived(matches.filter((event) => event.source_count >= 2));
+	const withoutEcho = $derived(matches.filter((event) => event.source_count < 2));
 </script>
 
 <svelte:head>
@@ -25,51 +33,72 @@
 <header class="events-intro">
 	<div>
 		<h1 class="page-title">Eventos</h1>
-		<p>
-			Hechos agrupados a partir de las menciones captadas. «Con eco de medios» reúne los que
-			dos o más fuentes cubrieron; «Todas» añade los que tienen una sola nota.
-		</p>
-	</div>
-
-	<!-- Scope toggle: eco = cobertura de 2+ medios; el resto vive en Todas. -->
-	<div class="segmented" role="group" aria-label="Alcance de eventos">
-		<a href={scopeHref('eco')} aria-current={data.scope === 'eco' ? 'page' : undefined}>
-			Con eco de medios
-		</a>
-		<a href={scopeHref('todas')} aria-current={data.scope === 'todas' ? 'page' : undefined}>
-			Todas
-		</a>
+		<p>De menciones dispersas a hechos con contexto y trazabilidad.</p>
 	</div>
 </header>
 
-{#if data.events.length === 0}
-	<div class="events-empty">
-		{#if data.scope === 'eco'}
-			<h3>Ningún evento con eco de varios medios todavía.</h3>
-			<p>
-				Cuando dos o más notas cubran el mismo hecho, aparecerá aquí. También puedes ver
-				<a href={scopeHref('todas')} class="underline hover:text-ink">todas</a>.
-			</p>
-		{:else}
-			<h3>Sin eventos registrados todavía.</h3>
-			<p>Los eventos aparecen cuando la ingesta agrupa menciones del mismo suceso.</p>
+<div class="aside-note events-note">
+	Los eventos reúnen menciones del mismo hecho. Cada fuente se conserva por separado; los
+	registros no constituyen confirmación independiente.
+</div>
+
+<div class="events-toolbar">
+	<label class="search events-search">
+		<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true">
+			<path d="M20 20l-5-5 M10 17a7 7 0 1 0 0-14 7 7 0 0 0 0 14" />
+		</svg>
+		<span class="sr-only">Buscar eventos</span>
+		<!-- Bindings replace the mockup's value+listener pair: the list is
+			filtered in place, never re-requested from the server. -->
+		<input
+			id="events-search"
+			type="search"
+			placeholder="Buscar por número o asunto…"
+			autocomplete="off"
+			bind:value={query}
+		/>
+	</label>
+	<span id="events-count" class="text-xs text-muted tabular-nums" aria-live="polite">
+		{matches.length} de {data.events.length} eventos
+	</span>
+</div>
+
+<div class="events-list">
+	{#if matches.length === 0}
+		<div class="events-empty">
+			{#if data.events.length === 0}
+				<h3>Sin eventos registrados todavía.</h3>
+				<p>Los eventos aparecen cuando la ingesta agrupa menciones del mismo hecho.</p>
+			{:else}
+				<h3>No se encontraron eventos</h3>
+				<p>Prueba con otro número o asunto.</p>
+			{/if}
+		</div>
+	{:else}
+		{#if withEcho.length > 0}
+			<section class="events-group" aria-labelledby="events-echo-title">
+				<h2 id="events-echo-title">
+					Con eco de medios <span class="sub-count">{withEcho.length}</span>
+				</h2>
+				<div class="section-grid">
+					{#each withEcho as event (event.id)}
+						<EventCard {event} />
+					{/each}
+				</div>
+			</section>
 		{/if}
-	</div>
-{:else}
-	<p class="text-xs text-muted tabular-nums" role="status" aria-live="polite">
-		{data.events.length}
-		{data.scope === 'eco' ? 'historias con cobertura de varios medios' : 'eventos'} ·
-		{ecoCount} con eco de 2+ medios
-	</p>
-	<ul class="events-list" aria-label="Eventos">
-		{#each data.events as event (event.id)}
-			<li>
-				<EventCard {event} />
-			</li>
-		{/each}
-	</ul>
-	<p class="sample-note">
-		Los eventos se agrupan en cada ciclo de ingesta; los recuentos corresponden a los eventos
-		cargados en esta vista.
-	</p>
-{/if}
+		{#if withoutEcho.length > 0}
+			<section class="events-group" aria-labelledby="events-other-title">
+				<h2 id="events-other-title">
+					{withEcho.length > 0 ? 'Otros eventos' : 'Eventos identificados'}
+					<span class="sub-count">{withoutEcho.length}</span>
+				</h2>
+				<div class="section-grid">
+					{#each withoutEcho as event (event.id)}
+						<EventCard {event} />
+					{/each}
+				</div>
+			</section>
+		{/if}
+	{/if}
+</div>
