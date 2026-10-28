@@ -79,6 +79,27 @@
   --text-lg--line-height: 1.2;
   --tracking-display: 0em;
 
+  /* Detail-dialog type scale — measured on the mockup's RENDERED
+     #detail-dialog (styles.css dialog cascade: .dialog-body p 14px wins
+     over .eyebrow 10px and .small 12px). Single source for every popup
+     body: evidencia, personajes y mención. */
+  --text-dialog-title: 25px;
+  --text-dialog-title--line-height: 1.4;
+  --text-dialog-title--font-weight: 700;
+  --text-dialog-heading: 16px;
+  --text-dialog-heading--line-height: 1.5;
+  --text-dialog-heading--font-weight: 700;
+  --text-dialog-body: 14px;
+  --text-dialog-body--line-height: 1.6;
+  --text-dialog-record: 15px;
+  --text-dialog-record--line-height: 1.5;
+  --text-dialog-record--font-weight: 700;
+  --text-dialog-eyebrow: 14px;
+  --text-dialog-eyebrow--letter-spacing: 1.8px;
+  --text-dialog-eyebrow--font-weight: 700;
+  --text-dialog-evidence: 13px;
+  --text-dialog-callout: 12.5px;
+
   /* Geometry — single source of truth for control radius (ui.ts) */
   --radius-control: 8px;
   --radius-panel: 12px;
@@ -6557,34 +6578,34 @@ dialog.detail-dialog::backdrop {
 }
 
 /* Detail-dialog CONTENT styles — chrome is shared with the field dialog
-   above (dialog.field-dialog, dialog.detail-dialog). Typography MEASURED on
-   the mockup's rendered #detail-dialog (its cascade resolves .eyebrow/.small
-   inside the dialog at 14px): h2 25/700 display, h3 16/700 display, body p
-   14/400, record title 15/700 display, meta 14 muted. Palette via @theme. */
+   above (dialog.field-dialog, dialog.detail-dialog). All values come from
+   @theme tokens (type scale: --text-dialog-*; palette: --color-*); no
+   literals live here. */
 .detail-dialog .dialog-body h3 {
   margin: 0 0 4px;
-  font-weight: 700;
   font-family: var(--font-display);
-  font-size: 16px;
-  line-height: 1.5;
+  font-size: var(--text-dialog-heading);
+  font-weight: var(--text-dialog-heading--font-weight);
+  line-height: var(--text-dialog-heading--line-height);
 }
 .detail-dialog .dialog-body p {
-  font-size: 14px;
+  font-size: var(--text-dialog-body);
+  line-height: var(--text-dialog-body--line-height);
 }
 .daily-dialog-eyebrow {
   margin: 0;
-  font-size: 14px;
-  letter-spacing: 1.8px;
+  font-size: var(--text-dialog-eyebrow);
+  letter-spacing: var(--text-dialog-eyebrow--letter-spacing);
   text-transform: uppercase;
-  font-weight: 700;
+  font-weight: var(--text-dialog-eyebrow--font-weight);
   color: var(--color-accent);
 }
 .daily-dialog-title {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 25px;
-  line-height: 1.4;
-  font-weight: 700;
+  font-size: var(--text-dialog-title);
+  line-height: var(--text-dialog-title--line-height);
+  font-weight: var(--text-dialog-title--font-weight);
   color: var(--color-ink);
 }
 .daily-dialog-interpretation p {
@@ -6592,10 +6613,10 @@ dialog.detail-dialog::backdrop {
 }
 .detail-dialog .daily-dialog-warning {
   padding: 8px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   background: var(--color-warn-soft);
   color: var(--color-warn);
-  font-size: 12.5px;
+  font-size: var(--text-dialog-callout);
 }
 .daily-dialog-record {
   display: grid;
@@ -6611,24 +6632,23 @@ dialog.detail-dialog::backdrop {
 .daily-dialog-record h4 {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 15px;
-  line-height: 1.5;
-  font-weight: 700;
+  font-size: var(--text-dialog-record);
+  line-height: var(--text-dialog-record--line-height);
+  font-weight: var(--text-dialog-record--font-weight);
   color: var(--color-ink);
 }
 .daily-dialog-record p {
   margin: 0;
-  line-height: 1.55;
 }
 .daily-dialog-meta {
   color: var(--color-muted);
-  font-size: 14px;
+  font-size: var(--text-dialog-body);
 }
 .daily-dialog-footnote {
   margin: 0;
   padding-top: 12px;
   border-top: 1px solid var(--color-line);
-  font-size: 14px;
+  font-size: var(--text-dialog-body);
   color: var(--color-muted);
 }
 
@@ -6643,9 +6663,9 @@ dialog.detail-dialog::backdrop {
   overflow-y: auto;
   padding: 16px;
   border: 1px solid var(--color-line);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: var(--color-surface);
-  font-size: 13px;
+  font-size: var(--text-dialog-evidence);
   line-height: 1.55;
   white-space: pre-wrap;
 }
