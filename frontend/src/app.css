@@ -495,6 +495,12 @@
   }
 }
 
+/* T11 close-out: chart canvases keep their first-paint width when the
+   layout settles after mount (chart.js resize gap) — never exceed the card. */
+.main canvas {
+  max-width: 100%;
+}
+
 /* ============================================================
    Shared UI kit v3 — verbatim from the mockup (final cascade state:
    the late «institutional typography» block normalizes heading
