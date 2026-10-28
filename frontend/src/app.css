@@ -4876,6 +4876,12 @@ table.coverage th {
 .floating-query-answer .evidence li + li {
   border-top: 1px solid var(--color-line-soft);
 }
+.floating-query-answer .citations-toggle {
+  margin-top: 2px;
+  padding: 4px 0;
+  font-size: 11px;
+  text-align: left;
+}
 .floating-query-answer .evidence a {
   color: var(--color-accent);
   display: block;

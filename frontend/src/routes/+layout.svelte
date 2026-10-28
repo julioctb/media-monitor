@@ -59,6 +59,8 @@
 	let closeButton: HTMLButtonElement | undefined = $state();
 	let panelOpen = $state(false);
 	let panelQuestion = $state('');
+	let citationsOpen = $state(false);
+	const VISIBLE_CITATIONS = 3;
 	let panelPending = $state(false);
 	let panelError = $state('');
 	let panelResult: {
@@ -104,6 +106,7 @@
 		const question = String((formData.get('question') ?? '') as string).trim();
 		panelQuestion = question;
 		panelResult = null;
+		citationsOpen = false;
 		panelPending = true;
 		panelError = '';
 		if (queryInput) queryInput.value = '';
@@ -341,7 +344,7 @@
 							{#if (panelResult?.citations?.length ?? 0) > 0}
 								<div class="evidence">
 									<ul>
-										{#each panelResult?.citations ?? [] as citation (citation.url + citation.title)}
+										{#each (panelResult?.citations ?? []).slice(0, citationsOpen ? undefined : VISIBLE_CITATIONS) as citation (citation.url + citation.title)}
 											<li>
 												<a href={citation.url} target="_blank" rel="noopener noreferrer">
 													{citation.title ?? citation.url}
@@ -349,6 +352,17 @@
 											</li>
 										{/each}
 									</ul>
+									{#if (panelResult?.citations?.length ?? 0) > VISIBLE_CITATIONS}
+										<button
+											type="button"
+											class="text-link citations-toggle"
+											onclick={() => (citationsOpen = !citationsOpen)}
+										>
+											{citationsOpen
+												? 'ocultar'
+												: `…${(panelResult?.citations?.length ?? 0) - VISIBLE_CITATIONS} fuentes más — ver`}
+										</button>
+									{/if}
 								</div>
 							{/if}
 						{:else if !panelPending && !panelResult}
