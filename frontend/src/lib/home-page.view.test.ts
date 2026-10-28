@@ -382,14 +382,13 @@ describe('home daily structure (v3 mockup)', () => {
     expect(calendar?.querySelector('.briefing-day')?.textContent?.trim()).toBe('28');
     expect((calendar?.querySelector('.briefing-weekday')?.textContent?.trim() ?? '').length).toBeGreaterThan(2);
 
-    // Priorities cap at three; the fourth pick folds into «otros asuntos».
+    // Priorities cap at three; the mockup never surfaces the rest (its
+    // «otros asuntos» branch is unreachable with demo data) — nothing after.
     const priorities = [...container.querySelectorAll('.executive-priority')];
     expect(priorities.length).toBe(3);
     expect(priorities[0].querySelector('.daily-number')?.textContent?.trim()).toBe('01');
     expect((priorities[0].querySelector('.source-badge')?.textContent?.trim() ?? '').length).toBeGreaterThan(3);
-    const other = container.querySelector('.executive-other');
-    expect(other?.querySelector('summary')?.textContent).toContain('Otros asuntos del análisis');
-    expect(other?.querySelector('summary span')?.textContent?.trim()).toBe('1');
+    expect(container.querySelector('.executive-other')).toBeNull();
 
     // Card facts: mockup copy with the delta-driven cambio row.
     const firstCard = (priorities[0].textContent ?? '').replace(/\s+/g, ' ');
