@@ -4963,3 +4963,519 @@ table.coverage th {
     display: none !important;
   }
 }
+
+/* ============================================================
+   panel-v3 — campo: bandeja de reportes (mockup field.js inbox)
+   Puertos del cascade final de styles.css (504-579 + base 242-253,
+   dialog base). Tokens: bg->surface paper->surface-warm blue->accent.
+   ============================================================ */
+.field-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.field-top .tabs {
+  flex: 1;
+}
+.field-top .chip {
+  min-height: 0;
+  padding: 3px 7px;
+  border-radius: 5px;
+  font-size: 10px;
+  cursor: default;
+}
+.field-notice {
+  color: var(--color-muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+.field-inbox-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 28px 28px 20px;
+}
+.field-inbox-header h2 {
+  margin: 0 0 4px;
+  font: 700 21px/1.4 var(--font-display);
+  color: var(--color-ink);
+}
+.field-inbox-header p {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 14px;
+}
+.field-inbox-header .field-search {
+  display: grid;
+  gap: 8px;
+  flex: 1;
+  min-width: 260px;
+  max-width: 320px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+.field-search-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--color-line);
+  border-radius: 6px;
+  background: var(--color-surface-warm);
+}
+.field-search-control .od-icon {
+  width: 18px;
+  height: 18px;
+  color: var(--color-muted);
+}
+.field-search-control input {
+  height: 42px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font-size: 14px;
+  outline: none;
+}
+.field-search-control:focus-within {
+  outline: 3px solid #607e9b;
+  outline-offset: 2px;
+}
+.field-inbox-toolbar {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 28px 24px;
+}
+.field-inbox-status {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 52px;
+  padding: 4px;
+  border-radius: 8px;
+  background: var(--color-surface);
+}
+.field-inbox-status button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-muted);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.field-inbox-status button.active {
+  background: var(--color-surface-warm);
+  color: var(--color-accent);
+  box-shadow: 0 1px 5px #2432411a;
+}
+.field-inbox-status button span {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: #e4eaf0;
+  font-size: 11px;
+}
+.field-inbox-toolbar > label {
+  display: grid;
+  gap: 6px;
+  min-width: 150px;
+  color: var(--color-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+.field-inbox-toolbar input,
+.field-inbox-toolbar select {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--color-line);
+  border-radius: 6px;
+  background: var(--color-surface-warm);
+  color: var(--color-ink);
+  font-size: 13px;
+}
+.field-date-range {
+  flex: 0 1 340px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.field-date-range legend {
+  margin-bottom: 6px;
+  padding: 0;
+  color: var(--color-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+.field-date-range-inputs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.field-date-range-inputs label {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  color: var(--color-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+.field-date-range input[aria-invalid='true'] {
+  border-color: #a12b32;
+}
+.field-date-error {
+  margin: 6px 0 0;
+  color: #8f222b;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.field-inbox-toolbar > label:last-child {
+  min-width: 190px;
+}
+.field-inbox-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+.field-inbox-table {
+  width: 100%;
+  min-width: 940px;
+  table-layout: fixed;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 14px;
+}
+.field-inbox-table th {
+  padding: 14px 18px;
+  border-block: 1px solid var(--color-line);
+  background: #f3f6f8;
+  color: #47586a;
+  font-size: 12px;
+  font-weight: 600;
+}
+.field-inbox-table td {
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--color-line);
+  vertical-align: middle;
+  overflow-wrap: anywhere;
+  color: var(--color-ink);
+}
+.field-inbox-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+.field-inbox-table th:nth-child(1) {
+  width: 15%;
+}
+.field-inbox-table th:nth-child(2) {
+  width: 30%;
+}
+.field-inbox-table th:nth-child(3) {
+  width: 15%;
+}
+.field-inbox-table th:nth-child(4) {
+  width: 17%;
+}
+.field-inbox-table th:nth-child(5) {
+  width: 12%;
+}
+.field-inbox-table th:nth-child(6) {
+  width: 11%;
+}
+.field-inbox-table time span {
+  display: block;
+  margin-top: 2px;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+.field-inbox-title {
+  display: -webkit-box;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-ink);
+  font: 600 15px/1.45 var(--font-body);
+  text-align: left;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.field-inbox-summary {
+  display: -webkit-box;
+  margin-top: 4px;
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.5;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.field-inbox-state {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.field-inbox-state.review {
+  background: #f1eee7;
+  color: var(--color-warn);
+}
+.field-inbox-state.published {
+  background: #eaf0ed;
+  color: #49645e;
+}
+.field-inbox-state.rejected {
+  background: #edf1f4;
+  color: #526476;
+}
+.field-inbox-table .button {
+  min-height: 44px;
+  padding: 8px 12px;
+}
+.reports-view .field-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 16px 28px;
+  color: var(--color-muted);
+  font-size: 13px;
+}
+.reports-view .field-pagination label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.reports-view .field-pagination select {
+  min-height: 44px;
+  color: var(--color-ink);
+}
+.reports-view .field-pagination > div {
+  display: flex;
+  gap: 8px;
+}
+.field-metadata {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 24px 0;
+}
+.field-metadata dt {
+  font-size: 12px;
+  color: var(--color-muted);
+}
+.field-metadata dd {
+  margin: 4px 0 0;
+  font-size: 14px;
+}
+.field-form {
+  display: grid;
+  gap: 16px;
+}
+.field-form label {
+  display: grid;
+  gap: 8px;
+  font-size: 14px;
+}
+.field-form input,
+.field-form textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--color-line);
+  border-radius: 4px;
+  background: var(--color-surface-warm);
+  color: var(--color-ink);
+  font: inherit;
+}
+.field-form textarea {
+  min-height: 112px;
+  resize: vertical;
+}
+.field-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.field-actions .button {
+  min-height: 44px;
+}
+/* Dialog chrome (mockup dialog base + .dialog-head/.dialog-body); scoped to
+   the field dialog: no other <dialog> exists in the app today. */
+dialog.field-dialog {
+  border: 1px solid var(--color-line);
+  border-radius: 16px;
+  padding: 0;
+  width: min(740px, calc(100% - 32px));
+  max-height: 88vh;
+  overflow: auto;
+  color: var(--color-ink);
+  box-shadow: 0 24px 80px #10243e30;
+}
+dialog.field-dialog::backdrop {
+  background: #13253a66;
+  backdrop-filter: blur(3px);
+}
+.field-dialog .dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--color-line);
+  position: sticky;
+  top: 0;
+  background: var(--color-surface-warm);
+}
+.field-dialog .dialog-body {
+  padding: 28px;
+}
+.field-report-dialog h2 {
+  font-size: 24px;
+  line-height: 1.4;
+}
+.field-report-dialog h3 {
+  font-size: 16px;
+}
+.field-report-dialog blockquote {
+  margin: 16px 0 24px;
+  padding: 20px;
+  border-radius: 6px;
+  background: var(--color-surface);
+  font-size: 16px;
+  line-height: 1.75;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+@media (hover: hover) {
+  .field-inbox-table tbody tr:hover {
+    background: var(--color-surface);
+  }
+  .field-inbox-title:hover {
+    color: var(--color-accent);
+    text-decoration: underline;
+  }
+  .field-inbox-status button:not(.active):hover {
+    color: var(--color-accent);
+    background: #e9eef3;
+  }
+}
+@media (max-width: 1100px) {
+  .field-inbox-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .field-inbox-header .field-search {
+    max-width: none;
+  }
+  .field-inbox-toolbar {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+}
+@media (max-width: 768px) {
+  .field-inbox-header {
+    padding: 20px;
+  }
+  .field-inbox-toolbar {
+    padding: 0 20px 20px;
+  }
+  .field-inbox-table-wrap {
+    overflow: visible;
+  }
+  .field-inbox-table,
+  .field-inbox-table tbody {
+    display: block;
+    min-width: 0;
+  }
+  .field-inbox-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+  }
+  .field-inbox-table tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--color-line);
+  }
+  .field-inbox-table td {
+    display: block;
+    padding: 0;
+    border: 0;
+  }
+  .field-inbox-table td::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 5px;
+    color: var(--color-muted);
+    font-size: 11px;
+  }
+  .field-inbox-table td:nth-child(2) {
+    grid-column: 1 / -1;
+  }
+  .field-inbox-table td:last-child {
+    grid-column: 1 / -1;
+  }
+  .reports-view .field-pagination {
+    padding: 16px 20px;
+  }
+}
+@media (max-width: 600px) {
+  .field-inbox-header {
+    padding: 20px 16px;
+  }
+  .field-inbox-header .field-search {
+    min-width: 0;
+  }
+  .field-inbox-toolbar {
+    padding: 0 16px 16px;
+  }
+  .field-inbox-status {
+    width: 100%;
+    overflow-x: auto;
+  }
+  .field-inbox-toolbar > label {
+    flex: 1;
+    min-width: 140px;
+  }
+  .field-date-range {
+    flex-basis: 100%;
+  }
+  .field-inbox-table tr {
+    padding: 16px;
+  }
+  .reports-view .field-pagination {
+    padding: 16px;
+  }
+  .field-metadata {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 480px) {
+  .field-date-range-inputs {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
