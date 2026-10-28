@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { formatDisplayDateTimeLong, sentimentLabel, topicBadgeClass, topicLabel } from '$lib/format';
+	import { formatDisplayDateTimeLong, outletFromUrl, sentimentLabel, topicBadgeClass, topicLabel } from '$lib/format';
 	import { isNewsSource } from '$lib/digest-stats';
 	import type { Mention } from '$lib/api';
 	import NewsEntry from '$lib/components/NewsEntry.svelte';
@@ -18,13 +18,16 @@
 		keywordLabel?: string | null;
 		/** Mentions in the same-event group (footer coverage chip). */
 		coverageCount?: number;
+		/** Opens the record-detail dialog (mockup recordDetail). */
+		onDetail?: (mention: Mention) => void;
 	}
 
 	let {
 		mention,
 		event = null,
 		keywordLabel = null,
-		coverageCount = 1
+		coverageCount = 1,
+		onDetail
 	}: Props = $props();
 
 	const when = $derived(mention.published_at ?? mention.ingested_at);
@@ -54,22 +57,6 @@
 		const content = mention.content?.trim();
 		return content ? { text: content, clamp: true } : { text: null, clamp: false };
 	});
-
-	/** Link shorteners: the root split would print garbage like "t". */
-	const SHORTENERS = new Set(['t.co', 'bit.ly', 'ow.ly', 'tinyurl.com', 'is.gd', 'buff.ly']);
-
-	/** Second chain link: domain root for news (e-consulta), platform for social. */
-	function outletFromUrl(url: string): string | null {
-		try {
-			const host = new URL(url).hostname.replace(/^www\./, '');
-			const root = host.split('.').shift() ?? '';
-			// Shorteners and 1-letter roots read broken; show the full host.
-			if (root.length < 3 || SHORTENERS.has(host)) return host;
-			return root;
-		} catch {
-			return null;
-		}
-	}
 
 	const PLATFORM_LABEL: Record<string, string> = {
 		x_twitter: 'X',
@@ -123,6 +110,11 @@
 				Evento #{event.id} · {coverageCount}
 				{coverageCount === 1 ? 'cobertura' : 'coberturas'} del mismo evento
 			</a>
+		{/if}
+		{#if onDetail}
+			<button type="button" class="text-link" onclick={() => onDetail?.(mention)}>
+				Ver detalle
+			</button>
 		{/if}
 	{/snippet}
 </NewsEntry>

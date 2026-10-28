@@ -418,7 +418,7 @@
 	<!-- Mockup dailyEvidence dialog: hecho reportado, lectura política y
 	     materiales del corte para el asunto abierto. -->
 	<dialog
-		class="daily-evidence-dialog"
+		class="detail-dialog"
 		bind:this={evidenceDialog}
 		aria-labelledby="daily-evidence-title"
 		onclose={() => (evidencePick = null)}

@@ -170,3 +170,24 @@ it('renders the v3 panel anatomy: toolbar, tone filter, rail and item rows', asy
 	expect(target.querySelector('.feed-filter-panel')).toBeNull();
 	expect(target.querySelector('.result-line')).toBeNull();
 });
+
+it('opens the mention detail dialog from a card', async () => {
+	const target = await render();
+
+	const button = [...target.querySelectorAll('button')].find((b) =>
+		(b.textContent ?? '').includes('Ver detalle')
+	);
+	expect(button).toBeTruthy();
+	button!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+	await new Promise((resolve) => setTimeout(resolve, 30));
+	await tick();
+
+	const dialog = target.querySelector('dialog.mention-detail');
+	expect(dialog).toBeTruthy();
+	const text = (dialog?.textContent ?? '').replace(/\s+/g, ' ');
+	expect(text).toContain('Detalle de la mención');
+	expect(text).toContain('Texto original');
+	expect(text).toContain('Contenido capturado.');
+	expect(text).toContain('Ir a la publicación');
+	expect(/Ver evento #\d+|Todavía no forma un evento/.test(text)).toBe(true);
+});

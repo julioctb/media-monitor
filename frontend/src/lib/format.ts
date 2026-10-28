@@ -349,3 +349,19 @@ export function cleanDigestText(text: string): string {
 		.replace(/\s{2,}/g, ' ')
 		.trim();
 }
+
+/** Link shorteners: the root split would print garbage like "t". */
+const URL_SHORTENERS = new Set(['t.co', 'bit.ly', 'ow.ly', 'tinyurl.com', 'is.gd', 'buff.ly']);
+
+/** Human outlet name from a URL: domain root for news (e--consulta), null when unusable. */
+export function outletFromUrl(url: string): string | null {
+	try {
+		const host = new URL(url).hostname.replace(/^www\./, '');
+		const root = host.split('.').shift() ?? '';
+		// Shorteners and 1-letter roots read broken; show the full host.
+		if (root.length < 3 || URL_SHORTENERS.has(host)) return host;
+		return root;
+	} catch {
+		return null;
+	}
+}

@@ -5,6 +5,9 @@
 	import { page } from '$app/state';
 
 	import EventGroup from '$lib/components/EventGroup.svelte';
+	import MentionDetailDialog from '$lib/components/MentionDetailDialog.svelte';
+	import type { MentionEventRef } from '$lib/components/MentionCard.svelte';
+	import type { Mention } from '$lib/api';
 	import { groupByEvent } from '$lib/grouping';
 	import type { FeedGroup } from '$lib/grouping';
 	import { CHANNEL_LABELS, type FeedChannel } from '$lib/feed-filters';
@@ -47,6 +50,15 @@
 
 	/** Same event = same story: one card plus a collapsed coverage list. */
 	const groups = $derived(groupByEvent(data.mentions.items));
+
+	/** Record-detail dialog (mockup recordDetail): one mention at a time. */
+	let detailMention: Mention | null = $state(null);
+	let detailEvent: MentionEventRef | null = $state(null);
+
+	function openDetail(mention: Mention, event: MentionEventRef | null) {
+		detailMention = mention;
+		detailEvent = event;
+	}
 
 	function keywordLabelFor(group: FeedGroup): string | null {
 		const keywordId = group.mentions[0]?.keyword_id ?? null;
@@ -384,7 +396,7 @@
 			<ol class="feed-list" aria-label="Publicaciones">
 				{#each groups as group (group.key)}
 					<li class="feed-group">
-						<EventGroup {group} keywordLabel={keywordLabelFor(group)} />
+						<EventGroup {group} keywordLabel={keywordLabelFor(group)} onDetail={openDetail} />
 					</li>
 				{/each}
 			</ol>
@@ -568,3 +580,9 @@
 		</aside>
 	</div>
 </div>
+
+<MentionDetailDialog
+	mention={detailMention}
+	event={detailEvent}
+	onclose={() => (detailMention = null)}
+/>

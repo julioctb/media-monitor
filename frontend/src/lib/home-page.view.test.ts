@@ -454,7 +454,7 @@ describe('home daily structure (v3 mockup)', () => {
     await new Promise((resolve) => setTimeout(resolve, 30));
     await tick();
 
-    const dialog = container.querySelector('dialog.daily-evidence-dialog');
+    const dialog = container.querySelector('dialog.detail-dialog');
     expect(dialog).toBeTruthy();
     const text = (dialog?.textContent ?? '').replace(/\s+/g, ' ');
     expect(text).toContain('Materiales del corte actual · 0');

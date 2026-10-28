@@ -6447,7 +6447,7 @@ dialog.field-dialog::backdrop {
 }
 
 /* Evidence dialog (mockup dailyEvidence pattern, campo dialog chrome). */
-dialog.daily-evidence-dialog {
+dialog.detail-dialog {
   width: min(560px, calc(100vw - 32px));
   max-height: min(640px, calc(100vh - 48px));
   padding: 0;
@@ -6456,10 +6456,10 @@ dialog.daily-evidence-dialog {
   overflow: hidden;
   color: #222b36;
 }
-dialog.daily-evidence-dialog::backdrop {
+dialog.detail-dialog::backdrop {
   background: rgba(34, 43, 54, 0.35);
 }
-.daily-evidence-dialog .dialog-head {
+.detail-dialog .dialog-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -6467,13 +6467,13 @@ dialog.daily-evidence-dialog::backdrop {
   padding: 14px 20px;
   border-bottom: 1px solid #dce1e6;
 }
-.daily-evidence-dialog .dialog-body {
+.detail-dialog .dialog-body {
   display: grid;
   gap: 16px;
   padding: 20px;
   overflow-y: auto;
 }
-.daily-evidence-dialog .dialog-body h3 {
+.detail-dialog .dialog-body h3 {
   margin: 0 0 4px;
   font-size: 13px;
   letter-spacing: 0.02em;
@@ -6529,4 +6529,21 @@ dialog.daily-evidence-dialog::backdrop {
   font-size: 12px;
   font-weight: 600;
   color: var(--color-muted);
+}
+
+.detail-dialog .dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.detail-dialog .evidence-text {
+  max-height: 40vh;
+  overflow-y: auto;
+  padding: 12px;
+  border: 1px solid #dce1e6;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.55;
+  white-space: pre-wrap;
 }
