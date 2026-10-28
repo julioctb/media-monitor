@@ -200,8 +200,9 @@
 .shell .main {
   padding-bottom: calc(var(--query-launcher-height) + var(--query-edge) + 32px);
 }
-/* Query launcher geometry (the launcher surface lands in its own phase). */
-.shell {
+/* Query launcher geometry — :root per the mockup: the fixed launcher is a
+   sibling of .shell and must see these. */
+:root {
   --query-edge: 24px;
   --query-launcher-height: 48px;
   --query-panel-gap: 16px;
