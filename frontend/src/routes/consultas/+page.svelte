@@ -24,6 +24,20 @@
 	let draft = $state('');
 	let pending = $state(false);
 
+	// Preguntas ejemplo del welcome (mockup queryView div.suggestions): el
+	// click rellena el composer y devuelve el foco para editar y enviar.
+	const SUGGESTED_QUESTIONS = [
+		'¿Qué se reportó hoy sobre seguridad?',
+		'¿Qué se publicó esta semana sobre la BUAP?',
+		'¿Quién aparece en las notas sobre transporte?'
+	];
+	let questionField: HTMLTextAreaElement | undefined;
+
+	function applyPrompt(question: string) {
+		draft = question;
+		questionField?.focus();
+	}
+
 	const submitEnhance: SubmitFunction = () => {
 		pending = true;
 		return async ({ result, update }) => {
@@ -133,6 +147,11 @@
 					<strong>Explora la cobertura</strong>
 					Haz una pregunta sobre las notas registradas. La respuesta debe incluir citas
 					verificables.
+					<div class="suggestions" aria-label="Preguntas sugeridas">
+						{#each SUGGESTED_QUESTIONS as question (question)}
+							<button type="button" onclick={() => applyPrompt(question)}>{question}</button>
+						{/each}
+					</div>
 				</div>
 			{:else}
 					{#each active.messages as message, i (`${message.at}-${i}`)}
@@ -176,6 +195,7 @@
 				maxlength="1000"
 				required
 				bind:value={draft}
+				bind:this={questionField}
 				placeholder="Por ejemplo: ¿Qué se publicó sobre la BUAP esta semana?"
 			></textarea>
 			<div class="composer-actions">

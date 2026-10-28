@@ -5807,3 +5807,38 @@ dialog.field-dialog::backdrop {
     padding: 16px;
   }
 }
+
+/* ============================================================
+   panel-v3 — consultas: sugerencias del welcome (mockup app.js
+   queryView -> div.suggestions). El caption «Sugerencias basadas
+   en la síntesis del…» se omite: esta página no carga la síntesis.
+   ============================================================ */
+.suggestions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 16px 0 0;
+}
+.suggestions button {
+  min-width: 0;
+  min-height: 44px;
+  padding: 6px 8px;
+  border: 1px solid var(--color-line);
+  border-radius: 7px;
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font-size: 11px;
+  line-height: 1.4;
+  text-align: left;
+  white-space: normal;
+}
+@media (hover: hover) {
+  .suggestions button:hover {
+    background: #e4eaf0;
+  }
+}
+@media (max-width: 600px) {
+  .suggestions {
+    grid-template-columns: 1fr;
+  }
+}
