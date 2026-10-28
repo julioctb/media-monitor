@@ -6,42 +6,41 @@
    --color-ink -> bg-ink/text-ink, --color-line -> border-line, ...
    ============================================================ */
 @theme {
-  /* Palette */
-  --color-surface: #f5f5f7;
-  --color-surface-warm: #fbfbfd;
-  --color-ink: #1d1d1f;
-  --color-ink-2: #424245;
-  --color-muted: #6e6e73;
-  --color-meta: #86868b;
-  --color-line: #d2d2d7;
-  --color-line-soft: #e8e8ed;
-  --color-accent: #0071e3;
-  --color-accent-hover: #0077ed;
-  --color-accent-active: #0066cc;
+  /* Palette — v3 «Panel de monitoreo informativo» (styles.css :root).
+     ink-2/meta/accent-hover/active are derived steps: refine per page audit. */
+  --color-surface: #f2f3f5;
+  --color-surface-warm: #ffffff;
+  --color-ink: #222b36;
+  --color-ink-2: #435061;
+  --color-muted: #596575;
+  --color-meta: #6d7a8a;
+  --color-line: #dce1e6;
+  --color-line-soft: #e9edf2;
+  --color-accent: #344b65;
+  --color-accent-hover: #405a78;
+  --color-accent-active: #2b3f57;
   --color-accent-on: #ffffff;
-  --color-success: #16a34a;
-  --color-warn: #eab308;
-  --color-danger: #dc2626;
+  --color-success: #346e5a;
+  --color-warn: #716044;
+  --color-danger: #96505a;
 
-  /* Typography (SF stack from the mockups) */
+  /* Typography (v3: Helvetica body, Georgia display) */
   --font-display:
-    "SF Pro Display", "SF Pro Icons", "Helvetica Neue", Helvetica, Arial,
-    sans-serif;
+    Georgia, "Times New Roman", serif;
   --font-body:
-    "SF Pro Text", "SF Pro Icons", "Helvetica Neue", Helvetica, Arial,
-    sans-serif;
+    "Helvetica Neue", Helvetica, "Segoe UI", Arial, sans-serif;
   --font-mono:
     "SF Mono", ui-monospace, "JetBrains Mono", Menlo, Monaco, Consolas,
     monospace;
-  --text-base: 17px;
-  --text-base--line-height: 1.47;
+  --text-base: 16px;
+  --text-base--line-height: 1.6;
   --text-lg: 21px;
   --text-lg--line-height: 1.2;
-  --tracking-display: -0.015em;
+  --tracking-display: 0em;
 
   /* Geometry — single source of truth for control radius (ui.ts) */
   --radius-control: 8px;
-  --radius-panel: 18px;
+  --radius-panel: 12px;
 }
 
 /* Tono (sentiment) semantic colors — the ONLY place the tone mixes are
@@ -61,20 +60,38 @@
 }
 
 @layer base {
+  html {
+    scrollbar-gutter: stable;
+  }
   body {
     background: var(--color-surface);
     color: var(--color-ink);
     font-family: var(--font-body);
+    line-height: 1.6;
+  }
+  a {
+    color: var(--color-accent);
+  }
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    -webkit-tap-highlight-color: transparent;
+  }
+  button,
+  a {
+    touch-action: manipulation;
   }
   :focus-visible {
-    outline: 2px solid var(--color-accent);
+    outline: 3px solid #607e9b;
     outline-offset: 3px;
   }
   /* Native select chrome (arrow) collides with rounded/pill containers:
 	   strip it and paint a consistent chevron. */
   select {
     appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%236e6e73' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%23596575' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 0.55rem center;
     background-size: 0.8rem 0.8rem;
