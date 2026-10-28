@@ -4639,3 +4639,234 @@ table.coverage th {
 .source-check {
   flex-wrap: wrap;
 }
+
+/* ============================================================
+   Floating query (T8 revisited): the launcher toggles the mockup's
+   composer panel. Final cascade state of the mockup (conversational
+   pass): white head, 460px card, borderless inline composer. Submit
+   hands off to /consultas — no local-answer pretend.
+   ============================================================ */
+.floating-query {
+  position: fixed;
+  right: var(--query-edge);
+  bottom: calc(var(--query-edge) + var(--query-launcher-height) + var(--query-panel-gap) + env(safe-area-inset-bottom, 0px));
+  z-index: 19;
+  display: flex;
+  flex-direction: column;
+  width: min(460px, calc(100vw - 32px));
+  height: min(620px, calc(100dvh - 128px - env(safe-area-inset-bottom, 0px)));
+  background: var(--color-surface-warm);
+  border: 1px solid var(--color-line);
+  border-radius: 16px;
+  box-shadow: var(--query-shadow);
+  overflow: hidden;
+  color: var(--color-ink);
+}
+.floating-query-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  background: var(--color-surface-warm);
+  border-bottom: 1px solid var(--color-line);
+  border-radius: 15px 15px 0 0;
+  flex: none;
+}
+.query-chat-mark,
+.query-welcome-icon {
+  display: grid;
+  place-items: center;
+  background: var(--color-line-soft);
+  color: var(--color-accent);
+  border-radius: 12px;
+}
+.query-chat-mark {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border-radius: 10px;
+}
+.floating-query-title {
+  min-width: 0;
+  flex: 1;
+}
+.floating-query-title h2 {
+  font-size: 14px;
+  line-height: 1.25;
+  margin: 0;
+}
+.floating-query-title p {
+  font-size: 10px;
+  line-height: 1.2;
+  color: var(--color-muted);
+  margin: 3px 0 0;
+}
+.floating-query-head .text-link {
+  color: var(--color-accent);
+  font-size: 11px;
+  white-space: nowrap;
+  padding: 6px;
+}
+.floating-query-head .icon-button {
+  color: var(--color-muted);
+  width: 36px;
+  min-height: 36px;
+  height: 36px;
+}
+.floating-query-body {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+  flex: 1;
+}
+.floating-query-answer {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 20px 22px;
+  overscroll-behavior: contain;
+}
+.floating-query-welcome {
+  height: 100%;
+  min-height: 230px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.floating-query-welcome .query-welcome-icon {
+  width: 44px;
+  height: 44px;
+  margin-bottom: 14px;
+}
+.floating-query-welcome .query-welcome-icon .od-icon {
+  --od-icon-size: 25px;
+}
+.floating-query-welcome h3 {
+  font-size: 18px;
+  margin: 0 0 5px;
+}
+.floating-query-welcome p {
+  max-width: 260px;
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.55;
+  margin: 0;
+}
+.floating-query-composer {
+  flex: none;
+  margin: 0;
+  padding: 12px 16px 10px;
+  border-top: 1px solid var(--color-line);
+  background: var(--color-surface-warm);
+}
+.floating-query-composer-field {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 6px;
+  border: 1px solid var(--color-line);
+  border-radius: 13px;
+  box-shadow: 0 2px 10px #10243e0a;
+}
+.floating-query-composer-field:focus-within {
+  outline: 2px solid #607e9b;
+  outline-offset: 2px;
+}
+.floating-query-body .floating-query-composer textarea {
+  flex: 1;
+  min-width: 0;
+  min-height: 42px;
+  max-height: 100px;
+  height: 42px;
+  margin: 0;
+  padding: 9px 7px;
+  border: 0;
+  outline: 0;
+  resize: vertical;
+  background: transparent;
+  font-size: 13px;
+  line-height: 1.5;
+  color: inherit;
+}
+.floating-query-composer .button {
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  min-height: 40px;
+  padding: 0;
+  border-radius: 9px;
+}
+.floating-query-composer > p {
+  text-align: center;
+  color: var(--color-muted);
+  font-size: 10px;
+  line-height: 1.4;
+  margin: 8px 0 0;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+@media (hover: hover) {
+  .floating-query-head .text-link:hover,
+  .floating-query-head .icon-button:hover {
+    background: var(--color-accent);
+    color: var(--color-surface-warm);
+  }
+}
+@media (max-width: 480px) {
+  :root {
+    --query-edge: 16px;
+  }
+  .floating-query-head {
+    padding: 10px;
+    gap: 5px;
+  }
+  .floating-query-title h2 {
+    font-size: 12px;
+  }
+  .floating-query-head .text-link {
+    font-size: 10px;
+    padding: 4px;
+  }
+  .floating-query-head .icon-button {
+    width: 32px;
+    height: 32px;
+    min-height: 32px;
+  }
+  .floating-query-answer {
+    padding: 16px;
+  }
+  .floating-query-composer {
+    padding: 10px 12px;
+  }
+}
+@media (max-height: 600px) {
+  .floating-query-body {
+    overflow: hidden;
+  }
+  .floating-query-composer {
+    padding: 8px 12px;
+  }
+  .floating-query-body .floating-query-composer textarea {
+    height: 40px;
+    min-height: 40px;
+  }
+}
+@media print {
+  .query-launcher,
+  .floating-query {
+    display: none !important;
+  }
+}
