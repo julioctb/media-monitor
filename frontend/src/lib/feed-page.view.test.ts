@@ -36,7 +36,12 @@ it('exposes unavailable metrics without replacing measured values or loaded resu
 	data.feedStats = null;
 	data.feedStatsError = 'Indicadores no disponibles: fallo sintético';
 	const target = await render(data);
-	expect([...target.querySelectorAll('.stat-value')].map((node) => node.textContent)).toEqual(['—', '—']);
+	expect([...target.querySelectorAll('.stat-value')].map((node) => node.textContent)).toEqual([
+		'—',
+		'—',
+		'—',
+		'—'
+	]);
 	for (const node of target.querySelectorAll('.stat-value')) {
 		expect(node.getAttribute('title')).toBe('No disponible');
 	}
@@ -63,7 +68,12 @@ it('shows measured zero for an actual empty result', async () => {
 	data.mentions = { items: [], total: 0 };
 	data.feedStats = { total: 0, by_source: {}, by_sentiment: { positive: 0, negative: 0, neutral: 0, none: 0 }, news_medium_count: 0, result_group_count: 0 };
 	const target = await render(data);
-	expect([...target.querySelectorAll('.stat-value')].map((node) => node.textContent)).toEqual(['0', '0']);
+	expect([...target.querySelectorAll('.stat-value')].map((node) => node.textContent)).toEqual([
+		'0',
+		'0',
+		'0',
+		'0'
+	]);
 	expect(target.textContent).toContain('Sin resultados');
 	expect(target.textContent).not.toContain('No disponible');
 });
@@ -89,13 +99,40 @@ it('leaves cards and forms independent of metric changes', async () => {
 
 it('renders full-result metrics while retaining one loaded card and publication pagination', async () => {
 	const target = await render();
-	expect([...target.querySelectorAll('.stat-value')].map((node) => node.textContent)).toEqual(['17', '63']);
+	expect([...target.querySelectorAll('.stat-value')].map((node) => node.textContent)).toEqual([
+		'96',
+		'63',
+		'17',
+		'1'
+	]);
 	expect(target.querySelectorAll('.feed-group')).toHaveLength(1);
 	expect(target.textContent).toContain('Publicación sintética conservada');
 	expect(target.querySelector('.feed-match-count')?.textContent).toContain('96 publicaciones encontradas');
 	expect(target.querySelector('.page-status')?.textContent?.replace(/\s+/g, ' ')).toContain('Página 1 de 96');
 	expect(target.querySelector('.feed-stats')?.textContent?.replace(/\s+/g, ' ')).toContain('Eventos y publicaciones sin evento en todos los resultados filtrados.');
 	expect(target.querySelector('.feed-stats')?.textContent).not.toContain('esta página');
+});
+
+it('renders the v3 strip: four measured cards and the period reset link', async () => {
+	const target = await render();
+	const labels = [...target.querySelectorAll('.feed-stats .stat-top span')].map((node) =>
+		node.textContent?.trim()
+	);
+	expect(labels).toEqual([
+		'Menciones en el feed',
+		'Eventos',
+		'Medios con noticias',
+		'Fuentes con registros'
+	]);
+	const notes = [...target.querySelectorAll('.feed-stats .stat-note')].map((node) =>
+		node.textContent?.replace(/\s+/g, ' ').trim()
+	);
+	expect(notes[0]).toBe('1 tipos de fuente');
+	expect(target.querySelector('.feed-stats-reset')?.textContent?.trim()).toBe(
+		'Ver todo el periodo'
+	);
+	// the reset drops every facet, dates included (mockup data-reset behavior)
+	expect(target.querySelector('.feed-stats-reset')?.getAttribute('href')).toBe('/feed');
 });
 
 it('renders the v3 panel anatomy: toolbar, tone filter, rail and item rows', async () => {

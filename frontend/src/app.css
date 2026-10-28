@@ -2944,11 +2944,10 @@ table.coverage th {
   text-align: right;
 }
 
-/* --- Metrics strip: mockup #feed-stats .stat, adapted to the two
-       indicators the feed load measures (2 columns, not 4) --- */
+/* --- Metrics strip: mockup #feed-stats .stat, four measured cards --- */
 .feed-stats {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
   margin-bottom: 28px;
 }
@@ -2980,6 +2979,12 @@ table.coverage th {
 .stat-note {
   color: var(--color-muted);
   font-size: 11px;
+}
+/* Mockup empty-state reset («Ver todo el periodo», data-reset): bare path
+   drops every facet, the date range included. Sits under the strip. */
+.feed-stats-reset {
+  display: inline-block;
+  margin: -14px 0 20px;
 }
 
 /* --- Two-column body: panel + context rail --- */
@@ -3492,8 +3497,12 @@ table.coverage th {
     text-align: left;
   }
   .feed-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
     margin-bottom: 20px;
+  }
+  .feed-stats-reset {
+    margin: -8px 0 16px;
   }
   .feed-content-grid {
     gap: 20px;

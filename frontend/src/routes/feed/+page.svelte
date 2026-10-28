@@ -126,6 +126,30 @@
 		).filter(([, count]) => count > 0);
 	});
 
+	/* Strip v3 (mockup stats()): every figure is a measured aggregate from the
+	   scoped feedStats payload — never a count over the loaded page slice. */
+	const stripTotal = $derived(data.feedStats?.total ?? null);
+
+	/** Source kinds (news/social/field) with echo among the measured results. */
+	const SOURCE_KINDS = ['news', 'social', 'field'] as const;
+	const stripSourceKinds = $derived.by(() => {
+		if (!data.feedStats) return null;
+		const echoed = new Set(
+			Object.entries(data.feedStats.by_source)
+				.filter(([, count]) => count > 0)
+				.map(([source]) => source)
+		);
+		return SOURCE_KINDS.filter((kind) =>
+			data.channelGroups[kind].some((source) => echoed.has(source))
+		).length;
+	});
+
+	/** Distinct sources with echo among the measured results. */
+	const stripSourceCount = $derived.by(() => {
+		if (!data.feedStats) return null;
+		return Object.values(data.feedStats.by_source).filter((count) => count > 0).length;
+	});
+
 	/* Medium facet (outlet host): links, not form posts — the panel sits
 	   outside the filter form and must preserve every other facet. */
 	function hrefWithMedium(value: string | null): string {
@@ -213,10 +237,13 @@
 
 <div class="feed-stats" aria-label="Números del feed">
 	<div class="stat">
-		<div class="stat-top"><span>Medios con noticias</span></div>
+		<div class="stat-top"><span>Menciones en el feed</span></div>
 		<strong class="stat-value" title={data.feedStats ? undefined : 'No disponible'}>
-			{data.feedStats?.news_medium_count ?? '—'}</strong>
-		<span class="stat-note">Medios con registros en todos los resultados filtrados.</span>
+			{stripTotal ?? '—'}</strong>
+		<span class="stat-note">
+			{#if stripSourceKinds !== null}{stripSourceKinds} tipos de fuente{:else}Tipos de fuente con
+				registros en los resultados.{/if}
+		</span>
 	</div>
 	<div class="stat">
 		<div class="stat-top"><span>Eventos</span></div>
@@ -224,7 +251,22 @@
 			{data.feedStats?.result_group_count ?? '—'}</strong>
 		<span class="stat-note">Eventos y publicaciones sin evento en todos los resultados filtrados.</span>
 	</div>
+	<div class="stat">
+		<div class="stat-top"><span>Medios con noticias</span></div>
+		<strong class="stat-value" title={data.feedStats ? undefined : 'No disponible'}>
+			{data.feedStats?.news_medium_count ?? '—'}</strong>
+		<span class="stat-note">Medios con registros en todos los resultados filtrados.</span>
+	</div>
+	<div class="stat">
+		<div class="stat-top"><span>Fuentes con registros</span></div>
+		<strong class="stat-value" title={data.feedStats ? undefined : 'No disponible'}>
+			{stripSourceCount ?? '—'}</strong>
+		<span class="stat-note">Fuentes con publicaciones en todos los resultados filtrados.</span>
+	</div>
 </div>
+<!-- Mockup empty-state reset («Ver todo el periodo»): the bare path drops
+     every facet, the date range included. -->
+<a class="feed-stats-reset text-link" href={page.url.pathname}>Ver todo el periodo</a>
 
 <div class="feed-content-grid">
 	<section class="panel feed-main" id="feed" aria-labelledby="feed-panel-title">
