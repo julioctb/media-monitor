@@ -25,8 +25,8 @@ Route: inline unless noted. Phase order confirmed by the T0 map; one work-unit c
 - [x] T0 [S2 S8] Design/runtime map — delegated read-only explorer; mapa recibido íntegro (Log L4).
 - [x] T1 [S5] Tokens & base: remap de valores `@theme` a la paleta v3 (pasos derivados marcados), Georgia/Helvetica, 16/1.6, radius-panel 12, focus ring v3. Commit ef4158f9.
 - [x] T2 [S5] Shell: sidebar rail 232/88 + collapse, drawer móvil ≤768 (focus trap + inert), mobile-header, versión; estado presentacional (Svelte 5 runes). Commit fbb08d25.
-- [ ] T3 [S5] Shared pieces: `.button` skins, tone pills/badges, dialog base, toast — deduped against existing rules; per-page mockup audit.
-- [ ] T4 [S5] Feed view.
+- [x] T3 [S5] Shared pieces: kit v3 (h1-h4 serif, `.button/.primary/.subtle`, `.icon-button`, `.text-link`, `.source-badge`), page-title v3. Commit 9ffd2a6c. `chip`/`eyebrow` quedan por página (roles distintos).
+- [x] T4 [S5] Feed view — restyle v3: intro/estado, toolbar (pestañas fuente, tono c/conteos, búsqueda), items feed-item, columna contexto (periodo, origen, medios, histórico, seguimiento); tarjeta vía NewsEntry/MentionCard.
 - [ ] T5 [S5] Eventos view.
 - [ ] T6 [S5] Agenda view.
 - [ ] T7 [S5] Personas view.

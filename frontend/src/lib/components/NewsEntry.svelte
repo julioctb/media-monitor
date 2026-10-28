@@ -2,34 +2,38 @@
 	import type { Snippet } from 'svelte';
 
 	/**
-	 * Single news entry — the shared anatomy for every news card:
-	 * top row (channel + sentiment), optional meta line, title, optional
-	 * teaser, caller-provided footer halves and optional collapsed details.
-	 * variant 'card' = boxed (feed); 'row' = divided list row (digest home).
+	 * Single news entry — the v3 card anatomy (`feed-item`, «Panel de
+	 * monitoreo»): one meta row (source badge · outlet · author · tone ·
+	 * timestamp), headline link, optional clamped body and the chips footer.
+	 * Shared by the feed and the home digest negative-news cards; every
+	 * mention renders through here exactly once (via MentionCard).
 	 */
 	let {
-		variant = 'card',
-		channel,
+		channelLabel,
+		sourceLabel = null,
+		author = null,
 		sentimentClass = null,
-		/** Accent rail for negative cards; off on surfaces already framed. */
-		accent = true,
 		sentimentText = null,
+		publishedAt = null,
+		publishedLabel = null,
 		title,
 		titleHref = null,
 		titleId = undefined,
 		body = null,
 		clampBody = false,
-		meta,
-		footerLeft,
-		footerRight
+		chips
 	}: {
-		variant?: 'card' | 'row';
-		channel: string;
-		/** Sentiment css key (positive|negative|neutral); pill hidden when null. */
+		/** Channel name for the leading source badge (Noticias/Redes/Datos de campo). */
+		channelLabel: string;
+		/** Outlet or platform; the second element of the source chain. */
+		sourceLabel?: string | null;
+		author?: string | null;
+		/** Tone css key (positive|negative|neutral); the badge stays neutral when null. */
 		sentimentClass?: string | null;
 		sentimentText?: string | null;
-		/** Accent rail for negative cards; off on surfaces already framed. */
-		accent?: boolean;
+		/** ISO timestamp for <time datetime>; the pill is omitted when null. */
+		publishedAt?: string | null;
+		publishedLabel?: string | null;
 		title: string;
 		titleHref?: string | null;
 		titleId?: string;
@@ -37,31 +41,33 @@
 		body?: string | null;
 		/** Clamp the body to two lines (raw-content fallback). */
 		clampBody?: boolean;
-		meta?: Snippet;
-		footerLeft?: Snippet;
-		footerRight?: Snippet;
+		chips?: Snippet;
 	} = $props();
 </script>
 
-<article
-	class="{variant === 'card' ? 'feed-card' : 'feed-preview'}"
-	class:accent-negative={accent && sentimentClass === 'negative'}
-	aria-labelledby={titleId}
->
-	<div class="item-top">
-		<span class="item-channel">{channel}</span>
+<article class="feed-item" aria-labelledby={titleId}>
+	<div class="feed-meta">
+		<span class="source-badge">{channelLabel}</span>
+		{#if sourceLabel}<span>{sourceLabel}</span>{/if}
+		{#if author}<span class="feed-author">{author}</span>{/if}
 		{#if sentimentClass && sentimentText}
-			<span class="sentiment {sentimentClass}">{sentimentText}</span>
+			<span class={`tone-badge tone-${sentimentClass}`}>{sentimentText}</span>
+		{:else if sentimentText}
+			<span class="tone-badge">{sentimentText}</span>
+		{/if}
+		{#if publishedLabel}
+			<time class="feed-time" datetime={publishedAt ?? undefined}>{publishedLabel}</time>
 		{/if}
 	</div>
 
-	{#if meta}
-		<p class="item-meta">{@render meta()}</p>
-	{/if}
-
-	<h3 id={titleId} class="item-title">
+	<h3 id={titleId} class="headline">
 		{#if titleHref}
-			<a href={titleHref} target="_blank" rel="noopener noreferrer" aria-label={`${title} (abre en una pestaña nueva)`}>
+			<a
+				href={titleHref}
+				target="_blank"
+				rel="noopener noreferrer"
+				aria-label={`${title} (abre en una pestaña nueva)`}
+			>
 				{title}
 			</a>
 		{:else}
@@ -70,13 +76,10 @@
 	</h3>
 
 	{#if body}
-		<p class="item-summary" class:clamped={clampBody}>{body}</p>
+		<p class="feed-body" class:clamped={clampBody}>{body}</p>
 	{/if}
 
-	{#if footerLeft || footerRight}
-		<div class="item-footer">
-			<div class="item-chips">{@render footerLeft?.()}</div>
-			<span class="item-event">{@render footerRight?.()}</span>
-		</div>
+	{#if chips}
+		<div class="chips">{@render chips()}</div>
 	{/if}
 </article>

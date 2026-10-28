@@ -36,22 +36,26 @@ it('exposes unavailable metrics without replacing measured values or loaded resu
 	data.feedStats = null;
 	data.feedStatsError = 'Indicadores no disponibles: fallo sintético';
 	const target = await render(data);
-	expect([...target.querySelectorAll('.intro-stat-value')].map((node) => node.textContent)).toEqual(['—', '—']);
-	for (const node of target.querySelectorAll('.intro-stat-value')) {
+	expect([...target.querySelectorAll('.stat-value')].map((node) => node.textContent)).toEqual(['—', '—']);
+	for (const node of target.querySelectorAll('.stat-value')) {
 		expect(node.getAttribute('title')).toBe('No disponible');
 	}
 	expect(target.querySelector('[role="status"]')?.textContent).toContain(data.feedStatsError);
 	expect(target.querySelectorAll('.feed-group')).toHaveLength(1);
-	expect(target.querySelector('.result-line')?.textContent).toContain('96 publicaciones encontradas');
+	expect(target.querySelector('.feed-match-count')?.textContent).toContain('96 publicaciones encontradas');
 	expect(target.querySelector('a.page-button')?.textContent).toContain('Siguiente');
 });
 
 it('labels global navigation separately from filtered-result indicators', async () => {
 	const target = await render();
-	for (const id of ['medios-title', 'estado-title']) {
-		expect(target.querySelector(`[aria-labelledby="${id}"]`)?.textContent).toContain('Sin aplicar los filtros del feed.');
+	for (const id of ['medios-title', 'origen-title']) {
+		expect(target.querySelector(`[aria-labelledby="${id}"]`)?.textContent).toContain(
+			'Sin aplicar los filtros del feed.'
+		);
 	}
-	expect(target.querySelector('[aria-labelledby="estado-title"]')?.textContent).toContain('200 registros.');
+	const origen = target.querySelector('[aria-labelledby="origen-title"]')?.textContent ?? '';
+	expect(origen).toContain('Noticias');
+	expect(origen).toContain('200');
 });
 
 it('shows measured zero for an actual empty result', async () => {
@@ -59,7 +63,7 @@ it('shows measured zero for an actual empty result', async () => {
 	data.mentions = { items: [], total: 0 };
 	data.feedStats = { total: 0, by_source: {}, by_sentiment: { positive: 0, negative: 0, neutral: 0, none: 0 }, news_medium_count: 0, result_group_count: 0 };
 	const target = await render(data);
-	expect([...target.querySelectorAll('.intro-stat-value')].map((node) => node.textContent)).toEqual(['0', '0']);
+	expect([...target.querySelectorAll('.stat-value')].map((node) => node.textContent)).toEqual(['0', '0']);
 	expect(target.textContent).toContain('Sin resultados');
 	expect(target.textContent).not.toContain('No disponible');
 });
@@ -69,7 +73,7 @@ it('does not fall back to page groups when metrics are missing', async () => {
 	data.feedStats = null;
 	const target = await render(data);
 	expect(target.querySelectorAll('.feed-group')).toHaveLength(1);
-	expect(target.querySelector('.intro-stats')?.textContent).not.toMatch(/\b40\b/);
+	expect(target.querySelector('.feed-stats')?.textContent).not.toMatch(/\b40\b/);
 	expect(target.querySelector('[role="status"]')?.textContent).toBe('Indicadores no disponibles.');
 });
 
@@ -85,11 +89,47 @@ it('leaves cards and forms independent of metric changes', async () => {
 
 it('renders full-result metrics while retaining one loaded card and publication pagination', async () => {
 	const target = await render();
-	expect([...target.querySelectorAll('.intro-stat-value')].map((node) => node.textContent)).toEqual(['17', '63']);
+	expect([...target.querySelectorAll('.stat-value')].map((node) => node.textContent)).toEqual(['17', '63']);
 	expect(target.querySelectorAll('.feed-group')).toHaveLength(1);
 	expect(target.textContent).toContain('Publicación sintética conservada');
-	expect(target.querySelector('.result-line')?.textContent).toContain('96 publicaciones encontradas');
+	expect(target.querySelector('.feed-match-count')?.textContent).toContain('96 publicaciones encontradas');
 	expect(target.querySelector('.page-status')?.textContent?.replace(/\s+/g, ' ')).toContain('Página 1 de 96');
-	expect(target.querySelector('.intro-stats')?.textContent?.replace(/\s+/g, ' ')).toContain('Eventos y publicaciones sin evento en todos los resultados filtrados.');
-	expect(target.querySelector('.intro-stats')?.textContent).not.toContain('esta página');
+	expect(target.querySelector('.feed-stats')?.textContent?.replace(/\s+/g, ' ')).toContain('Eventos y publicaciones sin evento en todos los resultados filtrados.');
+	expect(target.querySelector('.feed-stats')?.textContent).not.toContain('esta página');
+});
+
+it('renders the v3 panel anatomy: toolbar, tone filter, rail and item rows', async () => {
+	const target = await render();
+	const markers = [
+		'.feed-intro',
+		'.feed-intro .feed-refresh-status',
+		'.feed-stats .stat .stat-value',
+		'.feed-content-grid',
+		'.feed-main .feed-toolbar .panel-heading',
+		'.tabs .tab.active',
+		'.tone-filter .tone-filter-head',
+		'.tone-filter .tone-choice.tone-negative',
+		'.tone-filter .tone-bar',
+		'.filterbar form[data-testid="feed-filter-main"] .search input',
+		'.keyword-row .keyword-chip',
+		'.feed-match-count',
+		'.feed-list .feed-group .feed-item',
+		'.feed-item .feed-meta .source-badge',
+		'.feed-item .feed-meta .tone-badge',
+		'.feed-item .feed-meta .feed-time',
+		'.feed-item .headline a',
+		'.feed-side-column .feed-period-panel .feed-date-controls',
+		'.feed-aside .aside-panel .distribution-row',
+		'.feed-aside .feed-source-list .feed-source-row',
+		'.pagination .page-button'
+	];
+	for (const sel of markers) {
+		expect(target.querySelector(sel), sel).not.toBeNull();
+	}
+	// one card per loaded mention; the tone badge carries the active sentiment
+	expect(target.querySelectorAll('.feed-item')).toHaveLength(1);
+	expect(target.querySelector('.feed-item .tone-badge')?.textContent).toContain('Negativo');
+	// the legacy two-panel/skin markers are gone
+	expect(target.querySelector('.feed-filter-panel')).toBeNull();
+	expect(target.querySelector('.result-line')).toBeNull();
 });

@@ -16,19 +16,15 @@
 		event?: MentionEventRef | null;
 		/** Matched keyword text, when the mention is linked to one. */
 		keywordLabel?: string | null;
-		/** Mentions in the same-event group (footer coverage count). */
+		/** Mentions in the same-event group (footer coverage chip). */
 		coverageCount?: number;
-		/** Passthrough: suppress the negative rail on pre-framed surfaces. */
-		accent?: boolean;
 	}
 
 	let {
 		mention,
 		event = null,
 		keywordLabel = null,
-		coverageCount = 1,
-		/** Passthrough: suppress the negative rail on pre-framed surfaces. */
-		accent = true
+		coverageCount = 1
 	}: Props = $props();
 
 	const when = $derived(mention.published_at ?? mention.ingested_at);
@@ -40,20 +36,17 @@
 				? 'Noticias'
 				: 'Redes sociales'
 	);
-	/** Source chain per mockup: canal · medio · autor. */
-	const sourceChain = $derived.by(() => {
-		const parts = [channelLabel];
+	/** Source chain per mockup: canal · medio · autor, as separate slots. */
+	const sourceLabel = $derived.by(() => {
 		if (isNewsSource(mention.source)) {
 			const outlet = outletFromUrl(mention.url);
-			if (outlet) parts.push(outlet);
-		} else {
-			const platform = PLATFORM_LABEL[mention.source] ?? null;
-			if (platform) parts.push(platform);
+			if (outlet) return outlet;
+			return null;
 		}
-		const author = mention.author?.trim();
-		if (author) parts.push(author);
-		return parts.join(' · ');
+		return PLATFORM_LABEL[mention.source] ?? null;
 	});
+	const author = $derived(mention.author?.trim() || null);
+
 	/** Body: the editorial summary when enriched, else the article excerpt. */
 	const body = $derived.by(() => {
 		const summary = mention.summary?.trim();
@@ -96,7 +89,7 @@
 		neutral: 'neutral'
 	};
 	const sentimentClass = $derived(
-		mention.sentiment ? (SENTIMENT_CLASS[mention.sentiment] ?? 'neutral') : 'neutral'
+		mention.sentiment ? (SENTIMENT_CLASS[mention.sentiment] ?? null) : null
 	);
 	const sentimentText = $derived(
 		mention.sentiment ? sentimentLabel(mention.sentiment) : 'Sin clasificar'
@@ -104,39 +97,32 @@
 </script>
 
 <NewsEntry
-	variant="card"
-	channel={sourceChain}
+	channelLabel={channelLabel}
+	sourceLabel={sourceLabel}
+	author={author}
 	sentimentClass={sentimentClass}
-	accent={accent}
 	sentimentText={sentimentText}
+	publishedAt={when}
+	publishedLabel={formatDisplayDateTimeLong(when)}
 	title={headline}
 	titleHref={mention.url}
 	titleId={`mention-${mention.id}-title`}
 	body={body.text}
 	clampBody={body.clamp}
 >
-	{#snippet meta()}
-		<span class="item-when">{formatDisplayDateTimeLong(when)}</span>
-		{#if keywordLabel}<span>· Palabra clave: {keywordLabel}</span>{/if}
-	{/snippet}
-
-	{#snippet footerLeft()}
+	{#snippet chips()}
 		{#each topics as topic (topic.label)}
 			<span class={`topic-chip ${topicBadgeClass(topic.label)}`}>{topicLabel(topic.label)}</span>
 		{/each}
 		{#each (mention.persons ?? []) as person (person.id)}
 			<a href={`/persons/${person.id}`} title="Ver persona">{person.name}</a>
 		{/each}
-	{/snippet}
-
-	{#snippet footerRight()}
+		{#if keywordLabel}<span>Palabra clave: {keywordLabel}</span>{/if}
 		{#if event}
-			<a href={`/events/${event.id}`} title={event.title}>
+			<a class="event-chip" href={`/events/${event.id}`} title={event.title}>
 				Evento #{event.id} · {coverageCount}
 				{coverageCount === 1 ? 'cobertura' : 'coberturas'} del mismo evento
 			</a>
 		{/if}
 	{/snippet}
 </NewsEntry>
-
-

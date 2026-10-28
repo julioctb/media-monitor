@@ -1487,104 +1487,6 @@ html {
   color: var(--color-muted);
 }
 
-/* --- Shared tone badge (NewsEntry) — kept for /feed. --- */
-.sentiment {
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 700;
-  white-space: nowrap;
-}
-.sentiment.positive {
-  background: var(--tone-positive-bg);
-  color: var(--color-ink);
-}
-.sentiment.negative {
-  background: var(--tone-negative-bg);
-  color: var(--color-ink);
-}
-.sentiment.neutral {
-  background: var(--tone-neutral-bg);
-  color: var(--color-ink-2);
-}
-.feed-preview {
-  padding: 17px 18px;
-}
-.feed-card.accent-negative,
-.feed-preview.accent-negative {
-  box-shadow: inset 3px 0 0 var(--tone-negative-solid);
-}
-
-/* --- Feed filters + tone pills (shared with /feed) --- */
-.feed-filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.feed-filter {
-  min-height: 44px;
-  padding: 8px 15px;
-  border: 1px solid var(--color-line);
-  border-radius: 980px;
-  background: #fff;
-  color: var(--color-ink);
-  font-size: 14px;
-  font-weight: 600;
-}
-.feed-filter:hover {
-  background: var(--color-surface);
-  color: var(--color-ink);
-}
-.feed-filter[aria-pressed="true"] {
-  background: var(--color-ink);
-  border-color: var(--color-ink);
-  color: #fff;
-}
-.feed-filter[aria-pressed="true"]:hover {
-  background: var(--color-ink-2);
-  border-color: var(--color-ink-2);
-  color: #fff;
-}
-/* Tono pills (Positivo/Neutro/Negativo): tint at rest, solid same-hue when
-   pressed. Colors come from the --tone-* tokens (single mix definition above);
-   no per-component palette. Placed after the base .feed-filter rules so the
-   pressed tone explicitly wins over base rest/hover/pressed. */
-.feed-filter.tone-positive {
-  background: var(--tone-positive-bg);
-}
-.feed-filter.tone-negative {
-  background: var(--tone-negative-bg);
-}
-.feed-filter.tone-neutral {
-  background: var(--tone-neutral-bg);
-}
-.feed-filter.tone-positive:hover {
-  background: var(--tone-positive-bg-hover);
-}
-.feed-filter.tone-negative:hover {
-  background: var(--tone-negative-bg-hover);
-}
-.feed-filter.tone-neutral:hover {
-  background: var(--tone-neutral-bg-hover);
-}
-.feed-filter.tone-positive[aria-pressed="true"] {
-  background: var(--tone-positive-solid);
-  border-color: var(--tone-positive-solid);
-  color: var(--tone-on-solid);
-}
-.feed-filter.tone-negative[aria-pressed="true"] {
-  background: var(--tone-negative-solid);
-  border-color: var(--tone-negative-solid);
-  color: var(--tone-on-solid);
-}
-.feed-filter.tone-neutral[aria-pressed="true"] {
-  background: var(--tone-neutral-solid);
-  border-color: var(--tone-neutral-solid);
-  color: var(--tone-on-solid);
-}
-
 /* --- Responsive: 1180 / 1020 / 800 / 600 --- */
 @media (max-width: 1180px) {
   .digest-layout {
@@ -2188,8 +2090,10 @@ table.coverage th {
 }
 
 /* ============================================================
-   Feed (feed mockup): intro stats, 2-col layout, filter pills,
-   result line, item cards, pagination and sidebar panels.
+   Legacy shared scaffolding (consultas/home): .intro page header
+   card, pagination layout, medios disclosure, history-empty,
+   check-row, .back, .sidebar-section. The feed page wears the
+   v3 block at the end of this file.
    ============================================================ */
 .intro {
   display: grid;
@@ -2200,117 +2104,6 @@ table.coverage th {
   border: 1px solid var(--color-line-soft);
   border-radius: var(--radius-panel);
   background: #fff;
-}
-.intro-copy {
-  max-width: 68ch;
-  margin: 0;
-  color: var(--color-ink-2);
-  font-size: 14px;
-}
-/* Feed mockup eyebrow tracking (.13em); resumen keeps .15em. */
-.intro .eyebrow {
-  letter-spacing: 0.13em;
-}
-/* Feed intro renders the mockup's .source-note pill via .footnote. */
-.intro .footnote {
-  display: inline-flex;
-  margin-top: 18px;
-  padding: 6px 10px;
-  border: 1px solid var(--color-line);
-  border-radius: 999px;
-  color: var(--color-ink-2);
-  font-weight: 600;
-}
-.intro-stats {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  align-self: stretch;
-}
-.intro-stat {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  min-width: 0;
-  padding: 20px;
-  border: 1px solid var(--color-line);
-  border-radius: 12px;
-  background: var(--color-surface-warm);
-}
-.intro-stat-label {
-  margin: 0;
-  color: var(--color-ink-2);
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 1.3;
-}
-.intro-stat-value {
-  margin: 14px 0 0;
-  color: var(--color-ink);
-  font: 600 clamp(32px, 3vw, 40px) / 1 var(--font-display);
-  letter-spacing: var(--tracking-display);
-}
-.intro-stat-note {
-  margin: 12px 0 0;
-  color: var(--color-muted);
-  font-size: 12px;
-  line-height: 1.4;
-}
-.layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 252px;
-  gap: 20px;
-  align-items: start;
-  margin-top: 18px;
-}
-.feed-main {
-  min-width: 0;
-  display: grid;
-  gap: 16px;
-}
-.result-line {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  margin: 24px 0 0;
-  color: var(--color-muted);
-  font-size: 12px;
-}
-.feed-list {
-  margin: 12px 0 0;
-  padding: 0;
-  list-style: none;
-  display: grid;
-}
-/* Card gap only on the feed page; the digest list is border-separated. */
-/* Anchor target for the digest day cross-link; clears the sticky topbar. */
-.feed-panel {
-  scroll-margin-top: 80px;
-}
-.feed-panel .feed-list {
-  gap: 12px;
-}
-/* Cards inside one event group: same 12px rhythm as the list (mockup). */
-.feed-group {
-  display: grid;
-  gap: 12px;
-}
-.error-state {
-  margin-top: 18px;
-  padding: 24px;
-  border: 1px solid var(--color-line-soft);
-  border-radius: 8px;
-  background: var(--color-surface-warm);
-  color: var(--color-ink-2);
-  font-size: 14px;
-}
-.error-state strong {
-  display: block;
-  color: var(--color-ink);
-}
-.error-state p {
-  margin: 5px 0 0;
 }
 .pagination {
   display: flex;
@@ -2334,53 +2127,12 @@ table.coverage th {
   gap: 8px;
   flex-wrap: wrap;
 }
-.page-button {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  padding: 8px 15px;
-  border: 1px solid var(--color-line);
-  border-radius: 980px;
-  background: #fff;
-  color: var(--color-ink);
-  font-size: 14px;
-  font-weight: 600;
-  text-decoration: none;
-}
-a.page-button:hover {
-  background: var(--color-surface);
-}
-span.page-button {
-  cursor: not-allowed;
-  color: var(--color-muted);
-  background: var(--color-surface);
-}
 .per-page {
   display: inline-flex;
   align-items: center;
 }
 .per-page-select {
   max-width: 180px;
-}
-.filter-label {
-  display: block;
-  margin-bottom: 6px;
-  color: var(--color-ink-2);
-  font-size: 12px;
-  font-weight: 600;
-}
-.filter-stack {
-  display: grid;
-  gap: 16px;
-  margin-top: 14px;
-}
-.filter-group {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 6px;
-  margin-top: 16px;
-  padding: 0;
-  border: 0;
 }
 /* Medios panel (feed sidebar): fold for the long tail of outlets. */
 .medios-more summary {
@@ -2395,66 +2147,12 @@ span.page-button {
 .medios-more summary:hover {
   color: var(--color-ink);
 }
-.medios-more .filter-group {
-  margin-top: 8px;
-}
-.filter-group legend {
-  padding: 0;
-  margin-bottom: 6px;
-}
-.filter {
-  min-height: 44px;
-  padding: 8px 15px;
-  border: 1px solid var(--color-line);
-  border-radius: 980px;
-  background: #fff;
-  color: var(--color-ink);
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  text-align: left;
-}
-.filter:hover {
-  background: var(--color-surface);
-}
-.filter[aria-pressed="true"] {
-  background: var(--color-ink);
-  border-color: var(--color-ink);
-  color: #fff;
-}
-.filter.apply {
-  width: 100%;
-}
 .check-row {
   display: flex;
   align-items: center;
   gap: 8px;
   font-size: 14px;
   color: var(--color-ink-2);
-}
-.date-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-.date-error {
-  margin: 0;
-  color: var(--color-danger);
-  font-size: 12px;
-  font-weight: 600;
-}
-.clear-link {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  color: var(--color-ink);
-  font-size: 12px;
-  font-weight: 600;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-.clear-link:hover {
-  text-decoration-thickness: 2px;
 }
 .sidebar {
   min-width: 0;
@@ -2491,12 +2189,6 @@ span.page-button {
 .sidebar:not(.digest-aside) .sidebar-section p {
   margin-top: 14px;
   font-size: 14px;
-}
-.side-note {
-  margin: 10px 0 0;
-  color: var(--color-ink-2);
-  font-size: 13px;
-  line-height: 1.5;
 }
 .sidebar-section p {
   margin: 8px 0 0;
@@ -2543,112 +2235,8 @@ span.page-button {
   text-decoration-color: var(--color-ink);
 }
 
-/* Feed item card (MentionCard). */
-.feed-card {
-  padding: 17px 18px;
-  border: 1px solid var(--color-line-soft);
-  border-radius: 12px;
-  background: var(--color-surface-warm);
-}
-/* Mockup .item-details[open] summary spacing. */
-.feed-card details[open] summary {
-  margin-bottom: 8px;
-}
-.item-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px 14px;
-}
-.item-channel {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-ink-2);
-}
-.item-meta {
-  margin: 8px 0 0;
-  color: var(--color-muted);
-  font-size: 12px;
-}
-.item-title {
-  margin: 10px 0 0;
-  font-family: var(--font-display);
-  font-size: 18px;
-  font-weight: 600;
-  line-height: 1.36;
-  letter-spacing: -0.01em;
-}
-.item-title a {
-  color: var(--color-ink);
-  text-decoration: underline;
-  text-decoration-color: var(--color-line);
-  text-underline-offset: 4px;
-}
-.item-title a:hover {
-  text-decoration-color: var(--color-ink);
-}
-.item-summary {
-  margin: 6px 0 0;
-  color: var(--color-ink-2);
-  font-size: 14px;
-  line-height: 1.5;
-}
-.item-summary.clamped {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  overflow: hidden;
-}
-.item-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 8px 16px;
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px solid var(--color-line-soft);
-}
-.item-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.item-chips span,
-.item-chips a {
-  display: inline-flex;
-  align-items: center;
-  min-height: 28px;
-  padding: 4px 10px;
-  border: 1px solid var(--color-line-soft);
-  border-radius: 980px;
-  background: #fff;
-  color: var(--color-ink-2);
-  font-size: 12px;
-  font-weight: 600;
-  text-decoration: none;
-}
-.item-chips a:hover {
-  border-color: var(--color-accent);
-  color: var(--color-accent);
-}
-.item-event {
-  margin-left: auto;
-  color: var(--color-muted);
-  font-size: 12px;
-  text-align: right;
-}
-.item-event a {
-  color: var(--color-accent-active);
-  font-weight: 600;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
 @media (max-width: 1000px) {
-  .intro,
-  .layout {
+  .intro {
     grid-template-columns: 1fr;
   }
   .intro {
@@ -2656,78 +2244,6 @@ span.page-button {
   }
 }
 
-/* ============================================================
-   Feed: panel de filtros principal (columna izquierda) + chips.
-   ============================================================ */
-/* Panels live in .feed-main's 16px grid gap: no extra margins, and the
-   mockup gives both feed panels a 28px bottom padding. */
-.feed-main .panel {
-  margin-top: 0;
-  padding-bottom: 28px;
-}
-.feed-filter-panel h2 {
-  margin: 0;
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--color-line);
-  font: 600 21px / 1.2 var(--font-display);
-}
-.feed-panel .section-note {
-  font-size: 12px;
-}
-.filter-bar {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  gap: 14px;
-  align-items: end;
-  margin-top: 20px;
-}
-/* Mockup ≤600: the three tracks don't fit — stack them full width (otherwise
-   the auto tracks collapse the search column to 0px) and span the button. */
-@media (max-width: 600px) {
-  .filter-bar {
-    grid-template-columns: 1fr;
-  }
-  .search-button {
-    width: 100%;
-  }
-}
-.search-button {
-  min-height: 44px;
-  padding: 8px 20px;
-  border: 1px solid var(--color-accent);
-  border-radius: 999px;
-  background: var(--color-accent);
-  color: var(--color-accent-on);
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition:
-    background 0.15s ease,
-    border-color 0.15s ease;
-}
-.search-button:hover {
-  border-color: var(--color-accent-hover);
-  background: var(--color-accent-hover);
-}
-.search-button:active {
-  border-color: var(--color-accent-active);
-  background: var(--color-accent-active);
-}
-.keyword-filter {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  margin-top: 14px;
-}
-.keyword-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-muted);
-}
-.keyword-clear {
-  margin-left: auto;
-}
 .chip {
   min-height: 36px;
   padding: 6px 14px;
@@ -3898,5 +3414,658 @@ span.page-button {
 	}
   .digest-brief-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+
+/* ============================================================
+   Feed view v3 — «Panel de monitoreo informativo».
+   Ported from referencia_visual/v3/Panel-de-monitoreo-informativo
+   (feed view: app.js templates + compiled assets/css/tailwind.css,
+   every media variant). Token map: blue→accent, blue-soft/muted→
+   line-soft/color-muted, line→color-line, radius→radius-panel,
+   #f8f9fa→color-surface, display→font-display. Mockup generics are
+   feed-scoped (.feed-*) where legacy blocks above still serve
+   other routes. Breakpoints 1440 / 1150 / 768 / 480 + hover.
+   ============================================================ */
+
+/* --- Page header (mockup .intro; the legacy .intro card above
+       stays for routes without their v3 pass yet) --- */
+.feed-intro {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 24px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--color-line);
+}
+.feed-intro h1 {
+  margin: 0;
+}
+.feed-intro p {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 14px;
+}
+.feed-intro .feed-refresh-status {
+  flex: 0 440px;
+  min-width: 0;
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 11px;
+  line-height: 1.5;
+  text-align: right;
+}
+
+/* --- Metrics strip: mockup #feed-stats .stat, adapted to the two
+       indicators the feed load measures (2 columns, not 4) --- */
+.feed-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.stat {
+  min-width: 0;
+  padding: 20px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-panel);
+  background: var(--color-surface-warm);
+}
+.stat-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+.stat-value {
+  display: block;
+  margin: 8px 0 4px;
+  font-family: var(--font-body);
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -1px;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+}
+.stat-note {
+  color: var(--color-muted);
+  font-size: 11px;
+}
+
+/* --- Two-column body: panel + context rail --- */
+.feed-content-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 284px;
+  align-items: start;
+  gap: 24px;
+}
+.feed-main {
+  min-width: 0;
+  margin-top: 0;
+  padding: 0;
+}
+/* Anchor for the digest day cross-link (/feed#feed). */
+#feed {
+  scroll-margin-top: 80px;
+}
+
+/* --- Toolbar: heading, source tabs, tone, search, keywords --- */
+.feed-toolbar {
+  padding: 20px 20px 0;
+}
+.panel-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.panel-heading h2 {
+  margin: 0;
+}
+.tabs {
+  display: flex;
+  gap: 20px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--color-line);
+}
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 12px 0;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--color-muted);
+  font-size: 12px;
+  white-space: nowrap;
+  text-decoration: none;
+}
+.tab.active {
+  border-bottom-color: var(--color-accent);
+  color: var(--color-accent);
+  font-weight: 700;
+}
+
+/* Tone filter: pressed = soft accent, dots/bar use the shared tone
+   solids (the :root --tone-* mixes stay the single source). */
+.tone-filter {
+  --tone-positive: var(--tone-positive-solid);
+  --tone-negative: var(--tone-negative-solid);
+  --tone-neutral: var(--color-meta);
+  --tone-unclassified: var(--color-muted);
+  padding: 16px 0 0;
+}
+.tone-filter-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 4px 12px;
+  margin-bottom: 10px;
+}
+.tone-filter-head strong {
+  color: var(--color-ink);
+  font-size: 12px;
+}
+.tone-filter-head span {
+  color: var(--color-muted);
+  font-size: 11px;
+}
+.tone-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.tone-choice {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 1px solid var(--color-line);
+  border-radius: 7px;
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font-size: 12px;
+  line-height: 1.2;
+  text-decoration: none;
+}
+.tone-choice[aria-pressed='true'] {
+  border-color: color-mix(in oklch, var(--color-accent) 50%, white);
+  background: var(--color-line-soft);
+  font-weight: 700;
+}
+.tone-choice strong {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.tone-dot {
+  display: inline-block;
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--tone-neutral);
+}
+.tone-positive .tone-dot,
+.tone-segment.tone-positive {
+  background: var(--tone-positive);
+}
+.tone-negative .tone-dot,
+.tone-segment.tone-negative {
+  background: var(--tone-negative);
+}
+.tone-neutral .tone-dot,
+.tone-segment.tone-neutral {
+  background: var(--tone-neutral);
+}
+.tone-unclassified .tone-dot,
+.tone-segment.tone-unclassified {
+  background: var(--tone-unclassified);
+}
+.tone-bar {
+  display: flex;
+  gap: 3px;
+  height: 7px;
+  margin-top: 12px;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.tone-segment {
+  min-width: 0;
+}
+
+/* Search row (the pill wraps the icon + borderless input). */
+.filterbar {
+  display: flex;
+  margin: 16px 0;
+}
+.filterbar form {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.search {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 0 12px;
+  border: 1px solid var(--color-line);
+  border-radius: 7px;
+  background: var(--color-surface);
+}
+.search:focus-within {
+  border-color: var(--color-accent);
+}
+.search .od-icon {
+  flex: none;
+  --od-icon-size: 14px;
+  color: var(--color-muted);
+}
+.search input {
+  width: 100%;
+  min-width: 0;
+  height: 40px;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--color-ink);
+  font-size: 12px;
+}
+
+/* Keyword facet chips (mockup chip geometry, tone-choice pressed). */
+.keyword-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 12px;
+}
+.keyword-label {
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+.keyword-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 1px solid var(--color-line);
+  border-radius: 7px;
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font-size: 12px;
+  line-height: 1.2;
+  text-decoration: none;
+}
+.keyword-chip[aria-pressed='true'] {
+  border-color: color-mix(in oklch, var(--color-accent) 50%, white);
+  background: var(--color-line-soft);
+  font-weight: 700;
+}
+.keyword-clear {
+  margin-left: auto;
+}
+
+/* Result counter (mockup .feed-match-count). */
+.feed-match-count {
+  margin: 0 2px 12px;
+  color: var(--color-muted);
+  font-size: 11px;
+  line-height: 1.5;
+  text-align: right;
+}
+
+/* Empty result (mockup .empty, renamed: .empty is taken above). */
+.feed-empty {
+  padding: 48px 24px;
+  color: var(--color-muted);
+  text-align: center;
+}
+.feed-empty h3 {
+  margin: 0;
+  color: var(--color-ink);
+}
+
+/* Mention list: border-separated rows, no card boxes (mockup). */
+.feed-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.feed-item {
+  padding: 22px 24px;
+  border-top: 1px solid var(--color-line);
+}
+.feed-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 11px;
+}
+.feed-time {
+  margin-left: auto;
+  color: var(--color-muted);
+  font-size: 11px;
+}
+.headline {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+  line-height: 1.5;
+}
+.headline a {
+  color: inherit;
+  text-decoration: none;
+}
+.feed-body {
+  max-width: 75ch;
+  margin: 8px 0 14px;
+  color: var(--color-muted);
+  font-size: 13px;
+  line-height: 1.7;
+}
+.feed-body.clamped {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+/* Chips row: every child wears the mockup chip skin; topic chips
+   keep their tailwind palette via :where (zero specificity). */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.chips :where(a, span) {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 7px;
+  border-radius: 5px;
+  font-size: 10px;
+}
+.chips a,
+.chips span:not(.topic-chip) {
+  border: 1px solid var(--color-line);
+  background: var(--color-surface);
+  color: var(--color-ink-2);
+  text-decoration: none;
+}
+.chips .event-chip {
+  border: 0;
+  background: var(--color-line-soft);
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+/* --- Context rail --- */
+.feed-side-column {
+  display: grid;
+  align-content: start;
+  gap: 20px;
+  min-width: 0;
+}
+.feed-side-column .feed-period-panel,
+.feed-side-column .feed-aside {
+  min-width: 0;
+}
+.aside-panel {
+  margin-top: 0;
+  padding: 20px;
+}
+.feed-period-panel .panel-heading {
+  margin-bottom: 12px;
+}
+.feed-aside .panel-heading {
+  margin-bottom: 18px;
+}
+.aside-note {
+  margin: 0 0 12px;
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* Period panel (mockup .feed-period-*; presets are a mockup-only
+   capability — the app keeps explicit from/until inputs). */
+.feed-date-controls {
+  display: grid;
+  gap: 12px;
+}
+.feed-date-controls label {
+  display: grid;
+  gap: 4px;
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+.feed-date-controls input {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-line);
+  border-radius: 7px;
+  background: #fff;
+  color: var(--color-ink);
+  font-size: 14px;
+}
+.feed-date-controls input[aria-invalid='true'] {
+  border-color: var(--color-danger);
+}
+.feed-period-error {
+  margin: 8px 0 0;
+  color: var(--color-danger);
+  font-size: 12px;
+}
+.feed-period-note {
+  margin: 16px 0 0;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+/* Origen distribution (mockup .distribution; teal→success,
+   amber→warn — the palette has no dedicated tokens). */
+.distribution {
+  display: flex;
+  gap: 3px;
+  height: 6px;
+  margin: 12px 0 16px;
+  border-radius: 4px;
+}
+.distribution > span {
+  border-radius: 3px;
+}
+.dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.dist-news {
+  background: var(--color-accent);
+}
+.dist-social {
+  background: var(--color-success);
+}
+.dist-field {
+  background: var(--color-warn);
+}
+
+/* Medios rows (mockup .feed-source-list/.feed-source-row as
+   filter links; the details fold keeps the long tail reachable). */
+.feed-source-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--color-line);
+  color: var(--color-ink);
+  font-size: 12px;
+  text-decoration: none;
+}
+.medios-more .feed-source-list {
+  margin-top: 8px;
+}
+.feed-source-row:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+.feed-source-row span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.feed-source-row strong {
+  flex: none;
+  color: var(--color-ink);
+  font-variant-numeric: tabular-nums;
+}
+.feed-source-row[aria-pressed='true'] {
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+/* Pagination keeps its layout block above; v3 skin + disabled state. */
+.feed-main .pagination {
+  padding: 16px 24px 20px;
+  border-top-color: var(--color-line);
+}
+.page-button[aria-disabled='true'] {
+  cursor: default;
+  color: var(--color-muted);
+  background: var(--color-surface);
+}
+.page-buttons a.page-button:hover {
+  background: var(--color-line-soft);
+  color: var(--color-accent);
+}
+
+/* --- Responsive: mockup breakpoints, ALL variants ported --- */
+@media (min-width: 1440px) {
+  .feed-content-grid {
+    grid-template-columns: minmax(0, 1fr) 316px;
+  }
+  .feed-item {
+    padding: 24px 28px;
+  }
+}
+@media (max-width: 1150px) {
+  .feed-content-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .stat {
+    padding: 16px;
+  }
+  .feed-main {
+    order: 2;
+  }
+  /* The rail dissolves: period first, feed, context panels last. */
+  .feed-side-column {
+    display: contents;
+  }
+  .feed-period-panel {
+    order: 1;
+  }
+  .feed-aside {
+    order: 3;
+  }
+}
+@media (max-width: 768px) {
+  .feed-intro {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  .feed-intro p {
+    font-size: 13px;
+  }
+  .feed-intro .feed-refresh-status {
+    flex-basis: auto;
+    text-align: left;
+  }
+  .feed-stats {
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .feed-content-grid {
+    gap: 20px;
+  }
+  .feed-toolbar {
+    padding: 16px 16px 0;
+  }
+  .feed-item {
+    padding: 20px 16px;
+  }
+  .tabs {
+    gap: 16px;
+  }
+  .filterbar form {
+    flex-wrap: wrap;
+  }
+  .search {
+    flex-basis: 100%;
+  }
+  .stat-note {
+    font-size: 10px;
+  }
+}
+@media (max-width: 480px) {
+  .feed-meta {
+    gap: 6px;
+  }
+  .feed-time {
+    margin-left: 0;
+  }
+  .stat-value {
+    font-size: 28px;
+  }
+  .tabs {
+    gap: 14px;
+  }
+  .tab {
+    font-size: 11px;
+  }
+  .tone-filter-head {
+    display: block;
+  }
+  .tone-filter-head span {
+    display: block;
+    margin-top: 4px;
+  }
+}
+@media (hover: hover) {
+  .tab:hover,
+  .headline a:hover,
+  .feed-source-row:hover {
+    color: var(--color-accent);
+  }
+  .chips a:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+  }
+  .keyword-chip:hover {
+    border-color: var(--color-meta);
   }
 }

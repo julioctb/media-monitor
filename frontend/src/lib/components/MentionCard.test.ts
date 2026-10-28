@@ -72,10 +72,11 @@ describe('MentionCard', () => {
 		const { card } = renderCard({ mention: mentionFixture() });
 
 		expect(card.textContent).toContain('Noticias');
-		expect(card.textContent).toContain('Noticias · example');
+		expect(card.querySelector('.feed-meta .source-badge')?.textContent).toContain('Noticias');
+		expect(card.querySelector('.feed-meta')?.textContent).toContain('example');
 		expect(card.textContent).not.toContain('Fuente:');
-		expect(card.querySelector('.item-top .sentiment')?.textContent).toContain('Positivo');
-		expect(card.querySelector('.sentiment.positive')).not.toBeNull();
+		expect(card.querySelector('.feed-meta .tone-badge')?.textContent).toContain('Positivo');
+		expect(card.querySelector('.tone-badge.tone-positive')).not.toBeNull();
 	});
 
 	it('labels unclassified sentiment explicitly', () => {
@@ -89,7 +90,7 @@ describe('MentionCard', () => {
 			mention: mentionFixture({ summary: 'La nota vincula al anuncio con la reforma.' })
 		});
 
-		const body = card.querySelector('.item-summary');
+		const body = card.querySelector('.feed-body');
 		expect(body).not.toBeNull();
 		expect(body?.textContent).toContain('La nota vincula al anuncio con la reforma.');
 		// No collapsed disclosure: the summary is plain visible text.
@@ -99,7 +100,7 @@ describe('MentionCard', () => {
 	it('falls back to the article excerpt without a summary', () => {
 		const { card } = renderCard({ mention: mentionFixture({ summary: null }) });
 
-		const body = card.querySelector('.item-summary');
+		const body = card.querySelector('.feed-body');
 		expect(body).not.toBeNull();
 		expect(body?.classList.contains('clamped')).toBe(true);
 	});
@@ -175,7 +176,7 @@ describe('MentionCard', () => {
 	it('renders the ingest-date fallback without an asterisk', () => {
 		const { card } = renderCard({ mention: mentionFixture({ published_at: null }) });
 
-		const when = card.querySelector('.item-when');
+		const when = card.querySelector('.feed-time');
 		expect(when?.textContent).toContain('2026');
 		expect(card.textContent).not.toMatch(/\*/);
 	});

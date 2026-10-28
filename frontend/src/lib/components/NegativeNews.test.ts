@@ -53,16 +53,16 @@ describe('NegativeNews', () => {
 			'1 noticia'
 		);
 		// The card anatomy comes from MentionCard/NewsEntry, not a local copy.
-		const card = panel.querySelector('.feed-card')!;
-		expect(card.querySelector('.item-top')).toBeTruthy();
+		const card = panel.querySelector('.feed-item')!;
+		expect(card.querySelector('.feed-meta')).toBeTruthy();
 		expect(card.textContent).toContain('Nota negativa 1');
-		const link = card.querySelector('.item-title a') as HTMLAnchorElement | null;
+		const link = card.querySelector('.headline a') as HTMLAnchorElement | null;
 		expect(link?.getAttribute('href')).toBe('https://a/1');
 	});
 
 	it('caps the list at three and discloses the total', () => {
 		const host = render([1, 2, 3, 4, 5].map(mention));
-		expect(host.querySelectorAll('.feed-card').length).toBe(3);
+		expect(host.querySelectorAll('.feed-item').length).toBe(3);
 		const note = host.querySelector('.negative-context')?.textContent?.replace(/\s+/g, ' ');
 		expect(note).toContain('Se muestran 3 de 5 noticias negativas');
 		expect(host.querySelector('.negative-count')?.textContent).toContain('5');

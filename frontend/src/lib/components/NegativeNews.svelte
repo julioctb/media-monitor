@@ -26,7 +26,7 @@
 		</div>
 		<div class="negative-list">
 			{#each visible as mention (mention.id)}
-				<MentionCard {mention} accent={false} />
+				<MentionCard {mention} />
 			{/each}
 		</div>
 		{#if mentions.length > visible.length}
