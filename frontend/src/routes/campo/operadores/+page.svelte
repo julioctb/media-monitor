@@ -2,22 +2,46 @@
 	let { data, form } = $props();
 
 	import type { FieldOperatorRecord } from '$lib/api';
+	import { formatDisplayDateTime } from '$lib/format';
 
-	type Operator = FieldOperatorRecord;
-	const operators = $derived(data.operators as Operator[]);
+	/** Fila del directorio: el load añade `last_report_at` derivado de los reportes. */
+	type OperatorRow = FieldOperatorRecord & { last_report_at: string | null };
 
-	let inviteLink = $state<string | null>(null);
+	const operators = $derived(data.operators as OperatorRow[]);
 
-	function statusLabel(operator: Operator): string {
-		if (operator.accepted_at) return 'activo';
-		if (operator.invited_at) return 'invitado';
-		return 'sin invitación';
+	// svelte-ignore state_referenced_locally — snapshot inicial: el alta solo
+	// abre por defecto cuando aún no existe ningún operador.
+	let formOpen = $state((data.operators as OperatorRow[]).length === 0);
+	let query = $state('');
+	let manageId = $state<number | null>(null);
+
+	const filtered = $derived.by(() => {
+		const q = query.trim().toLocaleLowerCase('es');
+		if (!q) return operators;
+		return operators.filter((operator) =>
+			`${operator.display_name} ${operator.phone ?? ''} ${operator.telegram_user_id ?? ''}`
+				.toLocaleLowerCase('es')
+				.includes(q)
+		);
+	});
+
+	function initials(displayName: string): string {
+		const monogram = displayName
+			.trim()
+			.split(/\s+/)
+			.slice(0, 2)
+			.map((part) => part.charAt(0))
+			.join('');
+		return monogram.toLocaleUpperCase('es') || '·';
 	}
 
-	function statusClass(operator: Operator): string {
-		if (operator.accepted_at) return 'text-success';
-		if (operator.invited_at) return 'text-warning';
-		return 'text-gray-500';
+	// Detalle de alta: la celda de estado es Activo/Inactivo (mockup); la
+	// distinción invitación/aceptación vive en el panel de gestión para no
+	// perder el estado real del modelo.
+	function lifecycle(operator: OperatorRow): string {
+		if (operator.accepted_at) return `Aceptó el ${formatDisplayDateTime(operator.accepted_at)}`;
+		if (operator.invited_at) return `Invitado el ${formatDisplayDateTime(operator.invited_at)}`;
+		return 'Sin invitación al bot';
 	}
 </script>
 
@@ -34,99 +58,164 @@
 	<p class="mt-2 text-xs {form.ok ? 'text-success' : 'text-danger'}" role="status">
 		{form.message}
 		{#if form.ok && form.inviteLink}
-			<a class="underline" href={form.inviteLink} target="_blank">abrir</a>
+			<a class="underline" href={form.inviteLink} target="_blank" rel="noopener noreferrer">abrir</a>
 		{/if}
 	</p>
 {/if}
 
-<section class="section" aria-labelledby="operators-high">
-	<div class="section-heading">
-		<h2 id="operators-high">Alta de operador</h2>
+<section class="panel operators-view" aria-labelledby="operators-heading">
+	<div class="field-operator-toolbar">
+		<div>
+			<h2 id="operators-heading">Listado de operadores</h2>
+			<p>{operators.length} operadores registrados</p>
+		</div>
+		<div class="field-operator-tools">
+			<label class="field-search">
+				<span>Buscar operador</span>
+				<span class="field-search-control">
+					<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true">
+						<path d="M20 20l-5-5 M10 17a7 7 0 1 0 0-14 7 7 0 0 0 0 14" />
+					</svg>
+					<input
+						type="search"
+						placeholder="Nombre, teléfono o ID de Telegram"
+						aria-label="Buscar operador"
+						bind:value={query}
+					/>
+				</span>
+			</label>
+			<button
+				type="button"
+				class="button primary"
+				aria-expanded={formOpen}
+				aria-controls="operator-create-form"
+				onclick={() => (formOpen = !formOpen)}
+			>
+				Alta de operador
+			</button>
+		</div>
 	</div>
-	<form method="post" action="?/create" class="mt-2 grid gap-2">
-		<input
-			type="text"
-			name="display_name"
-			placeholder="Nombre"
-			required
-			class="min-h-[44px] w-full rounded border px-3"
-		/>
-		<input
-			type="tel"
-			name="phone"
-			placeholder="Teléfono (ej. 52 222 123 4567)"
-			required
-			class="min-h-[44px] w-full rounded border px-3"
-		/>
-		<input
-			type="text"
-			name="telegram_user_id"
-			inputmode="numeric"
-			placeholder="Id de Telegram (opcional)"
-			class="min-h-[44px] w-full rounded border px-3"
-		/>
-		<button
-			type="submit"
-			class="min-h-[44px] rounded-full border border-accent bg-accent px-4 text-sm font-semibold text-accent-on"
-		>
-			Dar de alta
-		</button>
+
+	<form
+		id="operator-create-form"
+		class="field-form field-operator-form"
+		hidden={!formOpen}
+		method="post"
+		action="?/create"
+	>
+		<label>
+			Nombre
+			<input type="text" name="display_name" placeholder="Nombre y apellido" required />
+		</label>
+		<label>
+			Teléfono
+			<input type="tel" name="phone" placeholder="Ej. 52 222 123 4567" required />
+		</label>
+		<label>
+			ID de Telegram (opcional)
+			<input
+				type="text"
+				name="telegram_user_id"
+				inputmode="numeric"
+				placeholder="Se asigna vía bot si se omite"
+			/>
+		</label>
+		<div class="field-actions">
+			<button type="submit" class="button primary">Registrar operador</button>
+		</div>
 	</form>
-</section>
 
-<section class="section" aria-labelledby="operators-list">
-	<div class="section-heading">
-		<h2 id="operators-list">Operadores ({operators.length})</h2>
+	<div class="field-operator-table-wrap">
+		{#if operators.length === 0}
+			<div class="feed-empty">
+				<h3>Sin operadores</h3>
+				<p>Dá de alta al primero con el botón «Alta de operador».</p>
+			</div>
+		{:else if filtered.length === 0}
+			<div class="feed-empty">
+				<h3>Sin resultados</h3>
+				<p>Ningún operador coincide con la búsqueda.</p>
+			</div>
+		{:else}
+			<table class="field-table">
+				<caption class="sr-only">Directorio de operadores de campo</caption>
+				<thead>
+					<tr>
+						<th scope="col">Nombre</th>
+						<th scope="col">Teléfono</th>
+						<th scope="col">ID de Telegram</th>
+						<th scope="col">Estado</th>
+						<th scope="col">Último reporte</th>
+						<th scope="col">Acciones</th>
+					</tr>
+				</thead>
+				<tbody>
+					{#each filtered as operator (operator.id)}
+						<tr>
+							<td data-label="Nombre">
+								<div class="field-operator-cell">
+									<span class="field-operator-monogram" aria-hidden="true"
+										>{initials(operator.display_name)}</span
+									>
+									<div><strong>{operator.display_name}</strong></div>
+								</div>
+							</td>
+							<td data-label="Teléfono" class="field-operator-phone">
+								{operator.phone ?? 'Sin teléfono'}
+							</td>
+							<td data-label="ID de Telegram">{operator.telegram_user_id ?? 'Sin vincular'}</td>
+							<td data-label="Estado">
+								<span
+									class="field-operator-status"
+									class:is-active={operator.active}
+									class:is-inactive={!operator.active}
+								>
+									{operator.active ? 'Activo' : 'Inactivo'}
+								</span>
+							</td>
+							<td data-label="Último reporte">
+								{operator.last_report_at ? formatDisplayDateTime(operator.last_report_at) : 'Sin reportes'}
+							</td>
+							<td data-label="Acciones">
+								<button
+									type="button"
+									class="button"
+									aria-expanded={manageId === operator.id}
+									aria-controls={`operator-manage-${operator.id}`}
+									onclick={() => (manageId = manageId === operator.id ? null : operator.id)}
+								>
+									Gestionar
+								</button>
+							</td>
+						</tr>
+						{#if manageId === operator.id}
+							<tr class="field-operator-manage-row" id={`operator-manage-${operator.id}`}>
+								<td colspan={6}>
+									<div class="field-operator-manage">
+										<p class="field-operator-manage-note">{lifecycle(operator)}</p>
+										<div class="field-actions">
+											<form method="post" action={operator.active ? '?/deactivate' : '?/activate'}>
+												<input type="hidden" name="id" value={operator.id} />
+												<button type="submit" class="button">
+													{operator.active ? 'Desactivar' : 'Activar'}
+												</button>
+											</form>
+											<form method="post" action="?/invite">
+												<input type="hidden" name="id" value={operator.id} />
+												<button type="submit" class="button">Invitar al bot</button>
+											</form>
+										</div>
+									</div>
+								</td>
+							</tr>
+						{/if}
+					{/each}
+				</tbody>
+			</table>
+		{/if}
 	</div>
-	{#if operators.length === 0}
-		<p class="empty">Sin operadores: dá de alta el primero arriba.</p>
-	{:else}
-		<ul class="mt-2 grid gap-2">
-			{#each operators as operator (operator.id)}
-				<li class="rounded border px-3 py-2">
-					<div class="flex items-center justify-between gap-3">
-						<div class="text-sm">
-							<span class="font-semibold">{operator.display_name}</span>
-							{#if operator.phone}
-								<span class="text-xs text-gray-500"> · {operator.phone}</span>
-							{/if}
-							{#if operator.telegram_user_id}
-								<span class="text-xs text-gray-500"> · tg {operator.telegram_user_id}</span>
-							{/if}
-							<span class={'text-xs ' + statusClass(operator)}>
-								· {statusLabel(operator)}
-							</span>
-						</div>
-						<div class="flex gap-2">
-							<form method="post" action="?/invite">
-								<input type="hidden" name="id" value={operator.id} />
-								<button
-									type="submit"
-									class="min-h-[44px] rounded-full border px-3 text-sm font-semibold"
-								>
-									Invitar
-								</button>
-							</form>
-							<form
-								method="post"
-								action={operator.active ? '?/deactivate' : '?/activate'}
-							>
-								<input type="hidden" name="id" value={operator.id} />
-								<button
-									type="submit"
-									class="min-h-[44px] rounded-full border px-3 text-sm font-semibold"
-								>
-									{operator.active ? 'Desactivar' : 'Activar'}
-								</button>
-							</form>
-						</div>
-					</div>
-				</li>
-			{/each}
-		</ul>
-	{/if}
 </section>
 
-<p class="mt-4 text-xs text-gray-500">
-	<a class="underline" href="/campo">← Volver a la cola de reportes</a>
+<p class="field-return">
+	<a class="text-link" href="/campo">← Volver a la cola de reportes</a>
 </p>

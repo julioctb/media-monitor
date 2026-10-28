@@ -5,14 +5,29 @@ import {
 	createFieldOperator,
 	deactivateFieldOperator,
 	inviteFieldOperator,
-	listFieldOperators
+	listFieldOperators,
+	listFieldReports
 } from '$lib/api';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async () => {
 	try {
-		const operators = await listFieldOperators();
-		return { operators: operators.items };
+		// Último reporte por operador: la API de operadores no expone la fecha;
+		// se deriva aquí desde los reportes existentes (recepción `created_at`).
+		const [operators, reports] = await Promise.all([listFieldOperators(), listFieldReports()]);
+		const lastReportAt = new Map<number, string>();
+		for (const report of reports.items) {
+			if (report.operator_id == null || !report.created_at) continue;
+			const current = lastReportAt.get(report.operator_id);
+			if (!current || report.created_at > current) {
+				lastReportAt.set(report.operator_id, report.created_at);
+			}
+		}
+		// Orden alfabético (mockup field.js ordena el directorio por nombre).
+		const items = operators.items
+			.map((operator) => ({ ...operator, last_report_at: lastReportAt.get(operator.id) ?? null }))
+			.sort((a, b) => a.display_name.localeCompare(b.display_name, 'es'));
+		return { operators: items };
 	} catch (cause) {
 		const status = errorStatus(cause, 503);
 		const detail = errorMessage(cause, 'error desconocido');
