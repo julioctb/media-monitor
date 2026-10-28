@@ -6334,3 +6334,150 @@ dialog.field-dialog::backdrop {
   font-weight: 600;
   color: var(--color-muted);
 }
+
+/* ============================================================
+   Home daily — fidelity pass vs live mockup (computed-style
+   diff at 1280/768; final-cascade values from the export).
+   ============================================================ */
+.daily-page .panel {
+  border-color: #dce1e6;
+}
+.daily-page .intro {
+  display: flex;
+  grid-template-columns: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin: 0 0 24px;
+  padding: 0 0 24px;
+  background: transparent;
+  border-top: 0;
+  border-radius: 0;
+  border-bottom: 1px solid #dce1e6;
+}
+.daily-page .intro .intro-title {
+  margin: 0;
+  font-family: Georgia, 'Times New Roman', serif;
+  /* Mockup fluid scale: 26px @768 → 32.89px @1280. */
+  font-size: calc(15.67px + 1.3457vw);
+  line-height: 1.25;
+  font-weight: 700;
+  color: #222b36;
+}
+.daily-page .daily-synthesis {
+  border-color: #dce1e6;
+  border-radius: 8px;
+  line-height: 28px;
+  box-shadow: 0 4px 16px rgba(36, 50, 65, 0.03);
+}
+.daily-page .daily-synthesis-heading span {
+  line-height: 21px;
+}
+.daily-page .daily-synthesis-lead {
+  margin: 0 0 18px;
+}
+.daily-page .daily-selection {
+  display: flex;
+  gap: 24px;
+}
+.daily-page .daily-date-control {
+  grid-template-columns: 230px;
+  border-color: #dce1e6;
+  font-size: 12px;
+  line-height: 19.2px;
+}
+.daily-page .briefing-calendar {
+  font-size: 12px;
+  line-height: 19.2px;
+}
+.daily-page .briefing-date-picker {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  color: #222b36;
+  font-size: 16px;
+  line-height: 25.6px;
+}
+.daily-page .briefing-date-picker select {
+  width: 280px;
+  line-height: normal;
+}
+.daily-page .executive-heading h2 {
+  font-size: 23px;
+  line-height: 1.4;
+}
+.daily-page .executive-priority h3 {
+  font-weight: 700;
+}
+.daily-page .executive-evidence {
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+}
+.daily-page .panel.executive-actions {
+  padding: 28px;
+}
+.daily-page .executive-actions > h2 {
+  /* Mockup computes 14.94px (serif metric rounding); keep the diff at zero. */
+  margin-bottom: 14.94px;
+}
+.daily-page .executive-actions > p {
+  margin-bottom: 14px;
+}
+.daily-page .daily-actor {
+  padding: 16px 0;
+}
+.daily-page .daily-upcoming {
+  gap: 12px;
+  padding: 16px 0;
+  border-top: 1px solid #dce1e6;
+  border-bottom: 0;
+}
+.daily-page .daily-upcoming .date-box {
+  grid-template-columns: 28px;
+  gap: 0;
+  width: 40px;
+  min-width: 0;
+  padding: 6px;
+  background: #f2f3f5;
+  color: var(--color-muted);
+  font-size: 9px;
+  line-height: 14.4px;
+  border-radius: 7px;
+  text-align: start;
+}
+.daily-page .daily-upcoming .date-box strong {
+  font-size: 19px;
+  line-height: 30.4px;
+  color: #222b36;
+}
+.daily-page .daily-veracity {
+  display: inline-block;
+  padding: 6px 10px;
+  margin: 0 0 12px;
+  background: #f1eee7;
+  color: #716044;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 19.2px;
+  border-radius: 6px;
+}
+
+/* Fidelity pass — small-viewport adaptation (mockup wraps the intro row). */
+@media (max-width: 600px) {
+  .daily-page .intro {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+  .daily-page .briefing-date-picker {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  .daily-page .briefing-date-picker select {
+    width: 100%;
+    flex: 1 1 160px;
+  }
+}

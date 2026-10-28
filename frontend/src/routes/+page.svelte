@@ -150,6 +150,38 @@
 <div class="daily-page">
 	<h1 class="sr-only">Resumen diario</h1>
 
+	{#snippet datePicker()}
+		<div class="briefing-date-picker">
+			<label for="day-jump">Cambiar fecha</label>
+			<select
+				id="day-jump"
+				value={day}
+				disabled={data.days.length === 0}
+				onchange={(event) => goto(`?date=${event.currentTarget.value}`)}
+			>
+				{#if data.days.length > 0}
+					{#each data.days as entry (entry.summary_date)}
+						<option value={entry.summary_date}>
+							{formatLongDate(entry.summary_date)}
+						</option>
+					{/each}
+				{:else}
+					<option value="">Sin fechas con registros</option>
+				{/if}
+			</select>
+			{#if olderHref}
+				<a class="text-link" href={olderHref}>ver mes anterior</a>
+			{/if}
+		</div>
+	{/snippet}
+
+	<!-- Mockup shell intro: page title row with the date picker on the right
+	     (render() moves the picker into .intro on the daily view). -->
+	<header class="intro">
+		<h2 class="intro-title">Resumen diario</h2>
+		{@render datePicker()}
+	</header>
+
 	{#snippet dateControl()}
 		<div class="daily-selection">
 			<div class="daily-date-control">
@@ -173,28 +205,6 @@
 						</span>
 					{/if}
 				</span>
-				<div class="briefing-date-picker">
-					<label for="day-jump">Cambiar fecha</label>
-					<select
-						id="day-jump"
-						value={day}
-						disabled={data.days.length === 0}
-						onchange={(event) => goto(`?date=${event.currentTarget.value}`)}
-					>
-						{#if data.days.length > 0}
-							{#each data.days as entry (entry.summary_date)}
-								<option value={entry.summary_date}>
-									{formatLongDate(entry.summary_date)}
-								</option>
-							{/each}
-						{:else}
-							<option value="">Sin fechas con registros</option>
-						{/if}
-					</select>
-					{#if olderHref}
-						<a class="text-link" href={olderHref}>ver mes anterior</a>
-					{/if}
-				</div>
 			</div>
 		</div>
 	{/snippet}
