@@ -212,6 +212,26 @@ function contentTokens(text: string): Set<string> {
 }
 
 /**
+ * `2026-10-26` → briefing-calendar parts (`weekday` lowercase, `day`,
+ * `monthYear`). Local-time from date-only components, same anchor as
+ * `formatLongDate`, so no timezone can shift the weekday. Null on
+ * non-date input.
+ */
+export function calendarParts(
+	isoDate: string
+): { weekday: string; day: string; monthYear: string } | null {
+	const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate);
+	if (!match) return null;
+	const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+	if (Number.isNaN(date.getTime())) return null;
+	return {
+		weekday: WEEKDAYS_ES[date.getDay()],
+		day: String(date.getDate()),
+		monthYear: `${MONTHS_ES[date.getMonth()]} ${date.getFullYear()}`
+	};
+}
+
+/**
  * Chip label for the canonical-event link: the event title when it adds
  * information, or a plain call-to-action when it would just repeat the mention
  * title (the cluster title is inherited from its first mention, source

@@ -3,17 +3,18 @@
 	import { onMount } from 'svelte';
 
 	import {
+		calendarParts,
 		formatDisplayDateTime,
 		formatDisplayTime,
 		formatLongDate,
 		nextCutLabel
 	} from '$lib/format';
-	import { categoryRows, monogram } from '$lib/digest-stats';
+	import { categoryRows } from '$lib/digest-stats';
 	import DigestSections from '$lib/components/DigestSections.svelte';
-	import DigestV3 from '$lib/components/DigestV3.svelte';
 	import DigestEvidence from '$lib/components/DigestEvidence.svelte';
+	import TarjetaCard from '$lib/components/TarjetaCard.svelte';
 	import { createEvidenceContext } from '$lib/digest-evidence';
-	import { digestV3View } from '$lib/digest-v3';
+	import { digestV3View, type BriefEntryView } from '$lib/digest-v3';
 	import NegativeNews from '$lib/components/NegativeNews.svelte';
 	import type { PageProps } from './$types';
 
@@ -68,17 +69,62 @@
 
 	const updatedLabel = $derived(summary ? formatDisplayTime(summary.updated_at) : null);
 
-	/** digest-brief-v3: the brief headline replaces the plain narrative (same text, promoted). */
-	const v3Headline = $derived(
-		summary ? (digestV3View(summary.content)?.headline ?? null) : null
-	);
 	const nextCut = $derived(nextCutLabel(data.digestHours, new Date()));
 
-	/** Header eyebrow: «Resumen diario /» + active keywords (BUAP fallback). */
+	/** Daily-structure eyebrow: «Resumen diario /» + active keywords (BUAP fallback). */
 	const eyebrow = $derived.by(() => {
 		const terms = data.keywords.filter((keyword) => keyword.is_active).map((k) => k.text);
 		return terms.length > 0 ? `Resumen diario / ${terms.join(' · ')}` : 'Resumen diario / BUAP';
 	});
+
+	// Daily structure (mockup daily-view): one view model feeds every panel.
+	// Legacy v2 rows yield null and only the synthesis/detail surfaces render.
+	const view = $derived(summary ? digestV3View(summary.content) : null);
+
+	/** Síntesis lead: the narrative prose, else the brief headline (same
+	 * promotion rule the brief panel used). */
+	const lead = $derived(summary ? (summary.narrative?.trim() || view?.headline || null) : null);
+
+	const headlineRequest = $derived(
+		summary
+			? { target: summary.content as unknown, field: 'headline', text: lead }
+			: undefined
+	);
+
+	/** Evidence request for a brief-entry field (mirror of the brief panel). */
+	function entryEvidence(entry: BriefEntryView, field: string) {
+		return { target: entry.raw, field, allowed: entry.sourceRefs ?? null };
+	}
+
+	/** Attention picks in brief order, each carrying its section label. */
+	const PICK_LABELS = [
+		{ key: 'riesgos', label: 'Riesgo' },
+		{ key: 'decisiones', label: 'Decisión / atención' },
+		{ key: 'aFavor', label: 'A favor' },
+		{ key: 'ruido', label: 'Ruido' }
+	] as const;
+
+	type AttentionPick = BriefEntryView & { category: string };
+
+	const picks = $derived.by(() => {
+		if (!view) return [] as AttentionPick[];
+		const result: AttentionPick[] = [];
+		for (const { key, label } of PICK_LABELS) {
+			for (const entry of view[key]) result.push({ ...entry, category: label });
+		}
+		return result;
+	});
+
+	/** Mockup's parallel «Decisiones y acciones sugeridas»: picks with an action. */
+	const acciones = $derived(picks.filter((pick) => pick.accionSugerida || pick.condicion));
+
+	const tarjetas = $derived(
+		view?.tarjetas.filter(
+			(tarjeta) => tarjeta.titulo || tarjeta.hecho || tarjeta.porQue || tarjeta.anguloNuevo || tarjeta.notas?.length
+		) ?? []
+	);
+
+	const calendar = $derived(calendarParts(day));
 
 	/** Categorías identificadas: top 5 shares over the day's real total. */
 	const categoryRowsTop = $derived(
@@ -108,181 +154,300 @@
 	<title>Resumen diario | Media Monitor</title>
 </svelte:head>
 
-<div class="digest-layout">
-	<div class="digest-content">
-		<!-- The page skeleton renders with or without a digest: a day
-		    awaiting its first cut keeps the v2 structure in place under
-		    placeholder states instead of collapsing to one legend. -->
-		<section class="digest-header" aria-labelledby="digest-date">
-			<div class="eyebrow">{eyebrow}</div>
-			<h1 id="digest-date">{formatLongDate(summary?.summary_date ?? day)}</h1>
-			<div class="digest-meta">
+<div class="daily-page">
+	<h1 class="sr-only">Resumen diario</h1>
+
+	<!-- Mockup daily-summary-row: editorial synthesis + date/cut control. -->
+	<div class="daily-summary-row">
+		<section class="daily-synthesis" aria-labelledby="daily-synthesis-title">
+			<div class="daily-synthesis-heading">
+				<h2 id="daily-synthesis-title">Síntesis del día</h2>
+				<span>{eyebrow}</span>
+			</div>
+			<div class="daily-synthesis-copy">
 				{#if summary}
-					<span>
-						Interpretación actualizada a las {updatedLabel}{nextCut
-							? ` · siguiente actualización a las ${nextCut}`
-							: ''}
-					</span>
+					{#if lead}
+							<p class="daily-synthesis-lead">{lead}</p>
+							<DigestEvidence context={evidenceContext} request={headlineRequest} />
+						{/if}
 				{:else}
-					<span>En espera del primer corte del día</span>
-					<span>
-						Última actualización:
-						{data.latest_updated_at ? formatDisplayDateTime(data.latest_updated_at) : '—'}
-					</span>
-				{/if}
-				{#if lastRefresh}
-					<span>refrescado {lastRefresh}</span>
+					<p class="daily-synthesis-lead">En espera de generar el resumen del día</p>
 				{/if}
 			</div>
-			{#if data.days.length > 1}
-				<!-- Mobile day jump: the sidebar Historial sits below the whole
-					digest on narrow viewports; this keeps day switching at hand. -->
-				<div class="day-jump">
-					<label class="day-jump-label" for="day-jump">Consultar otro día</label>
-					<select
-						id="day-jump"
-						value={day}
-						onchange={(event) => goto(`?date=${event.currentTarget.value}`)}
-					>
-						{#each data.days as entry (entry.summary_date)}
-							<option value={entry.summary_date}>
-								{formatLongDate(entry.summary_date)}
-							</option>
-						{/each}
-					</select>
-				</div>
+			{#if lastRefresh}
+				<p class="daily-synthesis-context">Refrescado a las {lastRefresh}.</p>
 			{/if}
 		</section>
 
-		<!-- digest-brief-v3: brief + evidencia + campo; renders nothing on legacy rows. -->
-		<DigestV3 content={summary?.content ?? {}} context={evidenceContext} narrative={summary?.narrative} />
-
-		{#if !v3Headline}
-			<section class="narrative" aria-labelledby="narrative-heading">
-				<div class="eyebrow" id="narrative-heading">Sintesis del día</div>
-				{#if summary}
-					<p>{summary.narrative}</p>
-          {#if summary.narrative}<DigestEvidence context={evidenceContext} request={{ target: summary.content, field: 'headline', text: summary.narrative }} />{/if}
-				{:else}
-					<p>En espera de generar el resumen del día</p>
+		<div class="daily-selection">
+			<div class="daily-date-control">
+				<span class="briefing-date-kicker">Fecha del informe</span>
+				{#if calendar}
+					<time class="briefing-calendar" datetime={day} aria-label={formatLongDate(day)}>
+						<span class="briefing-weekday">{calendar.weekday}</span>
+						<span class="briefing-day">{calendar.day}</span>
+						<span class="briefing-month">{calendar.monthYear}</span>
+					</time>
 				{/if}
-			</section>
-		{/if}
-
-		<NegativeNews mentions={data.negativeEvents} />
-
-		<DigestSections
-      context={evidenceContext}
-			content={summary?.content ?? {}}
-			tones={data.tones}
-			sourcesCount={data.sourcesCount}
-			socialLabels={data.socialLabels}
-			negativeEvents={data.negativeEvents}
-		/>
+				<span class="briefing-cutoff">
+					{#if summary}
+						Actualizado a las {updatedLabel}
+						{#if nextCut}<span>Siguiente actualización a las {nextCut}</span>{/if}
+					{:else}
+						En espera del primer corte del día
+						<span>
+							Última actualización:
+							{data.latest_updated_at ? formatDisplayDateTime(data.latest_updated_at) : '—'}
+						</span>
+					{/if}
+				</span>
+				{#if data.days.length > 0}
+					<div class="briefing-date-picker">
+						<label for="day-jump">Consultar otro día</label>
+						<select
+							id="day-jump"
+							value={day}
+							onchange={(event) => goto(`?date=${event.currentTarget.value}`)}
+						>
+							{#each data.days as entry (entry.summary_date)}
+								<option value={entry.summary_date}>
+									{formatLongDate(entry.summary_date)}
+								</option>
+							{/each}
+						</select>
+						{#if olderHref}
+							<a class="text-link" href={olderHref}>ver mes anterior</a>
+						{/if}
+					</div>
+				{/if}
+			</div>
+		</div>
 	</div>
 
-	<aside class="sidebar digest-aside" aria-label="Historial, categorías y cobertura del día">
-		<section class="sidebar-section" aria-labelledby="archivo-heading">
-			<h2 id="archivo-heading">Historial</h2>
-			{#if data.days.length === 0}
-				<p class="small-note">Todavía no hay resúmenes guardados.</p>
-			{:else}
-				<ul class="history-list">
-					{#each data.days as entry (entry.summary_date)}
-						<li>
-							<button
-								type="button"
-								aria-label="Consultar resumen del {formatLongDate(entry.summary_date)}"
-								aria-pressed={entry.summary_date === day}
-								onclick={() => goto(`?date=${entry.summary_date}`)}
-							>
-								<span>{formatLongDate(entry.summary_date)}</span>
-							</button>
-						</li>
-					{/each}
-				</ul>
-				{#if olderHref}
-					<p class="small-note">
-						<a class="month-link" href={olderHref}>ver mes anterior -&gt;</a>
-					</p>
-				{/if}
-			{/if}
-		</section>
+	{#if picks.length > 0}
+		<!-- Mockup executive block: the brief's picks as attention cards. -->
+		<div class="executive-heading">
+			<h2>Qué requiere atención</h2>
+			<span class="executive-note">Selección editorial del día, no volumen de publicaciones.</span>
+		</div>
+		<div class="executive-priorities">
+			{#each picks as pick, i (`${pick.category}-${i}`)}
+				<article class="panel executive-priority">
+					<div class="executive-card-top">
+						<span class="daily-number">{String(i + 1).padStart(2, '0')}</span>
+						<span class="source-badge">{pick.category}</span>
+					</div>
+					<h3>{pick.titulo}</h3>
+					{#if pick.razon}<p class="executive-reason">{pick.razon}</p>{/if}
+					{#if pick.afectacion}
+						<dl class="executive-facts">
+							<div>
+								<dt>Afectación</dt>
+								<dd>{pick.afectacion}</dd>
+							</div>
+						</dl>
+					{/if}
+					{#if pick.razon}
+						<div class="executive-evidence">
+							<DigestEvidence
+								context={evidenceContext}
+								request={entryEvidence(pick, 'razon')}
+							/>
+						</div>
+					{/if}
+				</article>
+			{/each}
+		</div>
+		{#if view?.descarte}
+			<p class="daily-brief-note">{view.descarte}</p>
+		{/if}
+	{/if}
 
-		{#if categoryRowsTop.length > 0}
-			<section class="sidebar-section" aria-labelledby="categorias-heading">
-				<h2 id="categorias-heading">Categorías identificadas</h2>
-				<p class="archive-copy">
-					Distribución de las {coverageTotal}
-					{coverageTotal === 1 ? 'nota' : 'notas'} del día.
-				</p>
-				<dl class="tone-list identified" aria-label="Porcentaje de noticias por categoría">
-					{#each categoryRowsTop as row (row.key)}
-						<div>
-							<dt>{row.label}</dt>
-							<dd>
-								<span class="category-value">{row.pct}&nbsp;%</span>
-								<span class="category-track" aria-hidden="true">
-									<span class="category-fill" style="width:{row.pct}%"></span>
-								</span>
-							</dd>
+	<!-- Mockup daily-layout: actions/changes/people main column + agenda/coverage side. -->
+	<div class="daily-layout executive-support">
+		<div class="daily-main">
+			{#if acciones.length > 0}
+				<section class="panel executive-actions" aria-labelledby="executive-actions-heading">
+					<h2 id="executive-actions-heading">Decisiones y acciones sugeridas</h2>
+					<p>Propuestas de seguimiento; no decisiones aprobadas ni verificación de hechos.</p>
+					{#each acciones as pick, i (`accion-${i}`)}
+						<article class="executive-action">
+							<h3>{pick.titulo}</h3>
+							{#if pick.accionSugerida}
+								<p>{pick.accionSugerida}</p>
+								<DigestEvidence context={evidenceContext} request={entryEvidence(pick, 'accion_sugerida')} />
+							{/if}
+							{#if pick.condicion}
+								<dl class="executive-action-meta">
+									<div>
+										<dt>Condición para actuar</dt>
+										<dd>{pick.condicion}</dd>
+									</div>
+								</dl>
+								<DigestEvidence context={evidenceContext} request={entryEvidence(pick, 'condicion')} />
+							{/if}
+						</article>
+					{/each}
+				</section>
+			{/if}
+
+			{#if view && view.delta.length > 0}
+				<section class="panel daily-side-panel daily-changes" aria-labelledby="daily-changes-heading">
+					<h2 id="daily-changes-heading">Qué cambió</h2>
+					<ul>
+						{#each view.delta as linea, i (`delta-${i}`)}
+							<li>
+								<strong>{linea.titulo}</strong>
+								{#if linea.giro}<span> — {linea.giro}</span>{/if}
+							</li>
+						{/each}
+					</ul>
+				</section>
+			{/if}
+
+			{#if view && view.vigilancia.length > 0}
+				<section class="panel daily-side-panel" aria-labelledby="daily-vigilancia-heading">
+					<h2 id="daily-vigilancia-heading">Vigilancia</h2>
+					{#each view.vigilancia as linea, i (`vigilancia-${i}`)}
+						<div class="daily-actor">
+							<strong>{linea.persona}</strong>
+							{#if linea.nota}<p>{linea.nota}</p>{/if}
+							{#if linea.fecha}<span class="daily-actor-meta">{linea.fecha}</span>{/if}
+							{#if linea.afectacion}<span class="daily-actor-meta">{linea.afectacion}</span>{/if}
 						</div>
 					{/each}
-				</dl>
-			</section>
-		{/if}
+				</section>
+			{/if}
 
-		{#if data.persons.length > 0}
-			<section class="sidebar-section persons-panel" aria-labelledby="personas-heading">
-				<h2 id="personas-heading">Personas mencionadas</h2>
-				{#each data.persons as person (person.id)}
-					<div class="person-entry">
-						<span class="person-monogram" aria-hidden="true">{monogram(person.name)}</span>
-						<div class="person-data">
+			<section class="panel daily-side-panel daily-actors" aria-labelledby="daily-actors-heading">
+				<h2 id="daily-actors-heading">Quién aparece y en qué contexto</h2>
+				{#if data.persons.length > 0}
+					{#each data.persons as person (person.id)}
+						<div class="daily-actor">
 							<!-- The name is the link: no separate «ver cobertura» CTA. -->
-							<a class="person-link" href="/persons/{person.id}">{person.name}</a>
-							<p>
+							<strong><a href="/persons/{person.id}">{person.name}</a></strong>
+							<span class="daily-actor-meta">
 								{[person.role ?? person.org, `${person.mention_count} menciones`]
 									.filter(Boolean)
 									.join(' · ')}
-							</p>
+							</span>
 						</div>
-					</div>
-				{/each}
+					{/each}
+				{:else}
+					<p class="daily-empty-note">No se identifican personas en los registros de esta fecha.</p>
+				{/if}
 			</section>
-		{/if}
+		</div>
 
-		<section class="sidebar-section" aria-labelledby="cobertura-dia-heading">
-			<h2 id="cobertura-dia-heading">Cobertura del día</h2>
-			<p class="coverage-figure">
-				<strong>{coverageTotal ?? '—'}</strong>
-				<span>
-					{coverageTotal === 1 ? 'nota registrada en la jornada' : 'notas registradas en la jornada'}
-				</span>
-			</p>
-			<dl class="coverage-rows">
+		<aside class="daily-side" aria-label="Agenda y cobertura del día">
+			<section class="panel daily-side-panel" aria-labelledby="daily-agenda-heading">
+				<h2 id="daily-agenda-heading">Agenda y plazos</h2>
+				{#if view && view.fechas.length > 0}
+					{#each view.fechas as fecha, i (`fecha-${i}`)}
+						<div class="daily-deadline">
+							<span class="chip">{fecha.estado}</span>
+							<strong>{fecha.titulo}</strong>
+							{#if fecha.cuando}<span class="daily-actor-meta">{fecha.cuando}</span>{/if}
+						</div>
+					{/each}
+				{:else}
+					<p class="daily-empty-note">Sin fechas registradas en este resumen.</p>
+				{/if}
+				<a class="button daily-side-action" href="/agenda">Ver agenda completa</a>
+			</section>
+
+			<details class="panel executive-coverage">
+				<summary>
+					Cobertura y método
+					<span>
+						{coverageTotal ?? '—'}
+						{coverageTotal === 1 ? 'nota registrada' : 'notas registradas'}
+					</span>
+				</summary>
 				<div>
-					<dt>Categorías</dt>
-					<dd>{activeTopics} de {TOPIC_TOTAL}</dd>
-				</div>
-				<div>
-					<dt>Eventos creados</dt>
-					<dd>{liveEvents ?? '—'}</dd>
-				</div>
-			</dl>
-			{#if keywordRows.length > 0}
-				<div class="day-terms">
-					<h3>Por término de búsqueda</h3>
-					<dl class="day-terms-list">
-						{#each keywordRows as row (row.id)}
-							<div>
-								<dt>{row.text}</dt>
-								<dd>{row.count}</dd>
-							</div>
-						{/each}
+					<dl class="daily-coverage-list">
+						<div>
+							<dt>Periodo</dt>
+							<dd>{formatLongDate(day)}</dd>
+						</div>
+						<div>
+							<dt>Fuentes activas</dt>
+							<dd>{data.sourcesCount ?? '—'}</dd>
+						</div>
+						<div>
+							<dt>Eventos creados</dt>
+							<dd>{liveEvents ?? '—'}</dd>
+						</div>
+						<div>
+							<dt>Categorías con cobertura</dt>
+							<dd>{activeTopics} de {TOPIC_TOTAL}</dd>
+						</div>
 					</dl>
+					{#if categoryRowsTop.length > 0}
+						<div class="coverage-extra">
+							<h3>Categorías identificadas</h3>
+							<p>
+								Distribución de las {coverageTotal}
+								{coverageTotal === 1 ? 'nota' : 'notas'} del día.
+							</p>
+							<dl class="tone-list identified" aria-label="Porcentaje de noticias por categoría">
+								{#each categoryRowsTop as row (row.key)}
+									<div>
+										<dt>{row.label}</dt>
+										<dd>
+											<span class="category-value">{row.pct}&nbsp;%</span>
+											<span class="category-track" aria-hidden="true">
+												<span class="category-fill" style="width:{row.pct}%"></span>
+											</span>
+										</dd>
+									</div>
+								{/each}
+							</dl>
+						</div>
+					{/if}
+					{#if keywordRows.length > 0}
+						<div class="day-terms">
+							<h3>Por término de búsqueda</h3>
+							<dl class="day-terms-list">
+								{#each keywordRows as row (row.id)}
+									<div>
+										<dt>{row.text}</dt>
+										<dd>{row.count}</dd>
+									</div>
+								{/each}
+							</dl>
+						</div>
+					{/if}
 				</div>
-			{/if}
+			</details>
+		</aside>
+	</div>
+
+	{#if tarjetas.length > 0}
+		<section class="section digest-evidencia" aria-labelledby="digest-evidencia-heading">
+			<header class="section-heading">
+				<h2 id="digest-evidencia-heading">Evidencia del día</h2>
+				<span class="section-note">
+					{tarjetas.length}
+					{tarjetas.length === 1 ? 'historia documentada' : 'historias documentadas'}
+				</span>
+			</header>
+			<div class="digest-tarjetas">
+				{#each tarjetas as tarjeta, i (`tarjeta-${i}`)}
+					<TarjetaCard {tarjeta} context={evidenceContext} />
+				{/each}
+			</div>
 		</section>
-	</aside>
+	{/if}
+
+	<NegativeNews mentions={data.negativeEvents} />
+
+	<DigestSections
+    context={evidenceContext}
+		content={summary?.content ?? {}}
+		tones={data.tones}
+		sourcesCount={data.sourcesCount}
+		socialLabels={data.socialLabels}
+		negativeEvents={data.negativeEvents}
+	/>
 </div>
