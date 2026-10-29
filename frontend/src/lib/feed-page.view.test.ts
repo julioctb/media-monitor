@@ -488,10 +488,12 @@ it('renders the v3 aside additions: persons row, upcoming date-box and the panel
 	expect(box?.querySelector('span')?.textContent?.trim()).toBe('NOV');
 	expect(box?.querySelector('strong')?.textContent?.trim()).toBe('05');
 	expect(minis[0]?.querySelector('p')?.textContent?.trim()).toBe('Debate en cámara');
-	// la hora solo cuando la entrada la trae
-	expect(minis[0]?.querySelector('span.muted')?.textContent?.trim()).toBe('10:30');
-	expect(minis[1]?.querySelector('span.muted')).toBeNull();
+	// meta mock: «{time} · estado» — sin tracking de done, siempre «Por seguir».
+	expect(minis[0]?.querySelector('span.muted')?.textContent?.trim()).toBe('10:30 · Por seguir');
+	expect(minis[1]?.querySelector('span.muted')?.textContent?.trim()).toBe('Por seguir');
 	expect(minis[1]?.querySelector('p')?.textContent?.trim()).toBe('Cierre de consulta');
+	// nota post-lista del mock, siempre visible
+	expect(target.textContent).toContain('Fecha detectada; compromiso no confirmado.');
 });
 
 it('labels the person row singular and plural per the mockup', async () => {

@@ -983,12 +983,15 @@
 					</div>
 					<div>
 						<p>{item.title}</p>
-						{#if item.timeLabel}<span class="small muted">{item.timeLabel}</span>{/if}
+						<!-- Mock: «{time} · {estado}»; sin tracking de done en la agenda, el estado honesto es «Por seguir». -->
+						<span class="small muted">{item.timeLabel ? `${item.timeLabel} · ` : ''}Por seguir</span>
 					</div>
 				</button>
 			{:else}
 				<p class="small muted feed-source-empty">No hay fechas próximas asociadas a menciones de este periodo.</p>
 			{/each}
+			<!-- Nota post-lista del mock (siempre visible, con o sin filas). -->
+			<p class="feed-period-note">Fecha detectada; compromiso no confirmado.</p>
 		</section>
 		</aside>
 	</div>
