@@ -4076,7 +4076,7 @@ button.text-link {
 }
 .detail-dialog .dialog-body h2.feed-dialog-section-title {
   margin: 0 0 var(--space-16);
-  font-size: 19px;
+  font-size: 15px;
   line-height: 1.4;
 }
 .feed-dialog-section .source-badge {
