@@ -2471,14 +2471,8 @@ table.coverage th {
     width: 100%;
     white-space: normal;
   }
-  .config-workspace .config-times {
-    grid-template-columns: 1fr;
-  }
   .config-workspace .config-form-row > label {
     flex-basis: 100%;
-  }
-  .config-workspace .config-form-row > button {
-    margin-top: 0;
   }
 }
 .field-label {
@@ -3076,13 +3070,25 @@ table.coverage th {
     min-height: 44px;
   }
 }
-/* Directory responsive (mock L228): scroll stays, tools go full width. */
+/* Directory responsive (mock L228): scroll stays, tools go full width.
+   These @600 rules must live AFTER the section/directory base rules:
+   same specificity, source order decides (mock L37 mirrors this). */
 @media (max-width: 900px) {
   .config-workspace .config-form-grid {
     grid-template-columns: 1fr;
   }
 }
 @media (max-width: 600px) {
+  .config-workspace .config-times {
+    grid-template-columns: 1fr;
+  }
+  .config-workspace .config-form-row > label,
+  .config-workspace .config-form-row > label:first-child {
+    flex-basis: 100%;
+  }
+  .config-workspace .config-form-row > button {
+    margin-top: 0;
+  }
   .config-rss-directory {
     width: 100%;
   }
