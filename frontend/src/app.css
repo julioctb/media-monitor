@@ -2568,6 +2568,7 @@ table.coverage th {
 }
 /* Static config chip (mock styles.css .chip — NOT the global filter pill). */
 .config-chip {
+  font-weight: 400;
   display: inline-flex;
   align-items: center;
   padding: 3px 7px;
@@ -5043,9 +5044,6 @@ table.coverage th {
   /* /settings fuentes: the collapsed single track takes the source-card
      min-content (header row + long URLs) and pushes past the shell;
      the card internals already shrink (min-width: 0 + overflow-wrap). */
-  .source-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
 }
 
 /* / (digest v3.1 brief): the tarjeta head is a nowrap flex; on a 320px
@@ -5059,9 +5057,6 @@ table.coverage th {
 /* /settings scrapers: name + base URL on one flex row cannot shrink to
    the card below ~340px (the hostname alone is ~150px of min-content);
    let the URL drop to its own line instead of pushing past the card. */
-.source-check {
-  flex-wrap: wrap;
-}
 
 /* ============================================================
    Floating query (T8 revisited): the launcher toggles the mockup's
