@@ -35,6 +35,11 @@ class AgendaItem(IntPk, Base):
     source: Mapped[str | None] = mapped_column(String(200), nullable=True)
     url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Evento del pipeline que detonó la fecha (match del detector); NULL =
+    # alta editorial sin vínculo. El feed la prioriza por este vínculo.
+    event_id: Mapped[int | None] = mapped_column(
+        ForeignKey("events.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

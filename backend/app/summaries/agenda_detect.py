@@ -22,9 +22,10 @@ import re
 import unicodedata
 from datetime import date
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import AgendaItem, queries
+from app.models import AgendaItem, Event, queries
 
 log = logging.getLogger(__name__)
 
@@ -143,6 +144,24 @@ def near_dup_tokens(a_tokens: set[str], b_tokens: set[str]) -> bool:
     return len(a_tokens & b_tokens) / len(union) >= AGENDA_NEAR_DUP_JACCARD
 
 
+def _event_link_map(session: Session, client_id: int) -> dict[str, int]:
+    """normalized event title -> id, para vincular la entrada detonante.
+
+    Mock parity: la agenda reactiva al filtro necesita el evento que la
+    detonó; sin referencia persistida, se resuelve al crear por título
+    normalizado (contención bidireccional). Sin match la entrada queda
+    editorial pura y el backfill la reclama después.
+    """
+    rows = session.execute(
+        select(Event.id, Event.title).where(Event.client_id == client_id)
+    ).all()
+    return {
+        normalize_title(title or ""): event_id
+        for event_id, title in rows
+        if normalize_title(title or "")
+    }
+
+
 def sync_agenda_from_digest(
     session: Session, client_id: int, content: dict, *, reference: date
 ) -> int:
@@ -164,6 +183,7 @@ def sync_agenda_from_digest(
         return 0
 
     existing = queries.list_agenda_items(session, client_id)
+    event_links = _event_link_map(session, client_id)
     known: set[str] = set()
     dated: list[tuple[set[str], date]] = []
     for item in existing:
@@ -196,6 +216,15 @@ def sync_agenda_from_digest(
             for seen_tokens, seen_date in dated
         ):
             continue
+        entry_key = normalize_title(title)
+        event_id = next(
+            (
+                cand_id
+                for cand_key, cand_id in event_links.items()
+                if cand_key and (cand_key in entry_key or entry_key in cand_key)
+            ),
+            None,
+        )
         session.add(
             AgendaItem(
                 client_id=client_id,
@@ -205,6 +234,7 @@ def sync_agenda_from_digest(
                 date_label=when[:64],
                 source=source[:200] if source else None,
                 notes=status[:500] if status else None,
+                event_id=event_id,
             )
         )
         known.add(key)

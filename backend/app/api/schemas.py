@@ -571,6 +571,7 @@ class AgendaItemOut(BaseModel):
     source: str | None
     url: str | None
     notes: str | None
+    event_id: int | None = None
     created_at: datetime
 
 
