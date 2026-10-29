@@ -597,4 +597,8 @@ it('opens the agenda-origin dialog from the upcoming row', async () => {
 	expect(text).toContain('congreso-puebla.gob.mx');
 	expect(text).toContain('Abrir fuente original');
 	expect(text).toContain('2026-11-05 · 10:30');
+	// Sin match de título en el resultado: el modal lo declara; y la acción.
+	expect(text).toContain('Nota que detonó la fecha');
+	expect(text).toContain('Sin nota vinculada');
+	expect(text).toContain('Descartar fecha');
 });

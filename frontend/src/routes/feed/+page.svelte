@@ -11,11 +11,12 @@
 	import type { MentionEventRef } from '$lib/components/MentionCard.svelte';
 	import type { EventDetail, EventMention, Mention } from '$lib/api';
 	import { groupByEvent } from '$lib/grouping';
-	import { zonedToday } from '$lib/format';
+	import { deleteAgendaItem } from '$lib/api';
+	import { channelLabelFor, formatDisplayDateTime, zonedToday } from '$lib/format';
 	import { CHANNEL_LABELS, type FeedChannel } from '$lib/feed-filters';
 	import { ICON_PATHS } from '$lib/icons';
 	import { markSeen, prefs, seedPrefsFromServer, toggleSaved } from '$lib/prefs';
-	import { notifyPersist } from '$lib/toast.svelte';
+	import { notify, notifyPersist } from '$lib/toast.svelte';
 	import { INPUT_CLS } from '$lib/ui';
 	import type { PageProps } from './$types';
 
@@ -390,6 +391,44 @@
 	/** Ficha de origen de una entrada de agenda (reclamo «de dónde salió esta
 	 *  fecha»): la fila completa abre el DetailDialog compartido. */
 	let agendaPick: PageProps['data']['agendaUpcoming'][number] | null = $state(null);
+
+	/** Nota que detonó la entrada: match por título normalizado contra el
+	 *  resultado cargado (el detector de agenda no persiste la referencia a la
+	 *  mención; el match es best-effort y el modal lo declara). */
+	const agendaOriginMention = $derived.by(() => {
+		if (!agendaPick) return null;
+		const key = agendaPick.title
+			.toLowerCase()
+			.replace(/[^\w\sáéíóúñü]/g, ' ')
+			.replace(/\s+/g, ' ')
+			.trim();
+		if (!key) return null;
+		return (
+			data.mentions.items.find((mention) => {
+				const title = (mention.title ?? '')
+					.toLowerCase()
+					.replace(/[^\w\sáéíóúñü]/g, ' ')
+					.replace(/\s+/g, ' ')
+					.trim();
+				return title === key || title.startsWith(key) || key.startsWith(title);
+			}) ?? null
+		);
+	});
+
+	/** Descartar: DELETE permanente (la agenda no tiene papelera); la fila
+	 *  desaparece al refrescar el load. */
+	async function discardAgendaPick(): Promise<void> {
+		if (!agendaPick) return;
+		const target = agendaPick;
+		agendaPick = null;
+		try {
+			await deleteAgendaItem(target.id);
+			notify('Fecha descartada de la agenda.');
+			await invalidateAll();
+		} catch {
+			notify('No se pudo descartar la fecha. Intenta de nuevo.');
+		}
+	}
 </script>
 
 <svelte:head>
@@ -986,11 +1025,31 @@
 				<a class="text-link" href={agendaPick.url} target="_blank" rel="noreferrer">Abrir fuente original</a>
 			{/if}
 		</section>
+		<section>
+			<h3>Nota que detonó la fecha</h3>
+			{#if agendaOriginMention}
+				<p><strong>{agendaOriginMention.title}</strong></p>
+				<p class="feed-dialog-meta">
+					{channelLabelFor(agendaOriginMention.source)}
+					· {formatDisplayDateTime(agendaOriginMention.published_at ?? agendaOriginMention.ingested_at)}
+				</p>
+				{#if agendaOriginMention.url}
+					<a class="text-link" href={agendaOriginMention.url} target="_blank" rel="noreferrer">Ver la nota</a>
+				{/if}
+			{:else}
+				<p class="feed-dialog-meta">Sin nota vinculada en el resultado cargado de esta página.</p>
+			{/if}
+		</section>
 		{#if agendaPick.notes}
 			<section>
 				<h3>Notas</h3>
 				<p>{agendaPick.notes}</p>
 			</section>
 		{/if}
+		<div class="dialog-actions">
+			<button type="button" class="text-link" onclick={() => void discardAgendaPick()}>
+				Descartar fecha
+			</button>
+		</div>
 	{/if}
 </DetailDialog>
