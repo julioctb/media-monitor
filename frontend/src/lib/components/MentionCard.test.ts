@@ -112,7 +112,7 @@ describe('MentionCard', () => {
 
 		const chip = card.querySelector('a[href="/events/3"]');
 		expect(chip?.textContent).toContain('Evento #3');
-		expect((chip?.textContent ?? '').replace(/\s+/g,' ')).toContain('1 cobertura del mismo evento');
+		expect((chip?.textContent ?? '').replace(/\s+/g,' ')).toContain('1 mención');
 	});
 
 	it('renders no event chip without event context', () => {

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { formatDisplayDateTimeLong, outletFromUrl, sentimentLabel, topicBadgeClass, topicLabel } from '$lib/format';
 	import { isNewsSource } from '$lib/digest-stats';
+	import { ICON_PATHS } from '$lib/icons';
 	import type { Mention } from '$lib/api';
 	import NewsEntry from '$lib/components/NewsEntry.svelte';
 
@@ -16,15 +17,18 @@
 		event?: MentionEventRef | null;
 		/** Mentions in the same-event group (footer coverage chip). */
 		coverageCount?: number;
-		/** Opens the record-detail dialog (mockup recordDetail). */
+		/** Opens the record-detail dialog (mockup headline-button). */
 		onDetail?: (mention: Mention) => void;
+		/** Opens the event-detail dialog instead of navigating (mockup data-event). */
+		onEvent?: (event: MentionEventRef, coverageCount: number) => void;
 	}
 
 	let {
 		mention,
 		event = null,
 		coverageCount = 1,
-		onDetail
+		onDetail,
+		onEvent
 	}: Props = $props();
 
 	const when = $derived(mention.published_at ?? mention.ingested_at);
@@ -103,10 +107,28 @@
 			<a href={`/persons/${person.id}`} title="Ver persona">{person.name}</a>
 		{/each}
 		{#if event}
-			<a class="event-chip" href={`/events/${event.id}`} title={event.title}>
-				Evento #{event.id} · {coverageCount}
-				{coverageCount === 1 ? 'cobertura' : 'coberturas'} del mismo evento
-			</a>
+			{#if onEvent}
+				<button
+					type="button"
+					class="chip event-chip"
+					onclick={() => onEvent(event, coverageCount)}
+					title={event.title}
+				>
+					<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true">
+						<path d={ICON_PATHS.layers} />
+					</svg>
+					Evento #{event.id} · {coverageCount}
+					{coverageCount === 1 ? 'mención' : 'menciones'}
+				</button>
+			{:else}
+				<a class="chip event-chip" href={`/events/${event.id}`} title={event.title}>
+					<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true">
+						<path d={ICON_PATHS.layers} />
+					</svg>
+					Evento #{event.id} · {coverageCount}
+					{coverageCount === 1 ? 'mención' : 'menciones'}
+				</a>
+			{/if}
 		{/if}
 	{/snippet}
 </NewsEntry>

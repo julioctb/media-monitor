@@ -3,10 +3,12 @@ import { errorStatus, errorMessage } from '$lib/server/api-error';
 import {
 	ApiError,
 	getDailySummary,
+	getEvent,
 	getStatsOverview,
 	getFeedStats,
 	listKeywords,
 	listMentions,
+	type EventDetail,
 	type FeedStats,
 	type Mention,
 	type MentionPage,
@@ -42,6 +44,21 @@ const byRecency = (a: Mention, b: Mention): number => {
 	const bAt = b.published_at ?? b.ingested_at;
 	return aAt < bAt ? 1 : aAt > bAt ? -1 : b.id - a.id;
 };
+
+/**
+ * Event-detail payload for every distinct event referenced by the loaded
+ * page (mockup eventDetail dialog data). One getEvent per distinct id; a
+ * failed fetch degrades that chip to the /events page link, never the page.
+ */
+async function loadEventsById(items: Mention[]): Promise<Record<number, EventDetail>> {
+	const ids = [...new Set(items.map((m) => m.event_id).filter((id): id is number => id !== null))];
+	const settled = await Promise.allSettled(ids.map((id) => getEvent(id)));
+	const byId: Record<number, EventDetail> = {};
+	settled.forEach((result, index) => {
+		if (result.status === 'fulfilled') byId[ids[index]] = result.value;
+	});
+	return byId;
+}
 
 /**
  * Channel filters span several sources and the API takes one per query:
@@ -168,6 +185,7 @@ export const load: PageServerLoad = async ({ url }) => {
 			mediumCounts: stats.by_medium ?? {},
 			newsMediumCount: stats.news_medium_count ?? 0,
 			channelGroups: groups,
+			eventsById: await loadEventsById(mentions.items),
 			filters: {
 				source: params.get('source') ?? '',
 				medium: params.get('medium') ?? '',

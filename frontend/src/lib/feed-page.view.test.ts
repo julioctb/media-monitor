@@ -12,6 +12,27 @@ function dataFixture(): PageProps['data'] {
 	return {
 		mentions: { items: [{ id: 1, source: 'news_rss', title: 'Publicación sintética conservada', url: 'https://alpha.example/1', keyword_id: null, external_id: null, content: 'Contenido capturado.', summary: null, author: null, lang: 'es', published_at: '2026-10-14T12:00:00Z', ingested_at: '2026-10-14T12:00:00Z', sentiment: 'negative', sentiment_score: 0.2, reach: null, classifications: [], event_id: 1 }], total: 96 },
 		keywords: [], digest: null,
+		eventsById: {
+			1: {
+				id: 1,
+				title: 'Evento sintético',
+				mention_count: 2,
+				source_count: 2,
+				summary: 'Resumen del evento de prueba.',
+				first_seen_at: '2026-10-13T12:00:00Z',
+				last_seen_at: '2026-10-14T12:00:00Z',
+				mentions: [
+					{
+						id: 1,
+						source: 'news_rss',
+						url: 'https://alpha.example/1',
+						title: 'Publicación sintética conservada',
+						sentiment: 'negative',
+						published_at: '2026-10-14T12:00:00Z'
+					}
+				]
+			}
+		},
 		sourceCounts: { news_rss: 200, x_twitter: 30 }, mediumCounts: { 'global.example': 200 }, newsMediumCount: 40,
 		channelGroups: { news: ['news_rss'], social: ['x_twitter'], field: [] },
 		feedStats: { total: 96, by_source: { news_rss: 96 }, by_sentiment: { negative: 96, positive: 0, neutral: 0, none: 0 }, news_medium_count: 17, result_group_count: 63 },
@@ -199,6 +220,37 @@ it('renders the v3 panel anatomy: toolbar, tone filter, rail and item rows', asy
 	// the legacy two-panel/skin markers are gone
 	expect(target.querySelector('.feed-filter-panel')).toBeNull();
 	expect(target.querySelector('.result-line')).toBeNull();
+});
+
+it('opens the event expediente dialog from the chip and chains into the record', async () => {
+	const target = await render();
+	const chip = target.querySelector<HTMLButtonElement>('.feed-item .event-chip');
+	expect(chip).toBeTruthy();
+
+	chip!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+	await new Promise((resolve) => setTimeout(resolve, 30));
+	await tick();
+
+	const dialog = target.querySelector('dialog.event-detail');
+	expect((dialog?.textContent ?? '').trim().length).toBeGreaterThan(0);
+	const text = (dialog?.textContent ?? '').replace(/\s+/g, ' ');
+	expect(text).toContain('Expediente #1');
+	expect(text).toContain('Evento sintético');
+	expect(text).toContain('2 menciones · 2 tipos de fuente. Conteo de registros, no de confirmaciones independientes.');
+	expect(text).toContain('Fuentes y evidencias');
+	expect(text).toContain('Leer registro original');
+
+	// chaining: "Leer registro original" swaps to the record dialog
+	const recordButton = [...(dialog?.querySelectorAll('button') ?? [])].find((b) =>
+		(b.textContent ?? '').includes('Leer registro original')
+	);
+	recordButton!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+	await new Promise((resolve) => setTimeout(resolve, 30));
+	await tick();
+
+	expect((target.querySelector('dialog.event-detail')?.textContent ?? '').trim()).toBe('');
+	const record = target.querySelector('dialog.mention-detail');
+	expect((record?.textContent ?? '').replace(/\s+/g, ' ')).toContain('Detalle de la mención');
 });
 
 it('opens the mention detail dialog from a card', async () => {

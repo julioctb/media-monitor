@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import { ICON_PATHS } from '$lib/icons';
 
 	/**
 	 * Shared detail-dialog chrome (mockup #detail-dialog + campo pattern).
@@ -39,7 +40,7 @@
 	<div class="dialog-head">
 		<strong id={titleId}>{title}</strong>
 		<button class="icon-button" type="button" onclick={() => dialogEl?.close()} aria-label="Cerrar detalle">
-			<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12 M6 18 18 6" /></svg>
+			<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true"><path d={ICON_PATHS.close} /></svg>
 		</button>
 	</div>
 	<div class="dialog-body">

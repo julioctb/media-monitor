@@ -6,8 +6,9 @@
 
 	import MentionCard from '$lib/components/MentionCard.svelte';
 	import MentionDetailDialog from '$lib/components/MentionDetailDialog.svelte';
+	import EventDetailDialog from '$lib/components/EventDetailDialog.svelte';
 	import type { MentionEventRef } from '$lib/components/MentionCard.svelte';
-	import type { Mention } from '$lib/api';
+	import type { EventDetail, EventMention, Mention } from '$lib/api';
 	import { groupByEvent } from '$lib/grouping';
 		import { CHANNEL_LABELS, type FeedChannel } from '$lib/feed-filters';
 	import { ICON_PATHS } from '$lib/icons';
@@ -54,8 +55,28 @@
 	let detailEvent: MentionEventRef | null = $state(null);
 
 	function openDetail(mention: Mention, event: MentionEventRef | null) {
+		expedient = null;
 		detailMention = mention;
 		detailEvent = event;
+	}
+
+	/** Event-detail dialog (mockup eventDetail, "Expediente #id"). */
+	let expedient: EventDetail | null = $state(null);
+
+	function openEvent(ref: MentionEventRef) {
+		const full = data.eventsById[ref.id];
+		if (full) expedient = full;
+		// without server payload (failed fetch) the chip stays a link to /events
+	}
+
+	/** "Leer registro original" from the expediente: chain into the record
+	   dialog with the full mention when this page carries it. */
+	function openEventRecord(stub: EventMention) {
+		const current = expedient;
+		const full = data.mentions.items.find((m) => m.id === stub.id);
+		expedient = null;
+		detailMention = full ?? (stub as unknown as Mention);
+		detailEvent = current ? { id: current.id, title: current.title } : null;
 	}
 
 	/* Tono pills (server param `sentiment`): active pill navigates to its value,
@@ -480,6 +501,7 @@
 								event={group.event}
 								coverageCount={group.mentions.length}
 								onDetail={(m) => openDetail(m, group.event)}
+								onEvent={group.event && data.eventsById[group.event.id] ? openEvent : undefined}
 							/>
 						{/each}
 					</li>
@@ -685,6 +707,9 @@
 	</div>
 </div>
 
+{#if expedient}
+	<EventDetailDialog event={expedient} onRecord={openEventRecord} onclose={() => (expedient = null)} />
+{/if}
 <MentionDetailDialog
 	mention={detailMention}
 	event={detailEvent}

@@ -743,7 +743,7 @@ export interface EventSummary {
 }
 
 /** Mention stub inside an event detail: enough to rank and link out. */
-interface EventMention {
+export interface EventMention {
   id: number;
   source: MentionSource;
   url: string;
