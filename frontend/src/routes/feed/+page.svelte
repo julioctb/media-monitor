@@ -293,7 +293,7 @@
 
 	function applyPeriodPreset(event: Event) {
 		const value = (event.currentTarget as HTMLSelectElement).value as PeriodPreset;
-		if (value !== 'custom') void goto(hrefWithPeriod(value));
+		if (value !== 'custom') void goto(hrefWithPeriod(value), { noScroll: true });
 	}
 
 	/* Channel source rows (mockup sourceBreakdown): label + global count,
@@ -407,6 +407,7 @@
 						role="button"
 						href={hrefWithChannel(tab.value)}
 						aria-pressed={filters.channel === tab.value}
+						data-sveltekit-noscroll
 					>
 						<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true">
 							<path d={ICON_PATHS[tab.icon]} />
@@ -427,6 +428,7 @@
 						role="button"
 						href={hrefWithSentiment(null)}
 						aria-pressed={filters.sentiment === ''}
+						data-sveltekit-noscroll
 					>
 						Todo{#if toneCounts}<strong>{toneCounts.all}</strong>{/if}
 					</a>
@@ -436,6 +438,7 @@
 							role="button"
 							href={filters.sentiment === tone.key ? hrefWithSentiment(null) : hrefWithSentiment(tone.key)}
 							aria-pressed={filters.sentiment === tone.key}
+							data-sveltekit-noscroll
 						>
 							<span class="tone-dot" aria-hidden="true"></span>
 							{tone.label}{#if toneCounts}<strong>{toneCounts[tone.key]}</strong>{/if}
@@ -635,7 +638,7 @@
 					</div>
 					<div class="feed-source-list" role="group" aria-label="Filtrar por medio">
 						{#if filters.medium}
-							<a class="feed-source-row" role="button" href={hrefWithMedium(null)}>
+							<a class="feed-source-row" role="button" href={hrefWithMedium(null)} data-sveltekit-noscroll>
 								<span>Todos los medios</span>
 							</a>
 						{/if}
@@ -645,6 +648,7 @@
 								role="button"
 								aria-pressed={filters.medium === row.medium}
 								href={hrefWithMedium(row.medium)}
+								data-sveltekit-noscroll
 							>
 								<span>{row.medium}</span>
 								<strong>{row.count}</strong>
@@ -661,6 +665,7 @@
 										role="button"
 										aria-pressed={filters.medium === row.medium}
 										href={hrefWithMedium(row.medium)}
+										data-sveltekit-noscroll
 									>
 										<span>{row.medium}</span>
 										<strong>{row.count}</strong>

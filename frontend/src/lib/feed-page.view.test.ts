@@ -214,6 +214,12 @@ it('renders the v3 panel anatomy: toolbar, tone filter, rail and item rows', asy
 	// invented panels outside the v3 contract are gone
 	expect(target.textContent).not.toContain('Histórico');
 	expect(target.textContent).not.toContain('Seguimiento');
+	// facet links apply in place (mockup behavior): no scroll-to-top on tap
+	for (const link of target.querySelectorAll<HTMLAnchorElement>(
+		'a.tone-choice, .tabs a.tab, .feed-source-list a.feed-source-row'
+	)) {
+		expect(link.hasAttribute('data-sveltekit-noscroll'), link.className).toBe(true);
+	}
 	// one card per loaded mention; the tone badge carries the active sentiment
 	expect(target.querySelectorAll('.feed-item')).toHaveLength(1);
 	expect(target.querySelector('.feed-item .tone-badge')?.textContent).toContain('Negativo');
