@@ -148,14 +148,21 @@
    defined; .sentiment.* badges and the tone pills consume these via var().
    Rest = tint, pressed = solid of the same hue. */
 :root {
-  --tone-positive-bg: color-mix(in oklch, var(--color-success) 22%, #fff);
-  --tone-positive-bg-hover: color-mix(in oklch, var(--color-success) 38%, #fff);
+  /* Tone palette — cascade resuelta del mock (.tone-badge.*): ink = color de
+     texto del badge, bg = superficie. Hover = tinte del ink sobre bg (sin
+     fuente cascade; derivado). Solids (dots/segmentos) siguen documentados
+     abajo: sin equivalente en el cascade del mock. */
+  --tone-positive-ink: #245746;
+  --tone-positive-bg: #eaf3ef;
+  --tone-positive-bg-hover: color-mix(in oklch, var(--tone-positive-ink) 20%, var(--tone-positive-bg));
   --tone-positive-solid: var(--color-success);
-  --tone-negative-bg: color-mix(in oklch, var(--color-danger) 20%, #fff);
-  --tone-negative-bg-hover: color-mix(in oklch, var(--color-danger) 36%, #fff);
+  --tone-negative-ink: #783641;
+  --tone-negative-bg: #f8edef;
+  --tone-negative-bg-hover: color-mix(in oklch, var(--tone-negative-ink) 20%, var(--tone-negative-bg));
   --tone-negative-solid: var(--color-danger);
-  --tone-neutral-bg: var(--color-surface);
-  --tone-neutral-bg-hover: color-mix(in oklch, var(--color-ink) 6%, #fff);
+  --tone-neutral-ink: #4a5b6d;
+  --tone-neutral-bg: #eef1f4;
+  --tone-neutral-bg-hover: color-mix(in oklch, var(--tone-neutral-ink) 12%, #fff);
   /* Mockup tone palette: neutral #617183, unclassified #7d858d (dedicated,
      not ink/meta/muted approximations). */
   --tone-neutral-solid: #617183;
@@ -694,12 +701,16 @@ h4 {
   line-height: 1.3;
 }
 .tone-badge.tone-positive {
-  color: color-mix(in oklch, var(--color-success) 72%, var(--color-ink));
+  color: var(--tone-positive-ink);
   background: var(--tone-positive-bg);
 }
 .tone-badge.tone-negative {
-  color: color-mix(in oklch, var(--color-danger) 72%, var(--color-ink));
+  color: var(--tone-negative-ink);
   background: var(--tone-negative-bg);
+}
+.tone-badge.tone-neutral {
+  color: var(--tone-neutral-ink);
+  background: var(--tone-neutral-bg);
 }
 
 /* Query launcher v3 — persistent consultas access. The floating panel,
