@@ -422,6 +422,35 @@
 		);
 	});
 
+	/** Nota detonadora para el modal: prioriza la resuelta server-side vía
+	 *  event_id (author/summary completos); cae al match local por título. */
+	const agendaNota = $derived.by(() => {
+		if (agendaPick?.origin) {
+			const origin = agendaPick.origin;
+			return {
+				title: origin.title,
+				source: origin.source,
+				byline: [origin.outlet, origin.author, origin.stamp ? formatDisplayDateTime(origin.stamp) : null]
+					.filter(Boolean)
+					.join(' · '),
+				url: origin.url,
+				summary: origin.summary
+			};
+		}
+		if (agendaPick && agendaOriginMention) {
+			return {
+				title: agendaOriginMention.title ?? '',
+				source: agendaOriginMention.source,
+				byline: `${channelLabelFor(agendaOriginMention.source)} · ${formatDisplayDateTime(
+					agendaOriginMention.published_at ?? agendaOriginMention.ingested_at
+				)}`,
+				url: agendaOriginMention.url,
+				summary: agendaOriginMention.summary ?? agendaOriginMention.content ?? null
+			};
+		}
+		return null;
+	});
+
 	/** Descartar: DELETE permanente (la agenda no tiene papelera); la fila
 	 *  desaparece al refrescar el load. */
 	async function discardAgendaPick(): Promise<void> {
@@ -1033,43 +1062,49 @@
 				: ''} · Fecha detectada; compromiso no confirmado.
 		</p>
 		<section>
-			<p class="feed-dialog-eyebrow">Noticia que detectó la fecha</p>
-			{#if agendaOriginMention}
-				<span class={`source-badge ${channelClassFor(agendaOriginMention.source)}`}>
+			<h2 class="feed-dialog-section-title">Noticia que detectó la fecha</h2>
+			{#if agendaNota}
+				<span class={`source-badge ${channelClassFor(agendaNota.source)}`}>
 					<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true">
-						<path d={ICON_PATHS[CHANNEL_ICON[channelClassFor(agendaOriginMention.source)]]} />
+						<path d={ICON_PATHS[CHANNEL_ICON[channelClassFor(agendaNota.source)]]} />
 					</svg>
-					{channelLabelFor(agendaOriginMention.source)}
+					{channelLabelFor(agendaNota.source)}
 				</span>
-				<h3>{agendaOriginMention.title}</h3>
-			{:else}
-				<h3>Sin nota vinculada en el resultado cargado de esta página.</h3>
-			{/if}
-			<p class="feed-dialog-meta">
-				{agendaPick.source ?? 'Fuente no registrada'}
-				· {formatDisplayDateTime(agendaOriginMention?.published_at ?? agendaOriginMention?.ingested_at ?? '') || 'fecha de publicación no disponible'}
-			</p>
-			<div class="feed-dialog-quote">
-				{#if agendaOriginMention?.summary || agendaOriginMention?.content}
-					{agendaOriginMention.summary ?? agendaOriginMention.content}
-				{:else if agendaPick.notes}
-					{agendaPick.notes}
-				{:else}
-					Fecha detectada en publicación; compromiso no confirmado. El registro vive en la agenda editorial hasta vincularlo a su nota de origen.
+				<h3>{agendaNota.title}</h3>
+				<p class="feed-dialog-meta">{agendaNota.byline}</p>
+				{#if agendaNota.summary}
+					<div class="feed-dialog-quote">{agendaNota.summary}</div>
 				{/if}
-			</div>
-			{#if (agendaOriginMention?.url ?? agendaPick.url)}
-				<a
-					class="text-link"
-					href={agendaOriginMention?.url ?? agendaPick.url}
-					target="_blank"
-					rel="noreferrer"
-				>
-					Ver registro original
+				{#if agendaNota.url}
+					<a class="text-link" href={agendaNota.url} target="_blank" rel="noreferrer">
+						Ver registro original
+						<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true">
+							<path d={ICON_PATHS.arrow} />
+						</svg>
+					</a>
+				{/if}
+			{:else}
+				<span class="source-badge news">
 					<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true">
-						<path d={ICON_PATHS.arrow} />
+						<path d={ICON_PATHS[CHANNEL_ICON.news]} />
 					</svg>
-				</a>
+					Noticias
+				</span>
+				<h3>Sin nota vinculada en el resultado cargado de esta página.</h3>
+				<p class="feed-dialog-meta">
+					{agendaPick.source ?? 'Fuente no registrada'} · registro de agenda
+				</p>
+				{#if agendaPick.notes}
+					<div class="feed-dialog-quote">{agendaPick.notes}</div>
+				{/if}
+				{#if agendaPick.url}
+					<a class="text-link" href={agendaPick.url} target="_blank" rel="noreferrer">
+						Ver registro original
+						<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true">
+							<path d={ICON_PATHS.arrow} />
+						</svg>
+					</a>
+				{/if}
 			{/if}
 		</section>
 		<div class="dialog-actions">

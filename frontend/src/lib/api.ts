@@ -371,6 +371,12 @@ function jsonInit(
 
 /* -------------------------------- endpoints -------------------------------- */
 
+/** Mención completa por id (endpoint de detalle). Consumidor: el dialog de
+ *  origen de agenda — author/summary no viajan en el stub del evento. */
+export async function getMention(id: number, options: RequestOptions = {}): Promise<Mention> {
+  return request<Mention>(`/api/mentions/${id}`, {}, options);
+}
+
 export async function listMentions(
   query: MentionQuery = {},
   options: RequestOptions = {},

@@ -340,8 +340,32 @@ it('feeds the aside panels from one capped pool and the agenda window', async ()
 		{ id: 4, name: 'Beto Díaz', mentions: 1 }
 	]);
 	// agenda: solo fechas >= hoy local, asc, tope 2, mapeadas para la vista
+	// Row shape completo: origin/eventId viajan para el dialog de origen
+	// (null cuando el registro no trae vínculo en este fixture).
 	expect(data.agendaUpcoming).toEqual([
-		{ id: 3, title: 'Próxima A', eventDate: future(40), timeLabel: '10:30' },
-		{ id: 4, title: 'Próxima B', eventDate: future(50), timeLabel: null }
+		{
+			id: 3,
+			title: 'Próxima A',
+			eventDate: future(40),
+			timeLabel: '10:30',
+			dateLabel: null,
+			source: null,
+			url: null,
+			notes: null,
+			origin: null,
+			eventId: null
+		},
+		{
+			id: 4,
+			title: 'Próxima B',
+			eventDate: future(50),
+			timeLabel: null,
+			dateLabel: null,
+			source: null,
+			url: null,
+			notes: null,
+			origin: null,
+			eventId: null
+		}
 	]);
 });

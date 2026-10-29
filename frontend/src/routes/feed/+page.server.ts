@@ -4,6 +4,7 @@ import {
 	ApiError,
 	getDailySummary,
 	getEvent,
+	getMention,
 	getStatsOverview,
 	getFeedStats,
 	listAgendaItems,
@@ -18,7 +19,7 @@ import {
 } from '$lib/api';
 import { channelSources, isFeedChannel, dateRangeError, splitSources, type FeedChannel } from '$lib/feed-filters';
 import { MM_PREFS_COOKIE, parsePrefs } from '$lib/prefs';
-import { channelLabelFor, displayDayKey, zonedDayBounds, zonedToday } from '$lib/format';
+import { channelLabelFor, displayDayKey, outletFromUrl, zonedDayBounds, zonedToday } from '$lib/format';
 import type { PageServerLoad } from './$types';
 
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
@@ -157,6 +158,18 @@ function aggregatePersons(items: Mention[]): PersonMentionRow[] {
 }
 
 /** «Próximas fechas» row: entrada de agenda con fecha real, lista para pintar. */
+interface AgendaOrigin {
+	/** Titular de la nota detonadora. */
+	title: string;
+	/** Canal crudo (news_rss…) para el badge. */
+	source: string;
+	outlet: string | null;
+	author: string | null;
+	stamp: string | null;
+	url: string | null;
+	summary: string | null;
+}
+
 interface UpcomingAgendaRow {
 	id: number;
 	title: string;
@@ -170,6 +183,11 @@ interface UpcomingAgendaRow {
 	source: string | null;
 	url: string | null;
 	notes: string | null;
+	/** Nota detonadora resuelta vía event_id (mock «Noticia que detectó la
+	 *  fecha»): primera mención del evento vinculado. */
+	origin: AgendaOrigin | null;
+	/** Evento vinculado (para resolver origin post-slice). */
+	eventId: number | null;
 }
 
 /**
@@ -219,12 +237,50 @@ function upcomingAgendaRows(
 			id: item.id,
 			title: item.title,
 			eventDate: item.event_date,
-			timeLabel: item.time_label,
-			dateLabel: item.date_label,
-			source: item.source,
-			url: item.url,
-			notes: item.notes
+			timeLabel: item.time_label ?? null,
+			dateLabel: item.date_label ?? null,
+			source: item.source ?? null,
+			url: item.url ?? null,
+			notes: item.notes ?? null,
+			origin: null,
+			eventId: item.event_id ?? null
 		}));
+}
+
+/** Nota detonadora de una entrada: primera mención del evento vinculado,
+ *  resuelta a mención COMPLETA (author/summary via getMention). Best-effort:
+ *  fallo en cualquier paso → origin null y el modal declara la ausencia. */
+async function resolveAgendaOrigin(row: UpcomingAgendaRow): Promise<UpcomingAgendaRow> {
+	if (row.eventId === null) return row;
+	try {
+		const detail = await getEvent(row.eventId);
+		const stub = detail.mentions?.[0];
+		if (!stub) return row;
+		const mention = await getMention(stub.id).catch(() => null);
+		const base = mention ?? {
+			title: stub.title ?? '',
+			source: stub.source,
+			url: stub.url,
+			author: null,
+			published_at: stub.published_at,
+			ingested_at: stub.published_at,
+			summary: null
+		};
+		return {
+			...row,
+			origin: {
+				title: base.title ?? '',
+				source: base.source,
+				outlet: outletFromUrl(base.url ?? ''),
+				author: base.author ?? null,
+				stamp: base.published_at ?? base.ingested_at ?? null,
+				url: base.url ?? null,
+				summary: base.summary ?? null
+			}
+		};
+	} catch {
+		return row;
+	}
 }
 
 /**
@@ -355,7 +411,9 @@ export const load: PageServerLoad = async ({ url, cookies }) => {
 				.map((mention) => mention.event_id)
 				.filter((id): id is number => id !== null)
 		);
-		const agendaUpcoming = upcomingAgendaRows(agendaRows, todayLocal, resultEventIds);
+		const agendaUpcoming = await Promise.all(
+			upcomingAgendaRows(agendaRows, todayLocal, resultEventIds).map(resolveAgendaOrigin)
+		);
 
 		let feedStats: FeedStats | null = null;
 		let feedStatsError: string | null = null;

@@ -455,9 +455,22 @@ it('renders the v3 aside additions: persons row, upcoming date-box and the panel
 			dateLabel: 'Jueves 5 de noviembre',
 			source: 'congreso-puebla.gob.mx',
 			url: 'https://congreso-puebla.gob.mx/agenda',
-			notes: 'Confirmar sala'
+			notes: 'Confirmar sala',
+			origin: null,
+			eventId: null
 		},
-		{ id: 8, title: 'Cierre de consulta', eventDate: '2026-11-09', timeLabel: null, dateLabel: null, source: null, url: null, notes: null }
+		{
+			id: 8,
+			title: 'Cierre de consulta',
+			eventDate: '2026-11-09',
+			timeLabel: null,
+			dateLabel: null,
+			source: null,
+			url: null,
+			notes: null,
+			origin: null,
+			eventId: null
+		}
 	];
 	const target = await render(data);
 
@@ -580,7 +593,9 @@ it('opens the agenda-origin dialog from the upcoming row', async () => {
 			dateLabel: 'Jueves 5 de noviembre',
 			source: 'congreso-puebla.gob.mx',
 			url: 'https://congreso-puebla.gob.mx/agenda',
-			notes: null
+			notes: null,
+			origin: null,
+			eventId: null
 		}
 	];
 	const target = await render(data);
