@@ -299,7 +299,7 @@ function v3Content(): DailySummaryContent {
       ],
       descarte: { cosmeticas: 2, fundadas: 1 },
       fechas: [
-        { title: 'Cierre de registro', when: '27 oct.', estado: 'proxima', fecha: '2026-10-27' },
+        { title: 'Cierre de registro', when: 'próximos días', estado: 'proxima', fecha: new Date(Date.now() + 3 * 86_400_000).toISOString().slice(0, 10) },
         { title: 'Vencido', when: '1 oct.', estado: 'caducada', fecha: '2026-10-01' },
         { title: 'Raro', when: 'algún día', estado: 'otro', fecha: null },
       ],
@@ -427,12 +427,12 @@ describe('home daily structure (v3 mockup)', () => {
     expect(actorsPanel?.querySelector('.daily-panel-head a')?.getAttribute('href')).toBe('/persons');
     expect(actorsPanel?.querySelector('.daily-panel-head a')?.textContent).toContain('Ver directorio');
 
-    // Agenda: mockup daily-upcoming items with date-box and honest estado.
+    // Agenda: sólo «próximas» — la fecha ya ocurrida del brief se excluye
+    // (fixture: caducada 1-oct fuera; próxima dinámica + sin-fecha dentro).
     const upcoming = [...container.querySelectorAll('.daily-upcoming')];
-    expect(upcoming.length).toBe(3);
-    const firstDateBox = upcoming[0].querySelector('.date-box');
-    expect(firstDateBox?.querySelector('span')?.textContent?.trim()).toBe('OCT');
-    expect(firstDateBox?.querySelector('strong')?.textContent?.trim()).toBe('27');
+    expect(upcoming.length).toBe(2);
+    expect(upcoming[0].textContent ?? '').toContain('Cierre de registro');
+    expect(upcoming.map((node) => node.textContent ?? '').join(' ')).not.toContain('Vencido');
     expect(upcoming[0].textContent ?? '').toContain('Fecha detectada en publicación');
     expect(upcoming[0].textContent ?? '').toContain('compromiso no confirmado');
 

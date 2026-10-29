@@ -78,6 +78,18 @@
 	// Legacy v2 rows yield null and only the synthesis/detail surfaces render.
 	const view = $derived(summary ? digestV3View(summary.content) : null);
 
+	/** «Próximas» de la card agenda: una fecha ya ocurrida pero mencionada en
+	 *  la cobertura del día no es un compromiso venidero (reclamo 29-oct vs
+	 *  22-oct). Sin fecha no se puede afirmar: se conserva. La ventana usa el
+	 *  día UTC — la misma convención de los presets del feed. */
+	const TODAY_KEY = new Date().toISOString().slice(0, 10);
+	const CURRENT_YEAR = String(new Date().getFullYear());
+	const upcomingFechas = $derived(
+		(view?.fechas ?? []).filter(
+			(fecha) => !fecha.fechaIso || fecha.fechaIso.slice(0, 10) >= TODAY_KEY
+		)
+	);
+
 	/** Síntesis lead: the narrative prose, else the brief headline (same
 	 * promotion rule the brief panel used). */
 	const lead = $derived(summary ? (summary.narrative?.trim() || view?.headline || null) : null);
@@ -361,14 +373,17 @@
 					<p class="daily-actors-note">
 						Fechas extraídas de publicaciones; requieren confirmación antes de tratarse como compromisos.
 					</p>
-					{#if view && view.fechas.length > 0}
-						{#each view.fechas as fecha, i (`fecha-${i}`)}
+					{#if upcomingFechas.length > 0}
+						{#each upcomingFechas as fecha, i (`fecha-${i}`)}
 							{@const parts = calendarParts(fecha.fechaIso ?? '')}
 							<div class="daily-upcoming">
 								{#if parts}
 									<div class="date-box od-cell" aria-hidden="true">
 										<span>{parts.monthYear.split(' ')[0].slice(0, 3).toUpperCase()}</span>
 										<strong>{parts.day}</strong>
+										{#if parts.monthYear.split(' ')[1] !== CURRENT_YEAR}
+											<span>{parts.monthYear.split(' ')[1]}</span>
+										{/if}
 									</div>
 								{/if}
 								<div>
