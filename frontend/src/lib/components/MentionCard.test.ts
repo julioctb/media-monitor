@@ -29,7 +29,6 @@ function mentionFixture(overrides: Partial<Mention> = {}): Mention {
 interface CardProps {
 	mention: Mention;
 	event?: { id: number; title: string } | null;
-	keywordLabel?: string | null;
 }
 
 const mounted: Array<{ instance: Record<string, unknown> }> = [];
@@ -179,16 +178,5 @@ describe('MentionCard', () => {
 		const when = card.querySelector('.feed-time');
 		expect(when?.textContent).toContain('2026');
 		expect(card.textContent).not.toMatch(/\*/);
-	});
-
-	it('shows the keyword label only when provided', () => {
-		const bare = renderCard({ mention: mentionFixture() });
-		expect(bare.card.textContent).not.toContain('Palabra clave');
-
-		const labeled = renderCard({
-			mention: mentionFixture({ id: 8, keyword_id: 2 }),
-			keywordLabel: 'Nvidia'
-		});
-		expect(labeled.card.textContent).toContain('Palabra clave: Nvidia');
 	});
 });

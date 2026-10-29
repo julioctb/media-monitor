@@ -9,10 +9,9 @@
 	import type { MentionEventRef } from '$lib/components/MentionCard.svelte';
 	import type { Mention } from '$lib/api';
 	import { groupByEvent } from '$lib/grouping';
-	import type { FeedGroup } from '$lib/grouping';
-	import { CHANNEL_LABELS, type FeedChannel } from '$lib/feed-filters';
+		import { CHANNEL_LABELS, type FeedChannel } from '$lib/feed-filters';
 	import { ICON_PATHS } from '$lib/icons';
-	import { BTN_PRIMARY_CLS, INPUT_CLS } from '$lib/ui';
+	import { INPUT_CLS } from '$lib/ui';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -47,8 +46,6 @@
 
 	const filters = $derived(data.filters);
 
-	const keywordNames = $derived(new Map(data.keywords.map((k) => [k.id, k.text])));
-
 	/** Same event = same story: one card plus a collapsed coverage list. */
 	const groups = $derived(groupByEvent(data.mentions.items));
 
@@ -59,22 +56,6 @@
 	function openDetail(mention: Mention, event: MentionEventRef | null) {
 		detailMention = mention;
 		detailEvent = event;
-	}
-
-	function keywordLabelFor(group: FeedGroup): string | null {
-		const keywordId = group.mentions[0]?.keyword_id ?? null;
-		return keywordId !== null ? (keywordNames.get(keywordId) ?? null) : null;
-	}
-
-	const activeKeywords = $derived(data.keywords.filter((k) => k.is_active));
-
-	function hrefWithKeyword(keywordId: string | null): string {
-		const params = new URLSearchParams(page.url.searchParams);
-		if (keywordId === null) params.delete('keyword_id');
-		else params.set('keyword_id', keywordId);
-		params.delete('offset'); // a new filter facet resets pagination
-		const qs = params.toString();
-		return `${page.url.pathname}${qs ? `?${qs}` : ''}`;
 	}
 
 	/* Tono pills (server param `sentiment`): active pill navigates to its value,
@@ -223,6 +204,18 @@
 	});
 
 	const limitOptions = [10, 25, 50, 100];
+
+	/* Which v3 empty state applies: filtered-out vs empty period. */
+	const filtersActive = $derived(
+		Boolean(
+			filters.channel ||
+				filters.sentiment ||
+				filters.q ||
+				filters.medium ||
+				filters.since ||
+				filters.until
+		)
+	);
 
 	/* Period presets (mockup #feed-period-preset): every option resolves to
 	   the same server params (since/until) the custom range uses. */
@@ -378,10 +371,6 @@
 		</div>
 	</div>
 </div>
-<!-- Mockup empty-state reset («Ver todo el periodo»): the bare path drops
-     every facet, the date range included. -->
-<a class="feed-stats-reset text-link" href={page.url.pathname}>Ver todo el periodo</a>
-
 <div class="feed-content-grid">
 	<section class="panel feed-main" id="feed" aria-labelledby="feed-panel-title">
 		<div class="feed-toolbar">
@@ -460,31 +449,8 @@
 							placeholder="Buscar titular o medio"
 						/>
 					</label>
-					<button class={BTN_PRIMARY_CLS} type="submit">Buscar</button>
+					<button class="sr-only" type="submit">Buscar</button>
 				</form>
-			</div>
-
-			<div class="keyword-row" role="group" aria-label="Filtrar por palabra clave monitorizada">
-				<span class="keyword-label">Palabras clave:</span>
-				<a
-					class="keyword-chip"
-					role="button"
-					href={hrefWithKeyword(null)}
-					aria-pressed={filters.keyword_id === ''}
-				>
-					Todas
-				</a>
-				{#each data.keywords as keyword (keyword.id)}
-					<a
-						class="keyword-chip"
-						role="button"
-						href={hrefWithKeyword(String(keyword.id))}
-						aria-pressed={filters.keyword_id === String(keyword.id)}
-					>
-						{keyword.text}
-					</a>
-				{/each}
-				<a href={page.url.pathname} class="text-link keyword-clear">Limpiar filtros</a>
 			</div>
 
 			<p class="feed-match-count" role="status" aria-live="polite">
@@ -494,8 +460,15 @@
 
 		{#if data.mentions.items.length === 0}
 			<div class="feed-empty" role="status">
-				<h3>Sin resultados</h3>
-				<p>No hay publicaciones que coincidan con estos filtros.</p>
+				{#if filtersActive}
+					<h3>No hay menciones con estos filtros</h3>
+					<p>Prueba otra búsqueda o revisa las fuentes activas.</p>
+					<a class="button" href={page.url.pathname}>Limpiar filtros</a>
+				{:else}
+					<h3>No hay menciones en este periodo</h3>
+					<p>Prueba «Ayer y hoy» u otro periodo para consultar los registros disponibles.</p>
+					<a class="button" href={page.url.pathname}>Ver todo el periodo</a>
+				{/if}
 			</div>
 		{:else}
 			<ol class="feed-list" aria-label="Publicaciones">
@@ -504,7 +477,6 @@
 						{#each group.mentions as mention (mention.id)}
 							<MentionCard
 								{mention}
-								keywordLabel={keywordLabelFor(group)}
 								event={group.event}
 								coverageCount={group.mentions.length}
 								onDetail={(m) => openDetail(m, group.event)}
@@ -525,8 +497,7 @@
 						<input type="hidden" name="channel" value={filters.channel} />
 						<input type="hidden" name="medium" value={filters.medium} />
 						<input type="hidden" name="sentiment" value={filters.sentiment} />
-						<input type="hidden" name="keyword_id" value={filters.keyword_id} />
-						<input type="hidden" name="q" value={filters.q} />
+								<input type="hidden" name="q" value={filters.q} />
 						<input type="hidden" name="since" value={filters.since} />
 						<input type="hidden" name="until" value={filters.until} />
 						<label class="sr-only" for="per-page">Por página</label>
@@ -574,7 +545,6 @@
 			<form method="get">
 				<input type="hidden" name="q" value={filters.q} />
 				<input type="hidden" name="sentiment" value={filters.sentiment} />
-				<input type="hidden" name="keyword_id" value={filters.keyword_id} />
 				<input type="hidden" name="medium" value={filters.medium} />
 				{#if activePreset === 'custom'}
 					<div class="feed-date-controls">

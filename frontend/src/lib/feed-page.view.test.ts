@@ -76,8 +76,19 @@ it('shows measured zero for an actual empty result', async () => {
 		'0',
 		'0'
 	]);
-	expect(target.textContent).toContain('Sin resultados');
-	expect(target.textContent).not.toContain('No disponible');
+	// v3 empty anatomy, filtered variant (the fixture carries a sentiment facet)
+	expect(target.textContent).toContain('No hay menciones con estos filtros');
+	expect(target.textContent).toContain('Limpiar filtros');
+	expect(target.querySelector('.feed-empty a.button')?.getAttribute('href')).toBe('/feed');
+	// period variant: no facets, only an empty range
+	const bare = dataFixture();
+	bare.mentions = { items: [], total: 0 };
+	bare.feedStats = data.feedStats;
+	bare.filters = { ...bare.filters, sentiment: '' };
+	const periodTarget = await render(bare);
+	expect(periodTarget.textContent).toContain('No hay menciones en este periodo');
+	expect(periodTarget.textContent).toContain('Ver todo el periodo');
+	expect(periodTarget.textContent).not.toContain('No disponible');
 });
 
 it('does not fall back to page groups when metrics are missing', async () => {
@@ -135,11 +146,7 @@ it('renders the v3 strip: four measured cards and the period reset link', async 
 		node.textContent?.replace(/\s+/g, ' ').trim()
 	);
 	expect(notes[0]).toBe('1 tipos de fuente');
-	expect(target.querySelector('.feed-stats-reset')?.textContent?.trim()).toBe(
-		'Ver todo el periodo'
-	);
-	// the reset drops every facet, dates included (mockup data-reset behavior)
-	expect(target.querySelector('.feed-stats-reset')?.getAttribute('href')).toBe('/feed');
+	expect(target.querySelector('.feed-stats-reset')).toBeNull();
 });
 
 it('renders the v3 panel anatomy: toolbar, tone filter, rail and item rows', async () => {
@@ -155,13 +162,12 @@ it('renders the v3 panel anatomy: toolbar, tone filter, rail and item rows', asy
 		'.tone-filter .tone-choice.tone-negative',
 		'.tone-filter .tone-bar',
 		'.filterbar form[data-testid="feed-filter-main"] .search input',
-		'.keyword-row .keyword-chip',
 		'.feed-match-count',
 		'.feed-list .feed-group .feed-item',
 		'.feed-item .feed-meta .source-badge',
 		'.feed-item .feed-meta .tone-badge',
 		'.feed-item .feed-meta .feed-time',
-		'.feed-item .headline a',
+		'.feed-item .headline button.headline-button',
 		'.feed-side-column .feed-period-panel #feed-period-preset',
 		'.feed-aside .aside-panel .distribution-row',
 		'.feed-aside .feed-source-list .feed-source-row',
@@ -198,9 +204,7 @@ it('renders the v3 panel anatomy: toolbar, tone filter, rail and item rows', asy
 it('opens the mention detail dialog from a card', async () => {
 	const target = await render();
 
-	const button = [...target.querySelectorAll('button')].find((b) =>
-		(b.textContent ?? '').includes('Ver detalle')
-	);
+	const button = target.querySelector<HTMLButtonElement>('.feed-item .headline-button');
 	expect(button).toBeTruthy();
 	button!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 	await new Promise((resolve) => setTimeout(resolve, 30));

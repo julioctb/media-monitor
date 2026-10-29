@@ -18,6 +18,7 @@
 		publishedLabel = null,
 		title,
 		titleHref = null,
+		onTitle = undefined,
 		titleId = undefined,
 		body = null,
 		clampBody = false,
@@ -35,7 +36,10 @@
 		publishedAt?: string | null;
 		publishedLabel?: string | null;
 		title: string;
+		/** External link for the headline (raw mentions). */
 		titleHref?: string | null;
+		/** Opens the record-detail dialog instead of navigating (mockup headline-button). */
+		onTitle?: () => void;
 		titleId?: string;
 		/** Body text: enrichment summary or article excerpt. */
 		body?: string | null;
@@ -61,7 +65,9 @@
 	</div>
 
 	<h3 id={titleId} class="headline">
-		{#if titleHref}
+		{#if onTitle}
+			<button type="button" class="headline-button" onclick={onTitle}>{title}</button>
+		{:else if titleHref}
 			<a
 				href={titleHref}
 				target="_blank"

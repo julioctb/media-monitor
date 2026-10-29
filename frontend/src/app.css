@@ -3049,10 +3049,6 @@ table.coverage th {
 }
 /* Mockup empty-state reset («Ver todo el periodo», data-reset): bare path
    drops every facet, the date range included. Sits under the strip. */
-.feed-stats-reset {
-  display: inline-block;
-  margin: -14px 0 20px;
-}
 
 /* --- Two-column body: panel + context rail --- */
 .feed-content-grid {
@@ -3245,39 +3241,6 @@ table.coverage th {
 }
 
 /* Keyword facet chips (mockup chip geometry, tone-choice pressed). */
-.keyword-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  margin: 0 0 12px;
-}
-.keyword-label {
-  color: var(--color-muted);
-  font-size: 12px;
-  font-weight: 600;
-}
-.keyword-chip {
-  display: inline-flex;
-  align-items: center;
-  min-height: 36px;
-  padding: 6px 10px;
-  border: 1px solid var(--color-line);
-  border-radius: 7px;
-  background: var(--color-surface);
-  color: var(--color-ink);
-  font-size: 12px;
-  line-height: 1.2;
-  text-decoration: none;
-}
-.keyword-chip[aria-pressed='true'] {
-  border-color: color-mix(in oklch, var(--color-accent) 50%, white);
-  background: var(--color-line-soft);
-  font-weight: 700;
-}
-.keyword-clear {
-  margin-left: auto;
-}
 
 /* Result counter (mockup .feed-match-count). */
 .feed-match-count {
@@ -3329,9 +3292,20 @@ table.coverage th {
   letter-spacing: -0.2px;
   line-height: 1.5;
 }
-.headline a {
+.headline a,
+.headline-button {
   color: inherit;
   text-decoration: none;
+}
+/* Mockup .headline-button: the feed title opens the record-detail dialog. */
+.headline-button {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  font: inherit;
 }
 .feed-body {
   max-width: 75ch;
@@ -3590,10 +3564,7 @@ table.coverage th {
     gap: 12px;
     margin-bottom: 20px;
   }
-  .feed-stats-reset {
-    margin: -8px 0 16px;
-  }
-  .feed-content-grid {
+    .feed-content-grid {
     gap: 20px;
   }
   .feed-toolbar {
@@ -3642,6 +3613,7 @@ table.coverage th {
 @media (hover: hover) {
   .tab:hover,
   .headline a:hover,
+  .headline-button:hover,
   .feed-source-row:hover {
     color: var(--color-accent);
   }
@@ -3649,10 +3621,7 @@ table.coverage th {
     border-color: var(--color-accent);
     color: var(--color-accent);
   }
-  .keyword-chip:hover {
-    border-color: var(--color-meta);
   }
-}
 
 /* ============================================================
    Events view v3 — «Panel de monitoreo informativo».

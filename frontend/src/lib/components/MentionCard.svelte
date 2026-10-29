@@ -14,8 +14,6 @@
 		mention: Mention;
 		/** Event title when this mention belongs to a canonical event. */
 		event?: MentionEventRef | null;
-		/** Matched keyword text, when the mention is linked to one. */
-		keywordLabel?: string | null;
 		/** Mentions in the same-event group (footer coverage chip). */
 		coverageCount?: number;
 		/** Opens the record-detail dialog (mockup recordDetail). */
@@ -25,7 +23,6 @@
 	let {
 		mention,
 		event = null,
-		keywordLabel = null,
 		coverageCount = 1,
 		onDetail
 	}: Props = $props();
@@ -92,7 +89,8 @@
 	publishedAt={when}
 	publishedLabel={formatDisplayDateTimeLong(when)}
 	title={headline}
-	titleHref={mention.url}
+	titleHref={onDetail ? null : mention.url}
+	onTitle={onDetail ? () => onDetail(mention) : undefined}
 	titleId={`mention-${mention.id}-title`}
 	body={body.text}
 	clampBody={body.clamp}
@@ -104,17 +102,11 @@
 		{#each (mention.persons ?? []) as person (person.id)}
 			<a href={`/persons/${person.id}`} title="Ver persona">{person.name}</a>
 		{/each}
-		{#if keywordLabel}<span>Palabra clave: {keywordLabel}</span>{/if}
 		{#if event}
 			<a class="event-chip" href={`/events/${event.id}`} title={event.title}>
 				Evento #{event.id} · {coverageCount}
 				{coverageCount === 1 ? 'cobertura' : 'coberturas'} del mismo evento
 			</a>
-		{/if}
-		{#if onDetail}
-			<button type="button" class="text-link" onclick={() => onDetail?.(mention)}>
-				Ver detalle
-			</button>
 		{/if}
 	{/snippet}
 </NewsEntry>
