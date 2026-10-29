@@ -638,6 +638,14 @@ h4 {
 .icon-button.saved .od-icon {
   fill: currentColor;
 }
+/* Mockup ≤480: los touch targets crecen (regla global .icon-button allí). */
+@media (max-width: 480px) {
+  .icon-button {
+    flex: none; /* sin esto el foot flex lo encoge por debajo del target */
+    width: 44px;
+    height: 44px;
+  }
+}
 .text-link {
   border: 0;
   background: none;
@@ -3643,9 +3651,11 @@ table.coverage th {
   align-items: center;
   gap: 8px;
 }
-.chips :where(a, span) {
+.chips :where(a, span, button) {
   display: inline-flex;
   align-items: center;
+  /* min-height 0: el .chip legacy v2 (36px pill) no debe inflar los chips v3. */
+  min-height: 0;
   padding: 3px 7px;
   border-radius: 5px;
   font-size: 10px;
