@@ -1144,6 +1144,8 @@ export interface AgendaItem {
   source: string | null;
   url: string | null;
   notes: string | null;
+  /** Evento del pipeline que detonó la entrada (mock parity); null = editorial. */
+  event_id?: number | null;
   created_at: string;
 }
 

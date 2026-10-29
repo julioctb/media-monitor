@@ -198,12 +198,21 @@ function newsMediumCounts(newsSources: string[], items: Mention[]): Record<strin
 	return Object.fromEntries(counts);
 }
 
-function upcomingAgendaRows(items: AgendaItem[], todayIso: string): UpcomingAgendaRow[] {
-	return items
-		.filter(
-			(item): item is AgendaItem & { event_date: string } =>
-				item.event_date !== null && item.event_date >= todayIso
-		)
+function upcomingAgendaRows(
+	items: AgendaItem[],
+	todayIso: string,
+	linkedEventIds: ReadonlySet<number> = new Set()
+): UpcomingAgendaRow[] {
+	const dated = items.filter(
+		(item): item is AgendaItem & { event_date: string } =>
+			item.event_date !== null && item.event_date >= todayIso
+	);
+	// Mock parity: entradas vinculadas a eventos presentes en el resultado
+	// primero; el resto (editoriales sin vínculo) completa hasta el tope.
+	// Sin vínculos en data (rollout), el orden es el global histórico.
+	const linked = dated.filter((item) => item.event_id != null && linkedEventIds.has(item.event_id));
+	const orphan = dated.filter((item) => !linked.includes(item));
+	return [...linked, ...orphan]
 		.sort((a, b) => a.event_date.localeCompare(b.event_date))
 		.slice(0, UPCOMING_LIMIT)
 		.map((item) => ({
@@ -339,7 +348,14 @@ export const load: PageServerLoad = async ({ url, cookies }) => {
 
 		// Paneles del aside: personas del pool del periodo y próximas fechas.
 		const persons = periodPool ? aggregatePersons(periodPool) : [];
-		const agendaUpcoming = upcomingAgendaRows(agendaRows, todayLocal);
+		// Agenda reactiva (mock parity): eventos presentes en el resultado
+		// (pool de 500 más recientes del filtro) priorizan sus entradas.
+		const resultEventIds = new Set(
+			(periodPool ?? [])
+				.map((mention) => mention.event_id)
+				.filter((id): id is number => id !== null)
+		);
+		const agendaUpcoming = upcomingAgendaRows(agendaRows, todayLocal, resultEventIds);
 
 		let feedStats: FeedStats | null = null;
 		let feedStatsError: string | null = null;
