@@ -12,6 +12,7 @@
 	 */
 	let {
 		channelLabel,
+		channelClass = null,
 		sourceLabel = null,
 		author = null,
 		sentimentClass = null,
@@ -30,6 +31,8 @@
 	}: {
 		/** Channel name for the leading source badge (Noticias/Redes/Datos de campo). */
 		channelLabel: string;
+		/** Channel css key (news|social|field) for the badge variant; base look when null. */
+		channelClass?: string | null;
 		/** Outlet or platform; the second element of the source chain. */
 		sourceLabel?: string | null;
 		author?: string | null;
@@ -59,7 +62,7 @@
 
 <article class="feed-item" aria-labelledby={titleId}>
 	<div class="feed-meta">
-		<span class="source-badge">{channelLabel}</span>
+		<span class={`source-badge${channelClass ? ` ${channelClass}` : ''}`}>{channelLabel}</span>
 		{#if sourceLabel}<span>{sourceLabel}</span>{/if}
 		{#if author}<span class="feed-author">{author}</span>{/if}
 		{#if sentimentClass && sentimentText}

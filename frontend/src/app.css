@@ -685,6 +685,20 @@ h4 {
 .source-badge .od-icon {
   --od-icon-size: 13px;
 }
+/* Channel variants — mockup badge(t)/source-badge ${t}: same keys and tokens
+   as .stat-icon.* (accent/teal/warn = blue/teal/amber). */
+.source-badge.news {
+  color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+.source-badge.social {
+  color: var(--color-teal);
+  background: var(--color-teal-soft);
+}
+.source-badge.field {
+  color: var(--color-warn);
+  background: var(--color-warn-soft);
+}
 
 /* Tone state pill (mockup .tone-badge): shared by feed meta rows and
    the event-detail mention list; the :root --tone-*-bg mixes stay the

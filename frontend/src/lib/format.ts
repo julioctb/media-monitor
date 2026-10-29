@@ -404,12 +404,15 @@ export function outletFromUrl(url: string): string | null {
 	}
 }
 
+/** Channel css key for the source-badge variant (mockup `source-badge ${t}`):
+ *  feeds .source-badge.news/.social/.field. Single source of the classification. */
+export function channelClassFor(source: string): 'field' | 'news' | 'social' {
+	return source.startsWith('field') ? 'field' : isNewsSource(source) ? 'news' : 'social';
+}
+
 /** Channel label per mockup badge()/feedItem(): tipo de fuente, not the raw
  *  source tag. Single source for cards, dialogs and badges. */
 export function channelLabelFor(source: string): string {
-	return source.startsWith('field')
-		? 'Campo'
-		: isNewsSource(source)
-			? 'Noticias'
-			: 'Redes sociales';
+	const key = channelClassFor(source);
+	return key === 'field' ? 'Campo' : key === 'news' ? 'Noticias' : 'Redes sociales';
 }

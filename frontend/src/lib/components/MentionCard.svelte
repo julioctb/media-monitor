@@ -1,5 +1,6 @@
 <script lang="ts">
 	import {
+		channelClassFor,
 		channelLabelFor,
 		formatFeedStamp,
 		outletFromUrl,
@@ -46,6 +47,7 @@
 
 	const when = $derived(mention.published_at ?? mention.ingested_at);
 	const channelLabel = $derived(channelLabelFor(mention.source));
+	const channelClass = $derived(channelClassFor(mention.source));
 	/** Source chain per mockup: canal · medio · autor, as separate slots. */
 	const sourceLabel = $derived.by(() => {
 		if (isNewsSource(mention.source)) {
@@ -96,6 +98,7 @@
 
 <NewsEntry
 	channelLabel={channelLabel}
+	channelClass={channelClass}
 	sourceLabel={sourceLabel}
 	author={author}
 	sentimentClass={sentimentClass}
@@ -126,17 +129,11 @@
 					onclick={() => onEvent(event, coverageCount)}
 					title={event.title}
 				>
-					<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true">
-						<path d={ICON_PATHS.layers} />
-					</svg>
 					Evento #{event.id} · {coverageCount}
 					{coverageCount === 1 ? 'mención' : 'menciones'}
 				</button>
 			{:else}
 				<a class="chip event-chip" href={`/events/${event.id}`} title={event.title}>
-					<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true">
-						<path d={ICON_PATHS.layers} />
-					</svg>
 					Evento #{event.id} · {coverageCount}
 					{coverageCount === 1 ? 'mención' : 'menciones'}
 				</a>
