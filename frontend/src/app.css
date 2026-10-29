@@ -180,6 +180,14 @@
     font-family: var(--font-body);
     line-height: 1.6;
   }
+  /* Código y datos literales: única familia mono del sistema (el token
+     deja de estar huérfano). */
+  pre,
+  code,
+  kbd,
+  samp {
+    font-family: var(--font-mono);
+  }
   a {
     color: var(--color-accent);
   }
@@ -6981,7 +6989,7 @@ button.daily-upcoming {
 }
 .daily-page .intro .intro-title {
   margin: 0;
-  font-family: Georgia, 'Times New Roman', serif;
+  font-family: var(--font-display);
   /* Mockup scale floor: never below 26px (its own mobile computed size). */
   font-size: clamp(26px, calc(15.67px + 1.3457vw), 32.89px);
   line-height: 1.25;
