@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { ICON_PATHS } from '$lib/icons';
 	let { data, form } = $props();
 
 	import { tick } from 'svelte';
@@ -164,7 +165,7 @@
 			<span>Buscar reporte</span>
 			<span class="field-search-control">
 				<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true">
-					<path d="M20 20l-5-5 M10 17a7 7 0 1 0 0-14 7 7 0 0 0 0 14" />
+					<path d={ICON_PATHS.search} />
 				</svg>
 				<input
 					type="search"
@@ -320,7 +321,7 @@
 		<div class="dialog-head">
 			<strong id="field-dialog-title">Reporte de campo</strong>
 			<button class="icon-button" type="button" onclick={closeReport} aria-label="Cerrar detalle">
-				<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12 M6 18 18 6" /></svg>
+				<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true"><path d={ICON_PATHS.close} /></svg>
 			</button>
 		</div>
 		<div class="dialog-body">

@@ -4,9 +4,10 @@
 	/**
 	 * Single news entry — the v3 card anatomy (`feed-item`, «Panel de
 	 * monitoreo»): one meta row (source badge · outlet · author · tone ·
-	 * timestamp), headline link, optional clamped body and the chips footer.
-	 * Shared by the feed and the home digest negative-news cards; every
-	 * mention renders through here exactly once (via MentionCard).
+	 * timestamp), headline (dialog button, external link or plain text),
+	 * optional clamped body and the chips footer. Shared by the feed and
+	 * the home digest negative-news cards; every mention renders through
+	 * here exactly once (via MentionCard).
 	 */
 	let {
 		channelLabel,

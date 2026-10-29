@@ -6672,22 +6672,18 @@ dialog.detail-dialog::backdrop {
   color: var(--color-warn);
   font-size: var(--text-dialog-callout);
 }
-/* Mockup .dialog-callout: informational (blue-soft), not a warning. */
+/* Mockup .dialog-callout: informational counting note (blue-soft), not a
+   warning — self-contained, never stacked over the warning styles. */
 .detail-dialog .dialog-callout {
+  padding: var(--space-8) var(--space-10);
+  border-radius: var(--radius-control);
   background: var(--color-accent-soft);
   color: var(--color-accent);
+  font-size: var(--text-dialog-callout);
 }
 .dialog-section {
   display: grid;
   gap: var(--space-8);
-}
-.dialog-section h3 {
-  margin: var(--space-4) 0 0;
-  font-family: var(--font-display);
-  font-size: var(--text-dialog-heading);
-  line-height: var(--text-dialog-heading--line-height);
-  font-weight: var(--text-dialog-heading--font-weight);
-  color: var(--color-ink);
 }
 .daily-dialog-record {
   display: grid;

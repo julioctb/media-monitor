@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { BTN_PRIMARY_CLS } from '$lib/ui';
+	import { ICON_PATHS } from '$lib/icons';
 	import { formatDisplayDateTime } from '$lib/format';
 	import type { PageProps } from './$types';
 
@@ -39,7 +40,7 @@
 		<form method="get" role="search" class="person-search">
 			<label class="search">
 				<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true">
-					<path d="M20 20l-5-5 M10 17a7 7 0 1 0 0-14 7 7 0 0 0 0 14" />
+					<path d={ICON_PATHS.search} />
 				</svg>
 				<span class="sr-only">Buscar personajes</span>
 				<input

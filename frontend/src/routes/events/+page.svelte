@@ -1,5 +1,6 @@
 <script lang="ts">
 	import EventCard from '$lib/components/EventCard.svelte';
+	import { ICON_PATHS } from '$lib/icons';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -45,7 +46,7 @@
 <div class="events-toolbar">
 	<label class="search events-search">
 		<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true">
-			<path d="M20 20l-5-5 M10 17a7 7 0 1 0 0-14 7 7 0 0 0 0 14" />
+			<path d={ICON_PATHS.search} />
 		</svg>
 		<span class="sr-only">Buscar eventos</span>
 		<!-- Bindings replace the mockup's value+listener pair: the list is

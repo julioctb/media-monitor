@@ -1,6 +1,6 @@
 <script lang="ts">
 	import DetailDialog from './DetailDialog.svelte';
-	import { formatDisplayDateTimeLong, outletFromUrl } from '$lib/format';
+	import { channelLabelFor, formatDisplayDateTimeLong, outletFromUrl } from '$lib/format';
 	import { isNewsSource } from '$lib/digest-stats';
 	import { ICON_PATHS } from '$lib/icons';
 	import type { EventDetail, EventMention } from '$lib/api';
@@ -22,15 +22,6 @@
 
 	const titleId = $derived(`event-${event.id}-title`);
 
-	/** Channel label per mockup badge(): tipo de fuente. */
-	function channelLabel(source: string): string {
-		return source.startsWith('field')
-			? 'Datos de campo'
-			: isNewsSource(source)
-				? 'Noticias'
-				: 'Redes sociales';
-	}
-
 	function metaLabel(mention: EventMention): string {
 		const when = mention.published_at ? formatDisplayDateTimeLong(mention.published_at) : null;
 		const outlet = isNewsSource(mention.source) ? (outletFromUrl(mention.url) ?? null) : null;
@@ -51,7 +42,7 @@
 		{#if event.summary}
 			<p>{event.summary}</p>
 		{/if}
-		<div class="daily-dialog-warning dialog-callout">
+		<div class="dialog-callout">
 			{event.mention_count}
 			{event.mention_count === 1 ? 'mención' : 'menciones'} ·
 			{event.source_count}
@@ -62,7 +53,7 @@
 			<h3>Fuentes y evidencias</h3>
 			{#each event.mentions as mention (mention.id)}
 				<div class="daily-dialog-record">
-					<span class="source-badge">{channelLabel(mention.source)}</span>
+					<span class="source-badge">{channelLabelFor(mention.source)}</span>
 					<h4>{mention.title?.trim() || mention.url}</h4>
 					<p class="daily-dialog-meta">{metaLabel(mention)}</p>
 					{#if onRecord}

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { ICON_PATHS } from '$lib/icons';
 	let { data, form } = $props();
 
 	import type { FieldOperatorRecord } from '$lib/api';
@@ -74,7 +75,7 @@
 				<span>Buscar operador</span>
 				<span class="field-search-control">
 					<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true">
-						<path d="M20 20l-5-5 M10 17a7 7 0 1 0 0-14 7 7 0 0 0 0 14" />
+						<path d={ICON_PATHS.search} />
 					</svg>
 					<input
 						type="search"

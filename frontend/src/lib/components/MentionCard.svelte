@@ -1,5 +1,12 @@
 <script lang="ts">
-	import { formatDisplayDateTimeLong, outletFromUrl, sentimentLabel, topicBadgeClass, topicLabel } from '$lib/format';
+	import {
+		channelLabelFor,
+		formatDisplayDateTimeLong,
+		outletFromUrl,
+		sentimentLabel,
+		topicBadgeClass,
+		topicLabel
+	} from '$lib/format';
 	import { isNewsSource } from '$lib/digest-stats';
 	import { ICON_PATHS } from '$lib/icons';
 	import type { Mention } from '$lib/api';
@@ -32,14 +39,7 @@
 	}: Props = $props();
 
 	const when = $derived(mention.published_at ?? mention.ingested_at);
-	/** Channel label per mockup: tipo de fuente, not the raw tag. */
-	const channelLabel = $derived(
-		mention.source.startsWith('field')
-			? 'Datos de campo'
-			: isNewsSource(mention.source)
-				? 'Noticias'
-				: 'Redes sociales'
-	);
+	const channelLabel = $derived(channelLabelFor(mention.source));
 	/** Source chain per mockup: canal · medio · autor, as separate slots. */
 	const sourceLabel = $derived.by(() => {
 		if (isNewsSource(mention.source)) {

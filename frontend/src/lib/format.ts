@@ -1,3 +1,5 @@
+import { isNewsSource } from '$lib/digest-stats';
+
 /**
  * Presentation helpers. Datetimes render in the client display timezone
  * (America/Mexico_City); source labels are derived generically because the
@@ -364,4 +366,14 @@ export function outletFromUrl(url: string): string | null {
 	} catch {
 		return null;
 	}
+}
+
+/** Channel label per mockup badge()/feedItem(): tipo de fuente, not the raw
+ *  source tag. Single source for cards, dialogs and badges. */
+export function channelLabelFor(source: string): string {
+	return source.startsWith('field')
+		? 'Datos de campo'
+		: isNewsSource(source)
+			? 'Noticias'
+			: 'Redes sociales';
 }
