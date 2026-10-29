@@ -6893,6 +6893,18 @@ dialog.detail-dialog::backdrop {
   padding: 12px 0;
   border-bottom: 1px solid var(--color-border, #e3e7ec);
 }
+/* La fila es button (abre la ficha de origen): reset de chrome de botón. */
+button.daily-upcoming {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--color-border, #e3e7ec);
+  border-radius: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
 .daily-upcoming:last-of-type {
   border-bottom: 0;
 }

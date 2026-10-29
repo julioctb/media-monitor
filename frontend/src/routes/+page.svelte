@@ -15,7 +15,7 @@
 	import DigestEvidence from '$lib/components/DigestEvidence.svelte';
 	import DetailDialog from '$lib/components/DetailDialog.svelte';
 	import { createEvidenceContext } from '$lib/digest-evidence';
-	import { digestV3View, type BriefEntryView } from '$lib/digest-v3';
+	import { digestV3View, type BriefEntryView, type BriefFechaView } from '$lib/digest-v3';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -140,6 +140,10 @@
 
 	/** Evidence dialog (mockup dailyEvidence): one open asunto at a time. */
 	let evidencePick: AttentionPick | null = $state(null);
+
+	/** Ficha de origen de una fecha de agenda (reclamo: «de dónde salió»).
+	 *  Reutiliza el DetailDialog compartido; la fila completa es el target. */
+	let fechaPick: BriefFechaView | null = $state(null);
 	/** Person popup (mockup dailyPerson): the open personaje. */
 	let personPick: (typeof data.persons)[number] | null = $state(null);
 
@@ -377,7 +381,12 @@
 					{#if upcomingFechas.length > 0}
 						{#each upcomingFechas as fecha, i (`fecha-${i}`)}
 							{@const parts = calendarParts(fecha.fechaIso ?? '')}
-							<div class="daily-upcoming">
+							<button
+								type="button"
+								class="daily-upcoming"
+								onclick={() => (fechaPick = fecha)}
+								aria-haspopup="dialog"
+							>
 								{#if parts}
 									<div class="date-box od-cell" aria-hidden="true">
 										<span>{parts.monthYear.split(' ')[0].slice(0, 3).toUpperCase()}</span>
@@ -397,8 +406,8 @@
 										<span class="daily-actor-meta">Fuente: {fecha.fuente}</span>
 									{/if}
 								</div>
-							</div>
-						{/each}
+						</button>
+					{/each}
 					{:else}
 						<p class="daily-empty-note">Sin fechas futuras detectadas en los registros de este corte.</p>
 					{/if}
@@ -541,6 +550,36 @@
 			<div class="dialog-actions">
 				<a class="text-link" href="/persons/{personPick.id}">Ver ficha completa</a>
 			</div>
+		{/if}
+	</DetailDialog>
+
+	<!-- Origen de una fecha de agenda (reclamo): el click de la fila abre la
+	     ficha con la fuente de la que la síntesis la extrajo. Sin URL en el
+	     brief: el dato honesto es el medio; se declara su ausencia. -->
+	<DetailDialog
+		titleId="fecha-origin-title"
+		title={fechaPick?.titulo ?? ''}
+		open={fechaPick}
+		onclose={() => (fechaPick = null)}
+	>
+		{#if fechaPick}
+			<p class="daily-dialog-eyebrow">Origen de la fecha</p>
+			<section>
+				<h3>Fecha detectada</h3>
+				<p>{fechaPick.cuando || 'Sin referencia temporal en la síntesis.'}</p>
+				{#if fechaPick.fechaIso}
+					<p class="daily-dialog-meta">ISO {fechaPick.fechaIso}</p>
+				{/if}
+			</section>
+			<section>
+				<h3>Fuente</h3>
+				<p>{fechaPick.fuente ?? 'No registrada en la síntesis del corte.'}</p>
+				<p class="daily-dialog-meta">Fecha detectada en publicación · compromiso no confirmado.</p>
+			</section>
+			<section>
+				<h3>Estado</h3>
+				<p>{fechaPick.estado}.</p>
+			</section>
 		{/if}
 	</DetailDialog>
 </div>

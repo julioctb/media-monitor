@@ -507,6 +507,25 @@ describe('home daily structure (v3 mockup)', () => {
     expect(dialog?.querySelector('.dialog-actions a')?.getAttribute('href')).toBe('/persons/4');
   });
 
+  it('opens the fecha-origin dialog from the agenda row', async () => {
+    const { container } = renderPage(populatedDayData());
+
+    const row = container.querySelector<HTMLButtonElement>('button.daily-upcoming');
+    expect(row).toBeTruthy();
+    row?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    await tick();
+
+    const dialog = [...container.querySelectorAll('dialog.detail-dialog')].find((node) =>
+      node.textContent?.includes('Origen de la fecha')
+    );
+    expect(dialog).toBeTruthy();
+    const text = (dialog?.textContent ?? '').replace(/\s+/g, ' ');
+    expect(text).toContain('Cierre de registro');
+    expect(text).toContain('Fuente');
+    expect(text).toContain('Fecha detectada en publicación');
+  });
+
   it('empty day renders only the date control and the mockup empty panel', () => {
     const { container } = renderPage(emptyDayData());
 
