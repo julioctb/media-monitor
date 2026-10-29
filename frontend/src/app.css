@@ -6046,6 +6046,17 @@ dialog.detail-dialog::backdrop {
   top: 0;
   background: var(--color-surface-warm);
 }
+/* Título del head (el componente lo emite como strong): encabezado real
+   (display) — el token de escala del sistema; sin regla quedaba sans 16. */
+.field-dialog .dialog-head strong,
+.detail-dialog .dialog-head strong {
+  display: block;
+  font-family: var(--font-display);
+  font-size: var(--text-dialog-heading);
+  font-weight: var(--text-dialog-heading--font-weight);
+  line-height: var(--text-dialog-heading--line-height);
+  color: var(--color-ink);
+}
 .field-dialog .dialog-body,
 .detail-dialog .dialog-body {
   padding: var(--space-28);
