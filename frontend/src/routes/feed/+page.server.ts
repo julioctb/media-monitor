@@ -15,13 +15,24 @@ import {
 	type SentimentFilter
 } from '$lib/api';
 import { channelSources, isFeedChannel, dateRangeError, splitSources, type FeedChannel } from '$lib/feed-filters';
-import { zonedDayBounds } from '$lib/format';
+import { MM_PREFS_COOKIE, parsePrefs } from '$lib/prefs';
+import { channelLabelFor, zonedDayBounds } from '$lib/format';
 import type { PageServerLoad } from './$types';
 
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 const SENTIMENT_FILTERS = new Set<SentimentFilter>(['positive', 'negative', 'neutral', 'none']);
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 200;
+
+/** One «Eventos en foco» row: followed event with mentions in the window. */
+interface FocusEventRow {
+	id: number;
+	title: string;
+	/** Mentions of the event inside the loaded period. */
+	mentions: number;
+	/** Distinct channel labels among them (mockup «tipos de fuente»). */
+	sourceKinds: number;
+}
 function intParam(params: URLSearchParams, key: string, fallback: number, min: number, max: number): number {
 	const raw = params.get(key);
 	if (raw === null || !/^\d+$/.test(raw.trim())) return fallback;
@@ -50,14 +61,59 @@ const byRecency = (a: Mention, b: Mention): number => {
  * page (mockup eventDetail dialog data). One getEvent per distinct id; a
  * failed fetch degrades that chip to the /events page link, never the page.
  */
-async function loadEventsById(items: Mention[]): Promise<Record<number, EventDetail>> {
-	const ids = [...new Set(items.map((m) => m.event_id).filter((id): id is number => id !== null))];
+async function loadEventsById(items: Mention[], followed: number[] = []): Promise<Record<number, EventDetail>> {
+	const ids = [
+		...new Set([
+			...items.map((m) => m.event_id).filter((id): id is number => id !== null),
+			...followed
+		])
+	];
 	const settled = await Promise.allSettled(ids.map((id) => getEvent(id)));
 	const byId: Record<number, EventDetail> = {};
 	settled.forEach((result, index) => {
 		if (result.status === 'fulfilled') byId[ids[index]] = result.value;
 	});
 	return byId;
+}
+
+/**
+ * Focus panel rows (mockup focusEvents): followed events with at least one
+ * mention inside the loaded period. Counts read the SAME EventDetail
+ * payloads as the event chips — one getEvent per id, a failed fetch drops
+ * that row silently, never the page. The window mirrors the list query:
+ * mention publication inside since/until (all mentions when unbounded).
+ */
+function focusRows(
+	followed: number[],
+	details: Record<number, EventDetail>,
+	since: string | undefined,
+	until: string | undefined
+): FocusEventRow[] {
+	const sinceAt = since ? new Date(since).getTime() : null;
+	const untilAt = until ? new Date(until).getTime() : null;
+	const inWindow = (publishedAt: string | null): boolean => {
+		if (sinceAt === null && untilAt === null) return true;
+		if (!publishedAt) return false;
+		const at = new Date(publishedAt).getTime();
+		if (Number.isNaN(at)) return false;
+		if (sinceAt !== null && at < sinceAt) return false;
+		if (untilAt !== null && at > untilAt) return false;
+		return true;
+	};
+	return followed.flatMap((id) => {
+		const detail = details[id];
+		if (!detail) return []; // silent per-row degradation
+		const windowed = detail.mentions.filter((mention) => inWindow(mention.published_at));
+		if (windowed.length === 0) return [];
+		return [
+			{
+				id,
+				title: detail.title,
+				mentions: windowed.length,
+				sourceKinds: new Set(windowed.map((mention) => channelLabelFor(mention.source))).size
+			}
+		];
+	});
 }
 
 /**
@@ -90,8 +146,12 @@ async function loadChannelPage(
 	return { items: merged, total: pages.reduce((sum, page) => sum + page.total, 0) };
 }
 
-export const load: PageServerLoad = async ({ url }) => {
+export const load: PageServerLoad = async ({ url, cookies }) => {
 	const params = url.searchParams;
+
+	// User prefs (saved/follow/seen) ride one cookie; server-side readers:
+	// the focus panel rows and the card states. Tolerant parse.
+	const prefs = parsePrefs(cookies.get(MM_PREFS_COOKIE));
 
 	// Echo raw values for the form; expand date-only bounds to full local
 	// days in the display timezone (the API compares with >= since and
@@ -155,6 +215,8 @@ export const load: PageServerLoad = async ({ url }) => {
 		const metricSources = !rawMedium && !rawSource && channel !== ''
 			? channelSources(channel, groups)
 			: undefined;
+		const eventsById = await loadEventsById(mentions.items, prefs.follow);
+
 		let feedStats: FeedStats | null = null;
 		let feedStatsError: string | null = null;
 		try {
@@ -189,7 +251,9 @@ export const load: PageServerLoad = async ({ url }) => {
 			mediumCounts: stats.by_medium ?? {},
 			newsMediumCount: stats.news_medium_count ?? 0,
 			channelGroups: groups,
-			eventsById: await loadEventsById(mentions.items),
+			eventsById: eventsById,
+			focusEvents: focusRows(prefs.follow, eventsById, since, until),
+			prefs,
 			filters: {
 				source: params.get('source') ?? '',
 				medium: params.get('medium') ?? '',

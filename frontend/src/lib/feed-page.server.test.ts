@@ -28,6 +28,14 @@ function stubFetch(table: RouteTable) {
 	return fetchMock;
 }
 
+/** Loader event stub: url + cookie jar (the mm_prefs reader). */
+function route(url: string | URL, jar?: Record<string, string>) {
+	return {
+		url: new URL(url, 'http://localhost'),
+		cookies: { get: (name: string) => jar?.[name] }
+	} as never;
+}
+
 const metrics = {
 	total: 96,
 	by_source: { news_rss: 48, gdelt: 48 },
@@ -43,7 +51,7 @@ it('loads metrics with the same effective filters as the direct result request',
 		'/api/mentions': { items: [], total: 96 },
 		'/api/stats/feed': metrics
 	});
-	const data = await load({ url: new URL('http://localhost/feed?source=%20news_rss%20&channel=social&medium=%20alpha.example%20&sentiment=%20negative%20&keyword_id=0&political=1&q=budget%20%26%20tax&since=2026-10-14&until=2026-10-15&limit=1&offset=5&sort=ignored&sources=x_twitter') } as never);
+	const data = await load(route('http://localhost/feed?source=%20news_rss%20&channel=social&medium=%20alpha.example%20&sentiment=%20negative%20&keyword_id=0&political=1&q=budget%20%26%20tax&since=2026-10-14&until=2026-10-15&limit=1&offset=5&sort=ignored&sources=x_twitter'));
 	const urls = fetchMock.mock.calls.map(([input]) => new URL(String(input)));
 	const aggregate = urls.filter((u) => u.pathname === '/api/stats/feed');
 	expect(aggregate).toHaveLength(1);
@@ -67,7 +75,7 @@ it('aggregates a channel union once without summing source-distinct units', asyn
 		'/api/stats/feed': metrics,
 		'/api/mentions': { items: [], total: 48 }
 	});
-	const data = await load({ url: new URL('http://localhost/feed?channel=news&sentiment=none&limit=1&offset=70') } as never);
+	const data = await load(route('http://localhost/feed?channel=news&sentiment=none&limit=1&offset=70'));
 	const urls = fetchMock.mock.calls.map(([input]) => new URL(String(input)));
 	const aggregates = urls.filter((u) => u.pathname === '/api/stats/feed');
 	expect(aggregates).toHaveLength(1);
@@ -84,7 +92,7 @@ it('returns measured zeros for a known empty channel without querying all rows',
 		'/api/keywords': [],
 		'/api/stats/feed': metrics
 	});
-	const data = await load({ url: new URL('http://localhost/feed?channel=field') } as never);
+	const data = await load(route('http://localhost/feed?channel=field'));
 	expect(fetchMock.mock.calls.map(([input]) => new URL(String(input)).pathname)).not.toContain('/api/stats/feed');
 	expect(data).toMatchObject({ mentions: { items: [], total: 0 }, feedStats: { total: 0, news_medium_count: 0, result_group_count: 0, by_source: { news_rss: 0, x_twitter: 0 }, by_sentiment: { positive: 0, negative: 0, neutral: 0, none: 0 } }, feedStatsError: null });
 });
@@ -97,7 +105,7 @@ it('keeps a successful list and its controls when only the aggregate is unavaila
 		'/api/stats/feed': new Response(JSON.stringify({ detail: 'synthetic aggregate failure' }), { status: 503 }),
 		'/api/mentions': mentions
 	});
-	const data = await load({ url: new URL('http://localhost/feed?sentiment=negative&limit=1&offset=5') } as never);
+	const data = await load(route('http://localhost/feed?sentiment=negative&limit=1&offset=5'));
 	expect(data).toMatchObject({ mentions, feedStats: null, feedStatsError: 'Indicadores no disponibles: synthetic aggregate failure', filters: { sentiment: 'negative', limit: 1, offset: 5 } });
 });
 
@@ -117,7 +125,7 @@ it.each([
 		'/api/keywords': [], '/api/stats/feed': metrics,
 		'/api/mentions': { items: [], total: 0 }
 	});
-	await load({ url: new URL(`http://localhost/feed?${query}`) } as never);
+	await load(route(`http://localhost/feed?${query}`));
 	const aggregate = fetchMock.mock.calls.map(([input]) => new URL(String(input))).find((url) => url.pathname === '/api/stats/feed')!;
 	const actual: Record<string, string | string[]> = Object.fromEntries(aggregate.searchParams);
 	if (aggregate.searchParams.has('sources')) actual.sources = aggregate.searchParams.getAll('sources');
@@ -126,12 +134,12 @@ it.each([
 
 it.each(['/api/mentions', '/api/stats/overview'])('preserves existing fatal errors for %s', async (path) => {
 	stubFetch({ '/api/stats/overview': { by_source: {} }, '/api/keywords': [], '/api/mentions': { items: [], total: 0 }, [path]: new Response(JSON.stringify({ detail: 'existing failure' }), { status: 422 }) });
-	await expect(load({ url: new URL('http://localhost/feed') } as never)).rejects.toMatchObject({ status: 422, body: { message: 'No se pudo cargar el feed: existing failure' } });
+	await expect(load(route('http://localhost/feed'))).rejects.toMatchObject({ status: 422, body: { message: 'No se pudo cargar el feed: existing failure' } });
 });
 
 it('keeps missing metrics unavailable rather than inventing a zero response', async () => {
 	stubFetch({ '/api/stats/overview': { by_source: {} }, '/api/keywords': [], '/api/stats/feed': null, '/api/mentions': { items: [], total: 0 } });
-	const data = await load({ url: new URL('http://localhost/feed') } as never);
+	const data = await load(route('http://localhost/feed'));
 	expect(data).toMatchObject({ feedStats: null, mentions: { items: [], total: 0 } });
 });
 
@@ -149,7 +157,7 @@ it('keeps every channel pool call within the API limit at deep offsets', async (
 	});
 
 	const url = new URL('http://localhost/?channel=news&limit=200&offset=450');
-	await load({ url } as never);
+	await load(route(url));
 
 	const mentionCalls = fetchMock.mock.calls
 		.map((call) => new URL(String(call[0]), 'http://localhost'))
@@ -170,7 +178,7 @@ it('forwards the medium facet as one direct query and echoes it in filters', asy
 	});
 
 	const url = new URL('http://localhost/?channel=news&medium=e-consulta.com');
-	const data = (await load({ url } as never)) as Record<string, Record<string, unknown>>;
+	const data = (await load(route(url))) as Record<string, Record<string, unknown>>;
 
 	const mentionCalls = fetchMock.mock.calls
 		.map((call) => new URL(String(call[0]), 'http://localhost'))
@@ -181,4 +189,61 @@ it('forwards the medium facet as one direct query and echoes it in filters', asy
 	expect(mentionCalls[0].searchParams.get('channel')).toBeNull();
 	expect((data.filters as Record<string, string>).medium).toBe('e-consulta.com');
 	expect(data.mediumCounts).toEqual({ 'e-consulta.com': 3, 'x.com': 1 });
+});
+
+it('echoes the mm_prefs cookie and derives focus rows from followed events', async () => {
+	const focusMentions = [
+		{ id: 11, source: 'news_rss', url: 'https://a.example/11', title: 'En ventana', sentiment: null, published_at: '2026-10-14T18:30:00Z' },
+		{ id: 12, source: 'x_twitter', url: 'https://a.example/12', title: 'Fuera de ventana', sentiment: null, published_at: '2026-10-20T18:30:00Z' }
+	];
+	const fetchMock = stubFetch({
+		'/api/stats/overview': { by_source: { news_rss: 4 } },
+		'/api/keywords': [],
+		'/api/stats/feed': metrics,
+		'/api/mentions': { items: [{ id: 1, event_id: 9 }], total: 1 },
+		'/api/clients/1/events/9': {
+			id: 9, title: 'Evento en foco', mention_count: 3, source_count: 2, summary: null,
+			first_seen_at: '2026-10-13T10:00:00Z', last_seen_at: '2026-10-14T19:00:00Z',
+			mentions: focusMentions
+		},
+		'/api/clients/1/events/404': new Response(JSON.stringify({ detail: 'gone' }), { status: 500 })
+	});
+	const data = (await load(
+		route('http://localhost/feed?since=2026-10-14&until=2026-10-14', {
+			mm_prefs: JSON.stringify({ saved: [7], follow: [9, 404], seen: { '9': 'stale' } })
+		})
+	)) as Record<string, unknown>;
+	// cookie echoed for the client store seed, parsed tolerantly
+	expect(data.prefs).toEqual({ saved: [7], follow: [9, 404], seen: { '9': 'stale' } });
+	// focus = followed events with mentions inside the loaded window; counts
+	// over the windowed mentions, source-kind distinct, silent on failures
+	expect(data.focusEvents).toEqual([
+		{ id: 9, title: 'Evento en foco', mentions: 1, sourceKinds: 1 }
+	]);
+	// the failed followed id degrades; the page event payload survives for the chip
+	expect(Object.keys(data.eventsById as Record<string, unknown>)).toEqual(['9']);
+	expect(fetchMock.mock.calls.filter(([u]) => String(u).includes('/events/404')).length).toBe(1);
+});
+
+it('skips focus rows without in-window mentions and keeps the page alive', async () => {
+	stubFetch({
+		'/api/stats/overview': { by_source: { news_rss: 4 } },
+		'/api/keywords': [],
+		'/api/stats/feed': metrics,
+		'/api/mentions': { items: [], total: 0 },
+		'/api/clients/1/events/8': {
+			id: 8, title: 'Solo fuera de ventana', mention_count: 2, source_count: 1, summary: null,
+			first_seen_at: '2026-10-01T10:00:00Z', last_seen_at: '2026-10-01T11:00:00Z',
+			mentions: [
+				{ id: 3, source: 'news_rss', url: 'https://a.example/3', title: 'Antigua', sentiment: null, published_at: '2026-10-01T12:00:00Z' }
+			]
+		}
+	});
+	const data = (await load(
+		route('http://localhost/feed?since=2026-10-14&until=2026-10-14', {
+			mm_prefs: JSON.stringify({ saved: [], follow: [8], seen: {} })
+		})
+	)) as Record<string, unknown>;
+	expect(data.focusEvents).toEqual([]);
+	expect(data.mentions).toMatchObject({ items: [], total: 0 });
 });

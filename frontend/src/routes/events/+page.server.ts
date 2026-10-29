@@ -1,11 +1,12 @@
 import { error } from '@sveltejs/kit';
 import { errorStatus, errorMessage } from '$lib/server/api-error';
 import { ApiError, listEvents } from '$lib/api';
+import { MM_PREFS_COOKIE, parsePrefs } from '$lib/prefs';
 import type { PageServerLoad } from './$types';
 
 const SCOPES = new Set(['eco', 'todas']);
 
-export const load: PageServerLoad = async ({ url }) => {
+export const load: PageServerLoad = async ({ url, cookies }) => {
 	const scopeParam = url.searchParams.get('scope') ?? 'eco';
 	const scope = SCOPES.has(scopeParam) ? (scopeParam as 'eco' | 'todas') : 'eco';
 
@@ -16,7 +17,10 @@ export const load: PageServerLoad = async ({ url }) => {
 			limit: 200,
 			min_mentions: scope === 'eco' ? 2 : 1
 		});
-		return { events, scope };
+		// Followed ids from the mm_prefs cookie: the card buttons render their
+		// pressed state on the server (client writes, server reads).
+		const prefs = parsePrefs(cookies.get(MM_PREFS_COOKIE));
+		return { events, scope, prefs };
 	} catch (cause) {
 		const status = errorStatus(cause, 503);
 		const detail = errorMessage(cause, 'error desconocido');

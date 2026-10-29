@@ -138,6 +138,26 @@ export function formatDisplayDateTimeLong(value: string | null | undefined): str
 
 const dayFormatter = new Intl.DateTimeFormat('es', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 
+/** Stamp parts for the feed card time (mockup feedItem `displayedTime`). */
+const feedStampFormatter = new Intl.DateTimeFormat('es-MX', {
+	timeZone: DISPLAY_TIMEZONE,
+	day: 'numeric',
+	month: 'short',
+	year: 'numeric'
+});
+
+/** Calendar-day key in the display timezone (`en-CA` → YYYY-MM-DD). */
+const zonedDayKeyFormatter = new Intl.DateTimeFormat('en-CA', { timeZone: DISPLAY_TIMEZONE });
+
+/** `9 oct 2026` — day, short month and year in the display timezone. */
+function feedStampDate(date: Date): string {
+	const parts = feedStampFormatter.formatToParts(date).reduce<Record<string, string>>((acc, part) => {
+		acc[part.type] = part.value;
+		return acc;
+	}, {});
+	return `${parts.day} ${parts.month} ${parts.year}`;
+}
+
 const longDateFormatter = new Intl.DateTimeFormat('es-MX', {
 	timeZone: DISPLAY_TIMEZONE,
 	day: 'numeric',
@@ -297,7 +317,23 @@ export function displayDayKey(value: string | null | undefined): string {
 	if (!value) return '';
 	const date = new Date(value);
 	if (Number.isNaN(date.getTime())) return '';
-	return new Intl.DateTimeFormat('en-CA', { timeZone: DISPLAY_TIMEZONE }).format(date);
+	return zonedDayKeyFormatter.format(date);
+}
+
+/**
+ * Feed-card timestamp (mockup feedItem `displayedTime`): bare HH:MM for
+ * today, `d mmm yyyy · HH:MM` otherwise, in the display timezone.
+ * Unparseable input falls through; absent renders the em-dash.
+ */
+export function formatFeedStamp(value: string | null | undefined): string {
+	if (!value) return '—';
+	const date = new Date(value);
+	if (Number.isNaN(date.getTime())) return value;
+	const time = formatDisplayTime(value);
+	if (time === '—') return time;
+	const today = zonedDayKeyFormatter.format(new Date());
+	if (zonedDayKeyFormatter.format(date) === today) return time;
+	return `${feedStampDate(date)} · ${time}`;
 }
 
 /** HH:MM in the display timezone; raw string when unparseable, '—' when absent. */

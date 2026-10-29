@@ -1,16 +1,21 @@
 <script lang="ts">
+	import { ICON_PATHS } from '$lib/icons';
 	import type { EventSummary } from '$lib/api';
 
 	interface Props {
 		event: EventSummary;
+		/** Followed state (mockup data-follow); the button hides while undefined. */
+		following?: boolean;
+		/** Toggles the follow state (mockup toggle('follow')). */
+		onFollowToggle?: () => void;
 	}
 
-	let { event }: Props = $props();
+	let { event, following = false, onFollowToggle }: Props = $props();
 </script>
 
 <!-- v3 event card («Panel de monitoreo», eventCard): mini-id, headline
-	link, optional summary, counts footer. Fields the app does not track
-	(priority, per-source types, follow) are intentionally absent. -->
+	link, optional summary, counts footer + follow toggle. Fields the app
+	does not track (priority, per-source types) are intentionally absent. -->
 <article class="event-card" aria-labelledby={`event-${event.id}-title`}>
 	<div class="mini-id">
 		<span>EVENTO #{event.id}</span>
@@ -31,5 +36,19 @@
 			{event.source_count}
 			{event.source_count === 1 ? 'fuente' : 'fuentes'}
 		</span>
+		{#if onFollowToggle}
+			<button
+				type="button"
+				class="button"
+				class:primary={following}
+				aria-pressed={following}
+				onclick={onFollowToggle}
+			>
+				<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true">
+					<path d={following ? ICON_PATHS.check : ICON_PATHS.bookmark} />
+				</svg>
+				{following ? 'Siguiendo' : 'Seguir evento'}
+			</button>
+		{/if}
 	</div>
 </article>

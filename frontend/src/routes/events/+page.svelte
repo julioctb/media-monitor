@@ -1,9 +1,25 @@
 <script lang="ts">
 	import EventCard from '$lib/components/EventCard.svelte';
 	import { ICON_PATHS } from '$lib/icons';
+	import { prefs, seedPrefsFromServer, setFollow } from '$lib/prefs';
+	import { notifyPersist } from '$lib/toast.svelte';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
+
+	// Single prefs seed: the store hydrates from the server-parsed cookie at
+	// instance init, so the first paint already carries the follow state and
+	// hydration matches SSR. Intentionally once per instance (each navigation
+	// re-seeds); the store itself owns later updates.
+	// svelte-ignore state_referenced_locally
+	seedPrefsFromServer(data.prefs);
+
+	const followingIds = $derived($prefs.follow);
+
+	/** Mockup toggle('follow'): optimistic store+cookie, seen seeded on follow. */
+	function toggleFollow(id: number, next: boolean, lastSeenAt: string | null) {
+		notifyPersist(setFollow(id, next, lastSeenAt));
+	}
 
 	// Mockup search (eventView): client-side over the loaded set. EventSummary
 	// carries id/title/summary only — no per-event source, topic or priority
@@ -83,7 +99,12 @@
 				</h2>
 				<div class="section-grid">
 					{#each withEcho as event (event.id)}
-						<EventCard {event} />
+						<EventCard
+							{event}
+							following={followingIds.includes(event.id)}
+							onFollowToggle={() =>
+								toggleFollow(event.id, !followingIds.includes(event.id), event.last_seen_at)}
+						/>
 					{/each}
 				</div>
 			</section>
@@ -96,7 +117,12 @@
 				</h2>
 				<div class="section-grid">
 					{#each withoutEcho as event (event.id)}
-						<EventCard {event} />
+						<EventCard
+							{event}
+							following={followingIds.includes(event.id)}
+							onFollowToggle={() =>
+								toggleFollow(event.id, !followingIds.includes(event.id), event.last_seen_at)}
+						/>
 					{/each}
 				</div>
 			</section>

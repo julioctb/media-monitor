@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { ICON_PATHS } from '$lib/icons';
 	import type { Snippet } from 'svelte';
 
 	/**
@@ -23,6 +24,8 @@
 		titleId = undefined,
 		body = null,
 		clampBody = false,
+		saved = null,
+		onSave = undefined,
 		chips
 	}: {
 		/** Channel name for the leading source badge (Noticias/Redes/Datos de campo). */
@@ -46,6 +49,10 @@
 		body?: string | null;
 		/** Clamp the body to two lines (raw-content fallback). */
 		clampBody?: boolean;
+		/** Saved state for the foot toggle (mockup icon-button.saved); null hides it. */
+		saved?: boolean | null;
+		/** Toggles the saved state (mockup data-save); its presence adds the foot. */
+		onSave?: () => void;
 		chips?: Snippet;
 	} = $props();
 </script>
@@ -86,7 +93,24 @@
 		<p class="feed-body" class:clamped={clampBody}>{body}</p>
 	{/if}
 
-	{#if chips}
+	{#if onSave}
+		<!-- Mockup feed-foot: chips left, save toggle right. -->
+		<div class="feed-foot">
+			{#if chips}<div class="chips">{@render chips()}</div>{/if}
+			<button
+				type="button"
+				class="icon-button"
+				class:saved={saved === true}
+				aria-label={saved ? 'Quitar de guardados' : 'Guardar noticia'}
+				aria-pressed={saved === true}
+				onclick={onSave}
+			>
+				<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true">
+					<path d={ICON_PATHS.bookmark} />
+				</svg>
+			</button>
+		</div>
+	{:else if chips}
 		<div class="chips">{@render chips()}</div>
 	{/if}
 </article>

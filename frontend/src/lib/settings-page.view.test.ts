@@ -385,8 +385,11 @@ it('discard restores the loaded values and clears the pending flag', () => {
 
 it('ignores the legacy keyword focus and keeps keyword CRUD independent', () => {
 	const key = 'media-monitor-keyword-focus';
-	const before = localStorage.getItem(key);
-	localStorage.setItem(key, 'An unrelated keyword');
+	// jsdom 29 + node 26 ships no window.localStorage under vitest; the legacy
+	// marker is simulation only — the page reads no storage of its own.
+	const storage = window.localStorage ?? null;
+	const before = storage?.getItem(key) ?? null;
+	storage?.setItem(key, 'An unrelated keyword');
 	try {
 		const keywords: Keyword[] = [
 			{
@@ -430,9 +433,11 @@ it('ignores the legacy keyword focus and keeps keyword CRUD independent', () => 
 		const remove = target.querySelector<HTMLFormElement>('form[action="?/delete"]')!;
 		expect(new FormData(remove).get('id')).toBe('1');
 		expect(target.querySelectorAll('.config-keyword-table tbody tr')).toHaveLength(1);
-		expect(localStorage.getItem(key)).toBe(keywords[0].text);
+		if (storage) expect(storage.getItem(key)).toBe(keywords[0].text);
 	} finally {
-		if (before === null) localStorage.removeItem(key);
-		else localStorage.setItem(key, before);
+		if (storage) {
+			if (before === null) storage.removeItem(key);
+			else storage.setItem(key, before);
+		}
 	}
 });

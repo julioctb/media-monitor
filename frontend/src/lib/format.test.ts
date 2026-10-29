@@ -3,6 +3,7 @@ import {
 	cleanDigestText,
 	eventChipLabel,
 	classificationLabel,
+	formatFeedStamp,
 	formatLongDate,
 	zonedDayBounds
 } from './format';
@@ -85,5 +86,21 @@ describe('cleanDigestText', () => {
 	it('leaves clean prose untouched', () => {
 		const prose = 'La rectora encabezó la inauguración del recinto.';
 		expect(cleanDigestText(prose)).toBe(prose);
+	});
+});
+
+describe('formatFeedStamp', () => {
+	it('renders the mockup date+time stamp for a past day', () => {
+		// 12:00 UTC == 06:00 in America/Mexico_City on the same day.
+		expect(formatFeedStamp('2026-10-14T12:00:00Z')).toBe('14 oct 2026 · 06:00');
+	});
+
+	it('renders a bare HH:MM for today', () => {
+		expect(formatFeedStamp(new Date().toISOString())).toMatch(/^\d{2}:\d{2}$/);
+	});
+
+	it('falls through for unparseable input and dashes for absent', () => {
+		expect(formatFeedStamp('not-a-date')).toBe('not-a-date');
+		expect(formatFeedStamp(null)).toBe('—');
 	});
 });

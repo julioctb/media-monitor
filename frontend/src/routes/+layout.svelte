@@ -6,6 +6,7 @@
 	import type { LayoutProps } from './$types';
 	import type { SubmitFunction } from './consultas/$types';
 	import { ICON_PATHS } from '$lib/icons';
+	import Toaster from '$lib/components/Toaster.svelte';
 
 	let { children }: LayoutProps = $props();
 
@@ -386,3 +387,6 @@
 			</section>
 		{/if}
 {/if}
+
+<!-- Single toast outlet (mockup #toast): preference copy, 3.5 s. -->
+<Toaster />

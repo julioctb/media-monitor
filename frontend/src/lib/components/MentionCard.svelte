@@ -1,7 +1,7 @@
 <script lang="ts">
 	import {
 		channelLabelFor,
-		formatDisplayDateTimeLong,
+		formatFeedStamp,
 		outletFromUrl,
 		sentimentLabel,
 		topicBadgeClass,
@@ -28,6 +28,10 @@
 		onDetail?: (mention: Mention) => void;
 		/** Opens the event-detail dialog instead of navigating (mockup data-event). */
 		onEvent?: (event: MentionEventRef, coverageCount: number) => void;
+		/** Saved state for the foot toggle (mockup data-save); null hides the foot. */
+		saved?: boolean | null;
+		/** Toggles the saved state (mockup data-save). */
+		onSave?: () => void;
 	}
 
 	let {
@@ -35,7 +39,9 @@
 		event = null,
 		coverageCount = 1,
 		onDetail,
-		onEvent
+		onEvent,
+		saved = null,
+		onSave
 	}: Props = $props();
 
 	const when = $derived(mention.published_at ?? mention.ingested_at);
@@ -49,7 +55,11 @@
 		}
 		return PLATFORM_LABEL[mention.source] ?? null;
 	});
-	const author = $derived(mention.author?.trim() || null);
+	const author = $derived.by(() => {
+		// Mockup newsAuthor: the «Autor:» prefix is news-only, honest fallback.
+		if (isNewsSource(mention.source)) return `Autor: ${mention.author?.trim() || 'No indicado'}`;
+		return mention.author?.trim() || null;
+	});
 
 	/** Body: the editorial summary when enriched, else the article excerpt. */
 	const body = $derived.by(() => {
@@ -91,20 +101,22 @@
 	sentimentClass={sentimentClass}
 	sentimentText={sentimentText}
 	publishedAt={when}
-	publishedLabel={formatDisplayDateTimeLong(when)}
+	publishedLabel={formatFeedStamp(when)}
 	title={headline}
 	titleHref={onDetail ? null : mention.url}
 	onTitle={onDetail ? () => onDetail(mention) : undefined}
 	titleId={`mention-${mention.id}-title`}
 	body={body.text}
 	clampBody={body.clamp}
+	{saved}
+	{onSave}
 >
 	{#snippet chips()}
 		{#each topics as topic (topic.label)}
 			<span class={`topic-chip ${topicBadgeClass(topic.label)}`}>{topicLabel(topic.label)}</span>
 		{/each}
 		{#each (mention.persons ?? []) as person (person.id)}
-			<a href={`/persons/${person.id}`} title="Ver persona">{person.name}</a>
+			<a href={`/persons/${person.id}`} title="Ver persona">Persona: {person.name}</a>
 		{/each}
 		{#if event}
 			{#if onEvent}
@@ -129,6 +141,9 @@
 					{coverageCount === 1 ? 'mención' : 'menciones'}
 				</a>
 			{/if}
+		{:else}
+			<!-- Mockup lone-mention chip: the record does not form an event yet. -->
+			<span class="chip">Mención individual</span>
 		{/if}
 	{/snippet}
 </NewsEntry>

@@ -134,6 +134,14 @@
   --dialog-evidence-max-height: 40vh;
   --dialog-backdrop-blur: 3px;
   --shadow-dialog: 0 24px 80px #10243e30;
+
+  /* Unread marker — mockup .event-unread / .event-unread-dot literals
+     (focus panel «Actualizado · sin ver»). */
+  --color-unread: #264b69;
+  --color-unread-dot: #315e80;
+
+  /* Toast elevation — mockup .toast shadow (ink pill, bottom center). */
+  --shadow-toast: 0 8px 32px #10243e25;
 }
 
 /* Tono (sentiment) semantic colors — the ONLY place the tone mixes are
@@ -3656,6 +3664,96 @@ table.coverage th {
   font-weight: 600;
 }
 
+/* Card foot (mockup .feed-foot): chips left, save toggle right. */
+.feed-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* Focus panel (mockup focusEvents/asideContent): followed events as
+   button rows — mini id + arrow, title, optional unread marker, counts. */
+.focus-events-empty {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.event-mini {
+  display: block;
+  width: 100%;
+  margin: 0 0 16px;
+  padding: 0 0 16px;
+  border: 0;
+  border-bottom: 1px solid var(--color-line);
+  background: none;
+  text-align: left;
+}
+.event-mini:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+.event-mini .mini-title {
+  display: block;
+  color: var(--color-ink);
+  font-weight: 600;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.event-mini .mini-count {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+  color: var(--color-muted);
+  font-size: 10px;
+}
+.event-mini .mini-count .od-icon {
+  --od-icon-size: 13px;
+}
+.event-unread {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  color: var(--color-unread);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+.event-unread-dot {
+  display: block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-unread-dot);
+}
+
+/* Global toast (mockup #toast): ink pill, bottom center, above the
+   query launcher on desktop. */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  z-index: 10;
+  transform: translateX(-50%);
+  max-width: calc(100vw - 32px);
+  padding: 12px 20px;
+  border-radius: 8px;
+  background: var(--color-ink);
+  color: var(--color-accent-on);
+  font-size: 13px;
+  box-shadow: var(--shadow-toast);
+}
+@media (min-width: 769px) {
+  .toast {
+    bottom: calc(var(--query-edge) + var(--query-launcher-height) + 16px);
+    z-index: 21;
+  }
+}
+
 /* --- Context rail --- */
 .feed-side-column {
   display: grid;
@@ -3897,6 +3995,10 @@ table.coverage th {
   }
   .feed-time {
     margin-left: 0;
+  }
+  /* mockup ≤480: the foot stacks above the save toggle */
+  .feed-foot {
+    align-items: flex-start;
   }
   .stat-value {
     font-size: 28px;

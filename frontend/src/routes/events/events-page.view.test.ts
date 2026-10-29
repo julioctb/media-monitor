@@ -42,6 +42,7 @@ function baseData() {
 				source_count: 1
 			})
 		],
+		prefs: { saved: [] as number[], follow: [] as number[], seen: {} as Record<string, string> },
 		scope: 'eco' as const
 	};
 }
@@ -79,6 +80,7 @@ afterEach(() => {
 		const instance = mounted.pop();
 		if (instance) unmount(instance as never);
 	}
+	document.cookie = 'mm_prefs=; max-age=0; path=/';
 });
 
 describe('events view (mockup eventView)', () => {
@@ -146,12 +148,44 @@ describe('events view (mockup eventView)', () => {
 	});
 
 	it('keeps an honest empty state when no events exist at all', () => {
-		const page = renderPage({ events: [], scope: 'eco' });
+		const page = renderPage({ events: [], scope: 'eco', prefs: { saved: [], follow: [], seen: {} } });
 
 		expect(page.queryAll('section.events-group')).toHaveLength(0);
 		expect(page.text()).toContain('Sin eventos registrados todavía.');
 		expect(page.query('#events-count')?.textContent?.replace(/\s+/g, ' ')).toContain(
 			'0 de 0 eventos'
 		);
+	});
+});
+
+describe('events follow (mockup data-follow)', () => {
+	it('seeds the pressed state from the server prefs and toggles the cookie', async () => {
+		const data = baseData();
+		data.prefs = { saved: [], follow: [31], seen: {} };
+		const page = renderPage(data);
+		await tick();
+
+		const states = page.queryAll('.event-card .event-card-footer button').map((button) => ({
+			label: button.textContent?.replace(/\s+/g, ' ').trim(),
+			pressed: button.getAttribute('aria-pressed'),
+			primary: button.classList.contains('primary')
+		}));
+		// el seguido (31) va en estado «Siguiendo»; el resto ofrece «Seguir evento»
+		expect(states.filter((s) => s.label === 'Siguiendo')).toHaveLength(1);
+		const following = states.find((s) => s.label === 'Siguiendo')!;
+		expect(following.pressed).toBe('true');
+		expect(following.primary).toBe(true);
+
+		const followButtons = page.queryAll('.event-card .event-card-footer button');
+		const pending = followButtons.find((b) => b.textContent?.includes('Seguir evento'))!;
+		pending.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		await tick();
+		expect(pending.textContent?.replace(/\s+/g, ' ')).toContain('Siguiendo');
+		expect(document.cookie).toContain('mm_prefs=');
+
+		const unfollow = followButtons.find((b) => b.getAttribute('aria-pressed') === 'true')!;
+		unfollow.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		await tick();
+		expect(unfollow.textContent?.replace(/\s+/g, ' ')).toContain('Seguir evento');
 	});
 });

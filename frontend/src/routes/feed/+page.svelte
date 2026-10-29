@@ -12,10 +12,22 @@
 	import { groupByEvent } from '$lib/grouping';
 		import { CHANNEL_LABELS, type FeedChannel } from '$lib/feed-filters';
 	import { ICON_PATHS } from '$lib/icons';
+	import { markSeen, prefs, seedPrefsFromServer, toggleSaved } from '$lib/prefs';
+	import { notifyPersist } from '$lib/toast.svelte';
 	import { INPUT_CLS } from '$lib/ui';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
+
+	// Single prefs seed: the store hydrates from the server-parsed cookie at
+	// instance init, so saved marks and seen flags paint on first render and
+	// hydration matches SSR. Intentionally once per instance (each navigation
+	// re-seeds); the store itself owns later updates.
+	// svelte-ignore state_referenced_locally
+	seedPrefsFromServer(data.prefs);
+
+	const savedIds = $derived($prefs.saved);
+	const followedIds = $derived($prefs.follow);
 
 	const REFRESH_MS = 90_000;
 	/** Auto-refresh while visible; pauses when the tab is hidden. */
@@ -50,6 +62,32 @@
 	/** Same event = same story: one card plus a collapsed coverage list. */
 	const groups = $derived(groupByEvent(data.mentions.items));
 
+	/* Guardadas (mockup saved-filter): client-side filter over the loaded
+	   page, AND-ed with the server facets — never a substitute for them. */
+	let savedOnly = $state(false);
+
+	function toggleSavedFilter() {
+		savedOnly = !savedOnly;
+	}
+
+	function toggleSavedMention(id: number) {
+		notifyPersist(toggleSaved(id));
+	}
+
+	/** Groups that survive the saved filter, empty groups dropped. */
+	const visibleGroups = $derived.by(() => {
+		if (!savedOnly) return groups;
+		return groups
+			.map((group) => ({
+				...group,
+				mentions: group.mentions.filter((mention) => savedIds.includes(mention.id))
+			}))
+			.filter((group) => group.mentions.length > 0);
+	});
+
+	/** Visible mention count: the counter shows what the list shows. */
+	const visibleCount = $derived(visibleGroups.reduce((sum, group) => sum + group.mentions.length, 0));
+
 	/** Record-detail dialog (mockup recordDetail): one mention at a time. */
 	let detailMention: Mention | null = $state(null);
 	let detailEvent: MentionEventRef | null = $state(null);
@@ -65,7 +103,11 @@
 
 	function openEvent(ref: MentionEventRef) {
 		const full = data.eventsById[ref.id];
-		if (full) expedient = full;
+		if (full) {
+			expedient = full;
+			// Mockup eventDetail: opening the file marks a followed event seen.
+			if (followedIds.includes(ref.id) && full.last_seen_at) markSeen(ref.id, full.last_seen_at);
+		}
 		// without server payload (failed fetch) the chip stays a link to /events
 	}
 
@@ -226,7 +268,8 @@
 
 	const limitOptions = [10, 25, 50, 100];
 
-	/* Which v3 empty state applies: filtered-out vs empty period. */
+	/* Which v3 empty state applies: filtered-out vs empty period. The saved
+	   filter joins the facet set (mockup feedBase ANDs savedOnly). */
 	const filtersActive = $derived(
 		Boolean(
 			filters.channel ||
@@ -234,7 +277,8 @@
 				filters.q ||
 				filters.medium ||
 				filters.since ||
-				filters.until
+				filters.until ||
+				savedOnly
 		)
 	);
 
@@ -397,6 +441,19 @@
 		<div class="feed-toolbar">
 			<div class="panel-heading">
 				<h2 id="feed-panel-title">Últimas menciones</h2>
+				<!-- Mockup saved-filter: bookmark toggle, pressed state, session-scoped. -->
+				<button
+					type="button"
+					class="text-link"
+					id="saved-filter"
+					aria-pressed={savedOnly}
+					onclick={toggleSavedFilter}
+				>
+					<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true">
+						<path d={ICON_PATHS.bookmark} />
+					</svg>
+					{savedOnly ? 'Ver todas' : 'Guardadas'}
+				</button>
 			</div>
 
 			<div class="tabs" role="group" aria-label="Filtrar por tipo de fuente">
@@ -478,11 +535,16 @@
 			</div>
 
 			<p class="feed-match-count" role="status" aria-live="polite">
-				{data.mentions.total} publicaciones encontradas · ordenadas de la más reciente a la más antigua
+				{#if savedOnly}
+					{visibleCount} publicaciones encontradas · ordenadas de la más reciente a la más antigua
+				{:else}
+					{data.mentions.total} publicaciones encontradas · ordenadas de la más reciente a la más
+					antigua
+				{/if}
 			</p>
 		</div>
 
-		{#if data.mentions.items.length === 0}
+		{#if visibleGroups.length === 0}
 			<div class="feed-empty" role="status">
 				{#if filtersActive}
 					<h3>No hay menciones con estos filtros</h3>
@@ -496,13 +558,15 @@
 			</div>
 		{:else}
 			<ol class="feed-list" aria-label="Publicaciones">
-				{#each groups as group (group.key)}
+				{#each visibleGroups as group (group.key)}
 					<li class="feed-group">
 						{#each group.mentions as mention (mention.id)}
 							<MentionCard
 								{mention}
 								event={group.event}
 								coverageCount={group.mentions.length}
+								saved={savedIds.includes(mention.id)}
+								onSave={() => toggleSavedMention(mention.id)}
 								onDetail={(m) => openDetail(m, group.event)}
 								onEvent={group.event && data.eventsById[group.event.id] ? openEvent : undefined}
 							/>
@@ -606,6 +670,54 @@
 		</section>
 
 		<aside class="feed-aside" aria-label="Contexto del feed">
+			<!-- Mockup asideContent: «Eventos en foco» heads the rail. -->
+			<section class="panel aside-panel" aria-labelledby="focus-title">
+				<div class="panel-heading">
+					<h2 id="focus-title">Eventos en foco</h2>
+					<a class="text-link" href="/events">
+						Ver todos
+						<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true">
+							<path d={ICON_PATHS.chevron} />
+						</svg>
+					</a>
+				</div>
+				{#if data.prefs.follow.length === 0}
+					<p class="focus-events-empty">Aún no sigues eventos. Puedes marcarlos en la página Eventos.</p>
+				{:else if data.focusEvents.length === 0}
+					<p class="focus-events-empty">Sin menciones de eventos en foco en este periodo.</p>
+				{:else}
+					{#each data.focusEvents as row (row.id)}
+						<button
+							type="button"
+							class="event-mini"
+							onclick={() => openEvent({ id: row.id, title: row.title })}
+						>
+							<span class="mini-id">
+								<span>EVENTO #{row.id}</span>
+								<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true">
+									<path d={ICON_PATHS.arrow} />
+								</svg>
+							</span>
+							<span class="mini-title">{row.title}</span>
+							{#if followedIds.includes(row.id) && data.eventsById[row.id]
+								&& $prefs.seen[String(row.id)] !== data.eventsById[row.id]?.last_seen_at}
+								<span class="event-unread">
+									<span class="event-unread-dot" aria-hidden="true"></span>
+									Actualizado · sin ver
+								</span>
+							{/if}
+							<span class="mini-count">
+								<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true">
+									<path d={ICON_PATHS.layers} />
+								</svg>
+								{row.mentions} menciones
+								<span>{row.sourceKinds} tipos de fuente</span>
+							</span>
+						</button>
+					{/each}
+				{/if}
+			</section>
+
 			<section class="panel aside-panel" aria-labelledby="origen-title">
 				<div class="panel-heading">
 					<h2 id="origen-title">Origen de las menciones</h2>

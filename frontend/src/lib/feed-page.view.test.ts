@@ -1,6 +1,9 @@
 // @vitest-environment jsdom
 import { mount, tick, unmount } from 'svelte';
 import { afterEach, expect, it, vi } from 'vitest';
+
+import type { Mention } from '$lib/api';
+import { toast } from '$lib/toast.svelte';
 import Feed from '../routes/feed/+page.svelte';
 import type { PageProps } from '../routes/feed/$types';
 
@@ -10,7 +13,7 @@ vi.mock('$app/navigation', () => ({ invalidateAll: vi.fn() }));
 const mounted: ReturnType<typeof mount>[] = [];
 function dataFixture(): PageProps['data'] {
 	return {
-		mentions: { items: [{ id: 1, source: 'news_rss', title: 'Publicación sintética conservada', url: 'https://alpha.example/1', keyword_id: null, external_id: null, content: 'Contenido capturado.', summary: null, author: null, lang: 'es', published_at: '2026-10-14T12:00:00Z', ingested_at: '2026-10-14T12:00:00Z', sentiment: 'negative', sentiment_score: 0.2, reach: null, classifications: [], event_id: 1 }], total: 96 },
+		mentions: { items: [{ id: 1, source: 'news_rss', title: 'Publicación sintética conservada', url: 'https://alpha.example/1', keyword_id: null, external_id: null, content: 'Contenido capturado.', summary: null, author: null, lang: 'es', published_at: '2026-10-14T12:00:00Z', ingested_at: '2026-10-14T12:00:00Z', sentiment: 'negative', sentiment_score: 0.2, reach: null, classifications: [], persons: [{ id: 3, name: 'Ana López' }], event_id: 1 }], total: 96 },
 		keywords: [], digest: null,
 		eventsById: {
 			1: {
@@ -33,6 +36,8 @@ function dataFixture(): PageProps['data'] {
 				]
 			}
 		},
+focusEvents: [],
+		prefs: { saved: [], follow: [], seen: {} },
 		sourceCounts: { news_rss: 200, x_twitter: 30 }, mediumCounts: { 'global.example': 200 }, newsMediumCount: 40,
 		channelGroups: { news: ['news_rss'], social: ['x_twitter'], field: [] },
 		feedStats: { total: 96, by_source: { news_rss: 96 }, by_sentiment: { negative: 96, positive: 0, neutral: 0, none: 0 }, news_medium_count: 17, result_group_count: 63 },
@@ -50,6 +55,7 @@ async function render(data = dataFixture()) {
 afterEach(async () => {
 	for (const instance of mounted.splice(0)) await unmount(instance);
 	document.body.replaceChildren();
+	document.cookie = 'mm_prefs=; max-age=0; path=/';
 });
 
 it('exposes unavailable metrics without replacing measured values or loaded results', async () => {
@@ -276,4 +282,141 @@ it('opens the mention detail dialog from a card', async () => {
 	expect(text).toContain('Contenido capturado.');
 	expect(text).toContain('Ir a la publicación');
 	expect(/Ver evento #\d+|Todavía no forma un evento/.test(text)).toBe(true);
+});
+
+it('renders the mockup card foot: instant save toggle with cookie persistence', async () => {
+	const target = await render();
+	const foot = target.querySelector('.feed-item .feed-foot');
+	expect(foot).not.toBeNull();
+	expect(foot?.querySelector('.chips')).not.toBeNull();
+	const button = foot?.querySelector<HTMLButtonElement>('.icon-button');
+	expect(button?.getAttribute('aria-label')).toBe('Guardar noticia');
+	expect(button?.getAttribute('aria-pressed')).toBe('false');
+
+	button!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+	await tick();
+
+	expect(button?.classList.contains('saved')).toBe(true);
+	expect(button?.getAttribute('aria-label')).toBe('Quitar de guardados');
+	expect(button?.getAttribute('aria-pressed')).toBe('true');
+	expect(toast.message).toBe('Preferencia guardada en este navegador.');
+	expect(document.cookie).toContain('mm_prefs=');
+});
+
+it('renders the Toaster outlet with role=status', async () => {
+	const { mount: mountComponent } = await import('svelte');
+	const Toaster = (await import('$lib/components/Toaster.svelte')).default;
+	const host = document.createElement('div');
+	document.body.appendChild(host);
+	const instance = mountComponent(Toaster, { target: host });
+	mounted.push(instance as never);
+	toast.message = null;
+	await tick();
+	expect(host.querySelector('.toast')).toBeNull();
+
+	toast.message = 'Preferencia guardada en este navegador.';
+	await tick();
+	const outlet = host.querySelector('.toast');
+	expect(outlet?.textContent?.trim()).toBe('Preferencia guardada en este navegador.');
+	expect(outlet?.getAttribute('role')).toBe('status');
+	toast.message = null;
+});
+
+it('filters the loaded page under Guardadas and counts visible mentions', async () => {
+	const data = dataFixture();
+	const second = { ...data.mentions.items[0], id: 2, event_id: null, title: 'Segunda publicación suelta' };
+	data.mentions = { items: [...data.mentions.items, second as Mention], total: 2 };
+	data.prefs = { saved: [2], follow: [], seen: {} };
+	const target = await render(data);
+	await tick();
+
+	const filter = target.querySelector<HTMLButtonElement>('[id="saved-filter"]');
+	expect(filter?.textContent?.trim()).toBe('Guardadas');
+	expect(filter?.getAttribute('aria-pressed')).toBe('false');
+	expect(target.querySelector('#saved-filter svg')).not.toBeNull();
+
+	filter!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+	await tick();
+
+	expect(filter?.getAttribute('aria-pressed')).toBe('true');
+	expect(filter?.textContent?.trim()).toBe('Ver todas');
+	// solo la guardada visible: la del evento (sin marca) se filtra
+	const heads = [...target.querySelectorAll('.feed-item .headline')].map((node) => node.textContent?.trim());
+	expect(heads).toEqual(['Segunda publicación suelta']);
+	expect(target.querySelector('.feed-match-count')?.textContent).toContain('1 publicaciones encontradas');
+});
+
+it('shows the filtered empty state when nothing saved matches', async () => {
+	const data = dataFixture();
+	data.mentions = { items: [], total: 0 };
+	data.feedStats = { total: 0, by_source: {}, by_sentiment: { positive: 0, negative: 0, neutral: 0, none: 0 }, news_medium_count: 0, result_group_count: 0 };
+	data.prefs = { saved: [9], follow: [], seen: {} };
+	const target = await render(data);
+	const filter = target.querySelector<HTMLButtonElement>('[id="saved-filter"]');
+	filter!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+	await tick();
+	expect(target.textContent).toContain('No hay menciones con estos filtros');
+});
+
+it('labels lone mentions, news authors and person chips per the mockup', async () => {
+	const data = dataFixture();
+	const lone = { ...data.mentions.items[0], id: 2, event_id: null };
+	data.mentions = { items: [...data.mentions.items, lone as Mention], total: 2 };
+	const target = await render(data);
+
+	const chipRows = [...target.querySelectorAll('.feed-item .chips')];
+	expect(chipRows).toHaveLength(2);
+	// mención sin evento: chip individual en vez de evento
+	expect(chipRows[1]?.querySelector('span.chip')?.textContent?.trim()).toBe('Mención individual');
+	expect(chipRows[1]?.querySelector('.event-chip')).toBeNull();
+	// autor news con prefijo y fallback verbatim
+	expect(target.querySelector('.feed-item .feed-author')?.textContent?.trim()).toBe('Autor: No indicado');
+	// persona: label mockup conservando el link a la ficha
+	const personLink = target.querySelector('.feed-item .chips a');
+	expect(personLink?.getAttribute('href')).toBe('/persons/3');
+	expect(personLink?.textContent?.trim()).toBe('Persona: Ana López');
+});
+
+it('renders the focus panel with followed events, unread marker and window counts', async () => {
+	const data = dataFixture();
+	data.prefs = { saved: [], follow: [1], seen: {} };
+	data.focusEvents = [{ id: 1, title: 'Evento sintético', mentions: 1, sourceKinds: 1 }];
+	const target = await render(data);
+
+	const panel = [...target.querySelectorAll('.feed-aside .aside-panel')].find((node) =>
+		node.querySelector('h2')?.textContent?.trim() === 'Eventos en foco'
+	);
+	expect(panel).toBeTruthy();
+	const link = panel?.querySelector<HTMLAnchorElement>('a.text-link');
+	expect(link?.getAttribute('href')).toBe('/events');
+	expect(link?.textContent?.trim()).toBe('Ver todos');
+
+	const mini = panel?.querySelector<HTMLButtonElement>('button.event-mini');
+	expect(mini?.querySelector('.mini-id')?.textContent).toContain('EVENTO #1');
+	expect(mini?.querySelector('.mini-title')?.textContent?.trim()).toBe('Evento sintético');
+	expect(mini?.querySelector('.event-unread')?.textContent?.trim()).toContain('Actualizado · sin ver');
+	const count = mini?.querySelector('.mini-count')?.textContent?.replace(/\s+/g, ' ').trim();
+	expect(count).toContain('1 menciones');
+	expect(count).toContain('1 tipos de fuente');
+
+	// abrir el expediente marca el evento como visto: el marker desaparece
+	mini!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+	await new Promise((resolve) => setTimeout(resolve, 30));
+	await tick();
+	expect((target.querySelector('dialog.event-detail')?.textContent ?? '')).toContain('Expediente #1');
+	expect(mini?.querySelector('.event-unread')).toBeNull();
+	expect(document.cookie).toContain('mm_prefs=');
+});
+
+it('renders the focus panel empty states verbatim', async () => {
+	const data = dataFixture();
+	data.prefs = { saved: [], follow: [], seen: {} };
+	const none = await render(data);
+	expect(none.textContent).toContain('Aún no sigues eventos. Puedes marcarlos en la página Eventos.');
+
+	const quiet = dataFixture();
+	quiet.prefs = { saved: [], follow: [1], seen: {} };
+	quiet.focusEvents = [];
+	const quietTarget = await render(quiet);
+	expect(quietTarget.textContent).toContain('Sin menciones de eventos en foco en este periodo.');
 });
