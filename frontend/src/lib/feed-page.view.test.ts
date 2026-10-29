@@ -91,7 +91,19 @@ it('labels global navigation separately from filtered-result indicators', async 
 	expect(medios?.textContent).not.toContain('publicaciones en el periodo');
 	const origen = target.querySelector('[aria-labelledby="origen-title"]')?.textContent ?? '';
 	expect(origen).toContain('Noticias');
-	expect(origen).toContain('200');
+	// Distribution + nota = resultante FILTRADA (fixture feedStats 96), no el global.
+	expect(origen).toContain('96');
+});
+
+it('roots the origin distribution in the filtered aggregate, not global counts', async () => {
+	const target = await render();
+	const rows = [...target.querySelectorAll('[aria-labelledby="origen-title"] .distribution-row')];
+	const news = rows.find((row) => row.textContent?.includes('Noticias'));
+	// feedStats.by_source.news_rss = 96 (filtrado); el conteo global era 200.
+	expect(news?.querySelector('strong')?.textContent).toBe('96');
+	const social = rows.find((row) => row.textContent?.includes('Redes sociales'));
+	// x_twitter vive en el global (30) pero el aggregate sólo trae news_rss.
+	expect(social?.querySelector('strong')?.textContent).toBe('0');
 });
 
 it('shows measured zero for an actual empty result', async () => {

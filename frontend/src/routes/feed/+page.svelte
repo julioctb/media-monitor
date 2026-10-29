@@ -253,11 +253,27 @@
 		data.channelGroups.field.reduce((sum, source) => sum + (data.sourceCounts[source] ?? 0), 0)
 	);
 
-	const distributionRows = $derived([
-		{ key: 'news', label: 'Noticias', total: newsTotal },
-		{ key: 'social', label: 'Redes sociales', total: socialTotal },
-		{ key: 'field', label: 'Campo', total: fieldTotal }
-	]);
+	/** Origen distribution: agrega el resultante FILTRADO (feedStats viaja con
+	 *  los mismos filtros que la lista — el claim de Julio: «no se actualiza
+	 *  según el filtro activo»); los conteos globales sólo son fallback sin
+	 *  aggregate. Los tabs de canal arriba siguen globales (nav context). */
+	const distributionRows = $derived.by(() => {
+		const bySource = data.feedStats?.by_source;
+		const rows = [
+			{ key: 'news', label: 'Noticias', sources: data.channelGroups.news },
+			{ key: 'social', label: 'Redes sociales', sources: data.channelGroups.social },
+			{ key: 'field', label: 'Campo', sources: data.channelGroups.field }
+		];
+		return rows.map(({ key, label, sources }) => ({
+			key,
+			label,
+			total: sources.reduce(
+				(sum, source) => sum + ((bySource ?? data.sourceCounts)[source] ?? 0),
+				0
+			)
+		}));
+	});
+	const distributionTotal = $derived(distributionRows.reduce((sum, row) => sum + row.total, 0));
 
 	const pagination = $derived.by(() => {
 		const { limit, offset } = filters;
@@ -760,7 +776,7 @@
 						<strong>{row.total}</strong>
 					</div>
 				{/each}
-				<p class="feed-period-note">{newsTotal + socialTotal + fieldTotal} publicaciones en el periodo seleccionado.</p>
+				<p class="feed-period-note">{distributionTotal} publicaciones en el periodo seleccionado.</p>
 			</section>
 
 			<!-- Mockup sourceBreakdown: los paneles de fuente viven siempre; sin
