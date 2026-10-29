@@ -14,10 +14,10 @@ export function isFieldSource(source: string): boolean {
 export type FeedChannel = '' | 'news' | 'social' | 'field';
 
 export const CHANNEL_LABELS: Record<Exclude<FeedChannel, ''> | 'all', string> = {
-	all: 'Todo',
+	all: 'Todas las fuentes',
 	news: 'Noticias',
 	social: 'Redes sociales',
-	field: 'Datos de campo'
+	field: 'Campo'
 };
 
 export function isFeedChannel(value: string | null | undefined): value is FeedChannel {

@@ -372,7 +372,7 @@ export function outletFromUrl(url: string): string | null {
  *  source tag. Single source for cards, dialogs and badges. */
 export function channelLabelFor(source: string): string {
 	return source.startsWith('field')
-		? 'Datos de campo'
+		? 'Campo'
 		: isNewsSource(source)
 			? 'Noticias'
 			: 'Redes sociales';

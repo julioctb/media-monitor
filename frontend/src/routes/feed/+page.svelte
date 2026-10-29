@@ -204,7 +204,7 @@
 	const distributionRows = $derived([
 		{ key: 'news', label: 'Noticias', total: newsTotal },
 		{ key: 'social', label: 'Redes sociales', total: socialTotal },
-		{ key: 'field', label: 'Datos de campo', total: fieldTotal }
+		{ key: 'field', label: 'Campo', total: fieldTotal }
 	]);
 
 	const pagination = $derived.by(() => {
@@ -430,7 +430,7 @@
 						aria-pressed={filters.sentiment === ''}
 						data-sveltekit-noscroll
 					>
-						Todo{#if toneCounts}<strong>{toneCounts.all}</strong>{/if}
+						Todos{#if toneCounts}<strong>{toneCounts.all}</strong>{/if}
 					</a>
 					{#each TONE_PILLS as tone (tone.key)}
 						<a
