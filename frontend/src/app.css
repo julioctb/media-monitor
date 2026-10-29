@@ -4051,31 +4051,53 @@ button.text-link {
   font-weight: var(--text-dialog-eyebrow--font-weight);
   color: var(--color-accent);
 }
-.feed-dialog-meta {
-  margin: 4px 0 0;
-  font-size: 12px;
-  color: var(--color-muted);
-}
-/* Línea de metadatos del dialog «Fecha detectada» (mock: fecha · hora ·
-   compromiso no confirmado) — cuerpo regular, muted, sobre el título. */
-.feed-dialog-metadata {
+/* Línea de metadatos del dialog «Fecha detectada»: cuerpo regular, muted.
+   Calificado para ganar a la genérica .dialog-body p (14). */
+.detail-dialog .dialog-body p.feed-dialog-metadata {
   margin: 0 0 var(--space-16);
-  font-size: 14px;
+  font-size: 16px;
   color: var(--color-muted);
 }
+/* Byline (medio · autor · fecha). */
+.detail-dialog .dialog-body p.feed-dialog-meta {
+  margin: 4px 0 0;
+  font-size: 15px;
+  color: var(--color-muted);
+}
+/* Escala del dialog «Fecha detectada» medida del objetivo (@2x: título 72→36,
+   sección 42→21, noticia 38→19, byline 29→15, caja 30→15). Sólo este modal. */
+.detail-dialog .dialog-body h2.feed-dialog-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 36px;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  color: var(--color-ink);
+}
+.detail-dialog .dialog-body h2.feed-dialog-section-title {
+  font-size: 21px;
+  line-height: 1.4;
+}
+.detail-dialog .dialog-body h3.feed-dialog-h3 {
+  font-size: 19px;
+  line-height: 1.45;
+}
+
 /* Sección del dialog: el tamaño/familia los da la regla genérica del body
    (.detail-dialog .dialog-body h2, serif de título); aquí solo el ritmo. */
 .feed-dialog-section-title {
   margin: 0 0 var(--space-8);
   color: var(--color-ink);
 }
+/* Cita/extracto en caja: fondo gris canvas + línea + radio. */
 .feed-dialog-quote {
   margin: var(--space-8) 0;
   padding: var(--space-16);
   border: 1px solid var(--color-line);
   border-radius: 12px;
   background: var(--color-surface);
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.6;
   color: var(--color-ink-2);
 }
@@ -6052,6 +6074,7 @@ dialog.detail-dialog {
   width: var(--dialog-width);
   max-height: var(--dialog-max-height);
   overflow: auto;
+  background: var(--color-surface-warm);
   color: var(--color-ink);
   box-shadow: var(--shadow-dialog);
 }

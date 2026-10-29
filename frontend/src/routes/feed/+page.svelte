@@ -1055,7 +1055,7 @@
 		     metadatos → sección noticia (tag + titular + byline + cita) →
 		     registro original → acción secundaria. El head no repite el
 		     nombre del registro. -->
-		<h2 class="daily-dialog-title">{agendaPick.title}</h2>
+		<h2 class="feed-dialog-title">{agendaPick.title}</h2>
 		<p class="feed-dialog-metadata">
 			{formatLongDate(agendaPick.eventDate)}{agendaPick.timeLabel
 				? ` · ${agendaPick.timeLabel}`
@@ -1070,7 +1070,7 @@
 					</svg>
 					{channelLabelFor(agendaNota.source)}
 				</span>
-				<h3>{agendaNota.title}</h3>
+				<h3 class="feed-dialog-h3">{agendaNota.title}</h3>
 				<p class="feed-dialog-meta">{agendaNota.byline}</p>
 				{#if agendaNota.summary}
 					<div class="feed-dialog-quote">{agendaNota.summary}</div>
