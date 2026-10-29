@@ -320,6 +320,13 @@ export function displayDayKey(value: string | null | undefined): string {
 	return zonedDayKeyFormatter.format(date);
 }
 
+/** Día visible HOY (± offset) en la tz de display — regla general de Julio:
+ *  todas las fronteras «hoy/ayer» de la UI viven en America/Mexico_City;
+ *  UTC queda sólo para la clave de corte del digest. */
+export function zonedToday(offsetDays = 0): string {
+	return displayDayKey(new Date(Date.now() + offsetDays * 86_400_000).toISOString());
+}
+
 /**
  * Feed-card timestamp (mockup feedItem `displayedTime`): bare HH:MM for
  * today, `d mmm yyyy · HH:MM` otherwise, in the display timezone.

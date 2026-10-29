@@ -18,7 +18,7 @@ import {
 } from '$lib/api';
 import { channelSources, isFeedChannel, dateRangeError, splitSources, type FeedChannel } from '$lib/feed-filters';
 import { MM_PREFS_COOKIE, parsePrefs } from '$lib/prefs';
-import { channelLabelFor, displayDayKey, zonedDayBounds } from '$lib/format';
+import { channelLabelFor, displayDayKey, zonedDayBounds, zonedToday } from '$lib/format';
 import type { PageServerLoad } from './$types';
 
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
@@ -265,8 +265,8 @@ export const load: PageServerLoad = async ({ url, cookies }) => {
 	// periodo» es explícito vía ?period=all — sin el marker, un href
 	// limpio no se distingue de la entrada sin filtros.
 	if (!sinceRaw && !untilRaw && params.get('period') !== 'all') {
-		sinceRaw = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
-		untilRaw = new Date().toISOString().slice(0, 10);
+		sinceRaw = zonedToday(-1);
+		untilRaw = zonedToday();
 	}
 	const since = DATE_ONLY.test(sinceRaw) ? zonedDayBounds(sinceRaw).since : sinceRaw || undefined;
 	const until = DATE_ONLY.test(untilRaw) ? zonedDayBounds(untilRaw).until : untilRaw || undefined;

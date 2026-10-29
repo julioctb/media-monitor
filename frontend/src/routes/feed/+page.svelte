@@ -10,7 +10,8 @@
 	import type { MentionEventRef } from '$lib/components/MentionCard.svelte';
 	import type { EventDetail, EventMention, Mention } from '$lib/api';
 	import { groupByEvent } from '$lib/grouping';
-		import { CHANNEL_LABELS, type FeedChannel } from '$lib/feed-filters';
+	import { zonedToday } from '$lib/format';
+	import { CHANNEL_LABELS, type FeedChannel } from '$lib/feed-filters';
 	import { ICON_PATHS } from '$lib/icons';
 	import { markSeen, prefs, seedPrefsFromServer, toggleSaved } from '$lib/prefs';
 	import { notifyPersist } from '$lib/toast.svelte';
@@ -311,9 +312,8 @@
 	/* Period presets (mockup #feed-period-preset): every option resolves to
 	   the same server params (since/until) the custom range uses. */
 	function isoDay(offsetFromToday: number): string {
-		const day = new Date();
-		day.setDate(day.getDate() + offsetFromToday);
-		return day.toISOString().slice(0, 10);
+		// Día visible en tz de display (regla general): nunca UTC-slice.
+		return zonedToday(offsetFromToday);
 	}
 	const PERIOD_PRESETS = [
 		{ value: 'today', label: 'Hoy', since: () => isoDay(0), until: () => isoDay(0) },

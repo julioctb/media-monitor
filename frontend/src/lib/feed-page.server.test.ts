@@ -2,7 +2,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 
 import { load } from '../routes/feed/+page.server';
 
-import { zonedDayBounds } from './format';
+import { zonedDayBounds, zonedToday } from './format';
 
 /**
  * Channel pages fan out one query per source with the page's offset folded
@@ -69,8 +69,8 @@ it('loads metrics with the same effective filters as the direct result request',
 	// Default «Ayer y hoy» (L56): sin dates en el query, el server las inyecta
 	// y viajan expandidas en el aggregate; el expected las replica.
 	if (!expected.has('since')) {
-		const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
-		const today = new Date().toISOString().slice(0, 10);
+		const yesterday = zonedToday(-1);
+		const today = zonedToday();
 		expected.set('since', zonedDayBounds(yesterday).since);
 		expected.set('until', zonedDayBounds(today).until);
 	}
@@ -146,8 +146,8 @@ it.each([
 	// Default «Ayer y hoy» (L56): el server lo inyecta y viaja expandido
 	// en el aggregate; los casos sin fechas en la tabla lo esperan igual.
 	if (!('since' in expected)) {
-		const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
-		const today = new Date().toISOString().slice(0, 10);
+		const yesterday = zonedToday(-1);
+		const today = zonedToday();
 		expected = { ...expected, since: zonedDayBounds(yesterday).since, until: zonedDayBounds(today).until };
 	}
 	expect(actual).toEqual(expected);

@@ -9,7 +9,8 @@
 		formatDisplayTime,
 		formatLongDate,
 		nextCutLabel,
-		sourceLabel
+		sourceLabel,
+		zonedToday
 	} from '$lib/format';
 	import DigestEvidence from '$lib/components/DigestEvidence.svelte';
 	import DetailDialog from '$lib/components/DetailDialog.svelte';
@@ -80,10 +81,10 @@
 
 	/** «Próximas» de la card agenda: una fecha ya ocurrida pero mencionada en
 	 *  la cobertura del día no es un compromiso venidero (reclamo 29-oct vs
-	 *  22-oct). Sin fecha no se puede afirmar: se conserva. La ventana usa el
-	 *  día UTC — la misma convención de los presets del feed. */
-	const TODAY_KEY = new Date().toISOString().slice(0, 10);
-	const CURRENT_YEAR = String(new Date().getFullYear());
+	 *  22-oct). Sin fecha no se puede afirmar: se conserva. Ventana en tz de
+	 *  display — regla general de Julio (zonedToday). */
+	const TODAY_KEY = zonedToday();
+	const CURRENT_YEAR = zonedToday().slice(0, 4);
 	const upcomingFechas = $derived(
 		(view?.fechas ?? []).filter(
 			(fecha) => !fecha.fechaIso || fecha.fechaIso.slice(0, 10) >= TODAY_KEY
