@@ -4056,11 +4056,11 @@ button.text-link {
    titular (un punto menor) → byline → caja. Márgenes por elemento, no
    offsets: el aire entre bloques del dialog lo da el grid del body. */
 .detail-dialog .dialog-body h2.feed-dialog-title {
-  margin: 0;
+  margin: var(--space-24) 0 var(--space-8);
   font-family: var(--font-display);
-  font-size: 32px;
+  font-size: 26px;
   font-weight: 700;
-  line-height: 1.15;
+  line-height: 1.2;
   letter-spacing: -0.01em;
   color: var(--color-ink);
 }
