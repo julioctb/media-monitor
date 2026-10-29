@@ -2,6 +2,8 @@ import { afterEach, expect, it, vi } from 'vitest';
 
 import { load } from '../routes/feed/+page.server';
 
+import { zonedDayBounds } from './format';
+
 /**
  * Channel pages fan out one query per source with the page's offset folded
  * into a single per-source pool. The API caps `limit` at 500
@@ -64,6 +66,14 @@ it('loads metrics with the same effective filters as the direct result request',
 	// metrics keep the full tone distribution: the tone facet is excluded
 	// (mockup toneFilterView counts feedBase(), not the tone-filtered list)
 	expected.delete('sentiment');
+	// Default «Ayer y hoy» (L56): sin dates en el query, el server las inyecta
+	// y viajan expandidas en el aggregate; el expected las replica.
+	if (!expected.has('since')) {
+		const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+		const today = new Date().toISOString().slice(0, 10);
+		expected.set('since', zonedDayBounds(yesterday).since);
+		expected.set('until', zonedDayBounds(today).until);
+	}
 	expect(aggregate[0].searchParams).toEqual(expected);
 	expect(aggregate[0].searchParams.get('since')).toBe('2026-10-14T00:00:00-06:00');
 	expect(aggregate[0].searchParams.get('until')).toBe('2026-10-15T23:59:59-06:00');
@@ -133,6 +143,13 @@ it.each([
 	const aggregate = fetchMock.mock.calls.map(([input]) => new URL(String(input))).find((url) => url.pathname === '/api/stats/feed')!;
 	const actual: Record<string, string | string[]> = Object.fromEntries(aggregate.searchParams);
 	if (aggregate.searchParams.has('sources')) actual.sources = aggregate.searchParams.getAll('sources');
+	// Default «Ayer y hoy» (L56): el server lo inyecta y viaja expandido
+	// en el aggregate; los casos sin fechas en la tabla lo esperan igual.
+	if (!('since' in expected)) {
+		const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+		const today = new Date().toISOString().slice(0, 10);
+		expected = { ...expected, since: zonedDayBounds(yesterday).since, until: zonedDayBounds(today).until };
+	}
 	expect(actual).toEqual(expected);
 });
 
