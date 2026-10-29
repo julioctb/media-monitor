@@ -148,7 +148,10 @@
   --tone-negative-solid: var(--color-danger);
   --tone-neutral-bg: var(--color-surface);
   --tone-neutral-bg-hover: color-mix(in oklch, var(--color-ink) 6%, #fff);
-  --tone-neutral-solid: var(--color-ink-2);
+  /* Mockup tone palette: neutral #617183, unclassified #7d858d (dedicated,
+     not ink/meta/muted approximations). */
+  --tone-neutral-solid: #617183;
+  --tone-unclassified-solid: #7d858d;
   --tone-on-solid: var(--color-accent-on);
 }
 
@@ -3114,8 +3117,8 @@ table.coverage th {
 .tone-filter {
   --tone-positive: var(--tone-positive-solid);
   --tone-negative: var(--tone-negative-solid);
-  --tone-neutral: var(--color-meta);
-  --tone-unclassified: var(--color-muted);
+  --tone-neutral: var(--tone-neutral-solid);
+  --tone-unclassified: var(--tone-unclassified-solid);
   padding: 16px 0 0;
 }
 .tone-filter-head {
