@@ -807,12 +807,6 @@ h4 {
 .data-table tr:last-child td {
   border-bottom: 0;
 }
-/* Dense variant: data tables holding form controls (settings source cards).
-	The 18px text rhythm double-pads rows whose cells already carry inputs. */
-.source-card .data-table td {
-  padding-block: 10px;
-}
-
 /* --- Small shared bits --- */
 .count {
   font-variant-numeric: tabular-nums;
@@ -2222,9 +2216,10 @@ table.coverage th {
 }
 
 /* ============================================================
-   Configuración: workspace v3 (mockup settings.js) — tabs con UN
-   panel visible, disclaimer y savebar; keywords, source-grid,
-   radio cards y provider panel dentro de cada pestaña.
+   Configuración: workspace v3 (mockup settings.js + its tailwind.css
+   config layer) — tabs with ONE visible panel, neutral banner, savebar
+   as a config card; keywords/fuentes are tabular directories and
+   operación/LLM wear section cards.
    ============================================================ */
 .page-head {
   max-width: 75ch;
@@ -2232,8 +2227,7 @@ table.coverage th {
 /* Scoped: settings only. The v3 chrome below mirrors the mockup's final
    cascade (workspace-scoped); panel interiors keep the shared skin. */
 .config-workspace {
-  /* v3 config palette, verbatim from the mockup workspace scope
-     (tailwind.css settings layer). */
+  /* v3 config palette, verbatim from the mockup workspace scope. */
   --config-surface: #fff;
   --config-surface-soft: #f4f6f8;
   --config-selected: #e5edf4;
@@ -2242,8 +2236,9 @@ table.coverage th {
   --config-border: #c7d1dc;
   --config-input-border: #aebdcb;
   --config-radius: 6px;
-  --config-source-surface: #e8edf2;
-  --config-source-soft: #e0e7ee;
+  --config-gap: 20px;
+  --config-danger: #80595e;
+  --config-link: #344b65;
   max-width: 1120px;
   /* clears the floating Consultas button above the last row */
   padding-bottom: 96px;
@@ -2260,22 +2255,80 @@ table.coverage th {
   border-radius: 4px;
   color: var(--color-ink);
   font-size: 16px;
+  line-height: 1.6;
 }
-/* Mockup labels inside the config forms: plain 14px ink (the bold 12px
-   capsule style belongs to the check rows only). */
-.config-workspace .field-grid label,
-.config-workspace .form-stack label {
-  font-size: 14px;
-  font-weight: 400;
+/* REAL FIX (mock tailwind.css L34): without this override the scoped
+   min-height above deforms checkboxes into 16×44 boxes. */
+.config-workspace input[type='checkbox'] {
+  width: 20px;
+  min-height: 20px;
+  height: 20px;
+}
+.config-workspace input::placeholder {
+  color: #657180;
+  opacity: 1;
+}
+/* Mockup workspace focus ring: thinner, heading-toned (mock L109). */
+.config-workspace :is(input, select, button, summary):focus-visible {
+  outline: 2px solid var(--config-heading);
+  outline-offset: 3px;
+}
+/* Feedback banner: ONE neutral config box; errors only recolor the text
+   (mock #config-feedback + .config-error). */
+.config-workspace .config-feedback {
+  margin: 0 0 20px;
+  padding: 12px 16px;
+  background: var(--config-surface-soft);
+  border: 1px solid var(--config-border);
+  border-radius: 4px;
   color: var(--color-ink);
+  font-size: 14px;
 }
-/* Mockup operation/LLM render as .panel.config-section: the card, 28 padding. */
+.config-workspace .config-feedback.config-error {
+  color: var(--config-danger);
+}
+/* Section cards (operación/LLM/social): config border+radius on top of the
+   shared panel skin; the 28px padding stays (established decision). */
 .config-workspace .panel.config-section-card {
   padding: var(--space-28) var(--space-28) var(--space-24);
+  border-color: var(--config-border);
+  border-radius: var(--config-radius);
+  box-shadow: none;
 }
-/* Keywords/fuentes are flat directories (mock config-*-directory): no card
-   box; hierarchy via the section head and the source cards. */
-.config-workspace .panel.config-section-flat {
+.config-workspace .panel.config-section-card > .panel-head {
+  padding-bottom: 16px;
+  border-bottom-color: var(--config-border);
+}
+.config-workspace .panel.config-section-card > .panel-head h2 {
+  margin: 0;
+  color: var(--config-heading);
+  font: 700 24px/1.35 var(--font-display);
+  letter-spacing: normal;
+}
+.config-workspace .config-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.config-workspace .config-section-card h3 {
+  margin: 20px 0 0;
+  color: var(--config-heading);
+  font: 700 20px/1.35 var(--font-display);
+  letter-spacing: normal;
+}
+/* Mock .config-section p: intro/notes at 14px config copy (hints keep 12). */
+.config-workspace .config-section-card p:not(.field-hint) {
+  max-width: 75ch;
+  color: var(--config-copy);
+  font-size: 14px;
+  line-height: 1.6;
+}
+/* Keywords/fuentes tabs are flat directories (mock config-*-directory):
+   no card box; hierarchy via the directory head. */
+.config-workspace .panel.config-section-flat,
+.config-workspace .config-section-flat {
   background: none;
   border: 0;
   border-radius: 0;
@@ -2286,6 +2339,8 @@ table.coverage th {
 .config-workspace section + section {
   margin-top: 40px;
 }
+/* Tabs bar (mock L92-94): full-width buttons, active gets the inset
+   underline shadow. */
 .config-workspace .config-tabs {
   display: flex;
   flex-wrap: wrap;
@@ -2294,11 +2349,12 @@ table.coverage th {
   padding: 8px;
   background: var(--config-surface);
   border: 1px solid var(--config-border);
-  border-radius: 6px;
+  border-radius: var(--config-radius);
 }
 .config-workspace .config-tabs button {
+  flex: 1 1 auto;
   min-height: 44px;
-  padding: 12px;
+  padding: 10px 16px;
   border: 1px solid transparent;
   border-radius: 4px;
   background: none;
@@ -2310,6 +2366,7 @@ table.coverage th {
   background: var(--config-selected);
   border-color: var(--config-input-border);
   color: var(--config-heading);
+  box-shadow: inset 0 -2px 0 var(--config-heading);
 }
 .config-workspace > .config-disclaimer {
   max-width: 80ch;
@@ -2318,8 +2375,7 @@ table.coverage th {
   font-size: 13px;
   line-height: 1.6;
 }
-/* Re-hosted panel heading (was .settings-flow .panel-head): the flex
-   head layout the settings panels keep under the v3 chrome. */
+/* Re-hosted panel heading (flex head shared by the section cards). */
 .config-workspace .panel-head {
   display: flex;
   align-items: start;
@@ -2327,36 +2383,102 @@ table.coverage th {
   gap: 16px;
   margin-bottom: 20px;
 }
-.config-workspace .panel-head h2 {
-  margin: 0 0 16px;
-  font: 700 24px/1.4 var(--font-display);
-  letter-spacing: -0.01em;
-}
-.config-section-flat .panel-head h2 {
-  font: 600 20px/1.5 var(--font-display);
-  letter-spacing: 0;
-  color: var(--config-heading);
-}
-.config-savebar {
+/* Savebar (mock L125): config card, not a bare top-border bar. */
+.config-workspace .config-savebar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin-top: 24px;
-  padding: 20px 0;
-  border-top: 1px solid var(--color-line);
-  color: var(--color-muted);
+  margin-top: 20px;
+  padding: 16px 20px;
+  background: var(--config-surface-soft);
+  border: 1px solid var(--config-border);
+  border-radius: var(--config-radius);
+  color: var(--config-heading);
   font-size: 14px;
 }
-@media (max-width: 600px) {
-  .config-workspace .config-tabs button {
-    padding: 12px;
+/* Workspace buttons (mock L34/126-128): 44px config skin for savebar,
+   Añadir horario, Probar conexión, Guardar X. */
+.config-workspace .button {
+  min-height: 44px;
+  border-color: #afbdca;
+  background: #f8fafc;
+  color: var(--config-heading);
+}
+.config-workspace .button.primary {
+  background: var(--config-heading);
+  border-color: var(--config-heading);
+  color: #fff;
+}
+.config-workspace .button:disabled {
+  opacity: 1;
+  background: #e2e7ec;
+  color: #657180;
+  border-color: #c6ced7;
+  cursor: not-allowed;
+}
+/* Text-links (Eliminar in horarios): mock base .text-link. Directories
+   override with their own action system below. */
+.config-workspace .text-link {
+  border: 0;
+  background: none;
+  color: var(--config-link);
+  padding: 4px 0;
+  font-size: 11px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+@media (hover: hover) {
+  .config-workspace .config-tabs button:not(.active):hover {
+    background: var(--config-surface-soft);
+    color: #172b40;
   }
-  .config-savebar > div {
-    display: flex;
-    flex-wrap: wrap;
+  .config-workspace .button:not(:disabled):hover {
+    background: #dce5ee;
+    color: #172b40;
+    border-color: #9cabbc;
+  }
+  .config-workspace .button.primary:not(:disabled):hover {
+    background: #1d2e40;
+    border-color: #1d2e40;
+    color: #fff;
+  }
+}
+/* Mock workspace responsive layer (L147-156). */
+@media (max-width: 600px) {
+  .config-workspace {
+    --config-gap: 16px;
+  }
+  .config-workspace .panel.config-section-card {
+    padding: var(--config-gap);
+  }
+  .config-workspace .config-tabs button {
+    flex: 1 1 40%;
+    padding: 10px 12px;
+  }
+  .config-workspace .config-savebar {
+    padding: 16px;
+  }
+  .config-workspace .config-savebar > div {
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: 8px;
+  }
+  .config-workspace .config-savebar .button {
+    width: 100%;
+    white-space: normal;
+  }
+  .config-workspace .config-times {
+    grid-template-columns: 1fr;
+  }
+  .config-workspace .config-form-row > label {
+    flex-basis: 100%;
+  }
+  .config-workspace .config-form-row > button {
+    margin-top: 0;
   }
 }
 .field-label {
@@ -2371,237 +2493,221 @@ table.coverage th {
   color: var(--color-muted);
   font-size: 12px;
 }
-.field-grid {
+/* --- Configuración v3: form grids, horarios, secret fields, chips --- */
+.config-workspace .config-form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 24px;
+  gap: 16px 24px;
+  margin: 20px 0;
+  align-items: start;
 }
-/* --- Configuración v2: schedule, source lists, social platforms --- */
-.schedule-block {
-  margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px solid var(--color-line-soft);
+.config-workspace .config-form-grid .field-label {
+  margin-bottom: 8px;
+  color: var(--color-ink);
+  font-size: 14px;
+  font-weight: 400;
 }
-.schedule-block h3 {
-  margin: 0 0 8px;
-  font-size: 16px;
-  font-weight: 600;
+/* Horarios (mock .config-times): 2-col soft cards + text-link Eliminar. */
+.config-workspace .config-times {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 16px 0;
 }
-.schedule-line {
+.config-workspace .config-times > div {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  gap: 16px;
+  align-items: start;
+  padding: 16px;
+  background: var(--config-surface-soft);
+  border: 1px solid var(--config-border);
+  border-radius: 4px;
+}
+.config-workspace .config-times label {
+  display: grid;
   gap: 8px;
-}
-.schedule-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 6px 4px 10px;
-  border: 1px solid var(--color-line-soft);
-  border-radius: 12px;
-  background: var(--color-surface-warm);
-}
-.schedule-item label {
-  font-size: 13px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-.schedule-item select {
-  width: 104px;
-  font-variant-numeric: tabular-nums;
-}
-.source-list-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-}
-.source-list-head .btn,
-.source-list-head button {
-  flex: none;
-}
-.source-list {
-  border-top: 1px solid var(--color-line-soft);
-}
-.source-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  flex: 1;
   min-width: 0;
-  padding: 11px 0;
-  border-bottom: 1px solid var(--color-line-soft);
+  color: var(--color-ink);
+  font-size: 14px;
+  font-weight: 400;
 }
-.source-item-main {
+.config-workspace .config-times .text-link {
+  min-height: 44px;
+}
+.config-workspace .config-times > div > .text-link {
+  margin-top: 29px; /* aligns with the control row under the label */
+}
+/* Secret fields (mock .config-secret-field): label / control+Mostrar / help. */
+.config-secret-field {
+  display: grid;
+  grid-template-rows: auto 44px auto;
+  gap: 8px;
+  min-width: 0;
+  font-size: 14px;
+}
+.config-secret-field > label {
+  display: block;
+  margin-bottom: 0;
+  color: var(--color-ink);
+  font-size: 14px;
+  font-weight: 400;
+}
+.config-secret-control {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+.config-secret-control input {
+  flex: 1;
+  width: 0;
+  min-width: 0;
+}
+.config-secret-control .button {
+  flex: 0 0 auto;
+  min-width: 84px;
+  padding: 8px 12px;
+}
+.config-secret-field > span {
+  color: var(--color-muted);
+  font-size: 12px;
+}
+/* Static config chip (mock styles.css .chip — NOT the global filter pill). */
+.config-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 7px;
+  border: 1px solid var(--config-border);
+  border-radius: 5px;
+  background: #f8f9fa;
+  color: var(--color-muted);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.config-workspace .config-section-head .config-chip {
+  color: var(--config-heading);
+  background: var(--config-selected);
+  border-color: var(--config-border);
+}
+.config-workspace .panel-head.config-section-head .config-chip {
+  background: #e0e7ee;
+  border-color: #e0e7ee;
+}
+/* LLM blocks (mock .config-model-block): soft cards, border-top divider. */
+.config-workspace .config-model-block {
+  padding: 16px;
+  background: var(--config-surface-soft);
+  border: 1px solid var(--config-border);
+  border-radius: 4px;
+  margin: 16px 0;
+}
+.config-workspace .config-model-block + .config-model-block {
+  border-top-color: #dce1e6;
+  padding-top: 16px;
+  margin-top: 16px;
+}
+.config-workspace .config-model-block > h3,
+.config-workspace .config-model-block > .config-section-head h3 {
+  margin: 0;
+}
+.config-workspace .config-model-block > .config-section-head {
+  margin-bottom: 12px;
+}
+.config-workspace .config-model-status {
+  margin: 0;
+  padding: 16px;
+  background: var(--config-selected);
+  color: var(--config-heading);
+  border-radius: 4px;
+  font-size: 14px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+/* Probe feedback lines under «Probar conexión». */
+.config-workspace .config-probe .probe-ok,
+.config-workspace .config-probe .probe-warn,
+.config-workspace .config-probe .probe-error {
+  margin: 8px 0 0;
+  font-size: 12px;
+}
+.config-workspace .config-probe .probe-ok {
+  color: var(--color-success);
+}
+.config-workspace .config-probe .probe-warn {
+  color: var(--color-warn);
+}
+.config-workspace .config-probe .probe-error {
+  color: var(--color-danger);
+}
+/* Radio tiles (mock .config-source-mode): LLM provider + X access mode. */
+.config-source-mode {
+  --mode-border: #cbd5e1;
+  --mode-selected: #475569;
+  --mode-surface: #f1f5f9;
+  min-width: 0;
+  margin: 24px 0;
+  padding: 0;
+  border: 0;
+}
+.config-source-mode legend {
+  margin: 0 0 12px;
+  padding: 0;
+  color: var(--config-heading);
+  font-size: 14px;
+  font-weight: 600;
+}
+.config-source-mode-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  max-width: 720px;
+}
+.config-workspace .config-source-mode-option {
   display: flex;
   align-items: center;
   gap: 12px;
-  min-width: 0;
-}
-.source-item-url {
-  min-width: 0;
-  overflow-wrap: anywhere;
-  font-size: 14px;
-  font-weight: 600;
-}
-.source-item-actions {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 8px;
-}
-.source-empty {
-  margin: 0;
-  padding: 18px 0;
-  color: var(--color-muted);
-  font-size: 14px;
-}
-.source-check {
-  padding: 11px 0;
-  border-bottom: 1px solid var(--color-line-soft);
-}
-.source-check:last-of-type {
-  border-bottom: 0;
-}
-.social-section {
-  grid-column: 1 / -1;
-  min-width: 0;
-}
-.social-section > h3 {
-  margin: 0 0 4px;
-  font-size: 18px;
-  font-weight: 600;
-}
-.social-section > .panel-note {
-  margin: 0 0 14px;
-}
-.social-stack {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-}
-.social-platform {
-  min-width: 0;
-  padding: 18px;
-  border: 1px solid var(--color-line-soft);
-  border-radius: 12px;
-  background: var(--color-surface-warm);
-}
-.social-platform:nth-child(-n + 2) {
-  grid-column: 1 / -1;
-}
-.social-platform h4 {
-  margin: 0 0 4px;
-  font-size: 17px;
-  font-weight: 600;
-}
-.social-platform > p {
-  margin: 0 0 14px;
-  color: var(--color-muted);
-  font-size: 13px;
-}
-.social-platform--planned .status-chip {
-  display: inline-flex;
-  margin-bottom: 10px;
-}
-.x-mode-note {
-  padding: 13px;
-  border: 1px solid var(--color-line);
+  min-height: 64px;
+  padding: 16px 20px;
+  border: 1px solid var(--mode-border);
   border-radius: 8px;
   background: #fff;
-  color: var(--color-ink-2);
-  font-size: 14px;
+  color: var(--config-heading);
+  cursor: pointer;
+  transition:
+    background 180ms ease-out,
+    border-color 180ms ease-out;
 }
-.x-api-field {
-  max-width: 520px;
-  margin-top: 14px;
+.config-workspace .config-source-mode-option:has(input:checked) {
+  background: var(--mode-surface);
+  border-color: var(--mode-selected);
+  box-shadow: inset 0 0 0 1px var(--mode-selected);
 }
-.facebook-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin: 14px 0;
-}
-.facebook-count {
+.config-workspace .config-source-mode-option input[type='radio'] {
+  appearance: auto;
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+  min-height: 20px;
   margin: 0;
-  color: var(--color-ink);
-  font-size: 14px;
+  padding: 0;
+  accent-color: var(--mode-selected);
+  box-shadow: none;
+}
+.config-source-mode-option > span {
+  font-size: 16px;
   font-weight: 600;
+  line-height: 1.5;
 }
-.facebook-search {
-  margin-bottom: 14px;
+.config-source-mode-option:focus-within {
+  outline: 2px solid var(--mode-selected);
+  outline-offset: 3px;
 }
-.facebook-search-controls {
-  display: flex;
-  gap: 8px;
-  max-width: 480px;
-}
-.facebook-search-controls input {
-  min-width: 0;
-}
-.facebook-table {
-  width: 100%;
-  border-collapse: collapse;
-  table-layout: fixed;
-  text-align: left;
-  font-size: 14px;
-}
-.facebook-table th {
-  padding: 9px 8px;
-  border-bottom: 1px solid var(--color-line);
-  color: var(--color-ink-2);
-  font-size: 12px;
-  text-transform: uppercase;
-}
-.facebook-table th:first-child {
-  width: 27%;
-}
-.facebook-table th:last-child {
-  width: 190px;
-}
-.facebook-table td {
-  padding: 10px 8px;
-  border-bottom: 1px solid var(--color-line-soft);
-  vertical-align: middle;
-  overflow-wrap: anywhere;
-}
-.facebook-table td:first-child {
-  font-weight: 600;
-}
-.facebook-table td:last-child {
-  white-space: nowrap;
-}
-.facebook-table .empty-row {
-  color: var(--color-muted);
-  font-weight: 400;
-  text-align: center;
-}
-.facebook-pagination {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 12px;
-}
-.facebook-pagination p {
-  margin: 0;
-  font-size: 13px;
-  color: var(--color-ink-2);
-}
-.facebook-page-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.facebook-page-actions span {
-  font-size: 13px;
-  color: var(--color-ink-2);
-  white-space: nowrap;
+@media (hover: hover) {
+  .config-workspace .config-source-mode-option:hover {
+    background: var(--mode-surface);
+    border-color: var(--mode-selected);
+  }
 }
 .settings-dialog {
   width: min(92vw, 480px);
@@ -2636,253 +2742,369 @@ table.coverage th {
   gap: 8px;
   margin-top: 18px;
 }
-.keyword-actions {
-  flex-wrap: wrap;
-}
-
-.keyword-form {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 180px auto;
-  align-items: end;
-  gap: 12px;
-  margin-bottom: 18px;
-}
-.keywords {
-  width: 100%;
-  border-collapse: collapse;
-  text-align: left;
-  font-size: 14px;
-}
-.keywords th {
-  padding: 10px;
-  border-bottom: 1px solid var(--color-line);
-  color: var(--color-ink-2);
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-.keywords td {
-  padding: 13px 10px;
-  border-bottom: 1px solid var(--color-line-soft);
-  vertical-align: middle;
-}
-.keywords tr:last-child td {
-  border-bottom: 0;
-}
-.keywords td:first-child {
-  font-weight: 600;
-}
-.keywords-empty {
-  margin: 12px 0 0;
-  color: var(--color-muted);
-  font-size: 14px;
-}
-.row-actions {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
 .btn-small {
   min-height: 44px;
   padding: 7px 12px;
   font-size: 13px;
 }
-.btn-delete:hover {
-  border-color: var(--color-danger);
-  color: var(--color-danger);
-  background: #fff;
-}
-.status-chip {
-  display: inline-flex;
-  align-items: center;
-  min-height: 26px;
-  padding: 3px 9px;
-  border: 1px solid var(--color-line);
-  border-radius: 980px;
-  font-size: 12px;
-  font-weight: 600;
-}
-.status-chip.on {
-  background: var(--color-surface-warm);
-  color: var(--color-ink-2);
-}
-.status-chip.off {
-  background: var(--color-surface);
-  color: var(--color-muted);
-}
-.source-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
-}
-.config-workspace .source-card {
-  background: var(--config-source-surface);
-  border: 1px solid var(--config-border);
-  border-radius: 6px;
-}
-.source-card > .source-list-head {
-  background: var(--config-heading);
-  color: #fff;
-  margin: -18px -18px var(--space-16);
-  padding: 14px 18px;
-  border-radius: 6px 6px 0 0;
-}
-.config-workspace .source-list-head h3 {
-  color: #fff;
-  font-size: 21px;
-}
-.source-list-head p {
-  color: var(--config-source-soft);
-}
-.source-list-head button {
-  background: #fff;
-  color: var(--config-heading);
-  border-color: #fff;
-  font-weight: 600;
-}
-.source-card {
-  padding: 18px;
-  border: 1px solid var(--color-line-soft);
-  border-radius: 12px;
-  background: var(--color-surface-warm);
-}
-/* FB sources span the full row: the tokenless table needs the width. */
-.source-card--wide {
-  grid-column: 1 / -1;
-}
-/* v2: every direct source card stacks full-width; social lives in its own
-   two-column sub-grid. */
-.source-grid > .source-card {
-  grid-column: 1 / -1;
-}
-.source-card h3 {
-  margin: 0 0 4px;
-  font: 600 18px/1.2 var(--font-display);
-}
-.source-card > p {
-  margin: 0 0 14px;
-  color: var(--color-muted);
-  font-size: 13px;
-}
-.wip {
+
+/* --- Configuración v3: sub-nav + tabular directories (mock L158-253) --- */
+.config-source-nav {
   display: flex;
-  flex-direction: column;
-  justify-content: center;
-  min-height: 180px;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--config-border);
 }
-.wip .status-chip {
-  align-self: start;
-  margin-bottom: 12px;
-}
-.provider-radios {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  max-width: 480px;
-}
-.radio-option {
-  display: flex;
-  align-items: center;
-  gap: 9px;
+.config-source-nav button {
   min-height: 44px;
-  padding: 9px 14px;
-  border: 1px solid var(--color-line);
-  border-radius: 12px;
+  padding: 10px 16px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--config-copy);
   font-size: 14px;
   font-weight: 600;
-  cursor: pointer;
-  color: var(--color-ink-2);
 }
-.radio-option:has(input:checked) {
-  border-color: var(--color-accent);
-  background: var(--color-surface-warm);
-  color: var(--color-ink);
+.config-source-nav button[aria-current='page'] {
+  background: var(--config-selected);
+  color: var(--config-heading);
+  border-color: var(--config-border);
 }
-.radio-option input {
-  accent-color: var(--color-accent);
+.config-source-nav button:hover {
+  background: var(--config-surface-soft);
+  color: var(--config-heading);
 }
-.provider-panel {
-  border: 1px solid var(--color-line-soft);
-  border-radius: 12px;
-  background: var(--color-surface-warm);
+/* Shared directory layout (mock .config-rss-directory): 94% centered,
+   slate-toned tokens, framed table. */
+.config-rss-directory {
+  --rss-line: #e2e8f0;
+  --rss-soft: #f8fafc;
+  --rss-ink: #1e293b;
+  --rss-muted: #475569;
+  --rss-radius: 8px;
+  min-width: 0;
+  width: 94%;
+  margin-inline: auto;
+}
+.config-rss-directory-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 4px 0 16px;
+  padding: 0 4px;
+}
+.config-workspace .config-rss-directory-head h2 {
+  margin: 0;
+  color: var(--rss-ink);
+  font: 600 20px/1.5 var(--font-display);
+}
+.config-workspace .config-rss-directory-head p {
+  margin: 4px 0 0;
+  color: var(--rss-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.config-rss-directory-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  max-width: 100%;
+}
+/* Search box: 288px with inline loupe, filters on input — no Buscar button. */
+.config-rss-search-box {
+  position: relative;
+  width: 288px;
+  max-width: 100%;
+}
+.config-workspace .config-rss-search-box input {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 44px 8px 12px;
+  background: #fff;
+  border: 1px solid var(--rss-line);
+  border-radius: 4px;
+  color: var(--rss-ink);
+  font-size: 14px;
+  box-shadow: 0 1px 2px #0f172a0d;
+}
+.config-rss-search-box svg {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 20px;
+  height: 20px;
+  color: var(--rss-muted);
+  pointer-events: none;
+}
+.config-workspace .config-rss-search-box input:focus-visible {
+  outline: 2px solid var(--rss-muted);
+  outline-offset: 2px;
+  border-color: var(--rss-muted);
+}
+/* Table frame (mock L215): tables scroll horizontally at every width. */
+.config-rss-table-frame {
+  overflow-x: auto;
+  background: #fff;
+  border: 1px solid var(--rss-line);
+  border-radius: var(--rss-radius);
+  box-shadow: 0 4px 12px #0f172a0a;
+}
+.config-rss-table-frame:focus-visible {
+  outline: 2px solid var(--rss-muted);
+  outline-offset: 2px;
+}
+.config-workspace .config-rss-table {
+  width: 100%;
+  min-width: 560px;
+  table-layout: fixed;
+  border-collapse: collapse;
+  text-align: left;
+  color: var(--rss-ink);
+  font-size: 14px;
+}
+.config-workspace .config-rss-table th,
+.config-workspace .config-rss-table td {
+  padding: 4px 16px;
+  border-bottom: 1px solid var(--rss-line);
+  vertical-align: middle;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.config-workspace .config-rss-table thead th {
   padding: 16px;
+  background: var(--rss-soft);
+  color: var(--rss-muted);
+  font-size: 14px;
+  font-weight: 400;
 }
+.config-workspace .config-rss-table thead th:last-child {
+  width: 192px;
+}
+.config-workspace .config-rss-table tbody th[scope='row'] {
+  font-weight: 600;
+}
+.config-rss-directory .config-rss-table tbody tr:last-child > * {
+  border-bottom: 0;
+}
+.config-rss-url {
+  color: var(--rss-muted);
+}
+.config-rss-url a {
+  color: inherit;
+}
+.config-rss-directory .config-rss-table .config-rss-empty {
+  padding: 24px 16px;
+  color: var(--config-copy);
+  font-weight: 400;
+}
+.config-rss-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+}
+/* Fixed scraper registry: enabling IS the row action. */
+.config-scraper-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-ink);
+  font-size: 14px;
+  cursor: pointer;
+}
+.config-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 0;
+  color: var(--color-muted);
+  font-size: 14px;
+}
+.config-rss-directory .config-pagination {
+  padding: 16px 4px 0;
+  color: var(--rss-muted);
+  font-size: 13px;
+}
+.config-pagination > div {
+  display: flex;
+  gap: 8px;
+}
+/* Keyword directory shares the framed table (mock L230-236). */
+.config-keyword-directory .config-form-row {
+  margin-bottom: 16px;
+}
+.config-rss-directory .config-keyword-table {
+  min-width: 880px;
+}
+.config-rss-directory .config-keyword-table thead th:first-child {
+  width: 24%;
+}
+.config-rss-directory .config-keyword-table thead th:last-child {
+  width: 352px;
+}
+.config-keyword-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+.config-keyword-actions form {
+  display: contents;
+}
+.config-workspace .config-keyword-note {
+  margin: 12px 4px 0;
+  color: var(--rss-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+/* Soft add-row for the keyword directory (mock .config-form-row). */
+.config-workspace .config-form-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 16px 0;
+  padding: 16px;
+  background: var(--config-surface-soft);
+  border: 1px solid var(--config-border);
+  border-radius: 4px;
+}
+.config-workspace .config-form-row > label {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  color: var(--color-ink);
+  font-size: 14px;
+}
+.config-workspace .config-form-row > label:first-child {
+  flex: 1;
+}
+.config-workspace .config-form-row > button {
+  align-self: flex-start;
+  margin-top: 29px; /* aligns with the control row under the label */
+}
+/* One action system for keyword and source directories (mock L238-253):
+   13px/600 · radius 6 · min-h 36 · white · border #cbd5e1; Eliminar red. */
+.config-rss-directory {
+  --action-radius: 6px;
+  --action-ink: #334155;
+  --action-border: #cbd5e1;
+  --action-soft: #f1f5f9;
+  --action-danger: #991b1b;
+}
+.config-workspace .config-rss-directory .button,
+.config-workspace .config-rss-directory .text-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 6px 12px;
+  border: 1px solid var(--action-border);
+  border-radius: var(--action-radius);
+  background: #fff;
+  color: var(--action-ink);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5;
+  text-decoration: none;
+  transition:
+    background 180ms ease-out,
+    border-color 180ms ease-out;
+}
+.config-workspace .config-rss-directory .button.primary {
+  background: #e2e8f0;
+  border-color: #94a3b8;
+  color: #1e293b;
+}
+.config-workspace .config-rss-directory .text-link {
+  color: var(--action-danger);
+}
+.config-workspace
+  .config-rss-directory
+  :is([data-config-keyword-add], [data-config-source-add]) {
+  min-height: 44px;
+  padding: 8px 16px;
+  background: var(--action-ink);
+  border-color: var(--action-ink);
+  color: #fff;
+}
+.config-workspace .config-rss-directory :is(input, select) {
+  border-radius: var(--action-radius);
+}
+.config-workspace .config-rss-directory .button:disabled {
+  background: var(--action-soft);
+  color: #64748b;
+  border-color: #e2e8f0;
+  cursor: not-allowed;
+}
+.config-workspace .config-rss-directory :is(.button, .text-link):focus-visible {
+  outline: 2px solid var(--action-ink);
+  outline-offset: 2px;
+}
+@media (hover: hover) {
+  .config-workspace .config-rss-directory .button:not(:disabled):hover {
+    background: var(--action-soft);
+    border-color: #94a3b8;
+    color: #1e293b;
+  }
+  .config-workspace .config-rss-directory .button.primary:not(:disabled):hover {
+    background: #cbd5e1;
+  }
+  .config-workspace
+    .config-rss-directory
+    :is([data-config-keyword-add], [data-config-source-add]):hover {
+    background: #1e293b;
+    border-color: #1e293b;
+    color: #fff;
+  }
+  .config-workspace .config-rss-directory .text-link:hover {
+    background: #fef2f2;
+    border-color: #fecaca;
+    color: #7f1d1d;
+  }
+}
+@media (pointer: coarse) {
+  .config-workspace .config-rss-directory .button,
+  .config-workspace .config-rss-directory .text-link {
+    min-height: 44px;
+  }
+}
+/* Directory responsive (mock L228): scroll stays, tools go full width. */
 @media (max-width: 900px) {
-  .field-grid,
-  .source-grid,
-  .keyword-form,
-  .provider-radios {
+  .config-workspace .config-form-grid {
     grid-template-columns: 1fr;
   }
-  .keywords thead {
-    display: none;
-  }
-  .keywords,
-  .keywords tbody,
-  .keywords tr,
-  .keywords td {
-    display: block;
+}
+@media (max-width: 600px) {
+  .config-rss-directory {
     width: 100%;
   }
-  .keywords tr {
-    padding: 12px 0;
-    border-bottom: 1px solid var(--color-line-soft);
+  .config-rss-directory-tools {
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
   }
-  .keywords td {
-    padding: 3px 0;
-    border: 0;
-  }
-  .keywords td::before {
-    content: attr(data-label) ": ";
-    color: var(--color-muted);
-    font-weight: 600;
-  }
-  .social-stack {
-    grid-template-columns: 1fr;
-  }
-  .social-platform:nth-child(-n + 2) {
-    grid-column: auto;
-  }
-  .source-list-head,
-  .source-item {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-  .source-item-actions {
-    justify-content: flex-start;
-  }
-  .source-list-head button {
+  .config-rss-search-box {
     width: 100%;
   }
-  .facebook-table thead {
-    display: none;
+  .config-rss-directory .config-rss-table thead th:first-child {
+    width: 28%;
   }
-  .facebook-table,
-  .facebook-table tbody,
-  .facebook-table tr,
-  .facebook-table td {
-    display: block;
-    width: 100%;
+  .config-source-nav button {
+    flex: 1 1 auto;
   }
-  .facebook-table tr {
-    padding: 10px 0;
-    border-bottom: 1px solid var(--color-line-soft);
-  }
-  .facebook-table td {
-    padding: 3px 0;
-    border: 0;
-    white-space: normal;
-  }
-  .facebook-table td::before {
-    content: attr(data-label) ": ";
-    color: var(--color-muted);
-    font-weight: 600;
-  }
-  .facebook-table .empty-row::before {
-    display: none;
-  }
-  .keywords td:first-child::before {
-    display: none;
+}
+@media (max-width: 480px) {
+  .config-source-mode-options {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
   }
 }
 

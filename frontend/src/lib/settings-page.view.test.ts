@@ -10,7 +10,8 @@ import SettingsPage from '../routes/settings/+page.svelte';
  * Settings page view: the X section's mode switch drives the free-mode
  * limitations banner and the masked-key status line. The banner must
  * react to the radio WITHOUT a save (mirror of the mockup's provider
- * panel, which toggles on selection).
+ * panel, which toggles on selection). The fuentes tab renders ONE
+ * directory at a time behind the two-level sub-nav (mockup settings.js).
  */
 
 const SETTINGS_VIEW: ClientSettings = {
@@ -63,15 +64,40 @@ function renderPage(
 	return { text: () => (target.textContent ?? '').replace(/\s+/g, ' '), target };
 }
 
+/** Click a workspace/sub-nav button by its exact label. */
+function clickLabeled(
+	scope: ParentNode,
+	selector: string,
+	label: string
+): HTMLButtonElement {
+	const button = [...scope.querySelectorAll(selector)].find(
+		(element) => (element.textContent ?? '').trim() === label
+	);
+	expect(button, `button ${label} within ${selector}`).toBeInstanceOf(HTMLButtonElement);
+	flushSync(() => (button as HTMLButtonElement).click());
+	return button as HTMLButtonElement;
+}
+
+/** Opens the Fuentes tab; an optional sub-nav label selects the sub-tab. */
+function openFuentes(target: HTMLDivElement, subNav?: string): void {
+	clickLabeled(target, '.config-tabs button', 'Fuentes');
+	if (subNav) clickLabeled(target, '.config-source-nav button', subNav);
+}
+
 afterEach(() => {
 	while (mounted.length) void unmount(mounted.pop() as never);
+	// Tab clicks deep-link via replaceState; jsdom shares one URL across
+	// tests, so the next mount would otherwise open on #fuentes.
+	window.history.replaceState(null, '', window.location.pathname);
 });
 
 const BANNER_HEAD = 'Modo gratuito: las menciones de X provienen del índice de Google News';
 const FALLBACK_NOTE = 'Sin key: se usará el modo gratuito como respaldo';
 
 it('shows the free limitations banner and hides the paid-only key field', () => {
-	const { text } = renderPage(pageSettings({ x_mode: 'free', x_api_key_set: true }));
+	const { target, text } = renderPage(pageSettings({ x_mode: 'free', x_api_key_set: true }));
+	openFuentes(target, 'Redes sociales');
+	clickLabeled(target, '.config-source-nav button', 'Twitter / X');
 
 	expect(text()).toContain(BANNER_HEAD);
 	expect(text()).toContain('sin autor de la cuenta');
@@ -84,7 +110,9 @@ it('shows the free limitations banner and hides the paid-only key field', () => 
 });
 
 it('hides the banner on paid and warns about the free fallback', () => {
-	const { text } = renderPage(pageSettings({ x_mode: 'paid', x_api_key_set: false }));
+	const { target, text } = renderPage(pageSettings({ x_mode: 'paid', x_api_key_set: false }));
+	openFuentes(target, 'Redes sociales');
+	clickLabeled(target, '.config-source-nav button', 'Twitter / X');
 
 	expect(text()).not.toContain(BANNER_HEAD);
 	expect(text()).not.toContain('API key guardada');
@@ -94,11 +122,13 @@ it('hides the banner on paid and warns about the free fallback', () => {
 });
 
 it('reveals the banner as soon as free is selected, without saving', () => {
-	const { text } = renderPage(pageSettings({ x_mode: 'paid', x_api_key_set: false }));
-	const target = document.querySelector('input[name="x_mode"][value="free"]');
-	expect(target).toBeInstanceOf(HTMLInputElement);
+	const { target, text } = renderPage(pageSettings({ x_mode: 'paid', x_api_key_set: false }));
+	openFuentes(target, 'Redes sociales');
+	clickLabeled(target, '.config-source-nav button', 'Twitter / X');
+	const radio = target.querySelector('input[name="x_mode"][value="free"]');
+	expect(radio).toBeInstanceOf(HTMLInputElement);
 
-	const free = target as HTMLInputElement;
+	const free = radio as HTMLInputElement;
 	free.checked = true;
 	free.dispatchEvent(new Event('change', { bubbles: true }));
 	flushSync();
@@ -109,10 +139,12 @@ it('reveals the banner as soon as free is selected, without saving', () => {
 });
 
 it('reveals the API key field only under paid, without saving', () => {
-	const { text } = renderPage(pageSettings({ x_mode: 'free', x_api_key_set: true }));
+	const { target, text } = renderPage(pageSettings({ x_mode: 'free', x_api_key_set: true }));
+	openFuentes(target, 'Redes sociales');
+	clickLabeled(target, '.config-source-nav button', 'Twitter / X');
 	expect(document.querySelector('input#x-api-key')).toBeNull();
 
-	const paid = document.querySelector('input[name="x_mode"][value="paid"]') as HTMLInputElement;
+	const paid = target.querySelector('input[name="x_mode"][value="paid"]') as HTMLInputElement;
 	paid.checked = true;
 	paid.dispatchEvent(new Event('change', { bubbles: true }));
 	flushSync();
@@ -123,7 +155,7 @@ it('reveals the API key field only under paid, without saving', () => {
 });
 
 
-it('renders the v2 schedule selects and preserves hidden settings', () => {
+it('renders the v3 schedule selects and preserves hidden settings', () => {
 	const { text } = renderPage(
 		pageSettings({ digest_hours: [8, 21], gdelt_enabled: true, enrich_max_per_cycle: 40 })
 	);
@@ -133,7 +165,7 @@ it('renders the v2 schedule selects and preserves hidden settings', () => {
 		...document.querySelectorAll('select[name="digest_hour"]')
 	] as HTMLSelectElement[];
 	expect(selects.map((select) => select.value)).toEqual(['8', '21']);
-	expect(text()).toContain('Los horarios usan la hora de Ciudad de México');
+	expect(text()).toContain('Todos los días · Hora de Ciudad de México · Entre 1 y 8 horarios.');
 
 	// Preserved fields travel hidden on every save.
 	const hidden = (name: string) =>
@@ -144,8 +176,8 @@ it('renders the v2 schedule selects and preserves hidden settings', () => {
 	expect(hidden('facebook_pages')).toBeInstanceOf(HTMLInputElement);
 });
 
-it('renders facebook draft rows with count and pagination chrome', () => {
-	renderPage(
+it('renders facebook directory rows with the single-span pagination', () => {
+	const { target } = renderPage(
 		pageSettings({
 			facebook_pages: [
 				{ page_id: '61593006365773', label: 'Buapachosos' },
@@ -153,15 +185,22 @@ it('renders facebook draft rows with count and pagination chrome', () => {
 			]
 		})
 	);
+	openFuentes(target, 'Redes sociales'); // social defaults to the Facebook directory
 
-	const rows = [...document.querySelectorAll('.facebook-table tbody tr')];
+	const table = target.querySelector('table[aria-label="Páginas de Facebook del monitoreo"]');
+	expect(table).toBeInstanceOf(HTMLTableElement);
+	const rows = [...(table as HTMLTableElement).querySelectorAll('tbody tr')];
 	expect(rows.length).toBe(2);
 	expect(rows[0].textContent).toContain('Buapachosos');
 	expect(rows[1].textContent).toContain('Sin etiqueta');
-	expect(document.querySelector('.facebook-count')?.textContent?.replace(/\s+/g, ' ').trim()).toBe(
-		'2 fuentes'
+
+	// One page only: single status span, Anterior/Siguiente stay unrendered.
+	const pagination = target.querySelector('.config-pagination');
+	expect(pagination?.textContent?.replace(/\s+/g, ' ').trim()).toBe(
+		'1–2 de 2 · Página 1 de 1'
 	);
-	expect(document.querySelector('.facebook-pagination')?.textContent).toContain('Página 1 de 1');
+	expect(pagination?.querySelector('button')).toBeNull();
+
 	// The serialized payload carries normalized refs for the save action.
 	const payload = JSON.parse(
 		(document.querySelector('input[name="facebook_pages"]') as HTMLInputElement).value
@@ -169,17 +208,59 @@ it('renders facebook draft rows with count and pagination chrome', () => {
 	expect(payload.map((page) => page.page_id)).toEqual(['61593006365773', '10006932572555']);
 });
 
-it('renders planned social cards and the rss source list', () => {
-	renderPage(pageSettings({ rss_feeds: ['https://ejemplo.com/feed.xml'] }));
+it('pages the facebook directory every 10 rows with visible prev/next', () => {
+	const pages = Array.from({ length: 11 }, (_, index) => ({
+		page_id: `id-${index}`,
+		label: `Página ${index}`
+	}));
+	const { target } = renderPage(pageSettings({ facebook_pages: pages }));
+	openFuentes(target, 'Redes sociales');
 
-	const text = () => document.body.textContent ?? '';
-	expect(text()).toContain('TikTok');
-	expect(text()).toContain('Instagram');
-	expect(document.querySelector('.source-item-url')?.textContent).toBe(
+	const pagination = target.querySelector('.config-pagination');
+	expect(pagination?.textContent?.replace(/\s+/g, ' ').trim()).toContain(
+		'1–10 de 11 · Página 1 de 2'
+	);
+	const next = [...(pagination?.querySelectorAll('button') ?? [])].find(
+		(button) => button.textContent?.trim() === 'Siguiente'
+	) as HTMLButtonElement;
+	expect(next).toBeInstanceOf(HTMLButtonElement);
+	flushSync(() => next.click());
+	expect(target.querySelector('.config-pagination')?.textContent).toContain('Página 2 de 2');
+	const rows = target.querySelectorAll('#fuentes tbody tr');
+	expect(rows.length).toBe(1);
+});
+
+it('renders the rss directory, its live search and the planned social tiles', () => {
+	const { target, text } = renderPage(pageSettings({ rss_feeds: ['https://ejemplo.com/feed.xml'] }));
+
+	// Default sub-tab: the RSS directory with derived names and search box.
+	openFuentes(target);
+	const table = target.querySelector('table[aria-label="Fuentes RSS del monitoreo"]');
+	expect(table).toBeInstanceOf(HTMLTableElement);
+	expect(table?.querySelector('tbody tr')?.textContent).toContain('ejemplo.com');
+	expect(table?.querySelector('tbody tr')?.textContent).toContain(
 		'https://ejemplo.com/feed.xml'
 	);
-	const rssList = document.querySelector('[aria-label="Feeds RSS"]');
-	expect(rssList?.querySelector('.source-empty')).toBeNull();
+	expect(table?.querySelector('.config-rss-empty')).toBeNull();
+
+	// The search box filters on input; the empty state names the query.
+	const search = target.querySelector<HTMLInputElement>('#fuentes .config-rss-search-box input');
+	expect(search).toBeInstanceOf(HTMLInputElement);
+	search!.value = 'noexiste';
+	search!.dispatchEvent(new Event('input', { bubbles: true }));
+	flushSync();
+	expect(target.querySelector('#fuentes .config-rss-empty')?.textContent).toContain(
+		'No hay fuentes que coincidan con la búsqueda.'
+	);
+
+	// Social sub-nav: planned platforms render one tile at a time.
+	openFuentes(target, 'Redes sociales');
+	clickLabeled(target, '.config-source-nav button', 'TikTok');
+	expect(text()).toContain('TikTok');
+	expect(text()).toContain('La integración con TikTok aún no está disponible');
+	expect(target.querySelector('.config-chip')?.textContent?.trim()).toBe('En desarrollo');
+	clickLabeled(target, '.config-source-nav button', 'Instagram');
+	expect(text()).toContain('La integración con Instagram aún no está disponible');
 });
 
 const FOCUS_PERSON: PersonSummary = {
@@ -200,7 +281,7 @@ it('renders the persisted principal as one successful form control', () => {
 	expect(select).not.toBeNull();
 	expect(select!.value).toBe('7');
 	expect(select!.labels?.[0]?.textContent).toContain('Persona principal bajo seguimiento');
-	expect(select!.closest('#operacion .field-grid')).not.toBeNull();
+	expect(select!.closest('#operacion .config-form-grid')).not.toBeNull();
 	expect(select!.selectedOptions[0].textContent).toContain('Person A · Rectora · BUAP');
 	expect(select!.form?.getAttribute('action')).toBe('?/save');
 	expect(new FormData(select!.form!).getAll('digest_focus_person_id')).toEqual(['7']);
@@ -323,10 +404,15 @@ it('ignores the legacy keyword focus and keeps keyword CRUD independent', () => 
 		);
 		const select = target.querySelector<HTMLSelectElement>('#set-focus-person')!;
 		expect(select.value).toBe('7');
-		expect(target.querySelector('.keywords tbody tr')?.textContent).toContain(keywords[0].text);
+		expect(target.querySelector('.config-keyword-table tbody tr')?.textContent).toContain(keywords[0].text);
 		expect(text()).not.toContain('Fijar como foco');
 		expect(text()).not.toContain('Quitar foco');
-		expect(text()).not.toContain('foco del resumen');
+		// The directory note mentions the summary focus, but no per-keyword
+		// focus action may exist (mock «Foco del resumen» button).
+		const actionLabels = [...target.querySelectorAll('.config-keyword-actions button')].map(
+			(button) => button.textContent?.trim()
+		);
+		expect(actionLabels).toEqual(['Desactivar', 'Eliminar']);
 		expect(target.querySelector('.keyword-focus-badge')).toBeNull();
 		const create = target.querySelector<HTMLFormElement>('form[action="?/create"]')!;
 		const term = create.elements.namedItem('text') as HTMLInputElement;
@@ -343,7 +429,7 @@ it('ignores the legacy keyword focus and keeps keyword CRUD independent', () => 
 		expect(new FormData(toggle).get('is_active')).toBe('0');
 		const remove = target.querySelector<HTMLFormElement>('form[action="?/delete"]')!;
 		expect(new FormData(remove).get('id')).toBe('1');
-		expect(target.querySelectorAll('.keywords tbody tr')).toHaveLength(1);
+		expect(target.querySelectorAll('.config-keyword-table tbody tr')).toHaveLength(1);
 		expect(localStorage.getItem(key)).toBe(keywords[0].text);
 	} finally {
 		if (before === null) localStorage.removeItem(key);

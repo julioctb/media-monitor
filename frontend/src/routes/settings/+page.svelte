@@ -5,6 +5,7 @@
 
 	import KeywordsPanel from '$lib/components/KeywordsPanel.svelte';
 	import { BTN_PRIMARY_CLS, INPUT_CLS } from '$lib/ui';
+	import { ICON_PATHS } from '$lib/icons';
 	import type { AvailableScraper, ClientSettings, XMode } from '$lib/api';
 	import { normalizeFacebookPageRef } from '$lib/facebook-page';
 	import type { PageProps, SubmitFunction } from './$types';
@@ -13,16 +14,15 @@
 
 	const LABEL_CLS = 'field-label';
 	const CHECK_CLS = 'size-4 rounded border-line accent-accent';
-	const PROBE_BTN_CLS =
-		'inline-flex min-h-[36px] items-center justify-center rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium text-ink-2 transition-colors hover:bg-surface-warm disabled:opacity-60';
+	/** Dialog-only action skin (the directories carry their own button system). */
 	const SMALL_BTN_CLS =
 		'inline-flex min-h-[36px] items-center justify-center rounded-full border border-line bg-white px-3 py-1.5 text-xs font-semibold text-ink-2 transition-colors hover:bg-surface-warm disabled:opacity-60';
 
 	/** Upper bound of daily digest cuts; mirrors the backend validator. */
 	const MAX_DIGEST_HOURS = 8;
 
-	/** Facebook sources shown per page (maqueta v2 contract). */
-	const FACEBOOK_PAGE_SIZE = 20;
+	/** Rows per source-directory page (mockup settings.js contract). */
+	const DIRECTORY_PAGE_SIZE = 10;
 
 	// Keyword CRUD is embedded below via KeywordsPanel; its actions live in
 	// this page's server module.
@@ -133,7 +133,6 @@
 			: draft.scrapers.filter((entry) => entry !== name);
 	}
 
-
 	/** Clamp 0..23 on input; '' keeps the old value until a digit lands. */
 	function setDigestHour(index: number, raw: string): void {
 		const value = Number.parseInt(raw, 10);
@@ -162,6 +161,144 @@
 
 	function markDirty(): void {
 		dirty = true;
+	}
+
+	/* --------------------------- Source directories -------------------------- */
+	// Fuentes contract (mockup settings.js configSources): two-level sub-nav
+	// and ONE tabular directory at a time — not the stacked source cards.
+
+	type SourceKind = 'rss' | 'scraper' | 'facebook';
+	type SourceTab = 'rss' | 'scraper' | 'social';
+	type SocialTab = 'facebook' | 'twitter' | 'tiktok' | 'instagram';
+
+	let sourceTab = $state<SourceTab>('rss');
+	let socialTab = $state<SocialTab>('facebook');
+	/** Shared query; the mockup clears it when switching sub-tabs. */
+	let sourceQuery = $state('');
+	let rssPage = $state(1);
+	let scraperPage = $state(1);
+	let fbPage = $state(1);
+
+	const SOURCE_TABS: ReadonlyArray<readonly [SourceTab, string]> = [
+		['rss', 'Feed RSS'],
+		['scraper', 'Scrapers'],
+		['social', 'Redes sociales']
+	];
+
+	const SOCIAL_TABS: ReadonlyArray<readonly [SocialTab, string]> = [
+		['facebook', 'Facebook'],
+		['twitter', 'Twitter / X'],
+		['tiktok', 'TikTok'],
+		['instagram', 'Instagram']
+	];
+
+	const DIRECTORY_META: Record<
+		SourceKind,
+		{ title: string; copy: string; urlCol: string; add: string | null; tableLabel: string }
+	> = {
+		rss: {
+			title: 'Feed RSS',
+			copy: 'Administra los feeds de noticias del monitoreo.',
+			urlCol: 'URL del feed',
+			add: 'Añadir feed',
+			tableLabel: 'Fuentes RSS del monitoreo'
+		},
+		scraper: {
+			title: 'Scrapers',
+			copy: 'Administra los sitios de noticias sin RSS.',
+			urlCol: 'URL del sitio',
+			add: null,
+			tableLabel: 'Scrapers del monitoreo'
+		},
+		facebook: {
+			title: 'Páginas de Facebook',
+			copy: 'Administra las páginas del monitoreo. Los cambios se aplican al guardar.',
+			urlCol: 'URL de la página',
+			add: 'Añadir página',
+			tableLabel: 'Páginas de Facebook del monitoreo'
+		}
+	};
+
+	function selectSourceTab(tab: SourceTab): void {
+		sourceTab = tab;
+		resetDirectoryState();
+	}
+
+	function selectSocialTab(tab: SocialTab): void {
+		socialTab = tab;
+		resetDirectoryState();
+	}
+
+	function resetDirectoryState(): void {
+		sourceQuery = '';
+		resetDirectoryPages();
+	}
+
+	function resetDirectoryPages(): void {
+		rssPage = 1;
+		scraperPage = 1;
+		fbPage = 1;
+	}
+
+	/** Directory shown for the active sub-tab; null for social non-Facebook. */
+	const directoryType = $derived<SourceKind | null>(
+		sourceTab === 'social' ? (socialTab === 'facebook' ? 'facebook' : null) : sourceTab
+	);
+
+	/** Directory display name for an RSS URL: the feed's host. */
+	function rssName(url: string): string {
+		try {
+			return new URL(url).hostname.replace(/^www\./, '');
+		} catch {
+			return url;
+		}
+	}
+
+	function matchesQuery(...fields: string[]): boolean {
+		const query = sourceQuery.trim().toLocaleLowerCase('es');
+		return query === '' || fields.join(' ').toLocaleLowerCase('es').includes(query);
+	}
+
+	/** Draft rows matching the search, in draft order. */
+	const filteredRss = $derived(
+		draft.rss
+			.map((url, index) => ({ url, index }))
+			.filter(({ url }) => matchesQuery(rssName(url), url))
+	);
+	const rssPageCount = $derived(Math.max(1, Math.ceil(filteredRss.length / DIRECTORY_PAGE_SIZE)));
+	const pagedRss = $derived(
+		filteredRss.slice((rssPage - 1) * DIRECTORY_PAGE_SIZE, rssPage * DIRECTORY_PAGE_SIZE)
+	);
+
+	const filteredScrapers = $derived(
+		availableScrapers.filter((scraper) => matchesQuery(scraper.name, scraper.base_url))
+	);
+	const scraperPageCount = $derived(
+		Math.max(1, Math.ceil(filteredScrapers.length / DIRECTORY_PAGE_SIZE))
+	);
+	const pagedScrapers = $derived(
+		filteredScrapers.slice(
+			(scraperPage - 1) * DIRECTORY_PAGE_SIZE,
+			scraperPage * DIRECTORY_PAGE_SIZE
+		)
+	);
+
+	const filteredPages = $derived(
+		draft.pages
+			.map((page, index) => ({ page, index }))
+			.filter(({ page }) => matchesQuery(page.label, page.url))
+	);
+	const fbPageCount = $derived(Math.max(1, Math.ceil(filteredPages.length / DIRECTORY_PAGE_SIZE)));
+	const pagedPages = $derived(
+		filteredPages.slice((fbPage - 1) * DIRECTORY_PAGE_SIZE, fbPage * DIRECTORY_PAGE_SIZE)
+	);
+
+	/** Mock pagination copy: one span, `1–N de N · Página X de Y`. */
+	function rangeLabel(total: number, page: number, pages: number): string {
+		if (total === 0) return '';
+		const start = (page - 1) * DIRECTORY_PAGE_SIZE + 1;
+		const end = Math.min(page * DIRECTORY_PAGE_SIZE, total);
+		return `${start}–${end} de ${total} · Página ${page} de ${pages}`;
 	}
 
 	/* ------------------------------ RSS sources ------------------------------ */
@@ -229,8 +366,6 @@
 	let fbUrl = $state('');
 	let fbLabel = $state('');
 	let fbError = $state('');
-	let fbQuery = $state('');
-	let fbPage = $state(1);
 
 	function openFbAdd(): void {
 		fbEditIndex = null;
@@ -252,7 +387,7 @@
 		event.preventDefault();
 		const url = fbUrl.trim();
 		const label = fbLabel.trim();
-	if (url === '') {
+		if (url === '') {
 			fbError = 'Completa la URL de la fuente de Facebook.';
 			return;
 		}
@@ -272,32 +407,6 @@
 		draft.pages.splice(index, 1);
 		dirty = true;
 	}
-
-	function applyFbFilter(event: SubmitEvent): void {
-		event.preventDefault();
-		fbPage = 1;
-	}
-
-	/** Draft rows matching the search, in draft order. */
-	const filteredPages = $derived.by(() => {
-		const query = fbQuery.trim().toLocaleLowerCase('es');
-		if (query === '') return draft.pages.map((page, index) => ({ page, index }));
-		return draft.pages
-			.map((page, index) => ({ page, index }))
-			.filter(({ page }) => `${page.label} ${page.url}`.toLocaleLowerCase('es').includes(query));
-	});
-	const fbPageCount = $derived(Math.max(1, Math.ceil(filteredPages.length / FACEBOOK_PAGE_SIZE)));
-	const pagedPages = $derived.by(() => {
-		const start = (fbPage - 1) * FACEBOOK_PAGE_SIZE;
-		return filteredPages.slice(start, start + FACEBOOK_PAGE_SIZE);
-	});
-	const fbRangeLabel = $derived.by(() => {
-		const total = filteredPages.length;
-		if (total === 0) return 'Sin resultados';
-		const start = (fbPage - 1) * FACEBOOK_PAGE_SIZE + 1;
-		const end = Math.min(fbPage * FACEBOOK_PAGE_SIZE, total);
-		return `Mostrando ${start}–${end} de ${total} ${total === 1 ? 'fuente' : 'fuentes'}`;
-	});
 
 	/**
 	 * Serialized draft for the save action: one JSON field instead of
@@ -350,6 +459,24 @@
 
 	/** Typed X key mirror, so «Descartar cambios» clears it with the draft. */
 	let xApiKey = $state('');
+	/** Secret-field visibility toggles (mockup configSecretField pattern). */
+	let xKeyVisible = $state(false);
+	let aiKeyVisible = $state(false);
+
+	/**
+	 * Light-tasks fallback line (mockup configLLMStatus, adapted: our API has
+	 * ONE shared service URL, so light tasks always use the main model's URL).
+	 */
+	const lightModelStatus = $derived.by(() => {
+		const light = draft.ai_model_fast.trim();
+		if (light !== '') {
+			return `Tareas ligeras: ${light}. Utiliza la URL del servicio del modelo principal.`;
+		}
+		const main = draft.ai_model.trim();
+		return `Tareas ligeras usará el modelo principal${main ? `: ${main}` : ', cuando lo configures'}, con su URL y su API key, si está indicada.`;
+	});
+
+	const providerChip = $derived(draft.ai_provider === 'openai' ? 'OpenAI API' : 'Modelo local');
 
 	/** Savebar discard: back to the last loaded state, client-side only. */
 	function discardChanges(): void {
@@ -374,9 +501,6 @@
 
 <header class="page-head">
 	<h1 class="page-title">Configuración</h1>
-	<p class="lead">
-		Administra los términos de monitoreo, las fuentes y el procesamiento de la cobertura.
-	</p>
 </header>
 
 <div class="config-workspace">
@@ -399,33 +523,25 @@
 	</p>
 
 	{#if form && ['save', 'save-x', 'create', 'toggle', 'delete'].includes(form.action ?? '')}
-		<div
-			role={form.ok ? 'status' : 'alert'}
-			class={`mt-4 rounded-lg px-4 py-3 text-sm ring-1 ring-inset ${
-				form.ok
-					? 'bg-success/10 text-success ring-success/30'
-					: 'bg-danger/10 text-danger ring-danger/30'
-			}`}
-		>
+		<div class="config-feedback{form.ok ? '' : ' config-error'}" role={form.ok ? 'status' : 'alert'}>
 			{form.message}
 		</div>
 	{/if}
 
 	<div class="config-body">
-		<!-- Keywords panel: own POST forms, so it lives outside the settings form. -->
+		<!-- Keywords directory: own POST forms, so it lives outside the settings form. -->
 		<section
 			id="palabras-clave"
-			class="panel config-section-flat"
+			class="config-rss-directory config-keyword-directory"
 			hidden={activeTab !== 'keywords'}
 			aria-labelledby="palabras-clave-title"
 		>
-			<div class="panel-head">
-				<h2 id="palabras-clave-title">Palabras clave</h2>
-				<p class="panel-note">
-					Términos que activan el monitoreo, asociados a su idioma. Son independientes de la
-					persona principal bajo seguimiento.
-				</p>
-			</div>
+			<header class="config-rss-directory-head">
+				<div>
+					<h2 id="palabras-clave-title">Palabras clave</h2>
+					<p>Define los términos del monitoreo y su idioma.</p>
+				</div>
+			</header>
 			<KeywordsPanel keywords={data.keywords} form={form} />
 		</section>
 
@@ -440,7 +556,7 @@
 			<!-- Hidden default submitter: Enter in any field saves instead of probing. -->
 			<button type="submit" tabindex="-1" aria-label="Guardar" class="hidden"></button>
 
-			<!-- Preserved settings without a v2 UI: hidden inputs keep the stored
+			<!-- Preserved settings without a v3 UI: hidden inputs keep the stored
 				values traveling on every save (timezone is fixed by the contract,
 				the caps/gdelt keep their server-side values). -->
 			<input type="hidden" name="timezone" value={draft.timezone} />
@@ -459,9 +575,8 @@
 			>
 				<div class="panel-head">
 					<h2 id="operacion-title">Operación del monitoreo</h2>
-					<p class="panel-note">Ajustes generales de tiempo y conservación de datos.</p>
 				</div>
-				<div class="field-grid">
+				<div class="config-form-grid">
 					<div>
 						<label for="set-retention" class={LABEL_CLS}>Días de retención</label>
 						<input
@@ -511,20 +626,20 @@
 				{#each data.settings.watchlist as watchedId (watchedId)}
 					<input type="hidden" name="watchlist" value={watchedId} />
 				{/each}
-				<div class="schedule-block">
-					<h3 id="schedule-title">Horarios del resumen diario</h3>
-					<p class="field-hint" id="schedule-hint">
-						Todos los días · formato de 24 horas. De 1 a 8 horarios.
-					</p>
-					<div
-						class="schedule-line"
-						role="group"
-						aria-labelledby="schedule-title"
-						aria-describedby="schedule-hint"
-					>
-						{#each draft.digest_hours as hour, index (index)}
-							<div class="schedule-item">
-								<label for={`schedule-hour-${index}`}>Resumen {index + 1}</label>
+				<h3 id="schedule-title">Horarios del resumen diario</h3>
+				<p id="schedule-hint">Todos los días · Hora de Ciudad de México · Entre 1 y 8 horarios.</p>
+				<div
+					class="config-times"
+					role="group"
+					aria-labelledby="schedule-title"
+					aria-describedby="schedule-hint"
+				>
+					{#each draft.digest_hours as hour, index (index)}
+						<div>
+							<label for={`schedule-hour-${index}`}>
+								Resumen {index + 1}
+								<!-- digest_hours stores whole hours (0-23), so the mock's
+								     free time input stays a select here. -->
 								<select
 									id={`schedule-hour-${index}`}
 									name="digest_hour"
@@ -537,330 +652,412 @@
 										<option value={h}>{String(h).padStart(2, '0')}:00</option>
 									{/each}
 								</select>
-								<button
-									type="button"
-									aria-label={`Eliminar el resumen ${index + 1}`}
-									onclick={() => removeDigestHour(index)}
-									disabled={submitting || draft.digest_hours.length <= 1}
-									class={SMALL_BTN_CLS}
-								>
-									Eliminar
-								</button>
-							</div>
-						{/each}
-						<button
-							type="button"
-							onclick={addDigestHour}
-							disabled={submitting || draft.digest_hours.length >= MAX_DIGEST_HOURS}
-							class={SMALL_BTN_CLS}
-						>
-							+ Añadir horario
-						</button>
-					</div>
-					<p class="field-hint">Los horarios usan la hora de Ciudad de México.</p>
+							</label>
+							<button
+								type="button"
+								class="text-link"
+								aria-label={`Eliminar el resumen ${index + 1}`}
+								onclick={() => removeDigestHour(index)}
+								disabled={submitting || draft.digest_hours.length <= 1}
+							>
+								Eliminar
+							</button>
+						</div>
+					{/each}
 				</div>
+				<button
+					type="button"
+					class="button"
+					onclick={addDigestHour}
+					disabled={submitting || draft.digest_hours.length >= MAX_DIGEST_HOURS}
+				>
+					Añadir horario
+				</button>
 			</section>
 
 			<!-- Fuentes -->
 			<section
 				id="fuentes"
-				class="panel config-section-flat"
+				class="config-section-flat"
 				hidden={activeTab !== 'fuentes'}
-				aria-labelledby="fuentes-title"
+				aria-label="Fuentes"
 			>
-				<div class="panel-head">
-					<h2 id="fuentes-title">Fuentes</h2>
-					<p class="panel-note">Define los orígenes que alimentarán el monitoreo.</p>
-				</div>
-				<div class="source-grid">
-					<section class="source-card" aria-labelledby="rss-title">
-						<div class="source-list-head">
-							<div>
-								<h3 id="rss-title">Feed RSS</h3>
-								<p>Fuentes de noticias con feed RSS.</p>
-							</div>
-							<button type="button" onclick={openRssAdd} disabled={submitting} class={SMALL_BTN_CLS}>
-								Agregar feed
+				<nav class="config-source-nav" aria-label="Tipos de fuentes">
+					{#each SOURCE_TABS as [tab, label] (tab)}
+						<button
+							type="button"
+							aria-current={sourceTab === tab ? 'page' : 'false'}
+							onclick={() => selectSourceTab(tab)}
+						>
+							{label}
+						</button>
+					{/each}
+				</nav>
+				{#if sourceTab === 'social'}
+					<nav class="config-source-nav config-social-nav" aria-label="Tipos de redes sociales">
+						{#each SOCIAL_TABS as [tab, label] (tab)}
+							<button
+								type="button"
+								aria-current={socialTab === tab ? 'page' : 'false'}
+								onclick={() => selectSocialTab(tab)}
+							>
+								{label}
 							</button>
-						</div>
-						<div class="source-list" role="list" aria-label="Feeds RSS">
-							{#each draft.rss as url, index (`${index}:${url}`)}
-								<div class="source-item" role="listitem">
-									<div class="source-item-main">
-										<span class="source-item-url">{url}</span>
-									</div>
-									<div class="source-item-actions">
-										<button
-											type="button"
-											onclick={() => openRssEdit(index)}
-											disabled={submitting}
-											class={SMALL_BTN_CLS}
-										>
-											Editar
-										</button>
-										<button
-											type="button"
-											aria-label={`Quitar el feed ${url}`}
-											onclick={() => removeRss(index)}
-											disabled={submitting}
-											class={`${SMALL_BTN_CLS} btn-delete`}
-										>
-											Eliminar
-										</button>
-									</div>
-								</div>
-							{/each}
-							{#if draft.rss.length === 0}
-								<p class="source-empty">Sin feeds RSS registrados.</p>
-							{/if}
-						</div>
-					</section>
+						{/each}
+					</nav>
+				{/if}
 
-					<section class="source-card" aria-labelledby="scraper-title">
-						<div class="source-list-head">
+				{#if directoryType}
+					{@const meta = DIRECTORY_META[directoryType]}
+					<section class="config-rss-directory" aria-labelledby="config-source-heading">
+						<header class="config-rss-directory-head">
 							<div>
-								<h3 id="scraper-title">Scrapers</h3>
-								<p>Medios sin RSS: el worker revisa su portada en cada ciclo.</p>
+								<h2 id="config-source-heading">{meta.title}</h2>
+								<p>{meta.copy}</p>
 							</div>
-						</div>
-						<div class="source-list">
-							{#if availableScrapers.length === 0}
-								<p class="source-empty">No hay scrapers disponibles en el registro del servidor.</p>
-							{:else}
-								{#each availableScrapers as scraper (scraper.name)}
-									<label class="check-row source-check">
-										<input
-											type="checkbox"
-											name="scrapers"
-											value={scraper.name}
-											checked={draft.scrapers.includes(scraper.name)}
-											onchange={(e) => toggleScraper(scraper.name, e.currentTarget.checked)}
-											class={CHECK_CLS}
-										/>
-										<span>{scraper.name}</span>
-										<a
-											href={scraper.base_url}
-											target="_blank"
-											rel="noreferrer"
-											class="text-xs text-meta underline hover:text-ink-2"
-										>
-											{scraper.base_url}
-										</a>
-									</label>
-								{/each}
-							{/if}
-						</div>
-					</section>
-
-
-					<div class="social-section">
-						<h3>Redes sociales</h3>
-						<p class="panel-note">Fuentes organizadas por plataforma.</p>
-						<div class="social-stack">
-							<section class="social-platform" aria-labelledby="facebook-title">
-								<h4 id="facebook-title">Facebook</h4>
-								<p>Páginas o grupos públicos registrados por URL y etiqueta.</p>
-								<div class="facebook-toolbar">
-									<p class="facebook-count">
-										{draft.pages.length}
-										{draft.pages.length === 1 ? 'fuente' : 'fuentes'}
-									</p>
+							<div class="config-rss-directory-tools">
+								<div class="config-rss-search-box">
+									<input
+										type="search"
+										aria-label={`Buscar en ${meta.title} por nombre o URL`}
+										placeholder="Buscar por nombre o URL"
+										autocomplete="off"
+										bind:value={sourceQuery}
+										oninput={resetDirectoryPages}
+									/>
+									<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true">
+										<path d={ICON_PATHS.search} />
+									</svg>
+								</div>
+								<!-- Scrapers stay out: the server registry is fixed, nothing to add. -->
+								{#if directoryType === 'rss'}
 									<button
 										type="button"
+										class="button"
+										data-config-source-add
+										onclick={openRssAdd}
+										disabled={submitting}
+									>
+										{meta.add}
+									</button>
+								{:else if directoryType === 'facebook'}
+									<button
+										type="button"
+										class="button"
+										data-config-source-add
 										onclick={openFbAdd}
 										disabled={submitting}
-										class={SMALL_BTN_CLS}
 									>
-										+ Agregar fuente
+										{meta.add}
 									</button>
-								</div>
-								<div class="facebook-search">
-									<label class="field-label" for="facebook-search">Buscar fuente</label>
-									<div class="facebook-search-controls">
-										<input
-											id="facebook-search"
-											type="search"
-											placeholder="Etiqueta o URL"
-											autocomplete="off"
-											bind:value={fbQuery}
-											oninput={() => (fbPage = 1)}
-											class={INPUT_CLS}
-										/>
-										<button type="button" onclick={() => (fbPage = 1)} class={SMALL_BTN_CLS}>
-											Buscar
-										</button>
-									</div>
-								</div>
-								<div class="table-wrap">
-									<table class="facebook-table" aria-label="Fuentes de Facebook">
-										<thead>
+								{/if}
+							</div>
+						</header>
+						<!-- tabindex makes the scrollable frame keyboard-reachable (mockup pattern). -->
+						<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+						<div
+							class="config-rss-table-frame"
+							role="region"
+							aria-label="Listado de fuentes"
+							tabindex="0"
+						>
+							<table class="config-rss-table" aria-label={meta.tableLabel}>
+								<thead>
+									<tr>
+										<th scope="col">Nombre</th>
+										<th scope="col">{meta.urlCol}</th>
+										<th scope="col">Acciones</th>
+									</tr>
+								</thead>
+								<tbody>
+									{#if directoryType === 'rss'}
+										{#each pagedRss as entry (entry.index)}
 											<tr>
-												<th scope="col">Etiqueta</th>
-												<th scope="col">URL</th>
-												<th scope="col">Acciones</th>
-											</tr>
-										</thead>
-										<tbody>
-											{#each pagedPages as entry (entry.index)}
-												<tr>
-													<td data-label="Etiqueta">{entry.page.label || 'Sin etiqueta'}</td>
-													<td data-label="URL">{entry.page.url}</td>
-													<td data-label="Acciones">
+												<th scope="row">{rssName(entry.url)}</th>
+												<td class="config-rss-url">{entry.url}</td>
+												<td>
+													<div class="config-rss-actions">
 														<button
 															type="button"
-															onclick={() => openFbEdit(entry.index)}
+															class="button"
+															onclick={() => openRssEdit(entry.index)}
 															disabled={submitting}
-															class={SMALL_BTN_CLS}
 														>
 															Editar
 														</button>
 														<button
 															type="button"
-															aria-label={`Eliminar la fuente ${entry.page.label || entry.page.url}`}
-															onclick={() => removeFb(entry.index)}
+															class="text-link"
+															aria-label={`Quitar el feed ${entry.url}`}
+															onclick={() => removeRss(entry.index)}
 															disabled={submitting}
-															class={`${SMALL_BTN_CLS} btn-delete`}
 														>
 															Eliminar
 														</button>
-													</td>
-												</tr>
-											{:else}
-												<tr>
-													<td colspan={3} class="empty-row">
-														{fbQuery.trim() === ''
-															? 'No hay fuentes de Facebook configuradas.'
-															: 'No hay fuentes que coincidan con la búsqueda.'}
-													</td>
-												</tr>
-											{/each}
-										</tbody>
-									</table>
-								</div>
-								<div class="facebook-pagination">
-									<p role="status">{fbRangeLabel}</p>
-									<div class="facebook-page-actions">
+													</div>
+												</td>
+											</tr>
+										{:else}
+											<tr>
+												<td colspan={3} class="config-rss-empty">
+													{sourceQuery.trim() === ''
+														? 'Aún no hay fuentes RSS. Añade la primera fuente para crear una fila.'
+														: 'No hay fuentes que coincidan con la búsqueda.'}
+												</td>
+											</tr>
+										{/each}
+									{:else if directoryType === 'scraper'}
+										{#each pagedScrapers as scraper (scraper.name)}
+											<tr>
+												<th scope="row">{scraper.name}</th>
+												<td class="config-rss-url">
+													<a href={scraper.base_url} target="_blank" rel="noreferrer">
+														{scraper.base_url}
+													</a>
+												</td>
+												<td>
+													<!-- Fixed registry: enabling IS the row action. -->
+													<label class="config-scraper-toggle">
+														<input
+															type="checkbox"
+															name="scrapers"
+															value={scraper.name}
+															checked={draft.scrapers.includes(scraper.name)}
+															onchange={(e) => toggleScraper(scraper.name, e.currentTarget.checked)}
+															class={CHECK_CLS}
+														/>
+														<span>Activada</span>
+													</label>
+												</td>
+											</tr>
+										{:else}
+											<tr>
+												<td colspan={3} class="config-rss-empty">
+													{availableScrapers.length === 0
+														? 'No hay scrapers disponibles en el registro del servidor.'
+														: 'No hay fuentes que coincidan con la búsqueda.'}
+												</td>
+											</tr>
+										{/each}
+									{:else if directoryType === 'facebook'}
+										{#each pagedPages as entry (entry.index)}
+											<tr>
+												<th scope="row">{entry.page.label || 'Sin etiqueta'}</th>
+												<td class="config-rss-url">{entry.page.url}</td>
+												<td>
+													<div class="config-rss-actions">
+														<button
+															type="button"
+															class="button"
+															onclick={() => openFbEdit(entry.index)}
+															disabled={submitting}
+														>
+															Editar
+														</button>
+														<button
+															type="button"
+															class="text-link"
+															aria-label={`Eliminar la fuente ${entry.page.label || entry.page.url}`}
+															onclick={() => removeFb(entry.index)}
+															disabled={submitting}
+														>
+															Eliminar
+														</button>
+													</div>
+												</td>
+											</tr>
+										{:else}
+											<tr>
+												<td colspan={3} class="config-rss-empty">
+													{sourceQuery.trim() === ''
+														? 'Aún no hay páginas. Añade la primera página para crear una fila.'
+														: 'No hay fuentes que coincidan con la búsqueda.'}
+												</td>
+											</tr>
+										{/each}
+									{/if}
+								</tbody>
+							</table>
+						</div>
+						{#if directoryType === 'rss' && filteredRss.length > 0}
+							<div class="config-pagination">
+								<span role="status">{rangeLabel(filteredRss.length, Math.min(rssPage, rssPageCount), rssPageCount)}</span>
+								{#if rssPageCount > 1}
+									<div>
 										<button
 											type="button"
-											onclick={() => (fbPage = Math.max(1, fbPage - 1))}
-											disabled={fbPage <= 1}
-											class={SMALL_BTN_CLS}
+											class="button"
+											onclick={() => (rssPage = Math.max(1, rssPage - 1))}
+											disabled={rssPage <= 1}
 										>
 											Anterior
 										</button>
-										<span>Página {fbPage} de {fbPageCount}</span>
 										<button
 											type="button"
-											onclick={() => fbPage = Math.min(fbPageCount, fbPage + 1)}
-											disabled={fbPage >= fbPageCount}
-											class={SMALL_BTN_CLS}
+											class="button"
+											onclick={() => (rssPage = Math.min(rssPageCount, rssPage + 1))}
+											disabled={rssPage >= rssPageCount}
 										>
 											Siguiente
 										</button>
 									</div>
-								</div>
-
-						</section>
-
-							<section class="social-platform" aria-labelledby="x-title">
-								<h4 id="x-title">X (Twitter)</h4>
-								<p>Elige cómo se obtienen las menciones de X.</p>
-								<span id="x-mode-label" class={LABEL_CLS}>Modo de la fuente</span>
-								<div class="provider-radios" role="radiogroup" aria-labelledby="x-mode-label">
-									<label class="radio-option">
-										<input
-											form="x-save-form"
-											type="radio"
-											name="x_mode"
-											value="free"
-											checked={xMode === 'free'}
-											onchange={() => (xMode = 'free')}
-										/>
-										Gratuito
-									</label>
-									<label class="radio-option">
-										<input
-											form="x-save-form"
-											type="radio"
-											name="x_mode"
-											value="paid"
-											checked={xMode === 'paid'}
-											onchange={() => (xMode = 'paid')}
-										/>
-										API de pago
-									</label>
-								</div>
-
-								{#if xMode === 'free'}
-									<div class="mt-4">
-										<p class="x-mode-note">
-											Modo gratuito: las menciones de X provienen del índice de Google News
-											(site:x.com). Limitaciones: sin autor de la cuenta; cobertura parcial —solo
-											lo que Google indexa (medios y cuentas institucionales, no toda la
-											conversación)—; la publicación puede tardar horas en reflejarse.
-										</p>
+								{/if}
+							</div>
+						{:else if directoryType === 'scraper' && filteredScrapers.length > 0}
+							<div class="config-pagination">
+								<span role="status">{rangeLabel(filteredScrapers.length, Math.min(scraperPage, scraperPageCount), scraperPageCount)}</span>
+								{#if scraperPageCount > 1}
+									<div>
+										<button
+											type="button"
+											class="button"
+											onclick={() => (scraperPage = Math.max(1, scraperPage - 1))}
+											disabled={scraperPage <= 1}
+										>
+											Anterior
+										</button>
+										<button
+											type="button"
+											class="button"
+											onclick={() => (scraperPage = Math.min(scraperPageCount, scraperPage + 1))}
+											disabled={scraperPage >= scraperPageCount}
+										>
+											Siguiente
+										</button>
 									</div>
 								{/if}
-
-								{#if xMode === 'paid'}
-									<div class="x-api-field">
-										<label for="x-api-key" class={LABEL_CLS}>API key</label>
+							</div>
+						{:else if directoryType === 'facebook' && filteredPages.length > 0}
+							<div class="config-pagination">
+								<span role="status">{rangeLabel(filteredPages.length, Math.min(fbPage, fbPageCount), fbPageCount)}</span>
+								{#if fbPageCount > 1}
+									<div>
+										<button
+											type="button"
+											class="button"
+											onclick={() => (fbPage = Math.max(1, fbPage - 1))}
+											disabled={fbPage <= 1}
+										>
+											Anterior
+										</button>
+										<button
+											type="button"
+											class="button"
+											onclick={() => (fbPage = Math.min(fbPageCount, fbPage + 1))}
+											disabled={fbPage >= fbPageCount}
+										>
+											Siguiente
+										</button>
+									</div>
+								{/if}
+							</div>
+						{/if}
+					</section>
+				{:else if socialTab === 'twitter'}
+					<!-- Mock chip here reads «Sin conexión» (no backend in the mock);
+					     our X source is backed by a real mode+key API, so no chip. -->
+					<section
+						class="panel config-section-card config-social-directory"
+						aria-labelledby="x-title"
+					>
+						<div class="panel-head config-section-head">
+							<h2 id="x-title">Twitter / X</h2>
+						</div>
+						<p>Configura el modo de acceso para esta red social.</p>
+						<fieldset class="config-source-mode">
+							<legend>Modo de la fuente</legend>
+							<div class="config-source-mode-options">
+								<label class="config-source-mode-option">
+									<input
+										form="x-save-form"
+										type="radio"
+										name="x_mode"
+										value="free"
+										checked={xMode === 'free'}
+										onchange={() => (xMode = 'free')}
+									/>
+									<span>Gratuito</span>
+								</label>
+								<label class="config-source-mode-option">
+									<input
+										form="x-save-form"
+										type="radio"
+										name="x_mode"
+										value="paid"
+										checked={xMode === 'paid'}
+										onchange={() => (xMode = 'paid')}
+									/>
+									<span>API de pago</span>
+								</label>
+							</div>
+						</fieldset>
+						{#if xMode === 'paid'}
+							<div class="config-form-grid">
+								<div class="config-secret-field">
+									<label for="x-api-key">API key</label>
+									<div class="config-secret-control">
 										<input
 											id="x-api-key"
 											form="x-save-form"
 											name="x_api_key"
 											bind:value={xApiKey}
-											type="password"
+											type={xKeyVisible ? 'text' : 'password'}
 											placeholder="Dejar vacío para conservar la actual"
 											autocomplete="off"
-											class={INPUT_CLS}
 										/>
-										{#if data.settings.x_api_key_set}
-											<p class="field-hint">API key guardada</p>
-										{:else}
-											<p class="field-hint">Sin key: se usará el modo gratuito como respaldo</p>
-										{/if}
+										<button
+											type="button"
+											class="button"
+											onclick={() => (xKeyVisible = !xKeyVisible)}
+											aria-pressed={xKeyVisible}
+											aria-controls="x-api-key"
+										>
+											{xKeyVisible ? 'Ocultar' : 'Mostrar'}
+										</button>
 									</div>
-								{/if}
-
-								<div class="mt-4">
-									<button
-										form="x-save-form"
-										type="submit"
-										disabled={xSaving}
-										class={BTN_PRIMARY_CLS}
-									>
-										Guardar X
-									</button>
+									<span>
+										{#if data.settings.x_api_key_set}
+											API key guardada.
+										{:else}
+											Sin key: se usará el modo gratuito como respaldo.
+										{/if}
+									</span>
 								</div>
-							</section>
-
-							<section class="social-platform social-platform--planned" aria-labelledby="tiktok-title">
-								<span class="status-chip off">En desarrollo</span>
-								<h4 id="tiktok-title">TikTok</h4>
-								<p>La configuración de perfiles se habilitará cuando se integre esta fuente.</p>
-							</section>
-
-							<section
-								class="social-platform social-platform--planned"
-								aria-labelledby="instagram-title"
-							>
-								<span class="status-chip off">En desarrollo</span>
-								<h4 id="instagram-title">Instagram</h4>
-								<p>La configuración de perfiles se habilitará cuando se integre esta fuente.</p>
-							</section>
+							</div>
+						{/if}
+						{#if xMode === 'free'}
+							<p>
+								Modo gratuito: las menciones de X provienen del índice de Google News
+								(site:x.com). Limitaciones: sin autor de la cuenta; cobertura parcial —solo
+								lo que Google indexa (medios y cuentas institucionales, no toda la
+								conversación)—; la publicación puede tardar horas en reflejarse.
+							</p>
+						{/if}
+						<button
+							form="x-save-form"
+							type="submit"
+							class="button primary"
+							disabled={xSaving}
+						>
+							Guardar X
+						</button>
+					</section>
+				{:else}
+					{@const plannedTitle = socialTab === 'tiktok' ? 'TikTok' : 'Instagram'}
+					<section
+						class="panel config-section-card config-social-directory"
+						aria-labelledby={`${socialTab}-title`}
+					>
+						<div class="panel-head config-section-head">
+							<h2 id={`${socialTab}-title`}>{plannedTitle}</h2>
+							<span class="config-chip">En desarrollo</span>
 						</div>
-					</div>
-
-					<article class="source-card wip">
-						<span class="status-chip off">En desarrollo</span>
-						<h3>Datos de campo</h3>
 						<p>
-							Formularios y encuestas de carga manual. La configuración se habilitará en una
-							próxima etapa.
+							La integración con {plannedTitle} aún no está disponible. Aquí podrás administrar
+							sus fuentes cuando esté habilitada.
 						</p>
-					</article>
-				</div>
+					</section>
+				{/if}
 			</section>
 
 			<!-- LLM -->
@@ -870,38 +1067,40 @@
 				hidden={activeTab !== 'llm'}
 				aria-labelledby="llm-title"
 			>
-				<div class="panel-head">
+				<div class="panel-head config-section-head">
 					<h2 id="llm-title">Modelo de lenguaje</h2>
-					<p class="panel-note">Selecciona cómo se procesarán las consultas y el enriquecimiento.</p>
+					<span class="config-chip">{providerChip}</span>
 				</div>
-				<span id="ai-provider-label" class={LABEL_CLS}>Proveedor</span>
-				<div class="provider-radios" role="radiogroup" aria-labelledby="ai-provider-label">
-					<label class="radio-option">
-						<input
-							type="radio"
-							name="ai_provider"
-							value="local"
-							checked={draft.ai_provider === 'local'}
-							onchange={() => (draft.ai_provider = 'local')}
-						/>
-						Modelo local
-					</label>
-					<label class="radio-option">
-						<input
-							type="radio"
-							name="ai_provider"
-							value="openai"
-							checked={draft.ai_provider === 'openai'}
-							onchange={() => (draft.ai_provider = 'openai')}
-						/>
-						OpenAI (API)
-					</label>
-				</div>
-
-				<!-- The endpoint/model pair serves both providers; the panel stays
-					visible so switching providers never wipes stored values. -->
-				<div class="provider-panel mt-4">
-					<div class="field-grid">
+				<p>Un modelo principal y, opcionalmente, otro para tareas ligeras.</p>
+				<fieldset class="config-source-mode">
+					<legend>Proveedor</legend>
+					<div class="config-source-mode-options">
+						<label class="config-source-mode-option">
+							<input
+								type="radio"
+								name="ai_provider"
+								value="local"
+								checked={draft.ai_provider === 'local'}
+								onchange={() => (draft.ai_provider = 'local')}
+							/>
+							<span>Modelo local</span>
+						</label>
+						<label class="config-source-mode-option">
+							<input
+								type="radio"
+								name="ai_provider"
+								value="openai"
+								checked={draft.ai_provider === 'openai'}
+								onchange={() => (draft.ai_provider = 'openai')}
+							/>
+							<span>OpenAI (API)</span>
+						</label>
+					</div>
+				</fieldset>
+				<div class="config-model-block">
+					<h3>Propósito general</h3>
+					<p>Modelo principal para consultas, análisis y síntesis.</p>
+					<div class="config-form-grid">
 						<div>
 							<label for="set-ai-base-url" class={LABEL_CLS}>URL del servicio</label>
 							<input
@@ -922,177 +1121,198 @@
 								name="ai_model"
 								type="text"
 								bind:value={draft.ai_model}
-								placeholder="Nombre configurado en el servidor"
+								placeholder="Identificador del modelo principal"
 								class={INPUT_CLS}
 							/>
 						</div>
+						{#if draft.ai_provider === 'openai'}
+							<div class="config-secret-field">
+								<label for="set-ai-key">API key (opcional)</label>
+								<div class="config-secret-control">
+									<input
+										id="set-ai-key"
+										name="ai_api_key"
+										type={aiKeyVisible ? 'text' : 'password'}
+										bind:value={draft.ai_api_key}
+										autocomplete="off"
+									/>
+									<button
+										type="button"
+										class="button"
+										onclick={() => (aiKeyVisible = !aiKeyVisible)}
+										aria-pressed={aiKeyVisible}
+										aria-controls="set-ai-key"
+									>
+										{aiKeyVisible ? 'Ocultar' : 'Mostrar'}
+									</button>
+								</div>
+								<span>
+									Se guarda en la base del cliente; el backend la usa para enriquecimiento,
+									resumen y consultas.
+								</span>
+							</div>
+						{/if}
+					</div>
+				</div>
+				<div class="config-model-block">
+					<div class="config-section-head">
+						<h3>Tareas ligeras</h3>
+						<span class="config-chip">Opcional</span>
+					</div>
+					<!-- Our API exposes ONE service URL (ai_base_url) shared by both
+					     models; the mock's dedicated light-tasks URL does not exist
+					     here and is deliberately not invented. -->
+					<div class="config-form-grid">
 						<div>
-							<label for="set-ai-model-fast" class={LABEL_CLS}
-								>Modelo para tareas ligeras</label
-							>
+							<label for="set-ai-model-fast" class={LABEL_CLS}>Identificador del modelo</label>
 							<input
 								id="set-ai-model-fast"
 								name="ai_model_fast"
 								type="text"
 								bind:value={draft.ai_model_fast}
-								placeholder="Vacío = usar el modelo principal"
+								placeholder="Vacío: usar el modelo principal"
 								class={INPUT_CLS}
 							/>
 						</div>
 					</div>
-					{#if draft.ai_provider === 'openai'}
-						<div class="mt-4">
-							<label for="set-ai-key" class={LABEL_CLS}>API key</label>
-							<input
-								id="set-ai-key"
-								name="ai_api_key"
-								type="password"
-								bind:value={draft.ai_api_key}
-								autocomplete="off"
-								class={INPUT_CLS}
-							/>
-							<p class="field-hint">
-								Se guarda en la base del cliente; el backend la usa para enriquecimiento,
-								resumen y consultas.
+					<p class="config-model-status" role="status">{lightModelStatus}</p>
+				</div>
+				<p>
+					Solo se guardan la URL y los identificadores. La API key se guarda en la base del
+					cliente; el backend la usa para enriquecimiento, resumen y consultas.
+				</p>
+				<div class="config-probe">
+					<button type="submit" formaction="?/test-ai" disabled={submitting} class="button">
+						Probar conexión
+					</button>
+					{#if form?.action === 'test-ai'}
+						{#if form.ok}
+							<p class="probe-ok">
+								Conexión correcta
+								{#if form.model}&middot; {form.model}{/if}
+								{#if form.latency_ms !== null}&middot; {form.latency_ms} ms{/if}
 							</p>
-						</div>
-					{/if}
-					<div class="mt-4">
-						<button type="submit" formaction="?/test-ai" disabled={submitting} class={PROBE_BTN_CLS}>
-							Probar conexión
-						</button>
-						{#if form?.action === 'test-ai'}
-							{#if form.ok}
-								<p class="mt-2 text-xs text-success">
-									Conexión correcta
-									{#if form.model}&middot; {form.model}{/if}
-									{#if form.latency_ms !== null}&middot; {form.latency_ms} ms{/if}
-								</p>
-								{#if form.narrative}
-									{#if form.narrative.ok && form.narrative.json_schema === 'supported'}
-										<p class="mt-1 text-xs text-success">
-											Narrativa del digest: schema guiado OK
-											{#if form.narrative.latency_ms !== null}&middot; {form.narrative.latency_ms} ms{/if}
-										</p>
-									{:else if form.narrative.ok}
-										<p class="mt-1 text-xs text-warning">
-											Narrativa del digest: sin json_schema; se regenera sin guía
-										</p>
-									{:else}
-										<p class="mt-1 text-xs text-danger">
-											Narrativa del digest: error{form.narrative.error ? ` — ${form.narrative.error}` : ''}
-										</p>
-									{/if}
+							{#if form.narrative}
+								{#if form.narrative.ok && form.narrative.json_schema === 'supported'}
+									<p class="probe-ok">
+										Narrativa del digest: schema guiado OK
+										{#if form.narrative.latency_ms !== null}&middot; {form.narrative.latency_ms} ms{/if}
+									</p>
+								{:else if form.narrative.ok}
+									<p class="probe-warn">
+										Narrativa del digest: sin json_schema; se regenera sin guía
+									</p>
+								{:else}
+									<p class="probe-error">
+										Narrativa del digest: error{form.narrative.error ? ` — ${form.narrative.error}` : ''}
+									</p>
 								{/if}
-							{:else}
-								<p class="mt-2 text-xs text-danger">Error: {form.message}</p>
 							{/if}
+						{:else}
+							<p class="probe-error">Error: {form.message}</p>
 						{/if}
-					</div>
+					{/if}
 				</div>
 			</section>
+		</form>
+	</div>
 
-			</form>
-			</div>
+	<footer class="config-savebar">
+		<span>{dirty ? 'Cambios pendientes de guardar' : 'Sin cambios pendientes'}</span>
+		<div>
+			<button type="button" class="button" onclick={discardChanges} disabled={submitting}>
+				Descartar cambios
+			</button>
+			<button type="submit" form="settings-save" class="button primary" disabled={submitting}>
+				Guardar configuración
+			</button>
+		</div>
+	</footer>
+</div>
 
-			<footer class="config-savebar">
-			<span>{dirty ? 'Cambios pendientes de guardar' : 'Sin cambios pendientes'}</span>
-			<div>
-				<button type="button" class="button" onclick={discardChanges} disabled={submitting}>
-					Descartar cambios
-				</button>
-				<button type="submit" form="settings-save" class="button primary" disabled={submitting}>
-					Guardar configuración
-				</button>
-			</div>
-			</footer>
-			</div>
+<!-- Source dialogs live at page level: a <dialog> containing a <form>
+	cannot nest inside the main save form (node_invalid_placement); the
+	bind:this handles above keep them wired to their sections. -->
+<dialog
+	class="settings-dialog"
+	bind:this={rssDialog}
+	aria-labelledby="rss-dialog-title"
+	closedby="any"
+>
+	<form onsubmit={submitRss}>
+		<h5 id="rss-dialog-title">Agregar fuente</h5>
+		<p>El cambio se aplicará a la lista. Después, guarda la configuración.</p>
+		<label class="field-label" for="rss-url-input">URL del feed</label>
+		<input
+			id="rss-url-input"
+			type="url"
+			inputmode="url"
+			placeholder="https://ejemplo.org/feed.xml"
+			required
+			bind:value={rssUrl}
+			class={INPUT_CLS}
+		/>
+		<p class="field-hint" role="alert">{rssError}</p>
+		<div class="dialog-actions">
+			<button
+				type="button"
+				onclick={() => rssDialog?.close()}
+				class={`${SMALL_BTN_CLS} border-line`}
+			>
+				Cancelar
+			</button>
+			<button type="submit" class={BTN_PRIMARY_CLS}>Aplicar cambios</button>
+		</div>
+	</form>
+</dialog>
 
-	<!-- Source dialogs live at page level: a <dialog> containing a <form>
-		cannot nest inside the main save form (node_invalid_placement); the
-		bind:this handles above keep them wired to their sections. -->
-					<dialog
-						class="settings-dialog"
-						bind:this={rssDialog}
-						aria-labelledby="rss-dialog-title"
-						closedby="any"
-					>
-						<form onsubmit={submitRss}>
-							<h5 id="rss-dialog-title">Agregar fuente</h5>
-							<p>El cambio se aplicará a la lista. Después, guarda la configuración.</p>
-							<label class="field-label" for="rss-url-input">URL del feed</label>
-							<input
-								id="rss-url-input"
-								type="url"
-								inputmode="url"
-								placeholder="https://ejemplo.org/feed.xml"
-								required
-								bind:value={rssUrl}
-								class={INPUT_CLS}
-							/>
-							<p class="field-hint" role="alert">{rssError}</p>
-							<div class="dialog-actions">
-								<button
-									type="button"
-									onclick={() => rssDialog?.close()}
-									class={`${SMALL_BTN_CLS} border-line`}
-								>
-									Cancelar
-								</button>
-								<button type="submit" class={BTN_PRIMARY_CLS}>Aplicar cambios</button>
-							</div>
-						</form>
-					</dialog>
+<dialog
+	class="settings-dialog"
+	bind:this={fbDialog}
+	aria-labelledby="fb-dialog-title"
+	closedby="any"
+>
+	<form onsubmit={submitFb}>
+		<h5 id="fb-dialog-title">
+			{fbEditIndex === null
+				? 'Agregar fuente de Facebook'
+				: 'Editar fuente de Facebook'}
+		</h5>
+		<p>La fuente se aplicará a la lista; después guarda la configuración.</p>
+		<label class="field-label" for="fb-dialog-url">URL</label>
+		<input
+			id="fb-dialog-url"
+			type="text"
+			inputmode="url"
+			placeholder="https://facebook.com/pagina"
+			required
+			bind:value={fbUrl}
+			class={INPUT_CLS}
+		/>
+		<label class="field-label" for="fb-dialog-label">Etiqueta</label>
+		<input
+			id="fb-dialog-label"
+			type="text"
+			placeholder="Nombre para identificar la fuente"
+			bind:value={fbLabel}
+			class={INPUT_CLS}
+		/>
+		<p class="field-hint" role="alert">{fbError}</p>
+		<div class="dialog-actions">
+			<button
+				type="button"
+				onclick={() => fbDialog?.close()}
+				class={`${SMALL_BTN_CLS} border-line`}
+			>
+				Cancelar
+			</button>
+			<button type="submit" class={BTN_PRIMARY_CLS}>Aplicar cambios</button>
+		</div>
+	</form>
+</dialog>
 
-
-								<dialog
-									class="settings-dialog"
-									bind:this={fbDialog}
-									aria-labelledby="fb-dialog-title"
-									closedby="any"
-								>
-									<form onsubmit={submitFb}>
-										<h5 id="fb-dialog-title">
-											{fbEditIndex === null
-												? 'Agregar fuente de Facebook'
-												: 'Editar fuente de Facebook'}
-										</h5>
-										<p>La fuente se aplicará a la lista; después guarda la configuración.</p>
-										<label class="field-label" for="fb-dialog-url">URL</label>
-										<input
-											id="fb-dialog-url"
-											type="text"
-											inputmode="url"
-											placeholder="https://facebook.com/pagina"
-											required
-											bind:value={fbUrl}
-											class={INPUT_CLS}
-										/>
-										<label class="field-label" for="fb-dialog-label">Etiqueta</label>
-										<input
-											id="fb-dialog-label"
-											type="text"
-											placeholder="Nombre para identificar la fuente"
-											bind:value={fbLabel}
-											class={INPUT_CLS}
-										/>
-										<p class="field-hint" role="alert">{fbError}</p>
-										<div class="dialog-actions">
-											<button
-												type="button"
-												onclick={() => fbDialog?.close()}
-												class={`${SMALL_BTN_CLS} border-line`}
-											>
-												Cancelar
-											</button>
-											<button type="submit" class={BTN_PRIMARY_CLS}>Aplicar cambios</button>
-										</div>
-									</form>
-								</dialog>
-
-
-		<!-- X (Twitter): the UI card lives inside the Fuentes grid above, but the
-			HTML form owner sits here at page level (a form cannot nest inside the
-			main save form); its inputs associate via the form="x-save-form"
-			attribute. Same ?/save-x action and handler as before. -->
-		<form id="x-save-form" method="POST" action="?/save-x" use:enhance={handleXSubmit}></form>
+<!-- X (Twitter): the UI card lives inside the Fuentes tab above, but the
+	HTML form owner sits here at page level (a form cannot nest inside the
+	main save form); its inputs associate via the form="x-save-form"
+	attribute. Same ?/save-x action and handler as before. -->
+<form id="x-save-form" method="POST" action="?/save-x" use:enhance={handleXSubmit}></form>
