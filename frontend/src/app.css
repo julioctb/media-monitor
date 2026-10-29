@@ -7237,6 +7237,16 @@ button.daily-upcoming {
   font-weight: var(--text-dialog-heading--font-weight);
   line-height: var(--text-dialog-heading--line-height);
 }
+/* Título del registro dentro del cuerpo (mock .dialog-body h2 25px): la
+   jerarquía eyebrow → título → secciones; sin él el nombre solo vivía en
+   el head pequeño. */
+.detail-dialog .dialog-body h2 {
+  margin: var(--space-4) 0;
+  font-family: var(--font-display);
+  font-size: var(--text-dialog-title);
+  font-weight: var(--text-dialog-title--font-weight);
+  line-height: var(--text-dialog-title--line-height);
+}
 .detail-dialog .dialog-body p {
   font-size: var(--text-dialog-body);
   line-height: var(--text-dialog-body--line-height);

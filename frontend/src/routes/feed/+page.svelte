@@ -1016,6 +1016,7 @@
 >
 	{#if agendaPick}
 		<p class="feed-dialog-eyebrow">Origen del registro</p>
+		<h2 class="daily-dialog-title">{agendaPick.title}</h2>
 		<section>
 			<h3>Fecha</h3>
 			<p>{agendaPick.eventDate}{agendaPick.timeLabel ? ` · ${agendaPick.timeLabel}` : ''}</p>
