@@ -349,6 +349,13 @@
 	}
 	const socialSourceRows = $derived(channelSourceRows('social'));
 	const fieldSourceRows = $derived(channelSourceRows('field'));
+
+	/* date-box de «Próximas fechas» (mockup agenda-mini): mes abreviado es-MX
+	   en mayúsculas + día a 2 dígitos, con ancla al mediodía local (sin
+	   corrimiento UTC al formatear). */
+	function agendaMonth(eventDate: string): string {
+		return new Date(`${eventDate}T12:00:00`).toLocaleDateString('es-MX', { month: 'short' }).toUpperCase();
+	}
 </script>
 
 <svelte:head>
@@ -743,83 +750,142 @@
 				<p class="feed-period-note">{newsTotal + socialTotal + fieldTotal} publicaciones en el periodo seleccionado.</p>
 			</section>
 
-			{#if mediumRows.length > 0}
-				<section class="panel aside-panel" aria-labelledby="medios-title">
-					<div class="panel-heading">
-						<h2 id="medios-title">Medios detectados</h2>
-					</div>
-					<div class="feed-source-list" role="group" aria-label="Filtrar por medio">
-						{#if filters.medium}
-							<a class="feed-source-row" role="button" href={hrefWithMedium(null)} data-sveltekit-noscroll>
-								<span>Todos los medios</span>
-							</a>
-						{/if}
-						{#each mediumTop as row (row.medium)}
-							<a
-								class="feed-source-row"
-								role="button"
-								aria-pressed={filters.medium === row.medium}
-								href={hrefWithMedium(row.medium)}
-								data-sveltekit-noscroll
-							>
-								<span>{row.medium}</span>
-								<strong>{row.count}</strong>
-							</a>
-						{/each}
-					</div>
-					{#if mediumRest.length > 0}
-						<details class="medios-more">
-							<summary>Más medios ({mediumRest.length})</summary>
-							<div class="feed-source-list" role="group" aria-label="Más medios">
-								{#each mediumRest as row (row.medium)}
-									<a
-										class="feed-source-row"
-										role="button"
-										aria-pressed={filters.medium === row.medium}
-										href={hrefWithMedium(row.medium)}
-										data-sveltekit-noscroll
-									>
-										<span>{row.medium}</span>
-										<strong>{row.count}</strong>
-									</a>
-								{/each}
-							</div>
-						</details>
+			<!-- Mockup sourceBreakdown: los paneles de fuente viven siempre; sin
+			     filas, el empty state verbatim dentro del feed-source-list. -->
+			<section class="panel aside-panel" aria-labelledby="medios-title">
+				<div class="panel-heading">
+					<h2 id="medios-title">Medios detectados</h2>
+				</div>
+				<div class="feed-source-list" role="group" aria-label="Filtrar por medio">
+					{#if filters.medium}
+						<a class="feed-source-row" role="button" href={hrefWithMedium(null)} data-sveltekit-noscroll>
+							<span>Todos los medios</span>
+						</a>
 					{/if}
-				</section>
-			{/if}
+					{#each mediumTop as row (row.medium)}
+						<a
+							class="feed-source-row"
+							role="button"
+							aria-pressed={filters.medium === row.medium}
+							href={hrefWithMedium(row.medium)}
+							data-sveltekit-noscroll
+						>
+							<span>{row.medium}</span>
+							<strong>{row.count}</strong>
+						</a>
+					{/each}
+					{#if mediumRows.length === 0}
+						<p class="small muted feed-source-empty">Sin publicaciones de este tipo en el periodo.</p>
+					{/if}
+				</div>
+				{#if mediumRest.length > 0}
+					<details class="medios-more">
+						<summary>Más medios ({mediumRest.length})</summary>
+						<div class="feed-source-list" role="group" aria-label="Más medios">
+							{#each mediumRest as row (row.medium)}
+								<a
+									class="feed-source-row"
+									role="button"
+									aria-pressed={filters.medium === row.medium}
+									href={hrefWithMedium(row.medium)}
+									data-sveltekit-noscroll
+								>
+									<span>{row.medium}</span>
+									<strong>{row.count}</strong>
+								</a>
+							{/each}
+						</div>
+					</details>
+				{/if}
+			</section>
 
-			{#if socialSourceRows.length > 0}
-				<section class="panel aside-panel" aria-labelledby="redes-title">
-					<div class="panel-heading">
-						<h2 id="redes-title">Redes sociales</h2>
-					</div>
-					<div class="feed-source-list" role="group" aria-label="Fuentes de redes sociales">
-						{#each socialSourceRows as row (row.source)}
-							<span class="feed-source-row">
-								<span>{row.source}</span>
-								<strong>{row.count}</strong>
-							</span>
-						{/each}
-					</div>
-				</section>
-			{/if}
+			<section class="panel aside-panel" aria-labelledby="redes-title">
+				<div class="panel-heading">
+					<h2 id="redes-title">Redes sociales</h2>
+				</div>
+				<div class="feed-source-list" role="group" aria-label="Fuentes de redes sociales">
+					{#each socialSourceRows as row (row.source)}
+						<span class="feed-source-row">
+							<span>{row.source}</span>
+							<strong>{row.count}</strong>
+						</span>
+					{/each}
+					{#if socialSourceRows.length === 0}
+						<p class="small muted feed-source-empty">Sin publicaciones de este tipo en el periodo.</p>
+					{/if}
+				</div>
+			</section>
 
-			{#if fieldSourceRows.length > 0}
-				<section class="panel aside-panel" aria-labelledby="campo-title">
-					<div class="panel-heading">
-						<h2 id="campo-title">Campo</h2>
-					</div>
-					<div class="feed-source-list" role="group" aria-label="Fuentes de campo">
-						{#each fieldSourceRows as row (row.source)}
-							<span class="feed-source-row">
-								<span>{row.source}</span>
-								<strong>{row.count}</strong>
-							</span>
-						{/each}
-					</div>
-				</section>
+			<section class="panel aside-panel" aria-labelledby="campo-title">
+				<div class="panel-heading">
+					<h2 id="campo-title">Campo</h2>
+				</div>
+				<div class="feed-source-list" role="group" aria-label="Fuentes de campo">
+					{#each fieldSourceRows as row (row.source)}
+						<span class="feed-source-row">
+							<span>{row.source}</span>
+							<strong>{row.count}</strong>
+						</span>
+					{/each}
+					{#if fieldSourceRows.length === 0}
+						<p class="small muted feed-source-empty">Sin publicaciones de este tipo en el periodo.</p>
+					{/if}
+			</div>
+		</section>
+
+		<!-- Personas identificadas (mockup asideContent): filas button = link a la
+			ficha (patrón chips G9 ya en las tarjetas; sin dialog nuevo). Los datos
+			son el agregado server-side del pool del periodo (cap 500, ver load). -->
+		<section class="panel aside-panel" aria-labelledby="personas-title">
+			<div class="panel-heading">
+				<h2 id="personas-title">Personas identificadas</h2>
+				<a class="text-link" href="/persons">Ver directorio</a>
+			</div>
+			{#if data.persons.length > 0}
+				<div class="feed-source-list" role="group" aria-label="Personas identificadas en el periodo">
+					{#each data.persons as person (person.id)}
+						<button
+							type="button"
+							class="feed-person-row"
+							onclick={() => goto(`/persons/${person.id}`)}
+						>
+							<span>{person.name}</span>
+							<span>{person.mentions} {person.mentions === 1 ? 'mención' : 'menciones'}</span>
+						</button>
+					{/each}
+				</div>
+			{:else}
+				<p class="small muted feed-source-empty">No hay personas identificadas en las menciones de este periodo.</p>
 			{/if}
+		</section>
+
+		<!-- Próximas fechas (mockup asideContent): panel final; entradas de agenda
+			desde hoy local, primeras 2 por fecha. Divergencia semántica: el mock
+			lee events con date, pero el API de eventos no expone fecha de evento
+			(solo first/last seen) — la fuente honesta de próximos compromisos es
+			la agenda. Sin estado done/Completado (la agenda del app no lo expone
+			aquí) y sin la nota «Fecha detectada…» del mock (estos datos no vienen
+			de publicaciones). -->
+		<section class="panel aside-panel" aria-labelledby="proximas-title">
+			<div class="panel-heading">
+				<h2 id="proximas-title">Próximas fechas</h2>
+				<a class="text-link" href="/agenda">Ver agenda</a>
+			</div>
+			{#each data.agendaUpcoming as item (item.id)}
+				<div class="agenda-mini">
+					<div class="date-box od-cell">
+						<span>{agendaMonth(item.eventDate)}</span>
+						<strong>{item.eventDate.slice(-2)}</strong>
+					</div>
+					<div>
+						<p>{item.title}</p>
+						{#if item.timeLabel}<span class="small muted">{item.timeLabel}</span>{/if}
+					</div>
+				</div>
+			{:else}
+				<p class="small muted feed-source-empty">No hay fechas próximas asociadas a menciones de este periodo.</p>
+			{/each}
+		</section>
 		</aside>
 	</div>
 </div>

@@ -6,8 +6,10 @@ import {
 	getEvent,
 	getStatsOverview,
 	getFeedStats,
+	listAgendaItems,
 	listKeywords,
 	listMentions,
+	type AgendaItem,
 	type EventDetail,
 	type FeedStats,
 	type Mention,
@@ -16,13 +18,19 @@ import {
 } from '$lib/api';
 import { channelSources, isFeedChannel, dateRangeError, splitSources, type FeedChannel } from '$lib/feed-filters';
 import { MM_PREFS_COOKIE, parsePrefs } from '$lib/prefs';
-import { channelLabelFor, zonedDayBounds } from '$lib/format';
+import { channelLabelFor, displayDayKey, zonedDayBounds } from '$lib/format';
 import type { PageServerLoad } from './$types';
 
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 const SENTIMENT_FILTERS = new Set<SentimentFilter>(['positive', 'negative', 'neutral', 'none']);
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 200;
+/** Personas identificadas: un solo pool del periodo con el cap del API
+ * (app/api/mentions.py Query le=500) — mismo patrón documentado del
+ * channel-pool; el agregado vive server-side, nunca en el cliente. */
+const PERSON_POOL_LIMIT = 500;
+/** «Próximas fechas» (mockup asideContent): primeras 2 por fecha. */
+const UPCOMING_LIMIT = 2;
 
 /** One «Eventos en foco» row: followed event with mentions in the window. */
 interface FocusEventRow {
@@ -116,6 +124,71 @@ function focusRows(
 	});
 }
 
+/** «Personas identificadas» row: persona referida por el pool del periodo. */
+interface PersonMentionRow {
+	id: number;
+	name: string;
+	/** Menciones del pool que nombran a la persona. */
+	mentions: number;
+}
+
+/**
+ * Personas identificadas (mockup asideContent): personas únicas del pool
+ * del periodo con su conteo de menciones, desc por menciones. El pool
+ * llega por recencia descendente, y el sort estable la conserva como
+ * desempate (clave secundaria del mockup). Un pool fallido degrada a
+ * cero filas — mismo patrón silencioso de focusEvents, nunca la página.
+ */
+function aggregatePersons(items: Mention[]): PersonMentionRow[] {
+	const counts = new Map<number, { name: string; mentions: number }>();
+	for (const mention of items) {
+		const seen = new Set<number>();
+		for (const person of mention.persons ?? []) {
+			if (seen.has(person.id)) continue;
+			seen.add(person.id);
+			const row = counts.get(person.id);
+			if (row) row.mentions += 1;
+			else counts.set(person.id, { name: person.name, mentions: 1 });
+		}
+	}
+	return [...counts.entries()]
+		.map(([id, row]) => ({ id, ...row }))
+		.sort((a, b) => b.mentions - a.mentions);
+}
+
+/** «Próximas fechas» row: entrada de agenda con fecha real, lista para pintar. */
+interface UpcomingAgendaRow {
+	id: number;
+	title: string;
+	/** YYYY-MM-DD; las filas sin fecha nunca llegan aquí. */
+	eventDate: string;
+	/** Hora solo cuando la entrada la trae (condicional del mockup). */
+	timeLabel: string | null;
+}
+
+/**
+ * Próximas fechas (mockup asideContent): entradas de agenda desde hoy
+ * (día calendario local), primeras 2 por fecha. El mock lee events con
+ * date; el API de eventos no expone fecha de evento (solo first/last
+ * seen), así que la agenda — la fuente real de compromisos del app — la
+ * sustituye (divergencia semántica documentada en la vista).
+ */
+function upcomingAgendaRows(items: AgendaItem[], todayIso: string): UpcomingAgendaRow[] {
+	return items
+		.filter(
+			(item): item is AgendaItem & { event_date: string } =>
+				item.event_date !== null && item.event_date >= todayIso
+		)
+		.sort((a, b) => a.event_date.localeCompare(b.event_date))
+		.slice(0, UPCOMING_LIMIT)
+		.map((item) => ({
+			id: item.id,
+			title: item.title,
+			eventDate: item.event_date,
+			timeLabel: item.time_label
+		}));
+}
+
 /**
  * Channel filters span several sources and the API takes one per query:
  * fetch each source's newest `pool` rows, merge by recency and slice the
@@ -195,9 +268,20 @@ export const load: PageServerLoad = async ({ url, cookies }) => {
 		// best-effort: an absent/unbuilt day must not break the feed.
 		const todayIso = new Date().toISOString().slice(0, 10);
 		const keywords = await listKeywords();
-		const [stats, digest] = await Promise.all([
+		// «Hoy» calendario en zona de visualización: frontera de «Próximas
+		// fechas» (el corte UTC de arriba es la clave del digest, no esta).
+		const todayLocal = displayDayKey(new Date().toISOString());
+		// Paneles del aside (personas agregadas + agenda): lecturas
+		// best-effort junto a stats; un fallo deja el panel en su empty
+		// state, nunca tumba la página. Pool única cap 500 = patrón
+		// channel-pool.
+		const [stats, digest, periodPool, agendaRows] = await Promise.all([
 			getStatsOverview(),
-			getDailySummary(todayIso).catch(() => null)
+			getDailySummary(todayIso).catch(() => null),
+			listMentions({ ...common, limit: PERSON_POOL_LIMIT })
+				.then((page) => page.items)
+				.catch(() => null),
+			listAgendaItems().catch(() => [])
 		]);
 
 		const groups = splitSources(Object.keys(stats.by_source).sort());
@@ -216,6 +300,10 @@ export const load: PageServerLoad = async ({ url, cookies }) => {
 			? channelSources(channel, groups)
 			: undefined;
 		const eventsById = await loadEventsById(mentions.items, prefs.follow);
+
+		// Paneles del aside: personas del pool del periodo y próximas fechas.
+		const persons = periodPool ? aggregatePersons(periodPool) : [];
+		const agendaUpcoming = upcomingAgendaRows(agendaRows, todayLocal);
 
 		let feedStats: FeedStats | null = null;
 		let feedStatsError: string | null = null;
@@ -253,6 +341,8 @@ export const load: PageServerLoad = async ({ url, cookies }) => {
 			channelGroups: groups,
 			eventsById: eventsById,
 			focusEvents: focusRows(prefs.follow, eventsById, since, until),
+			persons,
+			agendaUpcoming,
 			prefs,
 			filters: {
 				source: params.get('source') ?? '',

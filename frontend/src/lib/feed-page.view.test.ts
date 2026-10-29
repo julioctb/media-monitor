@@ -8,7 +8,7 @@ import Feed from '../routes/feed/+page.svelte';
 import type { PageProps } from '../routes/feed/$types';
 
 vi.mock('$app/state', () => ({ page: { url: new URL('http://localhost/feed?sentiment=negative&limit=1') } }));
-vi.mock('$app/navigation', () => ({ invalidateAll: vi.fn() }));
+vi.mock('$app/navigation', () => ({ invalidateAll: vi.fn(), goto: vi.fn() }));
 
 const mounted: ReturnType<typeof mount>[] = [];
 function dataFixture(): PageProps['data'] {
@@ -36,7 +36,9 @@ function dataFixture(): PageProps['data'] {
 				]
 			}
 		},
-focusEvents: [],
+		focusEvents: [],
+		persons: [],
+		agendaUpcoming: [],
 		prefs: { saved: [], follow: [], seen: {} },
 		sourceCounts: { news_rss: 200, x_twitter: 30 }, mediumCounts: { 'global.example': 200 }, newsMediumCount: 40,
 		channelGroups: { news: ['news_rss'], social: ['x_twitter'], field: [] },
@@ -419,4 +421,127 @@ it('renders the focus panel empty states verbatim', async () => {
 	quiet.focusEvents = [];
 	const quietTarget = await render(quiet);
 	expect(quietTarget.textContent).toContain('Sin menciones de eventos en foco en este periodo.');
+});
+
+function asidePanel(target: HTMLElement, title: string): Element | null {
+	return (
+		[...target.querySelectorAll('.feed-aside .aside-panel')].find(
+			(node) => node.querySelector('h2')?.textContent?.trim() === title
+		) ?? null
+	);
+}
+
+it('renders the v3 aside additions: persons row, upcoming date-box and the panel links', async () => {
+	const data = dataFixture();
+	data.persons = [{ id: 3, name: 'Ana López', mentions: 2 }];
+	data.agendaUpcoming = [
+		{ id: 7, title: 'Debate en cámara', eventDate: '2026-11-05', timeLabel: '10:30' },
+		{ id: 8, title: 'Cierre de consulta', eventDate: '2026-11-09', timeLabel: null }
+	];
+	const target = await render(data);
+
+	const people = asidePanel(target, 'Personas identificadas');
+	expect(people).toBeTruthy();
+	const directory = people?.querySelector<HTMLAnchorElement>('.panel-heading a.text-link');
+	expect(directory?.getAttribute('href')).toBe('/persons');
+	expect(directory?.textContent?.trim()).toBe('Ver directorio');
+	const row = people?.querySelector<HTMLButtonElement>('button.feed-person-row');
+	expect(row?.querySelector('span:first-child')?.textContent?.trim()).toBe('Ana López');
+	expect(row?.querySelector('span:last-child')?.textContent?.replace(/\s+/g, ' ').trim()).toBe(
+		'2 menciones'
+	);
+	// la fila navega a la ficha (patrón chips); sin dialog nuevo
+	row!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+	await tick();
+	const { goto } = await import('$app/navigation');
+	expect(vi.mocked(goto).mock.calls.at(-1)).toEqual(['/persons/3']);
+
+	const agenda = asidePanel(target, 'Próximas fechas');
+	expect(agenda).toBeTruthy();
+	const agendaLink = agenda?.querySelector<HTMLAnchorElement>('.panel-heading a.text-link');
+	expect(agendaLink?.getAttribute('href')).toBe('/agenda');
+	expect(agendaLink?.textContent?.trim()).toBe('Ver agenda');
+	const minis = [...(agenda?.querySelectorAll('.agenda-mini') ?? [])];
+	expect(minis).toHaveLength(2);
+	const box = minis[0]?.querySelector('.date-box');
+	expect(box?.querySelector('span')?.textContent?.trim()).toBe('NOV');
+	expect(box?.querySelector('strong')?.textContent?.trim()).toBe('05');
+	expect(minis[0]?.querySelector('p')?.textContent?.trim()).toBe('Debate en cámara');
+	// la hora solo cuando la entrada la trae
+	expect(minis[0]?.querySelector('span.muted')?.textContent?.trim()).toBe('10:30');
+	expect(minis[1]?.querySelector('span.muted')).toBeNull();
+	expect(minis[1]?.querySelector('p')?.textContent?.trim()).toBe('Cierre de consulta');
+});
+
+it('labels the person row singular and plural per the mockup', async () => {
+	const singular = dataFixture();
+	singular.persons = [{ id: 5, name: 'Beto Díaz', mentions: 1 }];
+	const single = await render(singular);
+	const singleRow = single.querySelector('.feed-person-row');
+	expect(singleRow?.lastElementChild?.textContent?.replace(/\s+/g, ' ').trim()).toBe('1 mención');
+
+	const plural = dataFixture();
+	plural.persons = [{ id: 5, name: 'Beto Díaz', mentions: 3 }];
+	const pluralTarget = await render(plural);
+	const pluralRow = pluralTarget.querySelector('.feed-person-row');
+	expect(pluralRow?.lastElementChild?.textContent?.replace(/\s+/g, ' ').trim()).toBe('3 menciones');
+});
+
+it('keeps the source panels visible with the verbatim empty states', async () => {
+	const bare = dataFixture();
+	bare.persons = [];
+	bare.agendaUpcoming = [];
+	bare.sourceCounts = {};
+	bare.mediumCounts = {};
+	bare.channelGroups = { news: [], social: [], field: [] };
+	const target = await render(bare);
+
+	// los tres paneles de fuente viven siempre, también con 0 filas
+	for (const title of ['Medios detectados', 'Redes sociales', 'Campo', 'Personas identificadas', 'Próximas fechas']) {
+		expect(asidePanel(target, title), title).toBeTruthy();
+	}
+	const empties = [...target.querySelectorAll('.feed-aside .feed-source-empty')].map((node) =>
+		node.textContent?.replace(/\s+/g, ' ').trim() ?? ''
+	);
+	expect(empties).toEqual([
+		'Sin publicaciones de este tipo en el periodo.',
+		'Sin publicaciones de este tipo en el periodo.',
+		'Sin publicaciones de este tipo en el periodo.',
+		'No hay personas identificadas en las menciones de este periodo.',
+		'No hay fechas próximas asociadas a menciones de este periodo.'
+	]);
+
+	// con filtro de medio activo, «Todos los medios» persiste aunque no haya filas
+	const filtered = dataFixture();
+	filtered.persons = [];
+	filtered.agendaUpcoming = [];
+	filtered.sourceCounts = {};
+	filtered.mediumCounts = {};
+	filtered.channelGroups = { news: [], social: [], field: [] };
+	filtered.filters = { ...filtered.filters, medium: 'global.example' };
+	const filteredTarget = await render(filtered);
+	const keep = [...filteredTarget.querySelectorAll('.feed-source-list a.feed-source-row')].find(
+		(node) => node.textContent?.includes('Todos los medios')
+	);
+	// el link persistente limpia el facet: href sin medium pese al filtro activo
+	expect(keep?.getAttribute('href')).toBe('/feed?sentiment=negative&limit=1');
+});
+
+
+it('places personas after the source panels and próximas fechas last', async () => {
+	const data = dataFixture();
+	const target = await render(data);
+	const titles = [...target.querySelectorAll('.feed-aside .aside-panel > .panel-heading h2')].map(
+		(node) => node.textContent?.trim()
+	);
+	// contrato de colocación: fuentes, personas identificadas y cierre con fechas
+	expect(titles).toEqual([
+		'Eventos en foco',
+		'Origen de las menciones',
+		'Medios detectados',
+		'Redes sociales',
+		'Campo',
+		'Personas identificadas',
+		'Próximas fechas'
+	]);
 });

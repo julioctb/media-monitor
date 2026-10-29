@@ -18,7 +18,7 @@ function stubFetch(table: RouteTable) {
 		const path = new URL(String(input), 'http://localhost').pathname;
 		if (!(path in table)) throw new Error(`unrouted ${path}`);
 		const body = table[path];
-		if (body instanceof Response) return body;
+		if (body instanceof Response) return body.clone();
 		return new Response(JSON.stringify(body ?? null), {
 			status: 200,
 			headers: { 'content-type': 'application/json' }
@@ -55,7 +55,9 @@ it('loads metrics with the same effective filters as the direct result request',
 	const urls = fetchMock.mock.calls.map(([input]) => new URL(String(input)));
 	const aggregate = urls.filter((u) => u.pathname === '/api/stats/feed');
 	expect(aggregate).toHaveLength(1);
-	const list = urls.find((u) => u.pathname === '/api/mentions')!;
+	// la última llamada de menciones es la consulta de la página; la primera
+	// es el pool de «Personas identificadas» (cap 500, mismo path).
+	const list = urls.filter((u) => u.pathname === '/api/mentions').at(-1)!;
 	const expected = new URLSearchParams(list.search);
 	expected.delete('limit');
 	expected.delete('offset');
@@ -183,10 +185,12 @@ it('forwards the medium facet as one direct query and echoes it in filters', asy
 	const mentionCalls = fetchMock.mock.calls
 		.map((call) => new URL(String(call[0]), 'http://localhost'))
 		.filter((u) => u.pathname === '/api/mentions');
-	// medium wins over the channel pools: exactly one call, carrying medium.
-	expect(mentionCalls).toHaveLength(1);
-	expect(mentionCalls[0].searchParams.get('medium')).toBe('e-consulta.com');
-	expect(mentionCalls[0].searchParams.get('channel')).toBeNull();
+	// medium wins over the channel pools: the page query is the only call
+	// carrying medium (the persons pool reuses the path without facets).
+	const direct = mentionCalls.filter((u) => u.searchParams.get('medium') !== null);
+	expect(direct).toHaveLength(1);
+	expect(direct[0].searchParams.get('medium')).toBe('e-consulta.com');
+	expect(direct[0].searchParams.get('channel')).toBeNull();
 	expect((data.filters as Record<string, string>).medium).toBe('e-consulta.com');
 	expect(data.mediumCounts).toEqual({ 'e-consulta.com': 3, 'x.com': 1 });
 });
@@ -246,4 +250,44 @@ it('skips focus rows without in-window mentions and keeps the page alive', async
 	)) as Record<string, unknown>;
 	expect(data.focusEvents).toEqual([]);
 	expect(data.mentions).toMatchObject({ items: [], total: 0 });
+});
+
+it('feeds the aside panels from one capped pool and the agenda window', async () => {
+	const future = (days: number) => new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
+	const mentions = {
+		items: [
+			{ id: 1, persons: [{ id: 3, name: 'Ana López' }] },
+			{ id: 2, persons: [{ id: 3, name: 'Ana López' }, { id: 4, name: 'Beto Díaz' }] }
+		],
+		total: 2
+	};
+	const fetchMock = stubFetch({
+		'/api/stats/overview': { by_source: { news_rss: 2 } },
+		'/api/keywords': [],
+		'/api/stats/feed': metrics,
+		'/api/mentions': mentions,
+		'/api/clients/1/agenda-items': [
+			{ id: 1, title: 'Pasada', kind: 'activity', event_date: '2020-01-01', time_label: '09:00' },
+			{ id: 2, title: 'Lejana', kind: 'activity', event_date: future(60), time_label: null },
+			{ id: 3, title: 'Próxima A', kind: 'deadline', event_date: future(40), time_label: '10:30' },
+			{ id: 4, title: 'Próxima B', kind: 'deadline', event_date: future(50), time_label: null },
+			{ id: 5, title: 'Sin fecha', kind: 'activity', event_date: null, time_label: null }
+		]
+	});
+	const data = (await load(route('http://localhost/feed'))) as Record<string, unknown>;
+
+	// personas: único pool cap 500, conteo por persona, desc por menciones
+	const poolCall = fetchMock.mock.calls
+		.map(([input]) => new URL(String(input), 'http://localhost'))
+		.find((u) => u.pathname === '/api/mentions');
+	expect(poolCall?.searchParams.get('limit')).toBe('500');
+	expect(data.persons).toEqual([
+		{ id: 3, name: 'Ana López', mentions: 2 },
+		{ id: 4, name: 'Beto Díaz', mentions: 1 }
+	]);
+	// agenda: solo fechas >= hoy local, asc, tope 2, mapeadas para la vista
+	expect(data.agendaUpcoming).toEqual([
+		{ id: 3, title: 'Próxima A', eventDate: future(40), timeLabel: '10:30' },
+		{ id: 4, title: 'Próxima B', eventDate: future(50), timeLabel: null }
+	]);
 });
