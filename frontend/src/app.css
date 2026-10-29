@@ -2232,14 +2232,60 @@ table.coverage th {
 /* Scoped: settings only. The v3 chrome below mirrors the mockup's final
    cascade (workspace-scoped); panel interiors keep the shared skin. */
 .config-workspace {
-  /* v3 config palette, verbatim from the mockup workspace scope. */
+  /* v3 config palette, verbatim from the mockup workspace scope
+     (tailwind.css settings layer). */
   --config-surface: #fff;
   --config-surface-soft: #f4f6f8;
   --config-selected: #e5edf4;
   --config-heading: #293c50;
   --config-copy: #465668;
   --config-border: #c7d1dc;
+  --config-input-border: #aebdcb;
+  --config-radius: 6px;
   max-width: 1120px;
+  /* clears the floating Consultas button above the last row */
+  padding-bottom: 96px;
+}
+/* Mockup .config-workspace input/select: larger touch targets, stronger
+   border and 16px text — the settings form language, scoped here so the
+   global control classes keep serving every other page. */
+.config-workspace input,
+.config-workspace select {
+  min-height: 44px;
+  padding: 10px 12px;
+  background: var(--config-surface);
+  border: 1px solid var(--config-input-border);
+  border-radius: 4px;
+  color: var(--color-ink);
+  font-size: 16px;
+}
+/* Mockup labels inside the config forms: plain 14px ink (the bold 12px
+   capsule style belongs to the check rows only). */
+.config-workspace .field-grid label,
+.config-workspace .form-stack label {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--color-ink);
+}
+/* Mockup config-form-row: every field group is a soft card. */
+.config-workspace .field-grid > div {
+  padding: var(--space-16);
+  background: var(--config-surface-soft);
+  border: 1px solid var(--config-border);
+  border-radius: 4px;
+}
+/* Mockup settings sections render FLAT (no card box); structure comes
+   from the section heading + soft field cards. */
+.config-workspace .panel {
+  margin-top: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+.config-workspace .panel + .panel,
+.config-workspace section + section {
+  margin-top: 40px;
 }
 .config-workspace .config-tabs {
   display: flex;
@@ -2252,9 +2298,8 @@ table.coverage th {
   border-radius: 6px;
 }
 .config-workspace .config-tabs button {
-  flex: auto;
   min-height: 44px;
-  padding: 10px 16px;
+  padding: 12px;
   border: 1px solid transparent;
   border-radius: 4px;
   background: none;
@@ -2264,9 +2309,8 @@ table.coverage th {
 }
 .config-workspace .config-tabs button.active {
   background: var(--config-selected);
-  border-color: #aebdcb;
+  border-color: var(--config-input-border);
   color: var(--config-heading);
-  box-shadow: inset 0 -2px 0 var(--config-heading);
 }
 .config-workspace > .config-disclaimer {
   max-width: 80ch;
@@ -2285,9 +2329,9 @@ table.coverage th {
   margin-bottom: 20px;
 }
 .config-workspace .panel-head h2 {
-  margin: 0;
-  font: 600 24px/1.18 var(--font-display);
-  letter-spacing: -0.01em;
+  margin: 0 0 16px;
+  font: 600 20px/1.5 var(--font-display);
+  color: var(--config-heading);
 }
 .config-savebar {
   display: flex;
