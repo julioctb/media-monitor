@@ -320,7 +320,10 @@
 		if (preset === 'all') {
 			params.delete('since');
 			params.delete('until');
+			// marker: sin él el server aplicaría el default «Ayer y hoy».
+			params.set('period', 'all');
 		} else if (preset !== 'custom') {
+			params.delete('period');
 			const def = PERIOD_PRESETS.find((p) => p.value === preset);
 			if (def && 'since' in def) {
 				params.set('since', def.since());
@@ -570,7 +573,7 @@
 				{:else}
 					<h3>No hay menciones en este periodo</h3>
 					<p>Prueba «Ayer y hoy» u otro periodo para consultar los registros disponibles.</p>
-					<a class="button" href={page.url.pathname}>Ver todo el periodo</a>
+					<a class="button" href={hrefWithPeriod('all')}>Ver todo el periodo</a>
 				{/if}
 			</div>
 		{:else}

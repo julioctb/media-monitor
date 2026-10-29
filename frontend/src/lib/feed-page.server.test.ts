@@ -206,6 +206,32 @@ it('forwards the medium facet as one direct query and echoes it in filters', asy
 	expect(data.mediumCounts).toEqual({ 'e-consulta.com': 2 });
 });
 
+it('defaults the period to yesterday and today; ?period=all escapes it', async () => {
+	const fetchMock = stubFetch({
+		'/api/stats/overview': { by_source: { news_rss: 1 } },
+		'/api/keywords': [],
+		'/api/mentions': { items: [], total: 0 }
+	});
+
+	await load(route('http://localhost/feed'));
+	const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+	const today = new Date().toISOString().slice(0, 10);
+	const pageCall = fetchMock.mock.calls
+		.map((call) => new URL(String(call[0]), 'http://localhost'))
+		.filter((u) => u.pathname === '/api/mentions')
+		.at(-1)!;
+	expect(pageCall.searchParams.get('since')).toContain(yesterday);
+	expect(pageCall.searchParams.get('until')).toContain(today);
+
+	await load(route('http://localhost/feed?period=all'));
+	const allCall = fetchMock.mock.calls
+		.map((call) => new URL(String(call[0]), 'http://localhost'))
+		.filter((u) => u.pathname === '/api/mentions')
+		.at(-1)!;
+	expect(allCall.searchParams.get('since')).toBeNull();
+	expect(allCall.searchParams.get('until')).toBeNull();
+});
+
 it('echoes the mm_prefs cookie and derives focus rows from followed events', async () => {
 	const focusMentions = [
 		{ id: 11, source: 'news_rss', url: 'https://a.example/11', title: 'En ventana', sentiment: null, published_at: '2026-10-14T18:30:00Z' },

@@ -259,8 +259,15 @@ export const load: PageServerLoad = async ({ url, cookies }) => {
 	const keywordId = /^\d+$/.test(rawKeyword) ? Number(rawKeyword) : undefined;
 	const q = params.get('q')?.trim() || undefined;
 
-	const sinceRaw = params.get('since')?.trim() || '';
-	const untilRaw = params.get('until')?.trim() || '';
+	let sinceRaw = params.get('since')?.trim() || '';
+	let untilRaw = params.get('until')?.trim() || '';
+	// Default del panel (petición de Julio): «Ayer y hoy». «Todo el
+	// periodo» es explícito vía ?period=all — sin el marker, un href
+	// limpio no se distingue de la entrada sin filtros.
+	if (!sinceRaw && !untilRaw && params.get('period') !== 'all') {
+		sinceRaw = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+		untilRaw = new Date().toISOString().slice(0, 10);
+	}
 	const since = DATE_ONLY.test(sinceRaw) ? zonedDayBounds(sinceRaw).since : sinceRaw || undefined;
 	const until = DATE_ONLY.test(untilRaw) ? zonedDayBounds(untilRaw).until : untilRaw || undefined;
 
