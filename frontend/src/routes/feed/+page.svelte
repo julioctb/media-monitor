@@ -740,7 +740,7 @@
 						<strong>{row.total}</strong>
 					</div>
 				{/each}
-				<p class="feed-period-note">Sin aplicar los filtros del feed.</p>
+				<p class="feed-period-note">{newsTotal + socialTotal + fieldTotal} publicaciones en el periodo seleccionado.</p>
 			</section>
 
 			{#if mediumRows.length > 0}

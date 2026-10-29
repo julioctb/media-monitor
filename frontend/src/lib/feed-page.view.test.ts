@@ -82,11 +82,11 @@ it('labels global navigation separately from filtered-result indicators', async 
 	const target = await render();
 	// v3 anatomy: the global-count note lives under Origen only
 	expect(target.querySelector('[aria-labelledby="origen-title"]')?.textContent).toContain(
-		'Sin aplicar los filtros del feed.'
+		'publicaciones en el periodo seleccionado.'
 	);
 	const medios = target.querySelector('[aria-labelledby="medios-title"]');
 	expect(medios?.textContent).toContain('Medios detectados');
-	expect(medios?.textContent).not.toContain('Sin aplicar los filtros');
+	expect(medios?.textContent).not.toContain('publicaciones en el periodo');
 	const origen = target.querySelector('[aria-labelledby="origen-title"]')?.textContent ?? '';
 	expect(origen).toContain('Noticias');
 	expect(origen).toContain('200');

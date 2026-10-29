@@ -3890,6 +3890,14 @@ table.coverage th {
 .dist-field {
   background: var(--color-warn);
 }
+/* Mockup .distribution-row: la fila lleva layout propio (dot+label | count). */
+.distribution-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 10px 0;
+  font-size: 11px;
+}
 
 /* Medios rows (mockup .feed-source-list/.feed-source-row as
    filter links; the details fold keeps the long tail reachable). */
