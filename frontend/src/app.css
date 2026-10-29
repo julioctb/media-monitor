@@ -4051,21 +4051,10 @@ button.text-link {
   font-weight: var(--text-dialog-eyebrow--font-weight);
   color: var(--color-accent);
 }
-/* Línea de metadatos del dialog «Fecha detectada»: cuerpo regular, muted.
-   Calificado para ganar a la genérica .dialog-body p (14). */
-.detail-dialog .dialog-body p.feed-dialog-metadata {
-  margin: 0 0 var(--space-16);
-  font-size: 15px;
-  color: var(--color-muted);
-}
-/* Byline (medio · autor · fecha). */
-.detail-dialog .dialog-body p.feed-dialog-meta {
-  margin: 4px 0 0;
-  font-size: 14px;
-  color: var(--color-muted);
-}
-/* Escala del dialog «Fecha detectada» (ajuste Julio: un punto más contenida
-   que la medición @2x; jerarquía intacta). */
+/* Ritmo vertical de la sección «Noticia que detectó la fecha» (secuencia
+   de Julio): metadata → sección pegada · sección → aire → badge → aire →
+   titular (un punto menor) → byline → caja. Márgenes por elemento, no
+   offsets: el aire entre bloques del dialog lo da el grid del body. */
 .detail-dialog .dialog-body h2.feed-dialog-title {
   margin: 0;
   font-family: var(--font-display);
@@ -4075,12 +4064,27 @@ button.text-link {
   letter-spacing: -0.01em;
   color: var(--color-ink);
 }
+.detail-dialog .dialog-body p.feed-dialog-metadata {
+  margin: 0;
+  font-size: 15px;
+  color: var(--color-muted);
+}
+.detail-dialog .dialog-body p.feed-dialog-meta {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: var(--color-muted);
+}
 .detail-dialog .dialog-body h2.feed-dialog-section-title {
+  margin: 0 0 var(--space-16);
   font-size: 19px;
   line-height: 1.4;
 }
+.feed-dialog-section .source-badge {
+  margin-bottom: var(--space-16);
+}
 .detail-dialog .dialog-body h3.feed-dialog-h3 {
-  font-size: 17px;
+  margin: 0 0 var(--space-4);
+  font-size: 15px;
   line-height: 1.45;
 }
 

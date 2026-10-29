@@ -1061,7 +1061,7 @@
 				? ` · ${agendaPick.timeLabel}`
 				: ''} · Fecha detectada; compromiso no confirmado.
 		</p>
-		<section>
+		<section class="feed-dialog-section">
 			<h2 class="feed-dialog-section-title">Noticia que detectó la fecha</h2>
 			{#if agendaNota}
 				<span class={`source-badge ${channelClassFor(agendaNota.source)}`}>
