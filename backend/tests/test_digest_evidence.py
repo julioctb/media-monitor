@@ -6,8 +6,14 @@ from datetime import UTC, date, datetime, timedelta, timezone
 
 import pytest
 from app.models import Client, Event, Mention, MentionSource, make_url_hash
-from app.summaries.builder import build_daily_summary, build_tarjetas, digest_prompt_view
+from app.summaries.builder import (
+    build_daily_summary,
+    build_tarjetas,
+    digest_prompt_view,
+)
 from app.summaries.digest import build_digest_facts
+
+from tests.digest_plan_fixtures import plan_completion
 
 DAY = date(2026, 10, 17)
 NOON = datetime(2026, 10, 17, 18, tzinfo=UTC)
@@ -186,26 +192,13 @@ def test_public_build_prompts_only_frozen_material_and_rejects_catalogue_injecti
     captured = []
 
     def generate(prompt):
-        captured.append(json.JSONDecoder().raw_decode(prompt.split("\n", 1)[1])[0])
+        captured.append(json.loads(prompt))
         # The source may change after prompt assembly; that cannot rewrite
         # this cut's snapshot. This is not a real enrichment/regeneration.
         article.title = "Texto posterior no congelado"
         article.summary = "Resumen posterior no congelado"
         article.content = "Cuerpo posterior no congelado"
-        return json.dumps(
-            {
-                "headline": "Prosa válida sin referencias.",
-                "evidence": {"version": 1, "sources": [{"index": 999}]},
-                "items": [
-                    {
-                        "index": 0,
-                        "summary": "Reseña del modelo",
-                        "source_refs": [999],
-                        "material_ref": 999,
-                    }
-                ],
-            }
-        )
+        return plan_completion(prompt)
 
     row = build_daily_summary(session, client_id=owner.id, day=DAY, generate=generate)
     session.refresh(row)
@@ -216,31 +209,23 @@ def test_public_build_prompts_only_frozen_material_and_rejects_catalogue_injecti
     assert frozen["sources"][0]["title"] == "🎓 Consulta aplazada https://t.co/raw"
     assert frozen["sources"][0]["summary"] == ("Síntesis derivada " + "S" * 310)[:300]
     assert frozen["sources"][0]["excerpt"] == "Extracto capturado"
-    assert row.content["noticias"][0]["summary"] == "Reseña del modelo"
+    assert "«Extracto capturado»" in row.content["noticias"][0]["summary"]
     assert row.content["noticias"][0]["source_refs"] == [0]
     assert row.content["noticias"][0]["material_ref"] == 0
     view = captured[0]
-    assert view["noticias"][0]["title"] == "Consulta aplazada"
-    assert view["noticias"][0]["summary"] == frozen["sources"][0]["summary"]
-    assert view["noticias"][0]["source_refs"] == [0]
-    assert view["noticias"][0]["material_ref"] == 0
-    assert view["evidence"] == {
-        "version": 1,
-        "sources": [
-            {
-                key: ("Consulta aplazada" if key == "title" else value)
-                for key, value in source.items()
-                if key not in ("mention_id", "url")
-            }
-            if source["index"] == 0
-            else {
-                key: value
-                for key, value in source.items()
-                if key not in ("mention_id", "url")
-            }
-            for source in frozen["sources"]
-        ],
+    assert view["stories"][0] == {"index": 0, "source_refs": [0], "material_ref": 0}
+    assert view["sources"][0] == {
+        "source_ref": 0,
+        "title": "🎓 Consulta aplazada https://t.co/raw",
+        "publication_date": "2026-10-17T18:00:00+00:00",
+        "captured_author": "Reportera A",
+        "passage_kind": "body",
+        "passages": ["Extracto capturado"],
     }
+    assert [s["source_ref"] for s in view["sources"]] == [0, 1]
+    assert "Síntesis derivada" not in json.dumps(view)
+    legacy_view = digest_prompt_view(row.content)
+    assert legacy_view["noticias"][0]["summary"] == frozen["sources"][0]["summary"]
     assert view["redes"]["facebook_page"] == {"count": 1, "source_refs": [1]}
     assert "catálogo evidence" in SYSTEM_PROMPT
     assert "no confiable" in SYSTEM_PROMPT
@@ -265,8 +250,8 @@ def test_public_build_prompts_only_frozen_material_and_rejects_catalogue_injecti
         }
     ]
     reprojection = digest_prompt_view(changed)
-    assert reprojection["evidence"] == view["evidence"]
-    assert reprojection["noticias"] == view["noticias"]
+    assert reprojection["evidence"] == legacy_view["evidence"]
+    assert reprojection["noticias"] == legacy_view["noticias"]
     text = json.dumps(reprojection, ensure_ascii=False)
     for forbidden in (
         "RUTA NO CONGELADA",
@@ -304,14 +289,7 @@ def test_public_build_preserves_source_zero_and_bullet_refs_after_reorder(sessio
         session,
         client_id=owner.id,
         day=DAY,
-        generate=lambda prompt: json.dumps(
-            {
-                "headline": "Resumen de prueba.",
-                "seleccion": [
-                    {"index": 10, "categoria": "decision", "razon": "Atender."}
-                ],
-            }
-        ),
+        generate=lambda prompt: plan_completion(prompt, [(10, "decision")]),
     )
     session.refresh(row)
     content = row.content
@@ -336,7 +314,10 @@ def test_public_build_preserves_source_zero_and_bullet_refs_after_reorder(sessio
     ]
     assert "material_ref" not in compiled  # No invented single representative.
     assert content["indicators_version"] == 1
-    assert all(t["media_diversity"] == {"identified_outlet_count": 1} for t in content["tarjetas"][:-1])
+    assert all(
+        t["media_diversity"] == {"identified_outlet_count": 1}
+        for t in content["tarjetas"][:-1]
+    )
     assert compiled["notas_indicators"] == [
         {"media_diversity": {"identified_outlet_count": 1}, "veracity": "not_evaluated"}
         for _ in (7, 8, 9)
@@ -668,21 +649,12 @@ def test_public_cards_and_compiled_bullets_keep_object_bound_provenance(session)
         session,
         client_id=owner.id,
         day=DAY,
-        generate=lambda prompt: json.dumps(
-            {
-                "headline": "Síntesis",
-                "items": [
-                    {"index": 10, "summary": "Resumen 10"}
-                ],  # Equal to source, still uncited.
-                "seleccion": [{"index": 10, "categoria": "decision", "razon": "Razón"}],
-                "references": {"headline": [0], "seleccion.10.razon": [10]},
-            }
-        ),
+        generate=lambda prompt: plan_completion(prompt, [(10, "decision")]),
     )
     content = row.content
     first = content["tarjetas"][0]
     assert first["source_refs"] == [10]
-    assert first["provenance"]["hecho"]["state"] == "unbacked"
+    assert first["provenance"]["hecho"]["state"] == "linked"
     assert first["provenance"]["titulo"]["source_refs"] == [10]
     pick = content["brief"]["decisiones"][0]
     assert pick["index"] == 0

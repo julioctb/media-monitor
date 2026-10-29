@@ -1052,6 +1052,7 @@ class TestSummaryRevisions:
     ):
         from app.models import DailySummaryRevision
         from app.summaries.builder import build_daily_summary
+        from tests.digest_legacy_fixtures import historical_summary
 
         client_id = first_client_id(db)
         day = date(2026, 10, 23)
@@ -1078,12 +1079,10 @@ class TestSummaryRevisions:
             payload["comparison_references"] = {
                 "headline": {"current": [0], "prior": [0]}
             }
-        build_daily_summary(
-            db, client_id=client_id, day=day, generate=lambda p: json.dumps(payload)
-        )
+        historical_summary(db, client_id=client_id, day=day, payload=payload)
         payload["headline"] = "Primera versión" if same_text else "Nueva versión"
-        current = build_daily_summary(
-            db, client_id=client_id, day=day, generate=lambda p: json.dumps(payload)
+        current = historical_summary(
+            db, client_id=client_id, day=day, payload=payload
         )
         before = json.loads(json.dumps(current.content))
         from app.summaries.evidence import resolved_provenance
@@ -1150,6 +1149,8 @@ class TestSummaryRevisions:
         assert response.json()["content"] == content
         assert content["tarjetas"] == before["tarjetas"]
         assert content["brief"]["headline"] == row["narrative"]
+        assert content["headline"] == row["narrative"]
+        assert "generation" not in content
         assert api.post(url, json={"day": day.isoformat(), "seq": 1}).json() == row
         assert api.post(url, json={"day": day.isoformat(), "seq": 9}).status_code == 404
         assert "Texto privado ajeno" not in json.dumps(row)

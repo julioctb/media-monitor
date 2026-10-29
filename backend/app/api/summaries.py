@@ -55,17 +55,23 @@ def list_summary_days(client_id: int, session: SessionDep) -> list[SummaryDayOut
 
 
 @router.get("/summary-revisions", response_model=list[SummaryRevisionDayOut])
-def list_summary_revision_days(client_id: int, session: SessionDep) -> list[SummaryRevisionDayOut]:
+def list_summary_revision_days(
+    client_id: int, session: SessionDep
+) -> list[SummaryRevisionDayOut]:
     """Days with stored narrative revisions, newest first."""
     _get_client_or_404(session, client_id)
     return [
-        SummaryRevisionDayOut(summary_date=row["summary_date"], count=row["count"], last_at=row["last_at"])
+        SummaryRevisionDayOut(
+            summary_date=row["summary_date"], count=row["count"], last_at=row["last_at"]
+        )
         for row in queries.summary_revision_days(session, client_id)
     ]
 
 
 @router.get("/summary-revisions/{day}", response_model=list[SummaryRevisionOut])
-def list_summary_revisions(day: date, client_id: int, session: SessionDep) -> list[SummaryRevisionOut]:
+def list_summary_revisions(
+    day: date, client_id: int, session: SessionDep
+) -> list[SummaryRevisionOut]:
     """One day's revisions in build order."""
     _get_client_or_404(session, client_id)
     return [
@@ -82,7 +88,9 @@ def restore_summary_revision(
 ) -> DailySummaryOut:
     """Make revision ``seq`` the live narrative of its day (idempotent)."""
     _get_client_or_404(session, client_id)
-    revision = queries.get_summary_revision(session, client_id, payload.day, payload.seq)
+    revision = queries.get_summary_revision(
+        session, client_id, payload.day, payload.seq
+    )
     if revision is None:
         raise HTTPException(status_code=404, detail="revision not found")
     row = queries.get_daily_summary(session, client_id, payload.day)
@@ -96,6 +104,30 @@ def restore_summary_revision(
     from app.summaries.evidence import cut_refs, make_binding
 
     content = dict(row.content or {})
+    # Historical rows may also store the headline at the root. Keep every
+    # headline mirror aligned without granting a generation receipt.
+    if "headline" in content:
+        content["headline"] = revision.narrative
+    generation = content.get("generation")
+    if isinstance(generation, dict) and generation.get("contract") == "factual-plan-v1":
+        # Restored revisions have no model-plan/source snapshot. Preserve the
+        # original attempt as history, never certify the newly restored prose.
+        original = (
+            generation.get("prior_generation")
+            if generation.get("status") == "revision_restored"
+            else generation
+        )
+        content["generation"] = {
+            "contract": "factual-plan-v1",
+            "status": "revision_restored",
+            "reason": "revision_without_plan_receipt",
+            "plan": None,
+            "context_fingerprint": None,
+            "prior_generation": original,
+            "agenda_promotion_allowed": False,
+            "veracity": "not_evaluated",
+        }
+        content["headline"] = revision.narrative
     content["provenance"] = {
         **(content.get("provenance") or {}),
         "headline": make_binding(

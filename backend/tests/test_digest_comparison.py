@@ -5,9 +5,10 @@ import json
 from datetime import datetime, timedelta, timezone
 
 import pytest
-
 from app.models import Client, Event, MentionSource, queries
 from app.summaries import build_daily_summary
+
+from tests.digest_plan_fixtures import plan_completion
 
 
 PRIOR = datetime(2026, 10, 9, 18, tzinfo=timezone.utc)
@@ -40,16 +41,11 @@ def _mention(session, client, published, material, *, title=TITLE, event_id=None
 
 
 def _generate(prompt):
-    return json.dumps(
-        {
-            "headline": "Análisis conservado.",
-            "items": [{"index": 0, "summary": "CONCLUSION_ANTERIOR_NO_ES_FUENTE"}],
-        }
-    )
+    return plan_completion(prompt)
 
 
 def _view(prompt):
-    return json.JSONDecoder().raw_decode(prompt.split("\n", 1)[1])[0]
+    return json.loads(prompt)
 
 
 def _prior(session, client):
@@ -72,6 +68,11 @@ def _prior(session, client):
     row = build_daily_summary(
         session, client_id=client.id, day=PRIOR.date(), generate=_generate
     )
+    assert row.mode == "llm"
+    saved = copy.deepcopy(row.content)
+    saved["noticias"][0]["summary"] = "CONCLUSION_ANTERIOR_NO_ES_FUENTE"
+    row.content = saved
+    session.commit()
     return mention, row
 
 
@@ -102,17 +103,7 @@ def test_public_prompt_uses_original_prior_material_and_actual_compared_date(ses
 
     def generate(prompt):
         captured.append(_view(prompt))
-        return json.dumps(
-            {
-                "headline": "Hay un acuerdo reportado.",
-                "items": [
-                    {
-                        "index": 0,
-                        "angulo_nuevo": "El material comparado pasa de negociación a acuerdo.",
-                    }
-                ],
-            }
-        )
+        return plan_completion(prompt)
 
     row = build_daily_summary(
         session, client_id=client.id, day=CURRENT.date(), generate=generate
@@ -138,13 +129,17 @@ def test_public_prompt_uses_original_prior_material_and_actual_compared_date(ses
         "https://",
     ):
         assert forbidden not in serialized
-    assert captured[0]["evidence"]["sources"][0]["index"] == 0
+    assert captured[0]["sources"][0]["source_ref"] == 0
+    assert context["window"] == original["window"]
+    assert "summary" not in context["sources"][0]
+    assert (
+        context["sources"][0]["derived_summary"]
+        == "La fuente reporta negociación sin acuerdo."
+    )
     assert row.content["comparison"]["evidence"] == original["evidence"]
     assert row.content["comparison"]["evidence"] != row.content["evidence"]
-    assert (
-        row.content["tarjetas"][0]["angulo_nuevo"]
-        == "El material comparado pasa de negociación a acuerdo."
-    )
+    assert row.content["tarjetas"][0]["angulo_nuevo"] is None
+    assert row.mode == "llm"
     assert previous.content == original
 
 
@@ -154,7 +149,16 @@ def _failed(prompt):
 
 @pytest.mark.parametrize(
     "change",
-    ["material", "window", "date", "coverage", "correspondence", "missing", "invalid"],
+    [
+        "material",
+        "window",
+        "window_bounds",
+        "date",
+        "coverage",
+        "correspondence",
+        "missing",
+        "invalid",
+    ],
 )
 def test_public_recovery_rejects_changed_prior_context_with_identical_current_cut(
     session, change
@@ -172,6 +176,8 @@ def test_public_recovery_rejects_changed_prior_context_with_identical_current_cu
     first = build_daily_summary(
         session, client_id=client.id, day=CURRENT.date(), generate=_generate
     )
+    assert first.mode == "llm"
+    assert first.content["generation"]["status"] == "plan_applied"
     current_evidence = copy.deepcopy(first.content["evidence"])
     saved = copy.deepcopy(previous.content)
     if change == "material":
@@ -180,6 +186,8 @@ def test_public_recovery_rejects_changed_prior_context_with_identical_current_cu
         )
     elif change == "window":
         saved["window_start"] = "2026-10-08T19:00:00-06:00"
+    elif change == "window_bounds":
+        saved["window"]["from"] = "2026-10-08T20:00:00-06:00"
     elif change == "date":
         previous.summary_date -= timedelta(days=1)
     elif change == "coverage":
@@ -225,10 +233,11 @@ def test_public_identical_comparison_recovers_prose_without_rebinding_current_re
         session, client_id=client.id, day=CURRENT.date(), generate=_failed
     )
     assert row.mode == "llm"
-    assert row.narrative == "Análisis conservado."
+    assert row.narrative == original["headline"]
+    assert row.content["generation"]["status"] == "plan_recovered"
     assert row.content["comparison"] == original["comparison"]
     assert row.content["evidence"] == original["evidence"]
-    assert row.content["noticias"][0]["provenance"]["summary"]["state"] == "unbacked"
+    assert row.content["noticias"][0]["provenance"]["summary"]["state"] == "linked"
 
 
 def test_public_legacy_recovery_without_factual_prior_keeps_unknown_comparison_authorship(
@@ -241,14 +250,19 @@ def test_public_legacy_recovery_without_factual_prior_keeps_unknown_comparison_a
     )
     old = copy.deepcopy(first.content)
     old.pop("comparison", None)
+    old.pop("generation", None)
+    old["headline"] = "Análisis conservado."
+    old["noticias"][0]["summary"] = "CONCLUSION_ANTERIOR_NO_ES_FUENTE"
     first.content = old
     session.commit()
     row = build_daily_summary(
         session, client_id=client.id, day=CURRENT.date(), generate=_failed
     )
-    assert row.mode == "llm"
-    assert row.narrative == "Análisis conservado."
-    assert "comparison" not in row.content
+    assert row.mode == "heuristic"
+    assert row.narrative != "Análisis conservado."
+    assert row.content["comparison"]["available"] is False
+    assert row.content["generation"]["status"] == "source_fallback"
+    assert "CONCLUSION_ANTERIOR_NO_ES_FUENTE" not in row.content["plain_text"]
 
 
 def test_public_repeat_without_prior_edition_does_not_force_invented_novelty(session):
@@ -285,7 +299,7 @@ def test_public_repeat_without_prior_edition_does_not_force_invented_novelty(ses
     assert row.content["noticias"][0]["repeat"] is True
     assert _view(captured[0])["comparison"]["available"] is False
     assert "ya fueron cubiertas en ediciones" not in captured[0]
-    assert "circulación previa" in captured[0]
+    assert _view(captured[0])["story_metadata"][0]["repeat"] is True
     assert "títulos y tono de cobertura, no evidencia factual" in SYSTEM_PROMPT
     assert "Si comparison.available es false" in SYSTEM_PROMPT
 

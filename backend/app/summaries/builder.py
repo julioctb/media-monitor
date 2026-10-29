@@ -17,19 +17,20 @@ empty days (nothing to summarize); mode stays ``heuristic`` then.
 """
 
 import copy
+import hashlib
 import json
 import logging
 import re
 import time
 from collections.abc import Callable
 from datetime import date, datetime, timedelta, timezone
+from typing import Any
 from zoneinfo import ZoneInfo
 
 import httpx
 from sqlalchemy import and_, func, or_, select
 
 from app.enrich.llm import strip_code_fence
-
 from app.ingest.events import strip_outlet_suffix
 from app.models import (
     AgendaItem,
@@ -43,9 +44,18 @@ from app.models import (
 )
 from app.models.settings import DEFAULT_OPENAI_BASE_URL
 from app.settings_runtime import EffectiveSettings, resolve_effective_settings
-from app.summaries.agenda_detect import near_dup_tokens, normalize_title, parse_spanish_date
+from app.summaries.agenda_detect import (
+    near_dup_tokens,
+    normalize_title,
+    parse_spanish_date,
+)
+from app.summaries.comparison import (
+    PRIOR_STORY_LIMIT,
+    comparison_compatible,
+    comparison_prompt_view,
+    freeze_comparison,
+)
 from app.summaries.digest import (
-    CONFIDENCE_SCALE,
     DIGEST_SCHEMA_VERSION,
     apply_brief,
     apply_narrative,
@@ -53,24 +63,24 @@ from app.summaries.digest import (
     render_plain_text,
 )
 from app.summaries.digest_schema import BRIEF_BUCKETS, narrative_response_schema
-from app.summaries.comparison import (
-    PRIOR_STORY_LIMIT,
-    comparison_compatible,
-    comparison_prompt_view,
-    freeze_comparison,
-)
-from app.summaries.indicators import uses_indicators
 from app.summaries.evidence import (
-    catalogue_fingerprint,
     catalogue_sources,
-    channel_refs,
     compiled_provenance,
     cut_refs,
     derive_provenance,
-    inherit_fields,
     make_binding,
-    resolved_provenance,
 )
+from app.summaries.factual_contract import (
+    FACTUAL_SYSTEM_PROMPT,
+    UNAVAILABLE_READING,
+    FactualPlanError,
+    build_factual_basis,
+    factual_plan_schema,
+    factual_prompt_view,
+    render_factual_plan,
+)
+from app.summaries.indicators import uses_indicators
+from app.summaries.provider_contract import RequestBudget, decode_plan
 
 log = logging.getLogger("summaries.builder")
 
@@ -95,7 +105,9 @@ MAX_KEYWORDS_NARRATIVE = 5
 
 # Chat-completions transport constants, mirroring app.sentiment.api_analyzer.
 DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
-TIMEOUT_S = 60.0  # digest narrative is a long prompt+completion; 20s timed out under load
+TIMEOUT_S = (
+    60.0  # digest narrative is a long prompt+completion; 20s timed out under load
+)
 ATTEMPTS = 2
 BACKOFF_S = 0.5
 
@@ -319,10 +331,17 @@ def descarte_label(descarte: object) -> str | None:
     if cosmeticas > 0:
         partes.append(
             f"{cosmeticas} "
-            + ("actualización cosmética" if cosmeticas == 1 else "actualizaciones cosméticas")
+            + (
+                "actualización cosmética"
+                if cosmeticas == 1
+                else "actualizaciones cosméticas"
+            )
         )
     if fundadas > 0:
-        partes.append(f"{fundadas} " + ("historia fundida" if fundadas == 1 else "historias fundidas"))
+        partes.append(
+            f"{fundadas} "
+            + ("historia fundida" if fundadas == 1 else "historias fundidas")
+        )
     return f"Descartado: {', '.join(partes)}"
 
 
@@ -441,12 +460,19 @@ def brief_fechas(agenda: list, day: date) -> list[dict]:
         if fecha_en_duda(title, when, item.get("status")):
             estado = "en duda"
         fechas.append(
-            {"title": title, "when": when, "estado": estado, "fecha": parsed.isoformat()}
+            {
+                "title": title,
+                "when": when,
+                "estado": estado,
+                "fecha": parsed.isoformat(),
+            }
         )
     return fechas
 
 
-def augment_fechas_from_agenda(session, client_id: int, day: date, fechas: list) -> list:
+def augment_fechas_from_agenda(
+    session, client_id: int, day: date, fechas: list
+) -> list:
     """Fechas que obligan desde la tabla agenda_items (T8.D).
 
     El brief nunca dependió de que el narrador recuerde listar la agenda:
@@ -496,7 +522,11 @@ def augment_fechas_from_agenda(session, client_id: int, day: date, fechas: list)
             continue
         known.add(key)
         seen.append((tokens, row.event_date))
-        estado = "en duda" if fecha_en_duda(row.title, row.date_label, row.notes) else "proxima"
+        estado = (
+            "en duda"
+            if fecha_en_duda(row.title, row.date_label, row.notes)
+            else "proxima"
+        )
         out.append(
             {
                 "title": row.title,
@@ -526,17 +556,16 @@ def is_cosmetic_story(title: str | None) -> bool:
     return bool(COSMETIC_TITLE_RE.search(title))
 
 
-
 _URL_RE = re.compile(r"https?://\S+|www\.\S+", re.I)
 HANDLE_RE = re.compile(r"(?<![a-z0-9])@[a-z0-9_]+", re.I)
 _EMOJI_RE = re.compile(
     "["
-    "\U0001F000-\U0001FAFF"  # symbols, pictographs, emoji blocks
-    "\U00002600-\U000027BF"  # misc symbols and dingbats
-    "\U0001F1E6-\U0001F1FF"  # flags
-    "\U00002B00-\U00002BFF"  # arrows and stars
-    "\U0000FE00-\U0000FE0F"  # variation selectors
-    "\U0000200D"  # zero-width joiner
+    "\U0001f000-\U0001faff"  # symbols, pictographs, emoji blocks
+    "\U00002600-\U000027bf"  # misc symbols and dingbats
+    "\U0001f1e6-\U0001f1ff"  # flags
+    "\U00002b00-\U00002bff"  # arrows and stars
+    "\U0000fe00-\U0000fe0f"  # variation selectors
+    "\U0000200d"  # zero-width joiner
     "]+"
 )
 HASHTAG_RE = re.compile(r"#\w+")
@@ -564,8 +593,6 @@ def display_title(title: str | None) -> str:
     out = strip_outlet_suffix(out)
     out = re.sub(r"\s+", " ", out).strip()
     return out or title.strip()
-
-
 
 
 # --------------------------------------------------- T8.B orden por impacto
@@ -634,9 +661,9 @@ def apply_impact_order(content: dict) -> None:
     marked = set(riesgos) | set(decisiones) | set(ruido)
     resto = [i for i in range(total) if i not in marked]
     resto.sort(
-        key=lambda i: _impact_rank(noticias[i])
-        if isinstance(noticias[i], dict)
-        else (0, 0, 0)
+        key=lambda i: (
+            _impact_rank(noticias[i]) if isinstance(noticias[i], dict) else (0, 0, 0)
+        )
     )
     # Una tarjeta marcada en dos buckets entra una sola vez (precede el
     # bloque más alto); el orden final es SIEMPRE una permutación 0..total-1.
@@ -670,9 +697,7 @@ def _es_tarjeta_cola(tarjeta: dict) -> bool:
         return False
     if tarjeta.get("tono") not in (None, "neutral"):
         return False
-    if tarjeta.get("por_que"):
-        return False
-    return True
+    return tarjeta.get("por_que") in (None, "", UNAVAILABLE_READING)
 
 
 def compile_tail_cards(content: dict) -> bool:
@@ -774,9 +799,7 @@ def compile_tail_cards(content: dict) -> bool:
                 brief[bucket] = [
                     e
                     for e in entries
-                    if not (
-                        isinstance(e, dict) and isinstance(e.get("index"), int)
-                    )
+                    if not (isinstance(e, dict) and isinstance(e.get("index"), int))
                     or e["index"] < valid
                 ]
     return True
@@ -814,7 +837,9 @@ def build_tarjetas(noticias: list, *, content: dict | None = None) -> list[dict]
                     key: copy.deepcopy(nota[key])
                     for key in ("media_diversity", "veracity", "confidence_note")
                     if key in nota
-                    and (key != "confidence_note" or uses_indicators(content or {}, nota))
+                    and (
+                        key != "confidence_note" or uses_indicators(content or {}, nota)
+                    )
                 },
                 **{
                     key: list(nota[key]) if key == "source_refs" else nota[key]
@@ -940,9 +965,7 @@ def _impact(nota: dict) -> tuple[int, int]:
     if not isinstance(nota, dict):
         return (0, 0)
     tone = nota.get("tone")
-    classified = (
-        sum(v or 0 for v in tone.values()) if isinstance(tone, dict) else 0
-    )
+    classified = sum(v or 0 for v in tone.values()) if isinstance(tone, dict) else 0
     return (len(nota.get("sources") or []), classified)
 
 
@@ -978,7 +1001,9 @@ def _event_tone_today(noticias: list, event_id: int) -> str | None:
     return None
 
 
-def annotate_afectacion(session, client_id: int, content: dict, prev_noticias: list, day: date) -> None:
+def annotate_afectacion(
+    session, client_id: int, content: dict, prev_noticias: list, day: date
+) -> None:
     """Keep explicitly labelled coverage-tone transitions on accepted risks.
 
     Mentioned people and publication dates do not establish affected parties
@@ -1110,7 +1135,9 @@ def build_vigilancia(
         if person_id == focus:
             enough = bool(keep)
         else:
-            enough = len({mention.source for mention, _ in keep}) >= VIGILANCIA_ECO_FUENTES
+            enough = (
+                len({mention.source for mention, _ in keep}) >= VIGILANCIA_ECO_FUENTES
+            )
         if not enough:
             continue
         chosen, chosen_dt = max(keep, key=lambda row: (row[1], row[0].id))
@@ -1123,7 +1150,10 @@ def build_vigilancia(
         # Trayectoria: transición del delta cuando la historia matchea.
         if chosen.event_id is not None:
             key = ("id", chosen.event_id)
-            after = _event_tone_today(content.get("noticias") or [], chosen.event_id) or "negativo"
+            after = (
+                _event_tone_today(content.get("noticias") or [], chosen.event_id)
+                or "negativo"
+            )
         elif chosen.title:
             key = ("titulo", normalize_title(chosen.title))
             after = "negativo"
@@ -1334,14 +1364,16 @@ def _digest_prompt(
             "establecerse, indica esa limitación."
         )
     view = digest_prompt_view(facts, dia_previo, focus_person=focus_person)
-    return (
-        f"{header}\n"
-        f"{json.dumps(view, ensure_ascii=False, default=str)}"
-        f"{extra}"
-    )
+    return f"{header}\n{json.dumps(view, ensure_ascii=False, default=str)}{extra}"
 
 
-def _openai_generator(effective: EffectiveSettings) -> Callable[[str], str]:
+def _openai_generator(
+    effective: EffectiveSettings,
+    *,
+    budget: RequestBudget | None = None,
+    system_prompt: str | None = None,
+    response_schema: dict | None = None,
+) -> Callable[[str], str]:
     """Callable prompt->payload for the configured provider.
 
     Same request shape as the sentiment analyzer: POST {base}/chat/
@@ -1361,7 +1393,7 @@ def _openai_generator(effective: EffectiveSettings) -> Callable[[str], str]:
             body: dict = {
                 "model": model,
                 "messages": [
-                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "system", "content": system_prompt or SYSTEM_PROMPT},
                     {"role": "user", "content": prompt},
                 ],
                 "temperature": 0,
@@ -1373,16 +1405,27 @@ def _openai_generator(effective: EffectiveSettings) -> Callable[[str], str]:
                 body["response_format"] = {
                     "type": "json_schema",
                     "json_schema": {
-                        "name": "digest_narrative",
-                        "schema": narrative_response_schema(),
+                        "name": "digest_factual_plan"
+                        if response_schema is not None
+                        else "digest_narrative",
+                        "schema": response_schema
+                        if response_schema is not None
+                        else narrative_response_schema(),
                     },
                 }
             try:
+                request_options: dict[str, Any] = {"timeout": TIMEOUT_S}
+                if budget is not None:
+                    budget.consume()
+                    request_options = {
+                        "timeout": budget.timeout_seconds,
+                        "follow_redirects": False,
+                    }
                 resp = httpx.post(
                     f"{base_url}/chat/completions",
                     headers={"Authorization": f"Bearer {api_key}"},
                     json=body,
-                    timeout=TIMEOUT_S,
+                    **request_options,
                 )
                 resp.raise_for_status()
                 raw_content = resp.json()["choices"][0]["message"]["content"]
@@ -1390,9 +1433,14 @@ def _openai_generator(effective: EffectiveSettings) -> Callable[[str], str]:
                     # content:null becomes str "None" and breaks json.loads
                     # upstream; treat it as a failed attempt instead.
                     raise ValueError("empty summary content")
-                # Models wrap the JSON in ``` fences; the digest json.loads
-                # chokes on the leading backtick otherwise.
-                payload = strip_code_fence(raw_content)
+                # Current plans retain exact provider bytes for strict envelope
+                # validation and rejected-output receipts. Legacy callers keep
+                # their historical permissive fence normalization.
+                payload = (
+                    raw_content
+                    if response_schema is not None
+                    else strip_code_fence(raw_content)
+                )
                 break
             except (
                 httpx.HTTPError,
@@ -1405,13 +1453,21 @@ def _openai_generator(effective: EffectiveSettings) -> Callable[[str], str]:
                 log.debug("summary llm attempt %d/%d failed", attempt + 1, ATTEMPTS)
                 log.debug("error: %s", exc)
         if payload is None:
-            raise RuntimeError(f"summary ll failed after {ATTEMPTS} attempts: {last_error}")
+            raise RuntimeError(
+                f"summary ll failed after {ATTEMPTS} attempts: {last_error}"
+            )
         return payload
 
     return generate
 
 
-def summary_generator(effective: EffectiveSettings) -> Callable[[str], str] | None:
+def summary_generator(
+    effective: EffectiveSettings,
+    *,
+    budget: RequestBudget | None = None,
+    system_prompt: str | None = None,
+    response_schema: dict | None = None,
+) -> Callable[[str], str] | None:
     """LLM narrative callable for the effective settings, else None.
 
     None is the documented 'no provider' state (local sentiment models
@@ -1420,7 +1476,12 @@ def summary_generator(effective: EffectiveSettings) -> Callable[[str], str] | No
     provider = (effective.ai_provider or "").strip().lower()
     if provider != "openai" or not (effective.ai_api_key or "").strip():
         return None
-    return _openai_generator(effective)
+    return _openai_generator(
+        effective,
+        budget=budget,
+        system_prompt=system_prompt,
+        response_schema=response_schema,
+    )
 
 
 def _cut_source_stories(content: dict) -> dict | None:
@@ -1455,9 +1516,95 @@ def _cut_source_stories(content: dict) -> dict | None:
             return None
         stories[key] = noticia
         publication_count += len(sources)
-    if not stories or publication_count != coverage.get("total"):
+    if (
+        not stories
+        or type(coverage.get("total")) is not int
+        or publication_count != coverage["total"]
+    ):
         return None
     return stories
+
+
+def _derived_factual_bindings(value: object) -> None:
+    """Code renders the text; a model may only have selected its inputs."""
+    if isinstance(value, list):
+        for item in value:
+            _derived_factual_bindings(item)
+    elif isinstance(value, dict):
+        for key, item in value.items():
+            if key == "provenance" and isinstance(item, dict):
+                for binding in item.values():
+                    if (
+                        isinstance(binding, dict)
+                        and binding.get("origin") == "model_output"
+                    ):
+                        binding["origin"] = "derived"
+            elif key not in {"evidence", "comparison", "factual_basis", "generation"}:
+                _derived_factual_bindings(item)
+
+
+def _apply_factual_payload(content: dict, payload: dict) -> tuple[dict, str]:
+    candidate = copy.deepcopy(content)
+    errors = apply_narrative(candidate, payload)
+    headline = payload.get("headline")
+    if errors or not isinstance(headline, str) or not headline.strip():
+        raise FactualPlanError("rendered factual payload did not satisfy the receiver")
+    candidate["headline"] = headline.strip()
+    _derived_factual_bindings(candidate)
+    return candidate, headline.strip()
+
+
+def _factual_metadata(content: dict, prior_window=None) -> dict:
+    """Bounded prioritization context, separate from literal factual inputs."""
+    view = digest_prompt_view(content)
+    comparison = view["comparison"]
+    comparison["window"] = copy.deepcopy(prior_window)
+    for source in comparison["sources"]:
+        # Archival enrichment is not an original captured passage.
+        source["derived_summary"] = source.pop("summary")
+    return {
+        "cut": copy.deepcopy(content["factual_basis"]["cut"]),
+        "indicators_version": view.get("indicators_version"),
+        "story_metadata": [
+            {
+                "index": index,
+                **{
+                    key: note[key]
+                    for key in (
+                        "topic",
+                        "tone",
+                        "when_label",
+                        "repeat",
+                        "media_diversity",
+                        "veracity",
+                    )
+                    if key in note
+                },
+            }
+            for index, note in enumerate(view["noticias"][:1000])
+        ],
+        "coverage": copy.deepcopy(content["coverage"]),
+        "registered_people": copy.deepcopy(view["personas"][:100]),
+        "redes": copy.deepcopy(view["redes"]),
+        "comparison": comparison,
+        "prior_coverage": copy.deepcopy(content["comparison"]["coverage_context"]),
+    }
+
+
+def _factual_context(content: dict, focus: dict | None, metadata: dict) -> str:
+    encoded = json.dumps(
+        {
+            "basis": content.get("factual_basis"),
+            "comparison": content.get("comparison"),
+            "focus": focus,
+            "metadata": metadata,
+        },
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
 
 
 def build_daily_summary(
@@ -1557,9 +1704,7 @@ def build_daily_summary(
     # visible — los contadores viajan en brief.descarte.
     pre_cosmetic = len(content["noticias"])
     content["noticias"] = [
-        nota
-        for nota in content["noticias"]
-        if not is_cosmetic_story(nota.get("title"))
+        nota for nota in content["noticias"] if not is_cosmetic_story(nota.get("title"))
     ]
     descartes_cosmeticas = pre_cosmetic - len(content["noticias"])
     # Ingestion owns event identity; presentation must not merge distinct
@@ -1595,134 +1740,156 @@ def build_daily_summary(
     )
     prev_noticias = prior_content.get("noticias")
     prev_noticias = prev_noticias if isinstance(prev_noticias, list) else []
-    content["comparison"] = freeze_comparison(prior_row, content["noticias"], _delta_key)
-    if generate is None:
-        generate = summary_generator(effective)
-    if generate is not None and total > 0:
-        try:
-            prompt = _digest_prompt(
+    content["comparison"] = freeze_comparison(
+        prior_row, content["noticias"], _delta_key
+    )
+    focus = None
+    focus_resolved = False
+    budget = RequestBudget()
+    raw_output = None
+    accepted_plan = None
+    generation_status = "source_fallback"
+    generation_reason = "provider_unavailable"
+    context_fingerprint = None
+    metadata: dict = {}
+    material_available = False
+    try:
+        content["factual_basis"] = build_factual_basis(
+            content, mentions, client_id=client_id
+        )
+        # Replace every report-owned derivative summary before ANY provider call.
+        # The archived catalogue and original Mention rows remain unchanged.
+        for story in content["noticias"]:
+            for field in ("why_it_matters", "confidence_note", "angulo_nuevo"):
+                story.pop(field, None)
+        safe_payload = render_factual_plan(content)
+        # Coverage is code-owned metadata, not a political inference. Titles
+        # in this fallback come from captured publications, never enrichment.
+        basis = content["factual_basis"]
+        coverage_news = [
+            {**story, "title": basis["sources"][scope["material_ref"]]["title"]}
+            for story, scope in zip(content["noticias"], basis["stories"])
+            if scope["material_ref"] is not None
+        ]
+        safe_payload["headline"] = (
+            _heuristic_headline(
                 day,
-                content,
-                dia_previo=prev_noticias,
-                focus_person=_focus_person_context(session, effective),
+                total,
+                silent,
+                content["coverage"]["by_source"],
+                negative_events,
+                coverage_news,
             )
-            payload = json.loads(generate(prompt))
-        except Exception as exc:  # noqa: BLE001 - heuristic is the contract
-            log.warning("digest llm failed for %s (%s); heuristic fallback", day, exc)
-        else:
-            candidate = copy.deepcopy(content)
-            errors = apply_narrative(candidate, payload)
-            headline = payload.get("headline") if isinstance(payload, dict) else None
-            if not errors and isinstance(headline, str) and headline.strip():
-                content = candidate
-                narrative, mode, llm_ok = headline.strip(), "llm", True
-                brief_payload = payload
-            else:
-                log.warning("digest llm payload rejected for %s: %s", day, errors)
+            + " Análisis político no disponible."
+        )
+        content, narrative = _apply_factual_payload(content, safe_payload)
+        brief_payload = safe_payload
+        material_available = True
+        metadata = _factual_metadata(content, prior_content.get("window"))
+    except FactualPlanError:
+        generation_reason = "invalid_factual_material"
+        content["agenda"] = []
+        for story in content["noticias"]:
+            story["summary"] = (
+                "Publicación registrada sin material capturado utilizable."
+            )
+            for field in ("why_it_matters", "confidence_note", "angulo_nuevo"):
+                story.pop(field, None)
+        narrative = (
+            "Material capturado no disponible para el análisis político de este corte."
+        )
 
-    if not llm_ok:
-        # Only an identity-compatible complete cut may recover authored prose.
-        # Event overlap alone says nothing about the current publications.
-        previous = queries.get_daily_summary(session, client_id, day)
-        prev_content = (previous.content or {}) if previous is not None else {}
-        current_stories = _cut_source_stories(content)
-        previous_stories = _cut_source_stories(prev_content)
-        if (
-            previous is not None
-            and previous.mode == "llm"
-            and current_stories is not None
-            and previous_stories is not None
-            and current_stories.keys() == previous_stories.keys()
-            and catalogue_fingerprint(content.get("evidence")) is not None
-            and catalogue_fingerprint(content.get("evidence"))
-            == catalogue_fingerprint(prev_content.get("evidence"))
-            and comparison_compatible(content, prev_content)
-        ):
-            if "comparison" not in prev_content:
-                # Legacy prose has no recorded comparison-input authorship.
-                content.pop("comparison")
-            for identity, nota in current_stories.items():
-                inherit_fields(
-                    content,
-                    nota,
-                    previous_stories[identity],
-                    ("summary", "why_it_matters", "confidence_note", "angulo_nuevo"),
-                    nota.get("source_refs"),
+    if material_available and total > 0 and content["noticias"]:
+        try:
+            if generate is None:
+                generate = summary_generator(
+                    effective,
+                    budget=budget,
+                    system_prompt=FACTUAL_SYSTEM_PROMPT,
+                    response_schema=factual_plan_schema(),
                 )
-            # Inherited arrays carry object-bound metadata; revalidate every
-            # field against the compatible snapshot, not a mutable position.
-            content["agenda"] = copy.deepcopy(prev_content.get("agenda") or [])
-            for item in content["agenda"]:
-                inherit_fields(
-                    content,
-                    item,
-                    item.copy(),
-                    ("when", "title", "status", "source"),
-                    cut_refs(content),
-                )
-            for source, previous_data in (prev_content.get("redes") or {}).items():
-                target = content["redes"].get(source)
-                if not isinstance(target, dict) or not isinstance(previous_data, dict):
-                    continue
-                inherit_fields(
-                    content,
-                    target,
-                    previous_data,
-                    ("note",),
-                    channel_refs(content, source),
-                )
-                if isinstance(previous_data.get("cuentas"), list):
-                    target["cuentas"] = copy.deepcopy(previous_data["cuentas"])
-                    for item in target["cuentas"]:
-                        inherit_fields(
-                            content,
-                            item,
-                            item.copy(),
-                            ("cuenta", "nota"),
-                            channel_refs(content, source, item.get("cuenta")),
-                        )
-            old_persons = {
-                p.get("person_id"): p for p in prev_content.get("personas", [])
-            }
-            for person in content["personas"]:
-                old = old_persons.get(person.get("person_id"))
-                if old is not None:
-                    inherit_fields(
-                        content, person, old, ("fact",), person.get("source_refs")
-                    )
-            narrative = previous.narrative
-            content.setdefault("provenance", {})["headline"] = resolved_provenance(
-                content,
-                prev_content,
-                "headline",
-                text=narrative,
-                persist=True,
+            if callable(generate):
+                focus = _focus_person_context(session, effective)
+                focus_resolved = True
+                context_fingerprint = _factual_context(content, focus, metadata)
+                packet = factual_prompt_view(content)
+                packet.update(metadata)
+                # Plain retries need exactly the same closed output contract,
+                # even when the provider rejects response_format itself.
+                packet["response_schema"] = factual_plan_schema()
+                if focus is not None:
+                    packet["focus_person"] = focus
+                raw_output = generate(json.dumps(packet, ensure_ascii=False))
+                proposal = decode_plan(raw_output)
+                rendered = render_factual_plan(content, proposal)
+                content, narrative = _apply_factual_payload(content, rendered)
+                brief_payload = rendered
+                accepted_plan = proposal
+                mode, llm_ok = "llm", True
+                generation_status, generation_reason = "plan_applied", None
+        except Exception as exc:  # noqa: BLE001 - honest source-only fallback
+            generation_reason = (
+                "noncompliant_response"
+                if raw_output is not None
+                else "provider_failure"
             )
-            # Restore picks by story identity, independently of display order.
-            old_positions = {id(n): i for i, n in enumerate(prev_content["noticias"])}
-            positions = {id(n): i for i, n in enumerate(content["noticias"])}
-            remap = {
-                old_positions[id(previous_stories[key])]: positions[id(nota)]
-                for key, nota in current_stories.items()
-            }
-            recovered_brief = {}
-            for bucket in BRIEF_BUCKETS:
-                picks = []
-                for entry in (prev_content.get("brief") or {}).get(bucket, []):
-                    index = entry.get("index")
-                    if type(index) is not int or index not in remap:
-                        continue
-                    pick = {"index": remap[index]}
-                    inherit_fields(
-                        content,
-                        pick,
-                        entry,
-                        ("razon", "accion_sugerida", "condicion"),
-                        content["noticias"][pick["index"]].get("source_refs"),
-                    )
-                    picks.append(pick)
-                recovered_brief[bucket] = picks
-            mode = "llm"
+            log.warning(
+                "digest factual plan unavailable for %s (%s); source fallback",
+                day,
+                type(exc).__name__,
+            )
+    elif material_available:
+        generation_reason = "empty_cut"
+
+    if not llm_ok and material_available:
+        # Re-render a previously validated PLAN, never copy an old free-text
+        # headline, agenda or rationale based only on material identity.
+        previous = queries.get_daily_summary(session, client_id, day)
+        prior_generation = (
+            (previous.content or {}).get("generation") if previous is not None else None
+        )
+        previous_content = previous.content if previous is not None else {}
+        previous_inventory = _cut_source_stories(previous_content)
+        current_inventory = _cut_source_stories(content)
+        if (
+            isinstance(prior_generation, dict)
+            and prior_generation.get("contract") == "factual-plan-v1"
+            and prior_generation.get("status") in {"plan_applied", "plan_recovered"}
+            and isinstance(prior_generation.get("plan"), dict)
+            and previous_inventory is not None
+            and current_inventory is not None
+            and previous_inventory.keys() == current_inventory.keys()
+            and catalogue_sources(previous_content.get("evidence"))
+            == catalogue_sources(content.get("evidence"))
+            and comparison_compatible(content, previous_content)
+        ):
+            try:
+                rendered = render_factual_plan(content, prior_generation["plan"])
+                if not focus_resolved:
+                    focus = _focus_person_context(session, effective)
+                    focus_resolved = True
+                    context_fingerprint = _factual_context(content, focus, metadata)
+                if prior_generation.get("context_fingerprint") != context_fingerprint:
+                    raise FactualPlanError("Generation context changed")
+                content, narrative = _apply_factual_payload(content, rendered)
+                brief_payload = rendered
+                accepted_plan = prior_generation["plan"]
+                mode, llm_ok = "llm", True
+                generation_status, generation_reason = "plan_recovered", None
+            except FactualPlanError:
+                pass
+
+    content["generation"] = {
+        "contract": "factual-plan-v1",
+        "status": generation_status,
+        "reason": generation_reason,
+        "context_fingerprint": context_fingerprint,
+        "plan": accepted_plan,
+        "raw_proposal": raw_output if isinstance(raw_output, str) else None,
+        "physical_requests": budget.used,
+        "agenda_promotion_allowed": False,
+        "veracity": "not_evaluated",
+    }
 
     # Factual cards remain available without a political assessment. Only
     # accepted model picks or compatible authored recovery populate buckets.
@@ -1744,6 +1911,7 @@ def build_daily_summary(
         apply_brief(content, brief_payload)
     elif recovered_brief is not None:
         content["brief"].update(recovered_brief)
+    _derived_factual_bindings(content)
     # Accepted/recovered prose without recorded references stays unbacked.
     for bucket in BRIEF_BUCKETS:
         for pick in content["brief"].get(bucket) or []:
@@ -1789,6 +1957,10 @@ def build_daily_summary(
     # remapea son los definitivos.
     apply_impact_order(content)
     compile_tail_cards(content)
+    # Editorial sorting/compilation changes display indexes. Preserve the
+    # validated producer bank with the original plan namespace, not as a
+    # misleading claim about the post-editorial output order.
+    content["generation"]["input_basis"] = content.pop("factual_basis", None)
 
     content["plain_text"] = render_plain_text(content, narrative)
     row = queries.upsert_daily_summary(
@@ -1829,7 +2001,8 @@ def build_daily_summary(
     try:
         from app.summaries.agenda_detect import sync_agenda_from_digest
 
-        sync_agenda_from_digest(session, client_id, content, reference=day)
+        if content["generation"]["agenda_promotion_allowed"]:
+            sync_agenda_from_digest(session, client_id, content, reference=day)
     except Exception as exc:  # noqa: BLE001 - detection is best-effort
         log.warning("agenda detect failed for %s (%s)", day, exc)
     return row

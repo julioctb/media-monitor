@@ -10,6 +10,8 @@ from app.models.queries import get_settings
 from app.summaries.regeneration import generate_candidate
 from sqlalchemy import select
 
+from tests.digest_plan_fixtures import plan_completion
+
 DAY = date(2026, 10, 14)
 WINDOW = {
     "from": "2026-10-13T21:00:00-06:00",
@@ -68,20 +70,8 @@ def baseline(session):
     return session.get_bind(), client.id, foreign.id
 
 
-def completion(_prompt):
-    return json.dumps(
-        {
-            "headline": "Fresh analysis",
-            "agenda": [
-                {
-                    "when": "15 de octubre",
-                    "title": "Synthetic hearing",
-                    "status": "confirmed",
-                    "source": "Synthetic newsroom",
-                }
-            ],
-        }
-    )
+def completion(prompt):
+    return plan_completion(prompt, [(0, "decision")])
 
 
 def test_candidate_preserves_every_source_table(session, baseline):
@@ -91,7 +81,12 @@ def test_candidate_preserves_every_source_table(session, baseline):
         engine, client_id=client_id, day=DAY, generate=completion
     )
     assert candidate["mode"] == "llm"
-    assert candidate["narrative"] == "Fresh analysis"
+    assert candidate["narrative"] == (
+        "Lectura política sobre «Synthetic budget hearing 1»: la visibilidad de este asunto "
+        "puede abrir espacio de posicionamiento; no acredita respaldo público."
+    )
+    assert candidate["content"]["generation"]["status"] == "plan_applied"
+    assert candidate["content"]["agenda"] == []
     assert snapshot_tables(session) == before
 
 

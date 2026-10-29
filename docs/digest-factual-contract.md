@@ -173,6 +173,66 @@ Interpretations are labelled **Lectura política**; actions are labelled
 **Atención sugerida**. They are uncertain scenarios and recommendations,
 parameterized only with the canonical source title, never arbitrary model text.
 
+## Current producer compatibility (T10.3.2)
+
+The integrated builder augments the pure factual projection, without changing
+the five-key output schema. `cut` carries the actual current date, timezone and
+window. `story_metadata` is explicitly keyed by original input `index` and
+contains only topic, coverage tone, publication label, repeat circulation and
+the measured media-diversity/unevaluated-veracity indicators. `coverage`,
+`redes` counts and `registered_people` are separate prioritization context,
+not newly verified factual premises. Mutable person facts are not supplied.
+
+`comparison_prompt_view(content['comparison'])` supplies bounded frozen prior
+material in the `prior:` namespace, with actual prior date, timezone,
+`window_start` and stored `window`. Its derivative summaries are named
+`derived_summary`, never promoted to original passages. `prior_coverage` is
+separate title/tone context, not previous authored conclusions. The existing
+12-prior-story bound and every selected story's own source scope remain intact;
+database identifiers and source URL fields are not projected. Current original
+material still has its separate 4,000-character bank limit. This metadata does
+not add two-cut claims or prior-output references to the closed plan: current
+code-owned readings continue to cite their current story's own source scope.
+
+Focus is resolved only after usable material and a callable provider are
+available. With no provider, recovery may resolve focus only after finding a
+structurally valid, current-basis plan. Recovery requires the same complete
+publication inventory, valid frozen catalogues and comparison context, plus
+the fingerprint of the supplied factual basis, focus and prioritization
+metadata. A change to the prior window alone invalidates recovery. Reordering
+stored display cards does not change original plan indexes. An old free-prose
+report cannot acquire a new accepted-plan receipt.
+
+Empty cuts retain their explicit no-mentions headline and pending coverage
+metadata without calling the model. Source fallback retains useful code-owned
+coverage counts and a dominant captured-publication title, with an explicit
+analysis-unavailable label. It creates no political categories. That unavailable
+reading is not substantive advice and does not prevent tail-card compilation;
+accepted selections and their source identity remain protected.
+
+The factual HTTP factory returns the exact model response, including fences,
+for `decode_plan` and `generation.raw_proposal`. Only well-formed envelopes
+are accepted; an unclosed fence is not repaired upstream. Factory calls without
+the new response schema preserve historical fence stripping and timeout defaults.
+
+Literal titles, bodies, stored source summaries and their provenance bindings
+remain untouched. The plain-text reading copy explicitly replaces embedded
+HTTP(S) links in rendered quotations or catalogue text with `[enlace omitido]`
+and labels the presentation as elided with the original conserved. Provenance
+resolution uses the unchanged text before this transformation. Actual catalogue
+publication links remain accessible. This is presentation, not an assertion that
+the elided display is byte-identical to its original quotation.
+
+Current-producer fixtures use explicit plans from `tests.digest_plan_fixtures`.
+Historical prose/optional notes/entry tolerance are exercised through the existing
+receiver on detached synthetic content, never translated into accepted current
+plans. Continuity rejection fixtures first assert a genuinely accepted plan;
+rejected raw output is retained separately from delivered prose and bindings.
+The prompt retains the conditional minimum of three decisions when at least
+three substantive candidates exist, without turning it into deterministic
+padding or a ceremony quota. Monitored subjects are not assumed to be readers,
+affected parties or responsible authorities; candidates gain no incumbent powers.
+
 ## Deterministic rendering and limitations
 
 Every news slot is rendered, including slots omitted by a sparse plan.

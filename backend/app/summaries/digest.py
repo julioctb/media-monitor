@@ -647,10 +647,26 @@ def render_plain_text(content: dict, narrative: str) -> str:
     """Sectioned plain text (RAG chunk + readable fallback), es mirrors UI."""
     # Late import: presentation helper vive en builder (T8.C) y el import
     # module-level sería cycle builder->digest->builder.
+    import re
+
     from app.summaries.builder import _zone, display_title
 
     emitted_refs: set[int] = set()
     emitted_prior: set[int] = set()
+
+    def presentation(value):
+        # Elision belongs only to this reading copy. Binding resolution uses
+        # the untouched literal below; stored quotations/catalogues stay exact.
+        generation = content.get("generation")
+        if (
+            not isinstance(generation, dict)
+            or generation.get("contract") != "factual-plan-v1"
+        ):
+            return value
+        displayed = re.sub(r"https?://[^\s«»<>]+", "[enlace omitido]", value)
+        if displayed != value:
+            displayed += " (presentación con enlaces omitidos; original conservado)"
+        return displayed
 
     def marked(target, field, *, text=None, allowed=None, feminine=False):
         value = target.get(field) if text is None else text
@@ -659,6 +675,7 @@ def render_plain_text(content: dict, narrative: str) -> str:
         binding = resolved_provenance(
             content, target, field, text=value, allowed=allowed
         )
+        value = presentation(value)
         if binding["state"] == "linked":
             refs = binding["source_refs"]
             emitted_refs.update(refs)
@@ -907,7 +924,7 @@ def render_plain_text(content: dict, narrative: str) -> str:
                 if emitted_prior
                 else f"#{source['index']}"
             )
-            lines.append(f"- {source_id}: {title} — {source['outlet']}")
+            lines.append(f"- {source_id}: {presentation(title)} — {source['outlet']}")
             if source.get("published_at"):
                 try:
                     published = datetime.fromisoformat(source["published_at"])
@@ -919,9 +936,11 @@ def render_plain_text(content: dict, narrative: str) -> str:
                 lines.append(f"  Fecha de publicación: {stamp}")
             lines.append(f"  URL: {source['url']}")
             if source.get("summary"):
-                lines.append(f"  Resumen derivado almacenado: {source['summary']}")
+                lines.append(
+                    f"  Resumen derivado almacenado: {presentation(source['summary'])}"
+                )
             if source.get("excerpt"):
-                lines.append(f"  Extracto capturado: {source['excerpt']}")
+                lines.append(f"  Extracto capturado: {presentation(source['excerpt'])}")
     return "\n".join(lines)
 
 
