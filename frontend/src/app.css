@@ -2242,6 +2242,8 @@ table.coverage th {
   --config-border: #c7d1dc;
   --config-input-border: #aebdcb;
   --config-radius: 6px;
+  --config-source-surface: #e8edf2;
+  --config-source-soft: #e0e7ee;
   max-width: 1120px;
   /* clears the floating Consultas button above the last row */
   padding-bottom: 96px;
@@ -2267,23 +2269,20 @@ table.coverage th {
   font-weight: 400;
   color: var(--color-ink);
 }
-/* Mockup config-form-row: every field group is a soft card. */
-.config-workspace .field-grid > div {
-  padding: var(--space-16);
-  background: var(--config-surface-soft);
-  border: 1px solid var(--config-border);
-  border-radius: 4px;
+/* Mockup operation/LLM render as .panel.config-section: the card, 28 padding. */
+.config-workspace .panel.config-section-card {
+  padding: var(--space-28) var(--space-28) var(--space-24);
 }
-/* Mockup settings sections render FLAT (no card box); structure comes
-   from the section heading + soft field cards. */
-.config-workspace .panel {
-  margin-top: 0;
-  padding: 0;
+/* Keywords/fuentes are flat directories (mock config-*-directory): no card
+   box; hierarchy via the section head and the source cards. */
+.config-workspace .panel.config-section-flat {
+  background: none;
   border: 0;
   border-radius: 0;
-  background: none;
+  box-shadow: none;
+  padding: 0;
 }
-.config-workspace .panel + .panel,
+.config-workspace .panel.config-section-flat + .panel,
 .config-workspace section + section {
   margin-top: 40px;
 }
@@ -2330,7 +2329,12 @@ table.coverage th {
 }
 .config-workspace .panel-head h2 {
   margin: 0 0 16px;
+  font: 700 24px/1.4 var(--font-display);
+  letter-spacing: -0.01em;
+}
+.config-section-flat .panel-head h2 {
   font: 600 20px/1.5 var(--font-display);
+  letter-spacing: 0;
   color: var(--config-heading);
 }
 .config-savebar {
@@ -2370,7 +2374,7 @@ table.coverage th {
 .field-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
+  gap: 24px;
 }
 /* --- Configuración v2: schedule, source lists, social platforms --- */
 .schedule-block {
@@ -2710,6 +2714,31 @@ table.coverage th {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
+}
+.config-workspace .source-card {
+  background: var(--config-source-surface);
+  border: 1px solid var(--config-border);
+  border-radius: 6px;
+}
+.source-card > .source-list-head {
+  background: var(--config-heading);
+  color: #fff;
+  margin: -18px -18px var(--space-16);
+  padding: 14px 18px;
+  border-radius: 6px 6px 0 0;
+}
+.config-workspace .source-list-head h3 {
+  color: #fff;
+  font-size: 21px;
+}
+.source-list-head p {
+  color: var(--config-source-soft);
+}
+.source-list-head button {
+  background: #fff;
+  color: var(--config-heading);
+  border-color: #fff;
+  font-weight: 600;
 }
 .source-card {
   padding: 18px;

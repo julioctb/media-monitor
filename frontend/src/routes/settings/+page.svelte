@@ -415,7 +415,7 @@
 		<!-- Keywords panel: own POST forms, so it lives outside the settings form. -->
 		<section
 			id="palabras-clave"
-			class="panel"
+			class="panel config-section-flat"
 			hidden={activeTab !== 'keywords'}
 			aria-labelledby="palabras-clave-title"
 		>
@@ -453,7 +453,7 @@
 			<!-- Operación -->
 			<section
 				id="operacion"
-				class="panel"
+				class="panel config-section-card"
 				hidden={activeTab !== 'operacion'}
 				aria-labelledby="operacion-title"
 			>
@@ -564,7 +564,7 @@
 			<!-- Fuentes -->
 			<section
 				id="fuentes"
-				class="panel"
+				class="panel config-section-flat"
 				hidden={activeTab !== 'fuentes'}
 				aria-labelledby="fuentes-title"
 			>
@@ -866,7 +866,7 @@
 			<!-- LLM -->
 			<section
 				id="llm"
-				class="panel"
+				class="panel config-section-card"
 				hidden={activeTab !== 'llm'}
 				aria-labelledby="llm-title"
 			>
