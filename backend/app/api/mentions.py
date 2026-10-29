@@ -3,11 +3,11 @@
 from datetime import datetime
 from typing import Literal, Sequence
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import select
 
 from app.api.deps import ClientIdDep, SessionDep
-from app.api.schemas import MentionPage, PersonRefOut
+from app.api.schemas import MentionPage, MentionOut, PersonRefOut
 from app.models import Event, Mention, MentionPerson, Person, MentionSource, Sentiment, queries
 
 router = APIRouter(tags=["mentions"])
@@ -104,3 +104,23 @@ def _attach_event_titles(session: SessionDep, items: Sequence[Mention]) -> None:
     )
     for mention in items:
         mention.event_title = titles.get(mention.event_id) if mention.event_id else None
+
+
+@router.get("/mentions/{mention_id}", response_model=MentionOut)
+def get_mention(
+    session: SessionDep,
+    client_id: ClientIdDep,
+    mention_id: int,
+) -> MentionOut:
+    """Single mention with the same attach surface as the feed page.
+
+    Consumer: the feed's agenda-origin dialog («noticia que detectó la
+    fecha») — it needs author/summary, which the event-detail mention stub
+    does not carry. 404 on cross-client ids (scope stays per client).
+    """
+    mention = session.get(Mention, mention_id)
+    if mention is None or mention.client_id != client_id:
+        raise HTTPException(status_code=404, detail="Mención no encontrada")
+    _attach_persons(session, [mention])
+    _attach_event_titles(session, [mention])
+    return mention

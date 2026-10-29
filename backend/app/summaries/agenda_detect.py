@@ -49,6 +49,9 @@ _MONTHS_ES = {
 #: same-day titles count as the same compromiso: promotion-time near-dupe
 #: guard (F2a), on top of the exact-key idempotency.
 AGENDA_NEAR_DUP_JACCARD = 0.6
+# Umbral de vínculo agenda↔evento: más laxo que el de duplicados — la nota
+# titula distinto a como el brief resumió la fecha (mismo hecho, otra frase).
+AGENDA_EVENT_LINK_JACCARD = 0.4
 
 _DEADLINE_WORDS = (
     "inscripc",
@@ -149,8 +152,9 @@ def _event_link_map(session: Session, client_id: int) -> dict[str, int]:
 
     Mock parity: la agenda reactiva al filtro necesita el evento que la
     detonó; sin referencia persistida, se resuelve al crear por título
-    normalizado (contención bidireccional). Sin match la entrada queda
-    editorial pura y el backfill la reclama después.
+    normalizado (contención bidireccional o Jaccard de tokens >= umbral de
+    vínculo). Sin match la entrada queda editorial pura y el backfill la
+    reclama después.
     """
     rows = session.execute(
         select(Event.id, Event.title).where(Event.client_id == client_id)
@@ -160,6 +164,28 @@ def _event_link_map(session: Session, client_id: int) -> dict[str, int]:
         for event_id, title in rows
         if normalize_title(title or "")
     }
+
+
+def _link_event(entry_key: str, event_links: dict[str, int]) -> int | None:
+    """Mejor candidato por contención o Jaccard de tokens (máximo gana)."""
+    if not entry_key:
+        return None
+    entry_tokens = _tokens(entry_key)
+    best_id: int | None = None
+    best_score = 0.0
+    for cand_key, cand_id in event_links.items():
+        if not cand_key:
+            continue
+        if cand_key in entry_key or entry_key in cand_key:
+            return cand_id
+        union = entry_tokens | _tokens(cand_key)
+        if not union:
+            continue
+        score = len(entry_tokens & _tokens(cand_key)) / len(union)
+        if score >= AGENDA_EVENT_LINK_JACCARD and score > best_score:
+            best_score = score
+            best_id = cand_id
+    return best_id
 
 
 def sync_agenda_from_digest(
@@ -217,14 +243,7 @@ def sync_agenda_from_digest(
         ):
             continue
         entry_key = normalize_title(title)
-        event_id = next(
-            (
-                cand_id
-                for cand_key, cand_id in event_links.items()
-                if cand_key and (cand_key in entry_key or entry_key in cand_key)
-            ),
-            None,
-        )
+        event_id = _link_event(entry_key, event_links)
         session.add(
             AgendaItem(
                 client_id=client_id,

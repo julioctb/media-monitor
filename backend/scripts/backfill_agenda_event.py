@@ -18,7 +18,7 @@ from sqlalchemy import select
 
 from app.db import SessionLocal
 from app.models import AgendaItem, Event
-from app.summaries.agenda_detect import normalize_title
+from app.summaries.agenda_detect import _link_event, normalize_title
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 log = logging.getLogger("backfill_agenda_event")
@@ -46,15 +46,7 @@ def main() -> int:
             key = normalize_title(item.title or "")
             if not key:
                 continue
-            candidates = by_client.get(item.client_id, {})
-            match = next(
-                (
-                    event_id
-                    for cand_key, event_id in candidates.items()
-                    if cand_key and (cand_key in key or key in cand_key)
-                ),
-                None,
-            )
+            match = _link_event(key, by_client.get(item.client_id, {}))
             if match is None:
                 continue
             linked += 1
