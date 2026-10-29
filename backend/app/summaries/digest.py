@@ -654,6 +654,29 @@ def render_plain_text(content: dict, narrative: str) -> str:
     emitted_refs: set[int] = set()
     emitted_prior: set[int] = set()
 
+    def source_label(value):
+        # Display labels only: never change catalogue keys or channel scope.
+        labels = {
+            "news_rss": "Noticias RSS",
+            "gdelt": "GDELT",
+            "x_twitter": "X (Twitter)",
+            "x": "X (Twitter)",
+            "facebook_page": "Facebook",
+            "facebook": "Facebook",
+            "rss_custom": "RSS personalizado",
+            "scraper": "Extracción web",
+            "field_report": "Reporte de campo",
+            "telegram_web": "Telegram",
+            "telegram": "Telegram",
+            "instagram_web": "Instagram",
+            "instagram": "Instagram",
+        }
+        if not isinstance(value, str) or not value.strip():
+            return "Fuente no identificada"
+        if value.startswith(("https://", "http://")):
+            return value
+        return labels.get(value, value.replace("_", " ").title())
+
     def presentation(value):
         # Elision belongs only to this reading copy. Binding resolution uses
         # the untouched literal below; stored quotations/catalogues stay exact.
@@ -731,7 +754,9 @@ def render_plain_text(content: dict, narrative: str) -> str:
             lines.append(
                 f"  Ángulo nuevo: {marked(item, 'angulo_nuevo', allowed=scope)}"
             )
-        sources = ", ".join(f"{s.get('source')}" for s in item.get("sources") or [])
+        sources = ", ".join(
+            source_label(s.get("source")) for s in item.get("sources") or []
+        )
         if sources:
             lines.append(f"  Fuentes: {sources}")
     temas = content.get("temas_sin_nota") or []
@@ -769,7 +794,7 @@ def render_plain_text(content: dict, narrative: str) -> str:
             else ""
         )
         count = data.get("count") if isinstance(data, dict) else data
-        lines.append(f"- {source}: {count}{note}")
+        lines.append(f"- {source_label(source)}: {count}{note}")
         cuentas = data.get("cuentas") if isinstance(data, dict) else None
         for entry in cuentas or []:
             scope = channel_refs(content, source, entry.get("cuenta"))
@@ -810,8 +835,16 @@ def render_plain_text(content: dict, narrative: str) -> str:
                     return display_title(entry["title"]) or entry["title"]
             return f"#{index}"
 
+        # Only wholly absent metadata retains the historical comparative label.
+        delta_heading = "Qué cambió"
+        if "comparison" in content:
+            from app.summaries.evidence import comparison_context
+
+            context = comparison_context(content)
+            if context is None or not context["snapshot"]["available"]:
+                delta_heading = "Novedades del corte"
         secciones = (
-            ("Qué cambió", brief.get("delta"), None),
+            (delta_heading, brief.get("delta"), None),
             ("Riesgos", brief.get("riesgos"), "razon"),
             ("Decisión / atención", brief.get("decisiones"), "razon"),
             ("Ruido", brief.get("ruido"), "razon"),
@@ -863,6 +896,14 @@ def render_plain_text(content: dict, narrative: str) -> str:
                 ):
                     text = marked(entry, field, allowed=scope, feminine=True)
                     if text:
+                        if field == "accion_sugerida":
+                            # Resolve exact stored prose before display-only elision.
+                            text = re.sub(
+                                r"^(?:Atención sugerida|Acción sugerida):\s*",
+                                "",
+                                text,
+                                count=1,
+                            )
                         lines.append(f"  {label}: {text}")
         fechas = brief.get("fechas") or []
         if fechas:
