@@ -3,6 +3,7 @@
 	import { ICON_PATHS } from '$lib/icons';
 	import { prefs, seedPrefsFromServer, setFollow } from '$lib/prefs';
 	import { notifyPersist } from '$lib/toast.svelte';
+	import type { EventSummary } from '$lib/api';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -21,26 +22,26 @@
 		notifyPersist(setFollow(id, next, lastSeenAt));
 	}
 
-	// Mockup search (eventView): client-side over the loaded set. EventSummary
-	// carries id/title/summary only — no per-event source, topic or priority
-	// data to match, so the«fuente» leg of the mockup placeholder is omitted.
+	// Mockup search (eventView): client-side over the loaded set, case-folded
+	// exactly like the mockup (toLocaleLowerCase 'es'). EventSummary carries
+	// id/title/summary only — no per-event source, topic or priority data to
+	// match, so the«fuente» leg of the mockup placeholder is omitted.
 	let query = $state('');
 
 	const matches = $derived.by(() => {
-		const term = query.trim().toLowerCase();
+		const term = query.trim().toLocaleLowerCase('es');
 		if (!term) return data.events;
 		return data.events.filter((event) =>
-			`${event.id} ${event.title} ${event.summary ?? ''}`.toLowerCase().includes(term),
+			`${event.id} ${event.title} ${event.summary ?? ''}`.toLocaleLowerCase('es').includes(term),
 		);
 	});
 
-	// The mockup splits «En seguimiento» vs rest by a persisted follow state the
-	// app does not track; the honest proxy is the coverage axis the load itself
-	// is built on: eco = the story reached two or more sources. Single-source
-	// events land in the mockup's «Otros eventos» / «Eventos identificados»
-	// group, exactly its fallback when nothing is followed.
-	const withEcho = $derived(matches.filter((event) => event.source_count >= 2));
-	const withoutEcho = $derived(matches.filter((event) => event.source_count < 2));
+	// Mockup eventCards(): «En seguimiento» is the slice of matches present in
+	// prefs.follow (cookie mm_prefs); the rest is «Otros eventos», which
+	// collapses to the single «Eventos identificados» group while nothing is
+	// followed. Presentation only — the load serves one full population.
+	const followed = $derived(matches.filter((event) => followingIds.includes(event.id)));
+	const others = $derived(matches.filter((event) => !followingIds.includes(event.id)));
 </script>
 
 <svelte:head>
@@ -54,7 +55,7 @@
 	</div>
 </header>
 
-<div class="aside-note events-note">
+<div class="events-note">
 	Los eventos reúnen menciones del mismo hecho. Cada fuente se conserva por separado; los
 	registros no constituyen confirmación independiente.
 </div>
@@ -80,6 +81,27 @@
 	</span>
 </div>
 
+<!-- Mockup eventCards: both groups render through one section snippet; they
+	differ only in id, title and member events. -->
+{#snippet eventGroup(id: string, title: string, events: EventSummary[])}
+	<section class="events-group" aria-labelledby={`${id}-title`}>
+		<h2 id={`${id}-title`}>
+			{title}
+			<span class="sub-count">{events.length}</span>
+		</h2>
+		<div class="section-grid">
+			{#each events as event (event.id)}
+				<EventCard
+					{event}
+					following={followingIds.includes(event.id)}
+					onFollowToggle={() =>
+						toggleFollow(event.id, !followingIds.includes(event.id), event.last_seen_at)}
+				/>
+			{/each}
+		</div>
+	</section>
+{/snippet}
+
 <div class="events-list">
 	{#if matches.length === 0}
 		<div class="events-empty">
@@ -92,40 +114,15 @@
 			{/if}
 		</div>
 	{:else}
-		{#if withEcho.length > 0}
-			<section class="events-group" aria-labelledby="events-echo-title">
-				<h2 id="events-echo-title">
-					Con eco de medios <span class="sub-count">{withEcho.length}</span>
-				</h2>
-				<div class="section-grid">
-					{#each withEcho as event (event.id)}
-						<EventCard
-							{event}
-							following={followingIds.includes(event.id)}
-							onFollowToggle={() =>
-								toggleFollow(event.id, !followingIds.includes(event.id), event.last_seen_at)}
-						/>
-					{/each}
-				</div>
-			</section>
+		{#if followed.length > 0}
+			{@render eventGroup('events-following', 'En seguimiento', followed)}
 		{/if}
-		{#if withoutEcho.length > 0}
-			<section class="events-group" aria-labelledby="events-other-title">
-				<h2 id="events-other-title">
-					{withEcho.length > 0 ? 'Otros eventos' : 'Eventos identificados'}
-					<span class="sub-count">{withoutEcho.length}</span>
-				</h2>
-				<div class="section-grid">
-					{#each withoutEcho as event (event.id)}
-						<EventCard
-							{event}
-							following={followingIds.includes(event.id)}
-							onFollowToggle={() =>
-								toggleFollow(event.id, !followingIds.includes(event.id), event.last_seen_at)}
-						/>
-					{/each}
-				</div>
-			</section>
+		{#if others.length > 0}
+			{@render eventGroup(
+				'events-other',
+				followed.length > 0 ? 'Otros eventos' : 'Eventos identificados',
+				others
+			)}
 		{/if}
 	{/if}
 </div>

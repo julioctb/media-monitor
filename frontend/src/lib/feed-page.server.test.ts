@@ -67,7 +67,9 @@ it('loads metrics with the same effective filters as the direct result request',
 	expect(aggregate[0].searchParams).toEqual(expected);
 	expect(aggregate[0].searchParams.get('since')).toBe('2026-10-14T00:00:00-06:00');
 	expect(aggregate[0].searchParams.get('until')).toBe('2026-10-15T23:59:59-06:00');
-	expect(data).toMatchObject({ feedStats: metrics, feedStatsError: null, mentions: { total: 96 }, sourceCounts: { news_rss: 200, x_twitter: 0 }, mediumCounts: { 'global.example': 200 } });
+	// mediumCounts ya no refleja el by_medium del stats: se deriva del pool
+	// de noticias (test «forwards the medium facet»); aquí el pool va vacío.
+	expect(data).toMatchObject({ feedStats: metrics, feedStatsError: null, mentions: { total: 96 }, sourceCounts: { news_rss: 200, x_twitter: 0 } });
 });
 
 it('aggregates a channel union once without summing source-distinct units', async () => {
@@ -173,10 +175,17 @@ it('keeps every channel pool call within the API limit at deep offsets', async (
 
 it('forwards the medium facet as one direct query and echoes it in filters', async () => {
 	const fetchMock = stubFetch({
-		'/api/stats/overview': { by_source: {}, by_medium: { 'e-consulta.com': 3, 'x.com': 1 } },
+		'/api/stats/overview': { by_source: { news_rss: 5 } },
 		'/api/keywords': [],
 		'/api/stats/feed': metrics,
-		'/api/mentions': { items: [], total: 0 }
+		'/api/mentions': {
+			items: [
+				{ id: 1, source: 'news_rss', url: 'https://www.e-consulta.com/nota-1' },
+				{ id: 2, source: 'news_rss', url: 'https://e-consulta.com/nota-2' },
+				{ id: 3, source: 'x_twitter', url: 'https://x.com/post/9' }
+			],
+			total: 3
+		}
 	});
 
 	const url = new URL('http://localhost/?channel=news&medium=e-consulta.com');
@@ -192,7 +201,9 @@ it('forwards the medium facet as one direct query and echoes it in filters', asy
 	expect(direct[0].searchParams.get('medium')).toBe('e-consulta.com');
 	expect(direct[0].searchParams.get('channel')).toBeNull();
 	expect((data.filters as Record<string, string>).medium).toBe('e-consulta.com');
-	expect(data.mediumCounts).toEqual({ 'e-consulta.com': 3, 'x.com': 1 });
+	// Panel «Medios» = hosts de NOTAS (x.com es red social, no medio); el
+	// pool alimenta el conteo y el www se normaliza.
+	expect(data.mediumCounts).toEqual({ 'e-consulta.com': 2 });
 });
 
 it('echoes the mm_prefs cookie and derives focus rows from followed events', async () => {

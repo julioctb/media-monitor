@@ -1,26 +1,27 @@
 import { error } from '@sveltejs/kit';
 import { errorStatus, errorMessage } from '$lib/server/api-error';
-import { ApiError, listEvents } from '$lib/api';
+import { listEvents } from '$lib/api';
 import { MM_PREFS_COOKIE, parsePrefs } from '$lib/prefs';
 import type { PageServerLoad } from './$types';
 
-const SCOPES = new Set(['eco', 'todas']);
+/**
+ * Presentation window, not pagination: the search box and the
+ * seguimiento/resto split run client-side over this single pool (same
+ * capped-pool pattern as the channel merges' limit 500). Older history stays
+ * reachable through the feed and the per-event pages.
+ */
+const EVENTS_PAGE_LIMIT = 200;
 
-export const load: PageServerLoad = async ({ url, cookies }) => {
-	const scopeParam = url.searchParams.get('scope') ?? 'eco';
-	const scope = SCOPES.has(scopeParam) ? (scopeParam as 'eco' | 'todas') : 'eco';
-
+export const load: PageServerLoad = async ({ cookies }) => {
 	try {
-		// 'eco' = historias con cobertura real (2+ menciones); las de una sola
-		// nota son duplicados del feed y viven tras el toggle.
-		const events = await listEvents({
-			limit: 200,
-			min_mentions: scope === 'eco' ? 2 : 1
-		});
+		// Full population on purpose: «En seguimiento» vs resto is a presentation
+		// split (mockup eventCards), so the load must not pre-filter by coverage —
+		// the old eco-only default hid every single-mention event.
+		const events = await listEvents({ limit: EVENTS_PAGE_LIMIT });
 		// Followed ids from the mm_prefs cookie: the card buttons render their
 		// pressed state on the server (client writes, server reads).
 		const prefs = parsePrefs(cookies.get(MM_PREFS_COOKIE));
-		return { events, scope, prefs };
+		return { events, prefs };
 	} catch (cause) {
 		const status = errorStatus(cause, 503);
 		const detail = errorMessage(cause, 'error desconocido');

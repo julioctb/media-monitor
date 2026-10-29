@@ -20,7 +20,8 @@ function event(over: Partial<EventSummary> & Pick<EventSummary, 'id'>): EventSum
 
 function baseData() {
 	return {
-		// eco (2+ fuentes) / sin eco / sin eco, para poblar los dos grupos.
+		// El split de grupos es por seguimiento, no por cobertura: el mix de
+		// source_count solo decora. El pool completo lo fija el load.
 		events: [
 			event({
 				id: 31,
@@ -35,15 +36,9 @@ function baseData() {
 				mention_count: 2,
 				source_count: 1
 			}),
-			event({
-				id: 12,
-				title: 'Cierre de convocatoria de becas',
-				mention_count: 1,
-				source_count: 1
-			})
+			event({ id: 12, title: 'Cierre de convocatoria de becas', mention_count: 1, source_count: 1 })
 		],
-		prefs: { saved: [] as number[], follow: [] as number[], seen: {} as Record<string, string> },
-		scope: 'eco' as const
+		prefs: { saved: [] as number[], follow: [] as number[], seen: {} as Record<string, string> }
 	};
 }
 
@@ -75,6 +70,16 @@ function type(container: HTMLElement, value: string) {
 	input.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
+function press(button: Element) {
+	button.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+}
+
+function pressedButtons(page: ReturnType<typeof renderPage>) {
+	return page
+		.queryAll('.event-card .event-card-footer button')
+		.filter((button) => button.getAttribute('aria-pressed') === 'true');
+}
+
 afterEach(() => {
 	while (mounted.length) {
 		const instance = mounted.pop();
@@ -84,8 +89,10 @@ afterEach(() => {
 });
 
 describe('events view (mockup eventView)', () => {
-	it('renders toolbar, provenance note and both coverage groups with sub-counts', () => {
-		const page = renderPage(baseData());
+	it('renders toolbar, provenance note and both follow groups with sub-counts', () => {
+		const data = baseData();
+		data.prefs.follow = [31];
+		const page = renderPage(data);
 		const text = page.text();
 
 		expect(text).toContain('Los eventos reúnen menciones del mismo hecho');
@@ -99,7 +106,7 @@ describe('events view (mockup eventView)', () => {
 		const groups = page.queryAll('section.events-group');
 		expect(groups).toHaveLength(2);
 		expect(groups[0].querySelector('h2')?.textContent?.replace(/\s+/g, ' ')).toContain(
-			'Con eco de medios'
+			'En seguimiento'
 		);
 		expect(groups[0].querySelector('.sub-count')?.textContent?.trim()).toBe('1');
 		expect(groups[1].querySelector('h2')?.textContent?.replace(/\s+/g, ' ')).toContain(
@@ -113,14 +120,12 @@ describe('events view (mockup eventView)', () => {
 		const link = page.query('.event-card h3 a[href="/events/31"]');
 		expect(link).not.toBeNull();
 
-		// el segmented eco/todas v1 quedó fuera del DOM (el scope vive solo en el load)
+		// sin toggle v1: ni segmented ni eje de cobertura en el DOM
 		expect(page.query('.segmented')).toBeNull();
 	});
 
-	it('degrades to the mockup single «Eventos identificados» group without echo', () => {
-		const data = baseData();
-		const onlySingleSource = (data.events as EventSummary[]).map((e) => ({ ...e, source_count: 1 }));
-		const page = renderPage({ ...data, events: onlySingleSource });
+	it('degrades to the mockup single «Eventos identificados» group without follows', () => {
+		const page = renderPage(baseData());
 
 		const groups = page.queryAll('section.events-group');
 		expect(groups).toHaveLength(1);
@@ -130,9 +135,37 @@ describe('events view (mockup eventView)', () => {
 		expect(groups[0].querySelectorAll('.event-card')).toHaveLength(3);
 	});
 
+	it('regroups a card under «En seguimiento» when follow toggles', async () => {
+		const page = renderPage(baseData());
+		await tick();
+
+		const target = page
+			.queryAll('.event-card')
+			.find((card) => card.querySelector('a[href="/events/7"]'))!;
+		const button = target.querySelector('.event-card-footer button')!;
+		expect(button.textContent?.replace(/\s+/g, ' ')).toContain('Seguir evento');
+		press(button);
+		await tick();
+
+		// la card 7 se movió de grupo: ahora vive en «En seguimiento»
+		const groups = page.queryAll('section.events-group');
+		expect(groups).toHaveLength(2);
+		expect(groups[0].querySelector('h2')?.textContent?.replace(/\s+/g, ' ')).toContain(
+			'En seguimiento'
+		);
+		const followedLinks = [...groups[0].querySelectorAll('.event-card h3 a')].map((a) =>
+			a.getAttribute('href')
+		);
+		expect(followedLinks).toContain('/events/7');
+		expect(groups[1].querySelector('h2')?.textContent?.replace(/\s+/g, ' ')).toContain(
+			'Otros eventos'
+		);
+	});
+
 	it('filters the loaded set client-side from the toolbar search', async () => {
 		const page = renderPage(baseData());
-		type(page.target, 'tarifa');
+		// mayúsculas a propósito: el plegado va con locale es, como el mockup
+		type(page.target, 'TARIFA');
 		await tick();
 
 		expect(page.query('#events-count')?.textContent?.replace(/\s+/g, ' ')).toContain(
@@ -148,7 +181,7 @@ describe('events view (mockup eventView)', () => {
 	});
 
 	it('keeps an honest empty state when no events exist at all', () => {
-		const page = renderPage({ events: [], scope: 'eco', prefs: { saved: [], follow: [], seen: {} } });
+		const page = renderPage({ events: [], prefs: { saved: [], follow: [], seen: {} } });
 
 		expect(page.queryAll('section.events-group')).toHaveLength(0);
 		expect(page.text()).toContain('Sin eventos registrados todavía.');
@@ -159,33 +192,46 @@ describe('events view (mockup eventView)', () => {
 });
 
 describe('events follow (mockup data-follow)', () => {
-	it('seeds the pressed state from the server prefs and toggles the cookie', async () => {
+	it('seeds the pressed state, groups followed cards and toggles the cookie', async () => {
 		const data = baseData();
 		data.prefs = { saved: [], follow: [31], seen: {} };
 		const page = renderPage(data);
 		await tick();
 
-		const states = page.queryAll('.event-card .event-card-footer button').map((button) => ({
-			label: button.textContent?.replace(/\s+/g, ' ').trim(),
-			pressed: button.getAttribute('aria-pressed'),
-			primary: button.classList.contains('primary')
-		}));
-		// el seguido (31) va en estado «Siguiendo»; el resto ofrece «Seguir evento»
-		expect(states.filter((s) => s.label === 'Siguiendo')).toHaveLength(1);
-		const following = states.find((s) => s.label === 'Siguiendo')!;
-		expect(following.pressed).toBe('true');
-		expect(following.primary).toBe(true);
+		// el seguido (31) renderiza pressionado y dentro de «En seguimiento»
+		expect(pressedButtons(page)).toHaveLength(1);
+		const seeded = pressedButtons(page)[0]!;
+		expect(seeded.closest('section')?.querySelector('h2')?.textContent).toContain(
+			'En seguimiento'
+		);
+		expect(seeded.textContent?.replace(/\s+/g, ' ')).toContain('Siguiendo');
+		expect(seeded.classList.contains('primary')).toBe(true);
 
-		const followButtons = page.queryAll('.event-card .event-card-footer button');
-		const pending = followButtons.find((b) => b.textContent?.includes('Seguir evento'))!;
-		pending.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		// seguir 7: cookie escrita y card re-agrupada (el move recrea el nodo)
+		const pending = page
+			.queryAll('.event-card .event-card-footer button')
+			.find((button) => button.textContent?.includes('Seguir evento'))!;
+		const pendingHref = pending
+			.closest('.event-card')
+			?.querySelector('.headline a')
+			?.getAttribute('href');
+		press(pending);
 		await tick();
-		expect(pending.textContent?.replace(/\s+/g, ' ')).toContain('Siguiendo');
 		expect(document.cookie).toContain('mm_prefs=');
 
-		const unfollow = followButtons.find((b) => b.getAttribute('aria-pressed') === 'true')!;
-		unfollow.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		const groups = page.queryAll('section.events-group');
+		expect(groups).toHaveLength(2);
+		const movedCard = [...groups[0].querySelectorAll('.event-card')].find(
+			(card) => card.querySelector('.headline a')?.getAttribute('href') === pendingHref
+		);
+		expect(movedCard).toBeDefined();
+		expect(movedCard!.querySelector('.event-card-footer button')?.textContent).toContain(
+			'Siguiendo'
+		);
+
+		// volver a dejar de seguir 7 deja un solo pressionado (31)
+		press(movedCard!.querySelector('.event-card-footer button')!);
 		await tick();
-		expect(unfollow.textContent?.replace(/\s+/g, ' ')).toContain('Seguir evento');
+		expect(pressedButtons(page)).toHaveLength(1);
 	});
 });

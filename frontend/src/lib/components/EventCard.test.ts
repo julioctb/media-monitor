@@ -66,6 +66,14 @@ describe('EventCard', () => {
 		expect(footerText(card)).toBe('4 menciones · 2 fuentes');
 	});
 
+	it('titles the source count as channel types, keeping the visible word', () => {
+		const { card } = renderCard(eventFixture());
+
+		const source = card.querySelector('.event-card-footer span[title]');
+		expect(source?.getAttribute('title')).toBe('2 tipos de canal con registros');
+		expect(source?.textContent?.replace(/\s+/g, ' ').trim()).toBe('2 fuentes');
+	});
+
 	it('uses singular wording for a lone mention', () => {
 		const { card } = renderCard(eventFixture({ mention_count: 1, source_count: 1 }));
 

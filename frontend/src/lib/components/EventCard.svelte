@@ -4,7 +4,7 @@
 
 	interface Props {
 		event: EventSummary;
-		/** Followed state (mockup data-follow); the button hides while undefined. */
+		/** Pressed state of the follow toggle (mockup data-follow). */
 		following?: boolean;
 		/** Toggles the follow state (mockup toggle('follow')). */
 		onFollowToggle?: () => void;
@@ -33,10 +33,15 @@
 		<span class="text-xs text-muted tabular-nums">
 			{event.mention_count}
 			{event.mention_count === 1 ? 'mención' : 'menciones'} ·
-			{event.source_count}
-			{event.source_count === 1 ? 'fuente' : 'fuentes'}
+			<!-- source_count counts distinct capture channels, never outlets; the
+				title says so, the visible word stays the mockup's. -->
+			<span title={`${event.source_count} ${event.source_count === 1 ? 'tipo' : 'tipos'} de canal con registros`}>
+				{event.source_count}
+				{event.source_count === 1 ? 'fuente' : 'fuentes'}
+			</span>
 		</span>
 		{#if onFollowToggle}
+			<!-- Visibility = onFollowToggle wiring; pressed state = following. -->
 			<button
 				type="button"
 				class="button"
