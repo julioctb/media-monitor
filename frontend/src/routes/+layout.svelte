@@ -5,6 +5,7 @@
 	import pkg from '../../package.json';
 	import type { LayoutProps } from './$types';
 	import type { SubmitFunction } from './consultas/$types';
+	import { ICON_PATHS } from '$lib/icons';
 
 	let { children }: LayoutProps = $props();
 
@@ -13,27 +14,11 @@
 	interface NavItem {
 		label: string;
 		href: string;
-		icon: keyof typeof ICONS;
+		icon: keyof typeof ICON_PATHS;
 	}
 
 	// Icon paths from the v3 mockup (app.js `paths` map); `stats` added in the
 	// same 24px stroke language for the three routes the mockup lacks.
-	const ICONS = {
-		layers: 'm12 3 10 6-10 6L2 9l10-6z M2 14l10 6 10-6',
-		feed: 'M4 4h16v16H4z M8 8h8 M8 12h8 M8 16h5',
-		field: 'm21 3-7 18-4-7-7-4 18-7z M10 14 21 3',
-		events: 'M5 5h5v5H5z M14 5h5v5h-5z M5 14h5v5H5z M14 14h5v5h-5z',
-		agenda: 'M5 5h14v15H5z M8 3v4 M16 3v4 M5 10h14 M9 14h2',
-		people: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M20 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75',
-		query: 'M4 4h16v13H9l-5 4z M8 8h8 M8 12h5',
-		settings: 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8 M12 2v3 M12 19v3 M2 12h3 M19 12h3 M5 5l2 2 M17 17l2 2 M5 19l2-2 M17 7l2-2',
-		stats: 'M5 20V10 M12 20V4 M19 20v-8',
-		search: 'M20 20l-5-5 M10 17a7 7 0 1 0 0-14 7 7 0 0 0 0 14',
-		arrow: 'M5 12h14 M13 6l6 6-6 6',
-		check: 'm5 12 4 4L19 6',
-		close: 'M6 6l12 12 M6 18 18 6',
-		menu: 'M4 6h16 M4 12h16 M4 18h16'
-	};
 
 	// Nav per the v3 contract (Panel-de-monitoreo-informativo app.js labels):
 	// exactly these eight views, this order. Legacy routes (/stats,
@@ -240,7 +225,7 @@
 		</div>
 
 		<button type="button" class="mobile-menu-close" aria-label="Cerrar menú" onclick={() => closeMenu()} bind:this={closeButton}>
-			<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true"><path d={ICONS.close} /></svg>
+			<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true"><path d={ICON_PATHS.close} /></svg>
 		</button>
 
 		<div>
@@ -255,7 +240,7 @@
 						title={collapsed ? item.label : undefined}
 						onclick={() => closeMenu()}
 					>
-						<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true"><path d={ICONS[item.icon]} /></svg>
+						<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true"><path d={ICON_PATHS[item.icon]} /></svg>
 						<span class="nav-label">{item.label}</span>
 					</a>
 				{/each}
@@ -278,7 +263,7 @@
 				onclick={() => (menuOpen ? closeMenu() : openMenu())}
 				bind:this={menuButton}
 			>
-				<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true"><path d={ICONS.menu} /></svg>
+				<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true"><path d={ICON_PATHS.menu} /></svg>
 			</button>
 			<img
 				class="mobile-header-logo"
@@ -305,14 +290,14 @@
 			bind:this={launcherButton}
 			inert={menuOpen || undefined}
 		>
-			<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true"><path d={ICONS.query} /></svg>
+			<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true"><path d={ICON_PATHS.query} /></svg>
 			Consultas
 		</button>
 		{#if panelOpen}
 			<section class="floating-query" id="floating-query" aria-labelledby="floating-query-title">
 				<header class="floating-query-head">
 					<span class="query-chat-mark" aria-hidden="true">
-						<svg class="od-icon" viewBox="0 0 24 24"><path d={ICONS.query} /></svg>
+						<svg class="od-icon" viewBox="0 0 24 24"><path d={ICON_PATHS.query} /></svg>
 					</span>
 					<div class="floating-query-title">
 						<h2 id="floating-query-title">De la pregunta a la fuente</h2>
@@ -320,7 +305,7 @@
 					</div>
 					<a class="text-link" href="/consultas" onclick={() => closePanel()}>Abrir página</a>
 					<button type="button" class="icon-button" aria-label="Cerrar consultas" onclick={() => closePanel(true)}>
-						<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true"><path d={ICONS.close} /></svg>
+						<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true"><path d={ICON_PATHS.close} /></svg>
 					</button>
 				</header>
 				<div class="floating-query-body">
@@ -367,7 +352,7 @@
 						{:else if !panelPending && !panelResult}
 						<div class="floating-query-welcome">
 							<span class="query-welcome-icon" aria-hidden="true">
-								<svg class="od-icon" viewBox="0 0 24 24"><path d={ICONS.query} /></svg>
+								<svg class="od-icon" viewBox="0 0 24 24"><path d={ICON_PATHS.query} /></svg>
 							</span>
 							<h3>¿Qué quieres investigar?</h3>
 							<p>Explora las menciones y abre la evidencia de cada resultado.</p>
@@ -392,7 +377,7 @@
 								onkeydown={handleComposerKeydown}
 							></textarea>
 							<button class="button primary" type="submit" aria-label="Enviar consulta" disabled={panelPending}>
-								<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true"><path d={ICONS.arrow} /></svg>
+								<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true"><path d={ICON_PATHS.arrow} /></svg>
 							</button>
 						</div>
 						<p>Cada respuesta cita las notas que la sustentan.</p>

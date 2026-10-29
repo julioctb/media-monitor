@@ -53,11 +53,13 @@ it('exposes unavailable metrics without replacing measured values or loaded resu
 
 it('labels global navigation separately from filtered-result indicators', async () => {
 	const target = await render();
-	for (const id of ['medios-title', 'origen-title']) {
-		expect(target.querySelector(`[aria-labelledby="${id}"]`)?.textContent).toContain(
-			'Sin aplicar los filtros del feed.'
-		);
-	}
+	// v3 anatomy: the global-count note lives under Origen only
+	expect(target.querySelector('[aria-labelledby="origen-title"]')?.textContent).toContain(
+		'Sin aplicar los filtros del feed.'
+	);
+	const medios = target.querySelector('[aria-labelledby="medios-title"]');
+	expect(medios?.textContent).toContain('Medios detectados');
+	expect(medios?.textContent).not.toContain('Sin aplicar los filtros');
 	const origen = target.querySelector('[aria-labelledby="origen-title"]')?.textContent ?? '';
 	expect(origen).toContain('Noticias');
 	expect(origen).toContain('200');
@@ -115,8 +117,8 @@ it('renders full-result metrics while retaining one loaded card and publication 
 
 it('renders the v3 strip: four measured cards and the period reset link', async () => {
 	const target = await render();
-	const labels = [...target.querySelectorAll('.feed-stats .stat-top span')].map((node) =>
-		node.textContent?.trim()
+	const labels = [...target.querySelectorAll('.feed-stats .stat-top > span:not(.stat-icon)')].map(
+		(node) => node.textContent?.trim()
 	);
 	expect(labels).toEqual([
 		'Menciones en el feed',
@@ -124,6 +126,11 @@ it('renders the v3 strip: four measured cards and the period reset link', async 
 		'Medios con noticias',
 		'Fuentes con registros'
 	]);
+	// v3 stat anatomy: every card carries a toned icon tile (styles.css .stat-icon)
+	const icons = [...target.querySelectorAll('.feed-stats .stat-icon')].map((node) =>
+		node.className.replace('stat-icon ', '')
+	);
+	expect(icons).toEqual(['news', 'neutral', 'field', 'social']);
 	const notes = [...target.querySelectorAll('.feed-stats .stat-note')].map((node) =>
 		node.textContent?.replace(/\s+/g, ' ').trim()
 	);
@@ -155,7 +162,7 @@ it('renders the v3 panel anatomy: toolbar, tone filter, rail and item rows', asy
 		'.feed-item .feed-meta .tone-badge',
 		'.feed-item .feed-meta .feed-time',
 		'.feed-item .headline a',
-		'.feed-side-column .feed-period-panel .feed-date-controls',
+		'.feed-side-column .feed-period-panel #feed-period-preset',
 		'.feed-aside .aside-panel .distribution-row',
 		'.feed-aside .feed-source-list .feed-source-row',
 		'.pagination .page-button'
@@ -163,6 +170,23 @@ it('renders the v3 panel anatomy: toolbar, tone filter, rail and item rows', asy
 	for (const sel of markers) {
 		expect(target.querySelector(sel), sel).not.toBeNull();
 	}
+	// v3 period panel: preset select first; custom range only when preset is custom
+	const preset = target.querySelector<HTMLSelectElement>('#feed-period-preset');
+	expect(preset?.value).toBe('all');
+	expect(target.querySelector('.feed-date-controls')).toBeNull();
+	const options = [...(preset?.options ?? [])].map((option) => option.textContent?.trim());
+	expect(options).toEqual([
+		'Hoy',
+		'Ayer',
+		'Ayer y hoy',
+		'Últimos 10 días',
+		'Último mes',
+		'Personalizado',
+		'Todo el periodo'
+	]);
+	// invented panels outside the v3 contract are gone
+	expect(target.textContent).not.toContain('Histórico');
+	expect(target.textContent).not.toContain('Seguimiento');
 	// one card per loaded mention; the tone badge carries the active sentiment
 	expect(target.querySelectorAll('.feed-item')).toHaveLength(1);
 	expect(target.querySelector('.feed-item .tone-badge')?.textContent).toContain('Negativo');

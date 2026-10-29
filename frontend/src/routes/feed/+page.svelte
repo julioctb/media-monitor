@@ -1,16 +1,17 @@
 <script lang="ts">
-	import { invalidateAll } from '$app/navigation';
+	import { invalidateAll, goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 
 	import { page } from '$app/state';
 
-	import EventGroup from '$lib/components/EventGroup.svelte';
+	import MentionCard from '$lib/components/MentionCard.svelte';
 	import MentionDetailDialog from '$lib/components/MentionDetailDialog.svelte';
 	import type { MentionEventRef } from '$lib/components/MentionCard.svelte';
 	import type { Mention } from '$lib/api';
 	import { groupByEvent } from '$lib/grouping';
 	import type { FeedGroup } from '$lib/grouping';
 	import { CHANNEL_LABELS, type FeedChannel } from '$lib/feed-filters';
+	import { ICON_PATHS } from '$lib/icons';
 	import { BTN_PRIMARY_CLS, INPUT_CLS } from '$lib/ui';
 	import type { PageProps } from './$types';
 
@@ -96,10 +97,10 @@
 	/* Channel tabs (server param `channel`): links, like every facet pill —
 	   they preserve the rest of the query and reset pagination. */
 	const CHANNEL_TABS = [
-		{ value: '', label: CHANNEL_LABELS.all },
-		{ value: 'news', label: CHANNEL_LABELS.news },
-		{ value: 'social', label: CHANNEL_LABELS.social },
-		{ value: 'field', label: CHANNEL_LABELS.field }
+		{ value: '', label: CHANNEL_LABELS.all, icon: 'layers' },
+		{ value: 'news', label: CHANNEL_LABELS.news, icon: 'feed' },
+		{ value: 'social', label: CHANNEL_LABELS.social, icon: 'social' },
+		{ value: 'field', label: CHANNEL_LABELS.field, icon: 'field' }
 	] as const;
 
 	function hrefWithChannel(value: string): string {
@@ -222,6 +223,74 @@
 	});
 
 	const limitOptions = [10, 25, 50, 100];
+
+	/* Period presets (mockup #feed-period-preset): every option resolves to
+	   the same server params (since/until) the custom range uses. */
+	function isoDay(offsetFromToday: number): string {
+		const day = new Date();
+		day.setDate(day.getDate() + offsetFromToday);
+		return day.toISOString().slice(0, 10);
+	}
+	const PERIOD_PRESETS = [
+		{ value: 'today', label: 'Hoy', since: () => isoDay(0), until: () => isoDay(0) },
+		{ value: 'yesterday', label: 'Ayer', since: () => isoDay(-1), until: () => isoDay(-1) },
+		{
+			value: 'yesterdayToday',
+			label: 'Ayer y hoy',
+			since: () => isoDay(-1),
+			until: () => isoDay(0)
+		},
+		{ value: 'last10', label: 'Últimos 10 días', since: () => isoDay(-9), until: () => isoDay(0) },
+		{ value: 'lastMonth', label: 'Último mes', since: () => isoDay(-29), until: () => isoDay(0) },
+		{ value: 'custom', label: 'Personalizado' },
+		{ value: 'all', label: 'Todo el periodo' }
+	] as const;
+	type PeriodPreset = (typeof PERIOD_PRESETS)[number]['value'];
+
+	function hrefWithPeriod(preset: PeriodPreset): string {
+		const params = new URLSearchParams(page.url.searchParams);
+		if (preset === 'all') {
+			params.delete('since');
+			params.delete('until');
+		} else if (preset !== 'custom') {
+			const def = PERIOD_PRESETS.find((p) => p.value === preset);
+			if (def && 'since' in def) {
+				params.set('since', def.since());
+				params.set('until', def.until());
+			}
+		}
+		params.delete('offset'); // a new filter facet resets pagination
+		const qs = params.toString();
+		return `${page.url.pathname}${qs ? `?${qs}` : ''}`;
+	}
+
+	/* Active preset derived from the loaded range: a known preset when the
+	   dates match it exactly, 'custom' when dates are set, 'all' otherwise. */
+	const activePreset = $derived.by(() => {
+		const { since, until } = filters;
+		if (!since && !until) return 'all' as const;
+		for (const def of PERIOD_PRESETS) {
+			if ('since' in def && def.since() === since && def.until() === until) {
+				return def.value;
+			}
+		}
+		return 'custom' as const;
+	});
+
+	function applyPeriodPreset(event: Event) {
+		const value = (event.currentTarget as HTMLSelectElement).value as PeriodPreset;
+		if (value !== 'custom') void goto(hrefWithPeriod(value));
+	}
+
+	/* Channel source rows (mockup sourceBreakdown): label + global count,
+	   only sources with echo — a channel without rows renders no panel. */
+	function channelSourceRows(channel: Exclude<FeedChannel, ''>) {
+		return data.channelGroups[channel]
+			.map((source) => ({ source, count: data.sourceCounts[source] ?? 0 }))
+			.filter((row) => row.count > 0);
+	}
+	const socialSourceRows = $derived(channelSourceRows('social'));
+	const fieldSourceRows = $derived(channelSourceRows('field'));
 </script>
 
 <svelte:head>
@@ -231,15 +300,16 @@
 <header class="feed-intro">
 	<div>
 		<h1 id="feed-title" class="page-title">Feed de noticias</h1>
-		<p>
-			Noticias y publicaciones de redes sociales en una sola vista. Filtra por fuente, tono, fecha
-			o palabras del titular para revisar la cobertura.
-		</p>
+		<p>Todas las fuentes. Un solo lugar para entender lo que pasa.</p>
 	</div>
-	<p class="feed-refresh-status">
-		Se actualiza automáticamente cada 90 segundos mientras esta pestaña esté abierta.{lastRefresh
-			? ` Última actualización: ${lastRefresh}.`
-			: ''}
+	<p
+		class="feed-refresh-status"
+		title="Se actualiza automáticamente cada 90 segundos mientras esta pestaña esté abierta."
+	>
+		<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true">
+			<path d={ICON_PATHS.clock} />
+		</svg>
+		<span>Última actualización {lastRefresh ?? '—'}</span>
 	</p>
 </header>
 
@@ -249,31 +319,63 @@
 
 <div class="feed-stats" aria-label="Números del feed">
 	<div class="stat">
-		<div class="stat-top"><span>Menciones en el feed</span></div>
-		<strong class="stat-value" title={data.feedStats ? undefined : 'No disponible'}>
-			{stripTotal ?? '—'}</strong>
-		<span class="stat-note">
-			{#if stripSourceKinds !== null}{stripSourceKinds} tipos de fuente{:else}Tipos de fuente con
-				registros en los resultados.{/if}
-		</span>
+		<div class="stat-top">
+			<span>Menciones en el feed</span>
+			<span class="stat-icon news" aria-hidden="true">
+				<svg class="od-icon" viewBox="0 0 24 24"><path d={ICON_PATHS.feed} /></svg>
+			</span>
+		</div>
+		<div class="od-stat">
+			<strong class="stat-value" title={data.feedStats ? undefined : 'No disponible'}>
+				{stripTotal ?? '—'}
+			</strong>
+			<span class="stat-note">
+				{#if stripSourceKinds !== null}{stripSourceKinds} tipos de fuente{:else}Tipos de fuente con
+					registros en los resultados.{/if}
+			</span>
+		</div>
 	</div>
 	<div class="stat">
-		<div class="stat-top"><span>Eventos</span></div>
-		<strong class="stat-value" title={data.feedStats ? undefined : 'No disponible'}>
-			{data.feedStats?.result_group_count ?? '—'}</strong>
-		<span class="stat-note">Eventos y publicaciones sin evento en todos los resultados filtrados.</span>
+		<div class="stat-top">
+			<span>Eventos</span>
+			<span class="stat-icon neutral" aria-hidden="true">
+				<svg class="od-icon" viewBox="0 0 24 24"><path d={ICON_PATHS.events} /></svg>
+			</span>
+		</div>
+		<div class="od-stat">
+			<strong class="stat-value" title={data.feedStats ? undefined : 'No disponible'}>
+				{data.feedStats?.result_group_count ?? '—'}
+			</strong>
+			<span class="stat-note">Eventos y publicaciones sin evento en todos los resultados filtrados.</span>
+		</div>
 	</div>
 	<div class="stat">
-		<div class="stat-top"><span>Medios con noticias</span></div>
-		<strong class="stat-value" title={data.feedStats ? undefined : 'No disponible'}>
-			{data.feedStats?.news_medium_count ?? '—'}</strong>
-		<span class="stat-note">Medios con registros en todos los resultados filtrados.</span>
+		<div class="stat-top">
+			<span>Medios con noticias</span>
+			<span class="stat-icon field" aria-hidden="true">
+				<svg class="od-icon" viewBox="0 0 24 24"><path d={ICON_PATHS.layers} /></svg>
+			</span>
+		</div>
+		<div class="od-stat">
+			<strong class="stat-value" title={data.feedStats ? undefined : 'No disponible'}>
+				{data.feedStats?.news_medium_count ?? '—'}
+			</strong>
+			<span class="stat-note">Medios con registros en todos los resultados filtrados.</span>
+		</div>
 	</div>
 	<div class="stat">
-		<div class="stat-top"><span>Fuentes con registros</span></div>
-		<strong class="stat-value" title={data.feedStats ? undefined : 'No disponible'}>
-			{stripSourceCount ?? '—'}</strong>
-		<span class="stat-note">Fuentes con publicaciones en todos los resultados filtrados.</span>
+		<div class="stat-top">
+			<span>Fuentes con registros</span>
+			<span class="stat-icon social" aria-hidden="true">
+				<svg class="od-icon" viewBox="0 0 24 24"><path d={ICON_PATHS.social} /></svg>
+			</span>
+		</div>
+		<div class="od-stat">
+			<strong class="stat-value" title={data.feedStats ? undefined : 'No disponible'}>
+				{stripSourceCount ?? '—'}
+			</strong>
+			<span class="stat-note">Fuentes con publicaciones en todos los resultados filtrados.</span>
+		</div>
 	</div>
 </div>
 <!-- Mockup empty-state reset («Ver todo el periodo»): the bare path drops
@@ -296,6 +398,9 @@
 						href={hrefWithChannel(tab.value)}
 						aria-pressed={filters.channel === tab.value}
 					>
+						<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true">
+							<path d={ICON_PATHS[tab.icon]} />
+						</svg>
 						{tab.label}
 					</a>
 				{/each}
@@ -344,7 +449,7 @@
 					<input type="hidden" name="until" value={filters.until} />
 					<label class="search">
 						<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true">
-							<path d="M20 20l-5-5 M10 17a7 7 0 1 0 0-14 7 7 0 0 0 0 14" />
+							<path d={ICON_PATHS.search} />
 						</svg>
 						<span class="sr-only">Buscar en el feed</span>
 						<input
@@ -396,7 +501,15 @@
 			<ol class="feed-list" aria-label="Publicaciones">
 				{#each groups as group (group.key)}
 					<li class="feed-group">
-						<EventGroup {group} keywordLabel={keywordLabelFor(group)} onDetail={openDetail} />
+						{#each group.mentions as mention (mention.id)}
+							<MentionCard
+								{mention}
+								keywordLabel={keywordLabelFor(group)}
+								event={group.event}
+								coverageCount={group.mentions.length}
+								onDetail={(m) => openDetail(m, group.event)}
+							/>
+						{/each}
 					</li>
 				{/each}
 			</ol>
@@ -446,37 +559,48 @@
 	</section>
 
 	<div class="feed-side-column">
-		<section class="panel feed-period-panel" aria-labelledby="feed-period-title">
+		<section class="panel aside-panel feed-period-panel" aria-labelledby="feed-period-title">
 			<div class="panel-heading">
 				<h2 id="feed-period-title">Filtro de tiempo</h2>
 			</div>
+			<label class="feed-period-preset">
+				Periodo
+				<select id="feed-period-preset" value={activePreset} onchange={applyPeriodPreset}>
+					{#each PERIOD_PRESETS as preset (preset.value)}
+						<option value={preset.value}>{preset.label}</option>
+					{/each}
+				</select>
+			</label>
 			<form method="get">
 				<input type="hidden" name="q" value={filters.q} />
 				<input type="hidden" name="sentiment" value={filters.sentiment} />
 				<input type="hidden" name="keyword_id" value={filters.keyword_id} />
 				<input type="hidden" name="medium" value={filters.medium} />
-				<div class="feed-date-controls">
-					<label>
-						Desde
-						<input
-							type="date"
-							id="date-from"
-							name="since"
-							value={filters.since}
-							onchange={(event) => event.currentTarget.form?.requestSubmit()}
-						/>
-					</label>
-					<label>
-						Hasta
-						<input
-							type="date"
-							id="date-to"
-							name="until"
-							value={filters.until}
-							onchange={(event) => event.currentTarget.form?.requestSubmit()}
-						/>
-					</label>
-				</div>
+				{#if activePreset === 'custom'}
+					<div class="feed-date-controls">
+						<label>
+							Desde
+							<input
+								type="date"
+								id="date-from"
+								name="since"
+								value={filters.since}
+								onchange={(event) => event.currentTarget.form?.requestSubmit()}
+							/>
+						</label>
+						<label>
+							Hasta
+							<input
+								type="date"
+								id="date-to"
+								name="until"
+								value={filters.until}
+								onchange={(event) => event.currentTarget.form?.requestSubmit()}
+							/>
+						</label>
+						<p class="feed-period-note">Incluye ambas fechas.</p>
+					</div>
+				{/if}
 				{#if filters.dateError}
 					<p class="feed-period-error" role="alert">{filters.dateError}</p>
 				{/if}
@@ -490,6 +614,9 @@
 			<section class="panel aside-panel" aria-labelledby="origen-title">
 				<div class="panel-heading">
 					<h2 id="origen-title">Origen de las menciones</h2>
+					<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true">
+						<path d={ICON_PATHS.layers} />
+					</svg>
 				</div>
 				{#if newsTotal + socialTotal + fieldTotal > 0}
 					<div class="distribution" aria-hidden="true">
@@ -512,9 +639,8 @@
 			{#if mediumRows.length > 0}
 				<section class="panel aside-panel" aria-labelledby="medios-title">
 					<div class="panel-heading">
-						<h2 id="medios-title">Medios</h2>
+						<h2 id="medios-title">Medios detectados</h2>
 					</div>
-					<p class="aside-note">Medios para navegar. Sin aplicar los filtros del feed.</p>
 					<div class="feed-source-list" role="group" aria-label="Filtrar por medio">
 						{#if filters.medium}
 							<a class="feed-source-row" role="button" href={hrefWithMedium(null)}>
@@ -554,29 +680,37 @@
 				</section>
 			{/if}
 
-			<section class="panel aside-panel history-panel" aria-labelledby="historico-title">
-				<div class="panel-heading">
-					<h2 id="historico-title">Histórico</h2>
-				</div>
-				<p class="aside-note">Archivo de noticias y columnas</p>
-				<div class="history-empty">
-					<strong>Aún no hay registros históricos</strong>
-					<p>
-						Cuando se incorporen fuentes de archivo, sus resultados aparecerán en esta sección, con
-						su medio y fecha de publicación original.
-					</p>
-				</div>
-			</section>
+			{#if socialSourceRows.length > 0}
+				<section class="panel aside-panel" aria-labelledby="redes-title">
+					<div class="panel-heading">
+						<h2 id="redes-title">Redes sociales</h2>
+					</div>
+					<div class="feed-source-list" role="group" aria-label="Fuentes de redes sociales">
+						{#each socialSourceRows as row (row.source)}
+							<span class="feed-source-row">
+								<span>{row.source}</span>
+								<strong>{row.count}</strong>
+							</span>
+						{/each}
+					</div>
+				</section>
+			{/if}
 
-			<section class="panel aside-panel" aria-labelledby="seguimiento-title">
-				<div class="panel-heading">
-					<h2 id="seguimiento-title">Seguimiento</h2>
-					<a class="text-link" href="/">Volver al resumen</a>
-				</div>
-				<p class="aside-note">
-					Los personajes, categorías y temas prioritarios se resumen en la página principal.
-				</p>
-			</section>
+			{#if fieldSourceRows.length > 0}
+				<section class="panel aside-panel" aria-labelledby="campo-title">
+					<div class="panel-heading">
+						<h2 id="campo-title">Campo</h2>
+					</div>
+					<div class="feed-source-list" role="group" aria-label="Fuentes de campo">
+						{#each fieldSourceRows as row (row.source)}
+							<span class="feed-source-row">
+								<span>{row.source}</span>
+								<strong>{row.count}</strong>
+							</span>
+						{/each}
+					</div>
+				</section>
+			{/if}
 		</aside>
 	</div>
 </div>

@@ -65,6 +65,14 @@
   /* Mockup styles.css dialog::backdrop base tint (#13253a66 = 40%). */
   --color-backdrop: #13253a;
 
+  /* Channel icon tones — mockup styles.css global .news/.social/.field/.neutral
+     (blue/teal/amber + neutral); origin of stat-icon and badge tints. */
+  --color-accent-soft: #e9edf2;
+  --color-teal: #49645e;
+  --color-teal-soft: #eaf0ed;
+  --color-neutral: #556170;
+  --color-neutral-soft: #e9edf0;
+
   /* Typography (v3: Helvetica body, Georgia display) */
   --font-display:
     Georgia, "Times New Roman", serif;
@@ -2965,7 +2973,11 @@ table.coverage th {
   font-size: 14px;
 }
 .feed-intro .feed-refresh-status {
-  flex: 0 440px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  flex: 0 1 440px;
   min-width: 0;
   margin: 0;
   color: var(--color-muted);
@@ -2995,6 +3007,31 @@ table.coverage th {
   gap: 8px;
   color: var(--color-muted);
   font-size: 12px;
+}
+/* Stat icon tile — mockup styles.css .stat-icon with the global channel
+   tone classes; palette via @theme tone tokens. */
+.stat-icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-control);
+}
+.stat-icon.news {
+  color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+.stat-icon.social {
+  color: var(--color-teal);
+  background: var(--color-teal-soft);
+}
+.stat-icon.field {
+  color: var(--color-warn);
+  background: var(--color-warn-soft);
+}
+.stat-icon.neutral {
+  color: var(--color-neutral);
+  background: var(--color-neutral-soft);
 }
 .stat-value {
   display: block;
@@ -3066,6 +3103,9 @@ table.coverage th {
   font-size: 12px;
   white-space: nowrap;
   text-decoration: none;
+}
+.tab .od-icon {
+  --od-icon-size: 15px;
 }
 .tab.active {
   border-bottom-color: var(--color-accent);
@@ -3358,6 +3398,10 @@ table.coverage th {
 .feed-aside .panel-heading {
   margin-bottom: 18px;
 }
+/* Mockup .aside h2 — smaller than the main-panel heading (14px). */
+.feed-aside .panel-heading h2 {
+  font-size: 14px;
+}
 .aside-note {
   margin: 0 0 12px;
   color: var(--color-muted);
@@ -3365,8 +3409,23 @@ table.coverage th {
   line-height: 1.5;
 }
 
-/* Period panel (mockup .feed-period-*; presets are a mockup-only
-   capability — the app keeps explicit from/until inputs). */
+/* Period panel (mockup .feed-period-*): preset select + custom range. */
+.feed-period-preset {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 var(--space-12);
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+.feed-period-preset select {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-8) var(--space-12);
+  color: var(--color-ink);
+  font-size: 14px;
+}
 .feed-date-controls {
   display: grid;
   gap: 12px;
