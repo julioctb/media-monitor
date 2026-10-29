@@ -41,8 +41,6 @@
 		digest_hours: number[];
 		/** Principal monitored person id as text; '' = none (null on the API). */
 		focus_person_id: string;
-		/** F7: extra watched person ids; the focus person is the principal. */
-		watchlist: number[];
 		/** Worker per-cycle caps, text like retention_days. Preserved hidden. */
 		enrich_max: string;
 		fetch_max: string;
@@ -68,7 +66,6 @@
 				settings.digest_focus_person_id === null
 					? ''
 					: String(settings.digest_focus_person_id),
-			watchlist: [...settings.watchlist],
 			enrich_max: String(settings.enrich_max_per_cycle),
 			fetch_max: String(settings.fetch_max_per_cycle),
 			gdelt_enabled: settings.gdelt_enabled,
@@ -136,12 +133,6 @@
 			: draft.scrapers.filter((entry) => entry !== name);
 	}
 
-	/** F7 vigilancia: mirror of toggleScraper for watched person ids. */
-	function toggleWatchlist(personId: number, checked: boolean): void {
-		draft.watchlist = checked
-			? [...draft.watchlist, personId]
-			: draft.watchlist.filter((entry) => entry !== personId);
-	}
 
 	/** Clamp 0..23 on input; '' keeps the old value until a digit lands. */
 	function setDigestHour(index: number, raw: string): void {
@@ -467,7 +458,7 @@
 				aria-labelledby="operacion-title"
 			>
 				<div class="panel-head">
-					<h2 id="operacion-title">Operación</h2>
+					<h2 id="operacion-title">Operación del monitoreo</h2>
 					<p class="panel-note">Ajustes generales de tiempo y conservación de datos.</p>
 				</div>
 				<div class="field-grid">
@@ -515,36 +506,11 @@
 						</p>
 					</div>
 				</div>
-				<div class="schedule-block">
-					<h3 id="watchlist-title">Vigilancia</h3>
-					<p class="field-hint" id="watchlist-hint">
-						Personas adicionales bajo vigilancia de riesgo; la persona principal bajo seguimiento
-						queda incluida siempre.
-					</p>
-					<div
-						class="schedule-line"
-						role="group"
-						aria-labelledby="watchlist-title"
-						aria-describedby="watchlist-hint"
-					>
-						{#each data.persons as person (person.id)}
-							<label class="check-row source-check">
-								<input
-									type="checkbox"
-									name="watchlist"
-									value={person.id}
-									checked={draft.watchlist.includes(person.id)}
-									onchange={(e) => toggleWatchlist(person.id, e.currentTarget.checked)}
-									disabled={submitting}
-									class={CHECK_CLS}
-								/>
-								<span>{person.name}</span>
-							</label>
-						{:else}
-							<p class="field-hint">Sin personas registradas todavía.</p>
-						{/each}
-					</div>
-				</div>
+				<!-- F7 vigilancia has no settings UI (mock operation = retention
+				     + schedules only); the stored list round-trips untouched. -->
+				{#each data.settings.watchlist as watchedId (watchedId)}
+					<input type="hidden" name="watchlist" value={watchedId} />
+				{/each}
 				<div class="schedule-block">
 					<h3 id="schedule-title">Horarios del resumen diario</h3>
 					<p class="field-hint" id="schedule-hint">

@@ -150,7 +150,15 @@ export const load: PageServerLoad = async () => {
 			// Best-effort too: the focus select degrades to the none option.
 			listPersons().catch(() => [])
 		]);
-		return { settings: await getClientSettings(), scrapersAvailable, keywords, persons };
+		// The API returns null watchlist on rows that never set it; the
+		// settings contract (and the template each) promise an array.
+		const settings = await getClientSettings();
+		return {
+			settings: { ...settings, watchlist: settings.watchlist ?? [] },
+			scrapersAvailable,
+			keywords,
+			persons
+		};
 	} catch (cause) {
 		const status = errorStatus(cause, 503);
 		const detail = errorMessage(cause, 'error desconocido');
