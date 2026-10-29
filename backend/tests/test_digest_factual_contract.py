@@ -66,6 +66,50 @@ def prepared(*rows, client_id=1):
     return content
 
 
+def test_contextual_schema_is_detached_and_preserves_static_callers_control():
+    content = prepared(mention(), mention(2, title="Otra publicación"))
+    before = deepcopy(content)
+    static = factual_plan_schema()
+    schema = factual_plan_schema(content)
+    assert schema["required"] == static["required"]
+    assert schema["additionalProperties"] is False
+    assert schema["properties"]["headline_index"]["anyOf"] == [
+        {"type": "integer", "enum": [0, 1]},
+        {"type": "null"},
+    ]
+    for key in ("categoria", "frame", "action"):
+        assert (
+            schema["$defs"]["_Pick"]["properties"][key]
+            == static["$defs"]["_Pick"]["properties"][key]
+        )
+    assert static["properties"]["items"]["maxItems"] == 1000
+    schema["properties"]["items"]["maxItems"] = 0
+    packet = factual_prompt_view(content)
+    packet["stories"][0]["source_choices"][0]["passage_indices"].clear()
+    assert content == before
+    assert factual_plan_schema(content)["properties"]["items"]["maxItems"] == 2
+    assert factual_plan_schema() == static
+
+
+def test_empty_contextual_schema_allows_only_empty_arrays_and_null_headline_control():
+    content = prepared()
+    before = deepcopy(content)
+    schema = factual_plan_schema(content)
+    assert schema["properties"]["items"]["maxItems"] == 0
+    assert schema["properties"]["seleccion"]["maxItems"] == 0
+    assert schema["properties"]["headline_index"]["anyOf"] == [{"type": "null"}]
+    assert factual_prompt_view(content)["stories"] == []
+    assert content == before
+
+
+@pytest.mark.parametrize("field,value", [("fingerprint", "0" * 64), ("version", True)])
+def test_contextual_schema_rejects_stale_or_malformed_material_control(field, value):
+    content = prepared(mention())
+    content["factual_basis"][field] = value
+    with pytest.raises(FactualPlanError):
+        factual_plan_schema(content)
+
+
 def test_basis_separates_publication_from_occurrence_and_derivative():
     body = "El encuentro ocurrió el viernes anterior. " + "Contenido literal. " * 260
     row = mention(

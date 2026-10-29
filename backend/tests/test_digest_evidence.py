@@ -213,7 +213,13 @@ def test_public_build_prompts_only_frozen_material_and_rejects_catalogue_injecti
     assert row.content["noticias"][0]["source_refs"] == [0]
     assert row.content["noticias"][0]["material_ref"] == 0
     view = captured[0]
-    assert view["stories"][0] == {"index": 0, "source_refs": [0], "material_ref": 0}
+    assert view["stories"][0] == {
+        "index": 0,
+        "source_refs": [0],
+        "material_ref": 0,
+        "title": "🎓 Consulta aplazada https://t.co/raw",
+        "source_choices": [{"source_ref": 0, "passage_indices": [0]}],
+    }
     assert view["sources"][0] == {
         "source_ref": 0,
         "title": "🎓 Consulta aplazada https://t.co/raw",

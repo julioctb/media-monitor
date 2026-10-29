@@ -20,7 +20,7 @@ or a minimum quota. There is no human report-approval workflow here.
 ```python
 build_factual_basis(content: dict, mentions=(), *, client_id=None) -> dict
 factual_prompt_view(content: dict) -> dict
-factual_plan_schema() -> dict
+factual_plan_schema(content: dict | None = None) -> dict
 render_factual_plan(content: dict, plan: dict | None = None) -> dict
 FACTUAL_SYSTEM_PROMPT: str
 FactualPlanError(ValueError)
@@ -172,6 +172,39 @@ Their exact code-owned Spanish wording is included in the system prompt.
 Interpretations are labelled **Lectura política**; actions are labelled
 **Atención sugerida**. They are uncertain scenarios and recommendations,
 parameterized only with the canonical source title, never arbitrary model text.
+
+## Contextual selector options (T10.4.1)
+
+The production caller uses `factual_plan_schema(content)`, not the unbound
+structural schema. It builds one detached schema from the validated bank and
+uses the same value for guided output and the contract inside the plain request.
+The five required output keys, closed frames/actions, renderer and receiver
+contracts remain unchanged. Calling `factual_plan_schema()` without content
+retains the original structural API for existing consumers.
+
+The contextual schema fixes the exact basis fingerprint; restricts headline and
+selection indexes to the existing original stories; and enumerates each valid
+story/source pair with only that source's available passage positions. Both
+arrays are bounded by the number of input stories; an empty bank allows only
+empty arrays and a null headline. With no quotable source, item capacity is zero.
+
+Each projected story also has its captured representative `title` and grouped
+`source_choices: [{source_ref, passage_indices}]`. The full publication bodies
+remain in the one existing `sources` catalogue. These detached navigation fields
+do not change the sealed bank, its fingerprint, original IDs, source scope or
+factual authority. Prior material, focus/role safeguards and coverage metadata
+remain separate. The instructions explicitly require one passage per story and
+stable original indexes even when prioritizing or changing output order.
+
+An array-length bound or `uniqueItems` cannot establish uniqueness of the
+`index` property. The authoritative validator still rejects duplicate indexes,
+foreign-source choices and unavailable passages atomically, including duplicate
+entries whose total length fits the contextual bound. A provider may ignore or
+reject schema guidance; the plain fallback receives the identical contract and
+must still pass the same validator. This change adds no semantic retry, raises
+no request limit and never accepts or renumbers a partial invalid proposal.
+The existing shared budget remains at most two physical requests per execution.
+A successful transport or synthetic probe is not real-model advisory acceptance.
 
 ## Current producer compatibility (T10.3.2)
 

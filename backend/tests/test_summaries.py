@@ -282,7 +282,15 @@ def test_llm_mode_fields_applied_and_fallback(session):
     assert row.content["redes"]["x"]["note"] == ""
     assert validate_digest(row.content) == []
     packet = json.loads(captured["prompt"])
-    assert packet["stories"] == [{"index": 0, "source_refs": [0], "material_ref": 0}]
+    assert packet["stories"] == [
+        {
+            "index": 0,
+            "source_refs": [0],
+            "material_ref": 0,
+            "title": "BUAP publica",
+            "source_choices": [{"source_ref": 0, "passage_indices": [0]}],
+        }
+    ]
     assert packet["cut"]["date"] == "2026-10-09"
     assert row.content["coverage"]["total"] == 1
     accepted_summary = row.content["noticias"][0]["summary"]
@@ -568,7 +576,13 @@ def test_openai_provider_path_via_fake_http(monkeypatch, session):
     assert body["temperature"] == 0
     assert body["messages"][0]["role"] == "system"
     assert json.loads(body["messages"][1]["content"])["stories"] == [
-        {"index": 0, "source_refs": [0], "material_ref": 0}
+        {
+            "index": 0,
+            "source_refs": [0],
+            "material_ref": 0,
+            "title": "BUAP publica resultados",
+            "source_choices": [{"source_ref": 0, "passage_indices": [0]}],
+        }
     ]
 
 
@@ -2411,7 +2425,13 @@ def test_window_material_keeps_prompt_and_card_indexes_aligned(session):
         == len(row.content["tarjetas"])
         == 1
     )
-    assert projected[0] == {"index": 0, "source_refs": [0], "material_ref": 0}
+    assert projected[0] == {
+        "index": 0,
+        "source_refs": [0],
+        "material_ref": 0,
+        "title": "Reconocimiento académico a nuevos doctores",
+        "source_choices": [{"source_ref": 0, "passage_indices": [0]}],
+    }
     assert captured[0]["sources"][0]["title"] == doctors.title
     assert captured[0]["sources"][0]["passages"] == [doctors.title]
     assert "derived_summary" not in captured[0]["sources"][0]

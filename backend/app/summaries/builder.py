@@ -1801,12 +1801,13 @@ def build_daily_summary(
 
     if material_available and total > 0 and content["noticias"]:
         try:
+            response_schema = factual_plan_schema(content)
             if generate is None:
                 generate = summary_generator(
                     effective,
                     budget=budget,
                     system_prompt=FACTUAL_SYSTEM_PROMPT,
-                    response_schema=factual_plan_schema(),
+                    response_schema=response_schema,
                 )
             if callable(generate):
                 focus = _focus_person_context(session, effective)
@@ -1816,7 +1817,7 @@ def build_daily_summary(
                 packet.update(metadata)
                 # Plain retries need exactly the same closed output contract,
                 # even when the provider rejects response_format itself.
-                packet["response_schema"] = factual_plan_schema()
+                packet["response_schema"] = response_schema
                 if focus is not None:
                     packet["focus_person"] = focus
                 raw_output = generate(json.dumps(packet, ensure_ascii=False))

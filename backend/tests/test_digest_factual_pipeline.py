@@ -64,6 +64,115 @@ def _plan(prompt):
     }
 
 
+@pytest.mark.parametrize(
+    "corruption", [None, "duplicate_story", "foreign_source", "missing_passage"]
+)
+def test_public_factory_sends_scoped_choices_and_one_contextual_schema(
+    session, monkeypatch, corruption
+):
+    client, _ = _material(session)
+    second = queries.insert_mention(
+        session,
+        client_id=client.id,
+        source=MentionSource.news_rss,
+        url="https://fixture.invalid/mobility-source",
+        title="Convenio de movilidad entre instituciones",
+        published_at=DAY,
+    )
+    assert second is not None
+    second.content = "Se anunció un intercambio académico entre instituciones."
+    settings = queries.get_settings(session, client.id)
+    settings.ai_provider = "openai"
+    settings.ai_api_key = "fixture-only"
+    settings.ai_base_url = "https://fixture.invalid/v1"
+    settings.ai_model = "fixture"
+    session.commit()
+    calls = []
+
+    def respond(url, **options):
+        calls.append(copy.deepcopy(options))
+        request = httpx.Request("POST", url)
+        if len(calls) == 1:
+            return httpx.Response(
+                400, request=request, json={"error": "plain required"}
+            )
+        prompt = options["json"]["messages"][1]["content"]
+        plan = _plan(prompt)
+        if corruption == "duplicate_story":
+            plan["items"].append(copy.deepcopy(plan["items"][0]))
+        elif corruption == "foreign_source":
+            packet = json.loads(prompt)
+            plan["items"][0]["source_ref"] = packet["stories"][1]["source_refs"][0]
+        elif corruption == "missing_passage":
+            plan["items"][0]["passage_index"] = 6
+        raw = json.dumps(plan)
+        emitted.append(raw)
+        return httpx.Response(
+            200,
+            request=request,
+            json={"choices": [{"message": {"content": raw}}]},
+        )
+
+    emitted = []
+    monkeypatch.setattr(builder.httpx, "post", respond)
+    row = build_daily_summary(session, client_id=client.id, day=DAY.date())
+    assert row.mode == ("llm" if corruption is None else "heuristic")
+    assert row.content["generation"]["status"] == (
+        "plan_applied" if corruption is None else "source_fallback"
+    )
+    assert row.content["generation"]["raw_proposal"] == emitted[0]
+    if corruption is not None:
+        assert row.content["generation"]["plan"] is None
+        assert row.content["brief"]["decisiones"] == []
+    assert len(calls) == row.content["generation"]["physical_requests"] == 2
+    packet = json.loads(calls[0]["json"]["messages"][1]["content"])
+    assert len(packet["stories"]) == 2
+    schema = calls[0]["json"]["response_format"]["json_schema"]["schema"]
+    assert (
+        schema["properties"]["basis_fingerprint"].get("const")
+        == packet["basis_fingerprint"]
+    )
+    assert schema["properties"]["items"]["maxItems"] == 2
+    assert schema["properties"]["seleccion"]["maxItems"] == 2
+    assert schema["$defs"]["_Pick"]["properties"]["index"]["enum"] == [0, 1]
+    branches = schema["properties"]["items"]["items"]["anyOf"]
+    actual = {
+        (
+            branch["properties"]["index"]["const"],
+            branch["properties"]["source_ref"]["const"],
+            passage,
+        )
+        for branch in branches
+        for passage in branch["properties"]["passage_index"]["enum"]
+    }
+    expected = {
+        (story["index"], ref, passage)
+        for story in packet["stories"]
+        for ref in story["source_refs"]
+        for passage in range(len(packet["sources"][ref]["passages"]))
+    }
+    assert actual == expected
+    for story in packet["stories"]:
+        assert story["title"] == packet["sources"][story["material_ref"]]["title"]
+        assert story["source_choices"] == [
+            {
+                "source_ref": ref,
+                "passage_indices": list(range(len(packet["sources"][ref]["passages"]))),
+            }
+            for ref in story["source_refs"]
+        ]
+    for call in calls:
+        assert (
+            json.loads(call["json"]["messages"][1]["content"])["response_schema"]
+            == schema
+        )
+        assert call["timeout"] == 120.0
+        assert call["follow_redirects"] is False
+        assert call["json"]["model"] == "fixture"
+        assert "No renumeres" in call["json"]["messages"][0]["content"]
+        assert "un solo pasaje por noticia" in call["json"]["messages"][0]["content"]
+
+
 def test_headline_projections_match_the_accepted_code_owned_headline(session):
     client, _ = _material(session)
     row = build_daily_summary(
@@ -358,7 +467,14 @@ def test_plain_provider_retry_receives_the_same_closed_plan_contract(
     assert "response_format" not in calls[1]["json"]
     for call in calls:
         packet = json.loads(call["json"]["messages"][1]["content"])
-        assert packet.get("response_schema") == builder.factual_plan_schema()
+        expected_schema = calls[0]["json"]["response_format"]["json_schema"]["schema"]
+        assert packet.get("response_schema") == expected_schema
+        assert (
+            expected_schema["properties"]["basis_fingerprint"]["const"]
+            == packet["basis_fingerprint"]
+        )
+        assert expected_schema["properties"]["items"]["maxItems"] == 1
+        assert expected_schema["$defs"]["_Pick"]["properties"]["index"]["enum"] == [0]
         assert call["timeout"] == 120.0
         assert call["follow_redirects"] is False
         for rule in (
