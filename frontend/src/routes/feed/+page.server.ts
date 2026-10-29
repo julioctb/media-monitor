@@ -164,6 +164,12 @@ interface UpcomingAgendaRow {
 	eventDate: string;
 	/** Hora solo cuando la entrada la trae (condicional del mockup). */
 	timeLabel: string | null;
+	/** Etiqueta textual del brief («Del 21 al 24 de oct»); null = solo la fecha. */
+	dateLabel: string | null;
+	/** Origen editorial de la agenda (ficha de origen, dialog). */
+	source: string | null;
+	url: string | null;
+	notes: string | null;
 }
 
 /**
@@ -204,7 +210,11 @@ function upcomingAgendaRows(items: AgendaItem[], todayIso: string): UpcomingAgen
 			id: item.id,
 			title: item.title,
 			eventDate: item.event_date,
-			timeLabel: item.time_label
+			timeLabel: item.time_label,
+			dateLabel: item.date_label,
+			source: item.source,
+			url: item.url,
+			notes: item.notes
 		}));
 }
 

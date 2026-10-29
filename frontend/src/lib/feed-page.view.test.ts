@@ -447,8 +447,17 @@ it('renders the v3 aside additions: persons row, upcoming date-box and the panel
 	const data = dataFixture();
 	data.persons = [{ id: 3, name: 'Ana López', mentions: 2 }];
 	data.agendaUpcoming = [
-		{ id: 7, title: 'Debate en cámara', eventDate: '2026-11-05', timeLabel: '10:30' },
-		{ id: 8, title: 'Cierre de consulta', eventDate: '2026-11-09', timeLabel: null }
+		{
+			id: 7,
+			title: 'Debate en cámara',
+			eventDate: '2026-11-05',
+			timeLabel: '10:30',
+			dateLabel: 'Jueves 5 de noviembre',
+			source: 'congreso-puebla.gob.mx',
+			url: 'https://congreso-puebla.gob.mx/agenda',
+			notes: 'Confirmar sala'
+		},
+		{ id: 8, title: 'Cierre de consulta', eventDate: '2026-11-09', timeLabel: null, dateLabel: null, source: null, url: null, notes: null }
 	];
 	const target = await render(data);
 
@@ -556,4 +565,36 @@ it('places personas after the source panels and próximas fechas last', async ()
 		'Personas identificadas',
 		'Próximas fechas'
 	]);
+});
+
+it('opens the agenda-origin dialog from the upcoming row', async () => {
+	const data = dataFixture();
+	data.agendaUpcoming = [
+		{
+			id: 7,
+			title: 'Debate en cámara',
+			eventDate: '2026-11-05',
+			timeLabel: '10:30',
+			dateLabel: 'Jueves 5 de noviembre',
+			source: 'congreso-puebla.gob.mx',
+			url: 'https://congreso-puebla.gob.mx/agenda',
+			notes: null
+		}
+	];
+	const target = await render(data);
+
+	const row = target.querySelector<HTMLButtonElement>('button.agenda-mini');
+	expect(row?.textContent ?? '').toContain('Debate en cámara');
+	row?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+	await new Promise((resolve) => setTimeout(resolve, 30));
+	await tick();
+
+	const dialog = [...target.querySelectorAll('dialog.detail-dialog')].find((node) =>
+		node.textContent?.includes('Origen del registro')
+	);
+	expect(dialog).toBeTruthy();
+	const text = (dialog?.textContent ?? '').replace(/\s+/g, ' ');
+	expect(text).toContain('congreso-puebla.gob.mx');
+	expect(text).toContain('Abrir fuente original');
+	expect(text).toContain('2026-11-05 · 10:30');
 });

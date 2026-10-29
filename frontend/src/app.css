@@ -4013,6 +4013,33 @@ table.coverage th {
   font-size: 12px;
   font-weight: 600;
 }
+/* La fila de agenda es button (abre la ficha de origen): reset de chrome. */
+button.agenda-mini {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--color-line);
+  border-radius: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+/* Ficha de origen de agenda (dialog): mismas convenciones que daily-dialog. */
+.feed-dialog-eyebrow {
+  margin: 0;
+  font-size: var(--text-dialog-eyebrow);
+  letter-spacing: var(--text-dialog-eyebrow--letter-spacing);
+  text-transform: uppercase;
+  font-weight: var(--text-dialog-eyebrow--font-weight);
+  color: var(--color-accent);
+}
+.feed-dialog-meta {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
 .agenda-mini .date-box {
   display: grid;
   place-items: center;

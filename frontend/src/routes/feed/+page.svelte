@@ -4,6 +4,7 @@
 
 	import { page } from '$app/state';
 
+	import DetailDialog from '$lib/components/DetailDialog.svelte';
 	import MentionCard from '$lib/components/MentionCard.svelte';
 	import MentionDetailDialog from '$lib/components/MentionDetailDialog.svelte';
 	import EventDetailDialog from '$lib/components/EventDetailDialog.svelte';
@@ -385,6 +386,10 @@
 	function agendaMonth(eventDate: string): string {
 		return new Date(`${eventDate}T12:00:00`).toLocaleDateString('es-MX', { month: 'short' }).toUpperCase();
 	}
+
+	/** Ficha de origen de una entrada de agenda (reclamo «de dónde salió esta
+	 *  fecha»): la fila completa abre el DetailDialog compartido. */
+	let agendaPick: PageProps['data']['agendaUpcoming'][number] | null = $state(null);
 </script>
 
 <svelte:head>
@@ -924,7 +929,12 @@
 				<a class="text-link" href="/agenda">Ver agenda</a>
 			</div>
 			{#each data.agendaUpcoming as item (item.id)}
-				<div class="agenda-mini">
+				<button
+					type="button"
+					class="agenda-mini"
+					onclick={() => (agendaPick = item)}
+					aria-haspopup="dialog"
+				>
 					<div class="date-box od-cell">
 						<span>{agendaMonth(item.eventDate)}</span>
 						<strong>{item.eventDate.slice(-2)}</strong>
@@ -936,7 +946,7 @@
 						<p>{item.title}</p>
 						{#if item.timeLabel}<span class="small muted">{item.timeLabel}</span>{/if}
 					</div>
-				</div>
+				</button>
 			{:else}
 				<p class="small muted feed-source-empty">No hay fechas próximas asociadas a menciones de este periodo.</p>
 			{/each}
@@ -953,3 +963,34 @@
 	event={detailEvent}
 	onclose={() => (detailMention = null)}
 />
+
+<!-- Origen de una entrada de agenda (reclamo): la ficha con fuente, enlace y
+     notas tal como la cargó la agenda editorial. -->
+<DetailDialog
+	titleId="agenda-origin-title"
+	title={agendaPick?.title ?? ''}
+	open={agendaPick}
+	onclose={() => (agendaPick = null)}
+>
+	{#if agendaPick}
+		<p class="feed-dialog-eyebrow">Origen del registro</p>
+		<section>
+			<h3>Fecha</h3>
+			<p>{agendaPick.eventDate}{agendaPick.timeLabel ? ` · ${agendaPick.timeLabel}` : ''}</p>
+			{#if agendaPick.dateLabel}<p class="feed-dialog-meta">{agendaPick.dateLabel}</p>{/if}
+		</section>
+		<section>
+			<h3>Fuente</h3>
+			<p>{agendaPick.source ?? 'No registrada en la agenda.'}</p>
+			{#if agendaPick.url}
+				<a class="text-link" href={agendaPick.url} target="_blank" rel="noreferrer">Abrir fuente original</a>
+			{/if}
+		</section>
+		{#if agendaPick.notes}
+			<section>
+				<h3>Notas</h3>
+				<p>{agendaPick.notes}</p>
+			</section>
+		{/if}
+	{/if}
+</DetailDialog>
