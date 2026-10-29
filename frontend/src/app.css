@@ -4055,32 +4055,32 @@ button.text-link {
    Calificado para ganar a la genérica .dialog-body p (14). */
 .detail-dialog .dialog-body p.feed-dialog-metadata {
   margin: 0 0 var(--space-16);
-  font-size: 16px;
+  font-size: 15px;
   color: var(--color-muted);
 }
 /* Byline (medio · autor · fecha). */
 .detail-dialog .dialog-body p.feed-dialog-meta {
   margin: 4px 0 0;
-  font-size: 15px;
+  font-size: 14px;
   color: var(--color-muted);
 }
-/* Escala del dialog «Fecha detectada» medida del objetivo (@2x: título 72→36,
-   sección 42→21, noticia 38→19, byline 29→15, caja 30→15). Sólo este modal. */
+/* Escala del dialog «Fecha detectada» (ajuste Julio: un punto más contenida
+   que la medición @2x; jerarquía intacta). */
 .detail-dialog .dialog-body h2.feed-dialog-title {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 36px;
+  font-size: 32px;
   font-weight: 700;
   line-height: 1.15;
   letter-spacing: -0.01em;
   color: var(--color-ink);
 }
 .detail-dialog .dialog-body h2.feed-dialog-section-title {
-  font-size: 21px;
+  font-size: 19px;
   line-height: 1.4;
 }
 .detail-dialog .dialog-body h3.feed-dialog-h3 {
-  font-size: 19px;
+  font-size: 17px;
   line-height: 1.45;
 }
 
@@ -4090,14 +4090,15 @@ button.text-link {
   margin: 0 0 var(--space-8);
   color: var(--color-ink);
 }
-/* Cita/extracto en caja: fondo gris canvas + línea + radio. */
+/* Cita/extracto en caja: fondo gris canvas + línea + radio. Separación
+   amplia sobre la caja (byline → resumen, petición de Julio). */
 .feed-dialog-quote {
-  margin: var(--space-8) 0;
+  margin: var(--space-16) 0 var(--space-8);
   padding: var(--space-16);
   border: 1px solid var(--color-line);
   border-radius: 12px;
   background: var(--color-surface);
-  font-size: 15px;
+  font-size: 14px;
   line-height: 1.6;
   color: var(--color-ink-2);
 }
