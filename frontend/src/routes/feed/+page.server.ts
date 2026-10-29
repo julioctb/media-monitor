@@ -159,6 +159,10 @@ export const load: PageServerLoad = async ({ url }) => {
 		let feedStatsError: string | null = null;
 		try {
 			// [] is unrestricted in the shared query builder, not match-none.
+			// Metrics keep the full tone distribution of the current scope
+			// (mockup toneFilterView counts feedBase(): source/period/q apply,
+			// the tone filter itself does NOT zero the other tones).
+			const { sentiment: _tone, ...scope } = common;
 			feedStats = metricSources?.length === 0
 				? {
 					total: 0,
@@ -168,7 +172,7 @@ export const load: PageServerLoad = async ({ url }) => {
 					result_group_count: 0
 				}
 				: await getFeedStats({
-					...common, source: rawSource, medium: rawMedium, sources: metricSources
+					...scope, source: rawSource, medium: rawMedium, sources: metricSources
 				});
 		} catch (cause) {
 			// A separate read failing must not discard an already loaded page.

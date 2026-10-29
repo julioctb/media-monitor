@@ -51,6 +51,9 @@ it('loads metrics with the same effective filters as the direct result request',
 	const expected = new URLSearchParams(list.search);
 	expected.delete('limit');
 	expected.delete('offset');
+	// metrics keep the full tone distribution: the tone facet is excluded
+	// (mockup toneFilterView counts feedBase(), not the tone-filtered list)
+	expected.delete('sentiment');
 	expect(aggregate[0].searchParams).toEqual(expected);
 	expect(aggregate[0].searchParams.get('since')).toBe('2026-10-14T00:00:00-06:00');
 	expect(aggregate[0].searchParams.get('until')).toBe('2026-10-15T23:59:59-06:00');
@@ -69,7 +72,7 @@ it('aggregates a channel union once without summing source-distinct units', asyn
 	const aggregates = urls.filter((u) => u.pathname === '/api/stats/feed');
 	expect(aggregates).toHaveLength(1);
 	expect(aggregates[0].searchParams.getAll('sources')).toEqual(['gdelt', 'news_rss']);
-	expect(aggregates[0].searchParams.get('sentiment')).toBe('none');
+	expect(aggregates[0].searchParams.has('sentiment')).toBe(false);
 	expect(aggregates[0].searchParams.has('source')).toBe(false);
 	expect(aggregates[0].searchParams.has('limit')).toBe(false);
 	expect(data).toMatchObject({ feedStats: metrics, mentions: { total: 96 }, channelGroups: { news: ['gdelt', 'news_rss'] } });
@@ -104,9 +107,9 @@ it.each([
 	['channel=social', { sources: ['x_twitter'] }],
 	['channel=field', { sources: ['field_report'] }],
 	['channel=unknown&sentiment=invalid&keyword_id=no&political=0', {}],
-	['sentiment=none&keyword_id=0&political=1&q=%20budget%20', { sentiment: 'none', keyword_id: '0', classifier: 'political', label: 'political', q: 'budget' }],
+	['sentiment=none&keyword_id=0&political=1&q=%20budget%20', { keyword_id: '0', classifier: 'political', label: 'political', q: 'budget' }],
 	['since=2026-10-15&until=2026-10-14', { since: '2026-10-15T00:00:00-06:00', until: '2026-10-14T23:59:59-06:00' }],
-	['source=gdelt&source=news_rss&sentiment=negative&sentiment=positive', { source: 'gdelt', sentiment: 'negative' }],
+	['source=gdelt&source=news_rss&sentiment=negative&sentiment=positive', { source: 'gdelt' }],
 	['sort=ignored&sources=gdelt&classifier=other&label=other&person_id=1&topic=other', {}]
 ])('keeps accepted filter semantics for %s', async (query, expected) => {
 	const fetchMock = stubFetch({
