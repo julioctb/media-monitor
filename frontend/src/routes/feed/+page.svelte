@@ -231,6 +231,11 @@
 	const personTop = $derived(data.persons.slice(0, PERSON_TOP));
 	const personRest = $derived(data.persons.slice(PERSON_TOP));
 
+	/** Año visible en el date-box cuando el compromiso no es del año en curso
+	 * (el mock lo omite por asumir el año actual; un «OCT 22» de 2027 se lee
+	 * como fecha pasada junto al día de hoy). */
+	const THIS_YEAR = String(new Date().getFullYear());
+
 	function hrefWithOffset(offset: number): string {
 		const params = new URLSearchParams(page.url.searchParams);
 		params.set('offset', String(offset));
@@ -904,6 +909,9 @@
 					<div class="date-box od-cell">
 						<span>{agendaMonth(item.eventDate)}</span>
 						<strong>{item.eventDate.slice(-2)}</strong>
+						{#if item.eventDate.slice(0, 4) !== THIS_YEAR}
+							<span>{item.eventDate.slice(0, 4)}</span>
+						{/if}
 					</div>
 					<div>
 						<p>{item.title}</p>
