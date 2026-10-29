@@ -410,6 +410,9 @@ export function channelClassFor(source: string): 'field' | 'news' | 'social' {
 	return source.startsWith('field') ? 'field' : isNewsSource(source) ? 'news' : 'social';
 }
 
+/** Leading icon of the source badge, per mock sources[t].icon. */
+export const CHANNEL_ICON = { news: 'feed', social: 'social', field: 'field' } as const;
+
 /** Channel label per mockup badge()/feedItem(): tipo de fuente, not the raw
  *  source tag. Single source for cards, dialogs and badges. */
 export function channelLabelFor(source: string): string {
