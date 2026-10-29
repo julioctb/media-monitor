@@ -172,10 +172,55 @@ def test_deterministic_pass_merges_legacy_drift_pairs(session) -> None:
     session.add(twin)
     session.commit()
 
-    result = merge_deterministic_pairs(session, client_id=client_id)
+    result = merge_deterministic_pairs(
+        session, client_id=client_id, now=T0 + timedelta(hours=8)
+    )
     assert result == {"deterministic_merged": 1}
     survivor = session.query(Event).filter(Event.client_id == client_id).one()
     assert survivor.id == a.id
     audit = session.query(EventMerge).one()
     assert audit.verdict == "misma"
     assert "determinista" in audit.reason
+
+
+def test_deterministic_pass_preserves_events_outside_window(session) -> None:
+    from app.ingest.arbitrator import merge_deterministic_pairs
+    from app.ingest.events import WINDOW_HOURS, _tokens
+
+    client_id = _client(session)
+    _assign(session, client_id, PENSIONES_A, T0)
+    latest_seen = T0 + timedelta(hours=4)
+    twin_title = PENSIONES_A + " - El Popular"
+    session.add(
+        Event(
+            client_id=client_id,
+            title=twin_title,
+            title_tokens=" ".join(sorted(_tokens(twin_title))),
+            first_seen_at=latest_seen,
+            last_seen_at=latest_seen,
+        )
+    )
+    session.commit()
+
+    def stored_rows():
+        return {
+            table.name: [
+                tuple((type(value).__qualname__, repr(value)) for value in row)
+                for row in session.execute(
+                    table.select().order_by(*table.primary_key.columns)
+                )
+            ]
+            for table in (Event.__table__, Mention.__table__, EventMerge.__table__)
+        }
+
+    before = stored_rows()
+    assert len(before[Event.__tablename__]) == 2
+    assert len(before[Mention.__tablename__]) == 1
+    assert before[EventMerge.__tablename__] == []
+    result = merge_deterministic_pairs(
+        session,
+        client_id=client_id,
+        now=latest_seen + timedelta(hours=WINDOW_HOURS, microseconds=1),
+    )
+    assert result == {"deterministic_merged": 0}
+    assert stored_rows() == before
