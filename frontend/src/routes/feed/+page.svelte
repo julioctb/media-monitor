@@ -226,6 +226,11 @@
 	const mediumTop = $derived(mediumRows.slice(0, MEDIUM_TOP));
 	const mediumRest = $derived(mediumRows.slice(MEDIUM_TOP));
 
+	/** Sidebar «Personas»: mismas 10 visibles + fold (patrón de medios). */
+	const PERSON_TOP = 10;
+	const personTop = $derived(data.persons.slice(0, PERSON_TOP));
+	const personRest = $derived(data.persons.slice(PERSON_TOP));
+
 	function hrefWithOffset(offset: number): string {
 		const params = new URLSearchParams(page.url.searchParams);
 		params.set('offset', String(offset));
@@ -779,8 +784,11 @@
 					{/if}
 				</div>
 				{#if mediumRest.length > 0}
-					<details class="medios-more">
-						<summary>Más medios ({mediumRest.length})</summary>
+					<details class="aside-more">
+						<summary>
+							Más medios ({mediumRest.length})
+							<svg class="od-icon aside-more-chev" viewBox="0 0 24 24" aria-hidden="true"><path d={ICON_PATHS.chevron} /></svg>
+						</summary>
 						<div class="feed-source-list" role="group" aria-label="Más medios">
 							{#each mediumRest as row (row.medium)}
 								<a
@@ -843,7 +851,7 @@
 			</div>
 			{#if data.persons.length > 0}
 				<div class="feed-source-list" role="group" aria-label="Personas identificadas en el periodo">
-					{#each data.persons as person (person.id)}
+					{#each personTop as person (person.id)}
 						<button
 							type="button"
 							class="feed-person-row"
@@ -854,6 +862,26 @@
 						</button>
 					{/each}
 				</div>
+				{#if personRest.length > 0}
+					<details class="aside-more">
+						<summary>
+							Más personas ({personRest.length})
+							<svg class="od-icon aside-more-chev" viewBox="0 0 24 24" aria-hidden="true"><path d={ICON_PATHS.chevron} /></svg>
+						</summary>
+						<div class="feed-source-list" role="group" aria-label="Más personas identificadas">
+							{#each personRest as person (person.id)}
+								<button
+									type="button"
+									class="feed-person-row"
+									onclick={() => goto(`/persons/${person.id}`)}
+								>
+									<span>{person.name}</span>
+									<span>{person.mentions} {person.mentions === 1 ? 'mención' : 'menciones'}</span>
+								</button>
+							{/each}
+						</div>
+					</details>
+				{/if}
 			{:else}
 				<p class="small muted feed-source-empty">No hay personas identificadas en las menciones de este periodo.</p>
 			{/if}

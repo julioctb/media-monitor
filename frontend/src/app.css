@@ -598,6 +598,17 @@ h3,
 h4 {
   margin-top: 0;
 }
+/* Text utilities (mockup .small / .muted + tabular figures): one definition
+   here; pages combine them on counts, metas and footers. */
+.text-xs {
+  font-size: 12px;
+}
+.text-muted {
+  color: var(--color-muted);
+}
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
 .button {
   display: inline-flex;
   align-items: center;
@@ -768,30 +779,6 @@ h4 {
   align-items: flex-end;
   gap: 12px;
   flex-wrap: wrap;
-}
-
-/* --- Segmented control (eventos mockup .segmented) --- */
-.segmented {
-  display: inline-flex;
-  border: 1px solid var(--color-line);
-  border-radius: 980px;
-  background: #fff;
-  padding: 2px;
-}
-.segmented a {
-  border-radius: 980px;
-  padding: 6px 16px;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--color-muted);
-}
-.segmented a:hover {
-  color: var(--color-ink);
-}
-.segmented a[aria-current="page"] {
-  background: var(--color-ink);
-  color: #fff;
-  font-weight: 600;
 }
 
 /* --- Data table (mockup .actors; td needs data-label attrs) --- */
@@ -2101,18 +2088,30 @@ table.coverage th {
 .per-page-select {
   max-width: 180px;
 }
-/* Medios panel (feed sidebar): fold for the long tail of outlets. */
-.medios-more summary {
+/* Fold del aside (medios/personas): disclosure sin marker nativo, alineado
+   al ritmo de las filas y con el chevron del kit girando al abrir. */
+.aside-more summary {
   display: flex;
   align-items: center;
-  min-height: 44px;
-  color: var(--color-ink-2);
-  font-size: 14px;
-  font-weight: 600;
+  gap: 6px;
+  padding: 8px 0;
+  list-style: none;
   cursor: pointer;
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 600;
 }
-.medios-more summary:hover {
-  color: var(--color-ink);
+.aside-more summary::-webkit-details-marker {
+  display: none;
+}
+.aside-more summary:hover {
+  color: var(--color-accent);
+}
+.aside-more .aside-more-chev {
+  --od-icon-size: 12px;
+}
+.aside-more[open] .aside-more-chev {
+  transform: rotate(90deg);
 }
 .check-row {
   display: flex;
@@ -3795,13 +3794,6 @@ table.coverage th {
 .feed-aside .panel-heading h2 {
   font-size: 14px;
 }
-.aside-note {
-  margin: 0 0 12px;
-  color: var(--color-muted);
-  font-size: 12px;
-  line-height: 1.5;
-}
-
 /* Period panel (mockup .feed-period-*): preset select + custom range. */
 .feed-period-preset {
   display: grid;
@@ -3912,7 +3904,7 @@ table.coverage th {
   font-size: 12px;
   text-decoration: none;
 }
-.medios-more .feed-source-list {
+.aside-more .feed-source-list {
   margin-top: 8px;
 }
 .feed-source-row:last-child {
@@ -4146,20 +4138,20 @@ table.coverage th {
 /* ============================================================
    Events view v3 — «Panel de monitoreo informativo».
    Ported from referencia_visual/v3/Panel-de-monitoreo-informativo
-   (app.js eventView/eventCard + late .events-* block of styles.css).
-   Anatomy: aside-note, toolbar (client-side search + «N de M»
-   count), events-list of grouped sections (h2 + .sub-count +
-   .section-grid). The mockup splits followed vs rest by a stored
-   follow state the app does not keep, so the section split rides
-   the coverage axis (2+ sources = «Con eco de medios», rest =
-   «Otros eventos»/«Eventos identificados»); the eco/todas segmented
-   v1 control was removed with it — ?scope= survives server-side
-   only (load default eco = 2+ mentions). Card anatomy: mini-id
-   EVENTO #id, headline link (shares .headline), summary, counts
-   over a footer rule. Mockup slots without app data, omitted by
-   design: priority chip, per-source type badges, follow button.
-   Breakpoints 768 / 600 / 480 + hover (title hover rides the
-   shared .headline a:hover rule above).
+   (app.js eventView/eventCards + late .events-* block of styles.css).
+   Anatomy: note (.events-note), toolbar (client-side search + «N
+   de M» count), events-list of grouped sections (h2 + .sub-count +
+   .section-grid). Groups ride the mockup split: «En seguimiento» =
+   matches present in prefs.follow (cookie mm_prefs); resto = «Otros
+   eventos», collapsing to «Eventos identificados» while nothing is
+   followed — one section snippet, no coverage axis and no v1
+   toggle: the load serves the full population behind
+   EVENTS_PAGE_LIMIT. Card anatomy: mini-id EVENTO #id, headline
+   link (shares .headline), summary, counts over a footer rule +
+   follow toggle. Mockup slots without app data, omitted by design:
+   priority chip, per-source type badges. Breakpoints 768 / 600 /
+   480 + hover (title hover rides the shared .headline a:hover
+   rule above).
    ============================================================ */
 .events-intro {
   display: flex;
@@ -4179,10 +4171,10 @@ table.coverage th {
   color: var(--color-muted);
   font-size: 14px;
 }
-/* Mockup .aside-note base + .events-note spacing; the app's plain-text
-   .aside-note (feed) stays untouched — the box values live here. */
+/* Mockup .aside-note as ONE rule — the events note is its only consumer, so
+   the old base split (plain-text .aside-note + box overrides) is merged. */
 .events-note {
-  margin-bottom: 24px;
+  margin: 0 0 24px;
   padding: 16px;
   border-radius: 10px;
   background: var(--color-line-soft);

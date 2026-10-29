@@ -173,6 +173,25 @@ interface UpcomingAgendaRow {
  * seen), así que la agenda — la fuente real de compromisos del app — la
  * sustituye (divergencia semántica documentada en la vista).
  */
+/** Medios detectados (mockup): hosts de NOTAS de prensa (source ∈ news del
+ * split) dentro del pool cap-500 — misma concesión del channel-pool. Las
+ * redes y el campo tienen panel propio (x.com etc. no son medios). El
+ * filtro ?medium= del server no cambia: match exacto de host. */
+function newsMediumCounts(newsSources: string[], items: Mention[]): Record<string, number> {
+	const wanted = new Set(newsSources);
+	const counts = new Map<string, number>();
+	for (const item of items) {
+		if (!wanted.has(item.source) || !item.url) continue;
+		try {
+			const host = new URL(item.url).hostname.replace(/^www\./, '');
+			if (host) counts.set(host, (counts.get(host) ?? 0) + 1);
+		} catch {
+			// url malformada: fuera del panel; el filtro ?medium= sí la toma.
+		}
+	}
+	return Object.fromEntries(counts);
+}
+
 function upcomingAgendaRows(items: AgendaItem[], todayIso: string): UpcomingAgendaRow[] {
 	return items
 		.filter(
@@ -336,7 +355,7 @@ export const load: PageServerLoad = async ({ url, cookies }) => {
 			keywords,
 			digest,
 			sourceCounts: stats.by_source,
-			mediumCounts: stats.by_medium ?? {},
+			mediumCounts: newsMediumCounts(groups.news, periodPool ?? []),
 			newsMediumCount: stats.news_medium_count ?? 0,
 			channelGroups: groups,
 			eventsById: eventsById,
