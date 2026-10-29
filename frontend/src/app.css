@@ -4056,6 +4056,27 @@ button.text-link {
   font-size: 12px;
   color: var(--color-muted);
 }
+/* Línea de metadatos del dialog «Fecha detectada» (mock: fecha · hora ·
+   compromiso no confirmado) — cuerpo regular, muted, sobre el título. */
+.feed-dialog-metadata {
+  margin: 0 0 var(--space-16);
+  font-size: 14px;
+  color: var(--color-muted);
+}
+/* Cita/extracto en caja (mock evidence): superficie suave + línea + radio. */
+.feed-dialog-quote {
+  margin: var(--space-8) 0;
+  padding: var(--space-16);
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  background: var(--color-surface-warm);
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--color-ink-2);
+}
+.feed-dialog-quote:empty {
+  display: none;
+}
 
 .agenda-mini .date-box {
   display: grid;

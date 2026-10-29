@@ -592,15 +592,17 @@ it('opens the agenda-origin dialog from the upcoming row', async () => {
 	await tick();
 
 	const dialog = [...target.querySelectorAll('dialog.detail-dialog')].find((node) =>
-		node.textContent?.includes('Origen del registro')
+		node.textContent?.includes('Fecha detectada')
 	);
 	expect(dialog).toBeTruthy();
 	const text = (dialog?.textContent ?? '').replace(/\s+/g, ' ');
+	// Estructura v3 «Fecha detectada»: head corto + título grande + metadata
+	// con compromiso no confirmado + sección noticia con byline y cita.
+	expect(text).toContain('Debate en cámara');
+	expect(text).toContain('Fecha detectada; compromiso no confirmado.');
 	expect(text).toContain('congreso-puebla.gob.mx');
-	expect(text).toContain('Abrir fuente original');
-	expect(text).toContain('2026-11-05 · 10:30');
-	// Sin match de título en el resultado: el modal lo declara; y la acción.
-	expect(text).toContain('Nota que detonó la fecha');
+	expect(text).toContain('Noticia que detectó la fecha');
 	expect(text).toContain('Sin nota vinculada');
+	expect(text).toContain('Ver registro original');
 	expect(text).toContain('Descartar fecha');
 });

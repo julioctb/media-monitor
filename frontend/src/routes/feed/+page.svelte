@@ -12,7 +12,14 @@
 	import type { EventDetail, EventMention, Mention } from '$lib/api';
 	import { groupByEvent } from '$lib/grouping';
 	import { deleteAgendaItem } from '$lib/api';
-	import { channelLabelFor, formatDisplayDateTime, zonedToday } from '$lib/format';
+	import {
+		CHANNEL_ICON,
+		channelClassFor,
+		channelLabelFor,
+		formatDisplayDateTime,
+		formatLongDate,
+		zonedToday
+	} from '$lib/format';
 	import { CHANNEL_LABELS, type FeedChannel } from '$lib/feed-filters';
 	import { ICON_PATHS } from '$lib/icons';
 	import { markSeen, prefs, seedPrefsFromServer, toggleSaved } from '$lib/prefs';
@@ -1010,48 +1017,63 @@
      notas tal como la cargó la agenda editorial. -->
 <DetailDialog
 	titleId="agenda-origin-title"
-	title={agendaPick?.title ?? ''}
+	title="Fecha detectada"
 	open={agendaPick}
 	onclose={() => (agendaPick = null)}
 >
 	{#if agendaPick}
-		<p class="feed-dialog-eyebrow">Origen del registro</p>
+		<!-- Estructura v3 (mock «Fecha detectada»): título grande → línea de
+		     metadatos → sección noticia (tag + titular + byline + cita) →
+		     registro original → acción secundaria. El head no repite el
+		     nombre del registro. -->
 		<h2 class="daily-dialog-title">{agendaPick.title}</h2>
+		<p class="feed-dialog-metadata">
+			{formatLongDate(agendaPick.eventDate)}{agendaPick.timeLabel
+				? ` · ${agendaPick.timeLabel}`
+				: ''} · Fecha detectada; compromiso no confirmado.
+		</p>
 		<section>
-			<h3>Fecha</h3>
-			<p>{agendaPick.eventDate}{agendaPick.timeLabel ? ` · ${agendaPick.timeLabel}` : ''}</p>
-			{#if agendaPick.dateLabel}<p class="feed-dialog-meta">{agendaPick.dateLabel}</p>{/if}
-		</section>
-		<section>
-			<h3>Fuente</h3>
-			<p>{agendaPick.source ?? 'No registrada en la agenda.'}</p>
-			{#if agendaPick.url}
-				<a class="text-link" href={agendaPick.url} target="_blank" rel="noreferrer">Abrir fuente original</a>
-			{/if}
-		</section>
-		<section>
-			<h3>Nota que detonó la fecha</h3>
+			<p class="feed-dialog-eyebrow">Noticia que detectó la fecha</p>
 			{#if agendaOriginMention}
-				<p><strong>{agendaOriginMention.title}</strong></p>
-				<p class="feed-dialog-meta">
+				<span class={`source-badge ${channelClassFor(agendaOriginMention.source)}`}>
+					<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true">
+						<path d={ICON_PATHS[CHANNEL_ICON[channelClassFor(agendaOriginMention.source)]]} />
+					</svg>
 					{channelLabelFor(agendaOriginMention.source)}
-					· {formatDisplayDateTime(agendaOriginMention.published_at ?? agendaOriginMention.ingested_at)}
-				</p>
-				{#if agendaOriginMention.url}
-					<a class="text-link" href={agendaOriginMention.url} target="_blank" rel="noreferrer">Ver la nota</a>
-				{/if}
+				</span>
+				<h3>{agendaOriginMention.title}</h3>
 			{:else}
-				<p class="feed-dialog-meta">Sin nota vinculada en el resultado cargado de esta página.</p>
+				<h3>Sin nota vinculada en el resultado cargado de esta página.</h3>
+			{/if}
+			<p class="feed-dialog-meta">
+				{agendaPick.source ?? 'Fuente no registrada'}
+				· {formatDisplayDateTime(agendaOriginMention?.published_at ?? agendaOriginMention?.ingested_at ?? '') || 'fecha de publicación no disponible'}
+			</p>
+			<div class="feed-dialog-quote">
+				{#if agendaOriginMention?.summary || agendaOriginMention?.content}
+					{agendaOriginMention.summary ?? agendaOriginMention.content}
+				{:else if agendaPick.notes}
+					{agendaPick.notes}
+				{:else}
+					Fecha detectada en publicación; compromiso no confirmado. El registro vive en la agenda editorial hasta vincularlo a su nota de origen.
+				{/if}
+			</div>
+			{#if (agendaOriginMention?.url ?? agendaPick.url)}
+				<a
+					class="text-link"
+					href={agendaOriginMention?.url ?? agendaPick.url}
+					target="_blank"
+					rel="noreferrer"
+				>
+					Ver registro original
+					<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true">
+						<path d={ICON_PATHS.arrow} />
+					</svg>
+				</a>
 			{/if}
 		</section>
-		{#if agendaPick.notes}
-			<section>
-				<h3>Notas</h3>
-				<p>{agendaPick.notes}</p>
-			</section>
-		{/if}
 		<div class="dialog-actions">
-			<button type="button" class="text-link" onclick={() => void discardAgendaPick()}>
+			<button type="button" class="button" onclick={() => void discardAgendaPick()}>
 				Descartar fecha
 			</button>
 		</div>
