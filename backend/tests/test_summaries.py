@@ -36,11 +36,17 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from tests.digest_current_fixtures import (
-    VERIFY_ATTENTION,
+    CONTEXTUAL_ATTENTION,
+    CONTEXTUAL_CONDITION,
+    contextual_headline,
+    contextual_reading,
     receive_legacy_content,
-    visibility_reading,
 )
-from tests.digest_plan_fixtures import plan_completion
+from tests.digest_plan_fixtures import (
+    advisory_completion,
+    review_completion,
+    reviewed_factory,
+)
 
 DAY = datetime(2026, 10, 9, 18, 0, tzinfo=timezone.utc)  # 12:00 in Mexico City
 
@@ -267,16 +273,23 @@ def test_llm_mode_fields_applied_and_fallback(session):
 
     def good(prompt: str) -> str:
         captured["prompt"] = prompt
-        return plan_completion(prompt, [(0, "decision")])
+        return advisory_completion(prompt, [(0, "decision")])
 
     row = build_daily_summary(
-        session, client_id=client.id, day=DAY.date(), generate=good
+        session,
+        client_id=client.id,
+        day=DAY.date(),
+        generator_factory=reviewed_factory(good),
     )
+    assert row.content["generation"]["status"] == "plan_applied"
+    assert row.content["generation"]["review"]["status"] == "passed"
     assert row.mode == "llm"
-    expected_headline = visibility_reading("BUAP publica")
+    expected_headline = contextual_headline("BUAP publica")
     assert row.narrative == expected_headline
     assert "«BUAP publica»" in row.content["noticias"][0]["summary"]
-    assert row.content["noticias"][0]["why_it_matters"] == expected_headline
+    assert row.content["noticias"][0]["why_it_matters"] == contextual_reading(
+        "BUAP publica"
+    )
     assert "rectora" not in row.content
     assert row.content["agenda"] == []
     assert row.content["redes"]["x"]["note"] == ""
@@ -540,6 +553,7 @@ def test_openai_provider_path_via_fake_http(monkeypatch, session):
     session.commit()
 
     calls: dict = {}
+    requests = []
 
     class FakeResponse:
         def raise_for_status(self) -> None:
@@ -550,15 +564,18 @@ def test_openai_provider_path_via_fake_http(monkeypatch, session):
                 "choices": [
                     {
                         "message": {
-                            "content": plan_completion(
-                                calls["json"]["messages"][1]["content"]
-                            )
+                            "content": (
+                                review_completion
+                                if len(requests) == 2
+                                else advisory_completion
+                            )(calls["json"]["messages"][1]["content"])
                         }
                     }
                 ]
             }
 
     def fake_post(url, **kwargs):
+        requests.append(kwargs["json"])
         calls["url"] = url
         calls["json"] = kwargs["json"]
         calls["headers"] = kwargs["headers"]
@@ -568,10 +585,12 @@ def test_openai_provider_path_via_fake_http(monkeypatch, session):
 
     row = build_daily_summary(session, client_id=client.id, day=DAY.date())
     assert row.mode == "llm"
-    assert row.narrative == visibility_reading("BUAP publica resultados")
+    assert len(requests) == 2
+    assert row.content["generation"]["review"]["status"] == "passed"
+    assert row.narrative == contextual_headline("BUAP publica resultados")
     assert calls["url"] == "https://api.openai.com/v1/chat/completions"
     assert calls["headers"]["Authorization"] == "Bearer sk-test"
-    body = calls["json"]
+    body = requests[0]
     assert body["model"] == "gpt-4o-mini"
     assert body["temperature"] == 0
     assert body["messages"][0]["role"] == "system"
@@ -1338,19 +1357,25 @@ def test_negative_story_retains_accepted_model_category(session):
     session.commit()
 
     def payload(prompt: str) -> str:
-        return plan_completion(prompt, [(0, "decision")])
+        return advisory_completion(prompt, [(0, "decision")])
 
     row = build_daily_summary(
-        session, client_id=client.id, day=DAY.date(), generate=payload
+        session,
+        client_id=client.id,
+        day=DAY.date(),
+        generator_factory=reviewed_factory(payload),
     )
+    assert row.content["generation"]["status"] == "plan_applied"
+    assert row.content["generation"]["review"]["status"] == "passed"
     brief = row.content["brief"]
     assert row.mode == "llm"
     # The accepted decision is not duplicated as a tone-derived risk.
     assert _without_provenance(brief["decisiones"]) == [
         {
             "index": 0,
-            "razon": visibility_reading("Recorte de becas"),
-            "accion_sugerida": VERIFY_ATTENTION,
+            "razon": contextual_reading("Recorte de becas"),
+            "accion_sugerida": CONTEXTUAL_ATTENTION,
+            "condicion": CONTEXTUAL_CONDITION,
         }
     ]
     assert brief["decisiones"][0]["provenance"]["razon"]["state"] == "linked"
@@ -1431,8 +1456,12 @@ def test_public_selection_is_not_extended_from_unselected_negative_stance(
         session,
         client_id=client.id,
         day=DAY.date(),
-        generate=lambda prompt: plan_completion(prompt, [(index, category)]),
+        generator_factory=reviewed_factory(
+            lambda prompt: advisory_completion(prompt, [(index, category)])
+        ),
     )
+    assert row.content["generation"]["status"] == "plan_applied"
+    assert row.content["generation"]["review"]["status"] == "passed"
 
     selected = [
         (key, row.content["noticias"][p["index"]]["title"], p["razon"])
@@ -1443,7 +1472,7 @@ def test_public_selection_is_not_extended_from_unselected_negative_stance(
         (
             "decisiones" if category == "decision" else "riesgos",
             target_title,
-            visibility_reading(target_title),
+            contextual_reading(target_title, index),
         )
     ]
     assert len(row.content["noticias"]) == 2
@@ -1493,10 +1522,14 @@ def test_public_substantive_decisions_are_not_padded_by_publication_volume(
         session,
         client_id=client.id,
         day=DAY.date(),
-        generate=lambda prompt: plan_completion(
-            prompt, [(i, "decision") for i in indexes]
+        generator_factory=reviewed_factory(
+            lambda prompt: advisory_completion(
+                prompt, [(i, "decision") for i in indexes]
+            )
         ),
     )
+    assert row.content["generation"]["status"] == "plan_applied"
+    assert row.content["generation"]["review"]["status"] == "passed"
 
     picks = row.content["brief"]["decisiones"]
     assert [
@@ -1780,11 +1813,16 @@ def test_failed_regen_preserves_llm_prose_in_tarjetas(session):
     add_mention(session, client.id, "BUAP publica resultados", DAY, event_id=event.id)
 
     def good(prompt: str) -> str:
-        return plan_completion(prompt, [(0, "decision")])
+        return advisory_completion(prompt, [(0, "decision")])
 
     first = build_daily_summary(
-        session, client_id=client.id, day=DAY.date(), generate=good
+        session,
+        client_id=client.id,
+        day=DAY.date(),
+        generator_factory=reviewed_factory(good),
     )
+    assert first.content["generation"]["status"] == "plan_applied"
+    assert first.content["generation"]["review"]["status"] == "passed"
     assert first.mode == "llm"
     assert "«BUAP publica resultados»" in first.content["tarjetas"][0]["hecho"]
 
@@ -2001,11 +2039,16 @@ def test_failed_regen_inherits_prose_for_same_story_material(session):
     )
 
     def good(prompt: str) -> str:
-        return plan_completion(prompt, [(0, "decision")])
+        return advisory_completion(prompt, [(0, "decision")])
 
     first = build_daily_summary(
-        session, client_id=client.id, day=DAY.date(), generate=good
+        session,
+        client_id=client.id,
+        day=DAY.date(),
+        generator_factory=reviewed_factory(good),
     )
+    assert first.content["generation"]["status"] == "plan_applied"
+    assert first.content["generation"]["review"]["status"] == "passed"
     assert first.mode == "llm"
 
     initial_summary = first.content["noticias"][0]["summary"]
@@ -2115,8 +2158,12 @@ def _continuity_fixture(session, *, loose=False):
         session,
         client_id=client.id,
         day=DAY.date(),
-        generate=lambda prompt: plan_completion(prompt, [(0, "decision")]),
+        generator_factory=reviewed_factory(
+            lambda prompt: advisory_completion(prompt, [(0, "decision")])
+        ),
     )
+    assert row.content["generation"]["status"] == "plan_applied"
+    assert row.content["generation"]["review"]["status"] == "passed"
     assert row.mode == "llm"
     assert row.content["generation"]["status"] == "plan_applied"
     return client, first_event, other_event, one, two, row
@@ -2190,8 +2237,12 @@ def test_unchanged_frozen_cut_recovers_prose_and_its_reference_state(session, re
         session,
         client_id=client.id,
         day=DAY.date(),
-        generate=lambda prompt: plan_completion(prompt, [(0, "decision")]),
+        generator_factory=reviewed_factory(
+            lambda prompt: advisory_completion(prompt, [(0, "decision")])
+        ),
     )
+    assert first.content["generation"]["status"] == "plan_applied"
+    assert first.content["generation"]["review"]["status"] == "passed"
     assert first.mode == "llm"
     canonical_headline = first.narrative
     canonical_summary = first.content["noticias"][0]["summary"]
@@ -2392,14 +2443,16 @@ def test_window_material_keeps_prompt_and_card_indexes_aligned(session):
     def generate(prompt):
         view = json.loads(prompt)
         captured.append(view)
-        return plan_completion(prompt)
+        return advisory_completion(prompt)
 
     row = build_daily_summary(
         session,
         client_id=client.id,
         day=DAY.date(),
-        generate=generate,
+        generator_factory=reviewed_factory(generate),
     )
+    assert row.content["generation"]["status"] == "plan_applied"
+    assert row.content["generation"]["review"]["status"] == "passed"
 
     assert row.content["coverage"]["total"] == 2
     assert len(captured) == 1
@@ -2512,8 +2565,13 @@ def test_literal_body_links_are_elided_only_in_the_labelled_reading_copy(session
     mention.content = body
     session.commit()
     row = build_daily_summary(
-        session, client_id=client.id, day=DAY.date(), generate=plan_completion
+        session,
+        client_id=client.id,
+        day=DAY.date(),
+        generator_factory=reviewed_factory(advisory_completion),
     )
+    assert row.content["generation"]["status"] == "plan_applied"
+    assert row.content["generation"]["review"]["status"] == "passed"
     assert row.mode == "llm"
     assert body in row.content["noticias"][0]["summary"]
     assert (
@@ -2872,7 +2930,7 @@ def test_public_compilation_preserves_accepted_selections(
     expected = [
         (
             facts["noticias"][i]["title"],
-            visibility_reading(facts["noticias"][i]["title"]),
+            contextual_reading(facts["noticias"][i]["title"], i),
         )
         for i in selected
     ]
@@ -2881,10 +2939,14 @@ def test_public_compilation_preserves_accepted_selections(
         session,
         client_id=client.id,
         day=DAY.date(),
-        generate=lambda prompt: plan_completion(
-            prompt, [(i, category) for i in selected]
+        generator_factory=reviewed_factory(
+            lambda prompt: advisory_completion(
+                prompt, [(i, category) for i in selected]
+            )
         ),
     )
+    assert row.content["generation"]["status"] == "plan_applied"
+    assert row.content["generation"]["review"]["status"] == "passed"
 
     content = row.content
     picks = content["brief"][bucket]
@@ -3215,16 +3277,20 @@ def test_public_quoted_person_is_not_automatically_an_affected_party(session, su
         session,
         client_id=client.id,
         day=DAY.date(),
-        generate=lambda prompt: plan_completion(
-            prompt, [(0, "riesgo")] if surface == "riesgos" else []
+        generator_factory=reviewed_factory(
+            lambda prompt: advisory_completion(
+                prompt, [(0, "riesgo")] if surface == "riesgos" else []
+            )
         ),
     )
+    assert row.content["generation"]["status"] == "plan_applied"
+    assert row.content["generation"]["review"]["status"] == "passed"
 
     entry = row.content["brief"][surface][0]
     assert "quien" not in entry.get("afectacion", {})
     assert observer.id in row.content["noticias"][0]["person_ids"]
     expected_reading = (
-        visibility_reading(mention.title)
+        contextual_reading(mention.content)
         if surface == "riesgos"
         else "Lectura política no disponible para esta noticia."
     )
@@ -3303,10 +3369,14 @@ def test_public_agenda_is_not_attached_by_publication_day_or_title_overlap(
         session,
         client_id=client.id,
         day=DAY.date(),
-        generate=lambda prompt: plan_completion(
-            prompt, [(index, "riesgo")] if surface == "riesgos" else []
+        generator_factory=reviewed_factory(
+            lambda prompt: advisory_completion(
+                prompt, [(index, "riesgo")] if surface == "riesgos" else []
+            )
         ),
     )
+    assert row.content["generation"]["status"] == "plan_applied"
+    assert row.content["generation"]["review"]["status"] == "passed"
 
     entry = row.content["brief"][surface][0]
     assert "ventana" not in entry.get("afectacion", {})
@@ -3316,7 +3386,7 @@ def test_public_agenda_is_not_attached_by_publication_day_or_title_overlap(
     assert historical["agenda"][0]["provenance"]["when"]["state"] == "linked"
     assert row.content["coverage"]["total"] == 2
     if surface == "riesgos":
-        assert entry["razon"] == visibility_reading(title)
+        assert entry["razon"] == contextual_reading(mention.content, index)
         assert historical["brief"]["riesgos"][0]["razon"] == reason
     else:
         assert entry["fecha"] == DAY.isoformat()
@@ -3338,8 +3408,12 @@ def test_public_compatible_recovery_does_not_reintroduce_inferred_actor_or_deadl
         session,
         client_id=client.id,
         day=DAY.date(),
-        generate=lambda prompt: plan_completion(prompt, [(0, "riesgo")]),
+        generator_factory=reviewed_factory(
+            lambda prompt: advisory_completion(prompt, [(0, "riesgo")])
+        ),
     )
+    assert first.content["generation"]["status"] == "plan_applied"
+    assert first.content["generation"]["review"]["status"] == "passed"
     assert first.mode == "llm"
     expected_reason = first.content["brief"]["riesgos"][0]["razon"]
     legacy = deepcopy(first.content)
@@ -3468,8 +3542,12 @@ def test_vigilancia_anti_dup_la_tarjeta_riesgo_gana(session):
         session,
         client_id=client.id,
         day=DAY.date(),
-        generate=lambda prompt: plan_completion(prompt, [(risk_index, "riesgo")]),
+        generator_factory=reviewed_factory(
+            lambda prompt: advisory_completion(prompt, [(risk_index, "riesgo")])
+        ),
     )
+    assert row.content["generation"]["status"] == "plan_applied"
+    assert row.content["generation"]["review"]["status"] == "passed"
     brief = row.content["brief"]
     # The accepted risk card suppresses only its duplicate vigilance line.
     riesgo_indexes = {entry["index"] for entry in brief["riesgos"]}
@@ -3657,8 +3735,12 @@ def test_risk_annotation_preserves_coverage_tone_without_inferring_affected_part
         session,
         client_id=client.id,
         day=DAY.date(),
-        generate=lambda prompt: plan_completion(prompt, [(risk_index, "riesgo")]),
+        generator_factory=reviewed_factory(
+            lambda prompt: advisory_completion(prompt, [(risk_index, "riesgo")])
+        ),
     )
+    assert row.content["generation"]["status"] == "plan_applied"
+    assert row.content["generation"]["review"]["status"] == "passed"
     riesgos = row.content["brief"]["riesgos"]
     assert riesgos, "el riesgo aceptado se conserva"
     afect = riesgos[0].get("afectacion")
@@ -3700,14 +3782,20 @@ def test_public_explicit_affected_party_and_deadline_prose_remains_available(ses
         session,
         client_id=client.id,
         day=DAY.date(),
-        generate=lambda prompt: plan_completion(prompt, [(0, "riesgo")]),
+        generator_factory=reviewed_factory(
+            lambda prompt: advisory_completion(prompt, [(0, "riesgo")])
+        ),
     )
+    assert row.content["generation"]["status"] == "plan_applied"
+    assert row.content["generation"]["review"]["status"] == "passed"
 
     assert row.mode == "llm"
     pick = row.content["brief"]["riesgos"][0]
-    assert pick["razon"] == visibility_reading(title)
+    assert pick["razon"] == contextual_reading(mention.content)
     assert pick["provenance"]["razon"]["state"] == "linked"
-    assert row.content["noticias"][0]["why_it_matters"] == visibility_reading(title)
+    assert row.content["noticias"][0]["why_it_matters"] == contextual_reading(
+        mention.content
+    )
     assert mention.content in row.content["noticias"][0]["summary"]
     assert "12 de octubre" in row.content["evidence"]["sources"][0]["excerpt"]
     assert row.content["agenda"] == []

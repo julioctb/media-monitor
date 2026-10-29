@@ -110,6 +110,130 @@ def test_contextual_schema_rejects_stale_or_malformed_material_control(field, va
         factual_plan_schema(content)
 
 
+def test_new_passages_preserve_complete_sentences_and_original_bytes():
+    sentences = [
+        f"La institución informó sobre el acuerdo número {i} y sus condiciones. "
+        for i in range(35)
+    ]
+    body = "".join(sentences).strip()
+    row = mention(content=body)
+    content = prepared(row)
+    bank = content["factual_basis"]
+    assert bank.get("passage_scheme") == "readable-v1"
+    source = bank["sources"][0]
+    assert source["original"] == body
+    assert len(source["passages"]) <= 7
+    assert all(passage.endswith(".") for passage in source["passages"])
+    assert all(passage.startswith("La institución") for passage in source["passages"])
+    assert all(passage in body for passage in source["passages"])
+    assert row.content == body
+
+
+def test_contextual_analysis_renders_separate_premises_consequence_and_attention():
+    content = prepared(mention())
+    selector = {"index": 0, "source_ref": 0, "passage_index": 0}
+    analysis = {
+        "premises": [selector],
+        "interpretation": "La invitación puede abrir interlocución académica.",
+        "consequence": "Si hay continuidad, podría ampliarse la cooperación.",
+        "attention": "Observar si se publican propuestas de colaboración.",
+        "conditions": "La invitación no acredita un compromiso adoptado.",
+        "relevance": "La vinculación institucional ofrece un ámbito de seguimiento, sin atribuir facultades.",
+    }
+    plan = {
+        "basis_fingerprint": content["factual_basis"]["fingerprint"],
+        "headline_index": 0,
+        "headline_frame": "negotiation",
+        "headline_analysis": analysis,
+        "items": [selector],
+        "seleccion": [
+            {
+                "index": 0,
+                "categoria": "decision",
+                "frame": "negotiation",
+                "action": "monitor_followup",
+                "analysis": analysis,
+            }
+        ],
+    }
+    output = render_factual_plan(content, plan)
+    assert analysis["interpretation"] in output["headline"]
+    assert analysis["consequence"] in output["headline"]
+    pick = output["seleccion"][0]
+    assert "Premisa documental" in pick["razon"]
+    assert "Se invitó a las instituciones" in pick["razon"]
+    assert pick["accion_sugerida"] == analysis["attention"]
+    assert pick["condicion"] == analysis["conditions"]
+    assert output["references"]["seleccion.0.condicion"] == [0]
+    assert (
+        content["noticias"][0]["summary"]
+        == "Resumen derivado sin autoridad documental."
+    )
+
+
+def test_contextual_schema_resolves_nested_premise_selectors():
+    content = prepared(mention())
+    schema = factual_plan_schema(content)
+
+    def inspect(node):
+        if isinstance(node, dict):
+            if "$ref" in node:
+                target = schema
+                for part in node["$ref"].removeprefix("#/").split("/"):
+                    assert part in target, node["$ref"]
+                    target = target[part]
+            for value in node.values():
+                inspect(value)
+        elif isinstance(node, list):
+            for value in node:
+                inspect(value)
+
+    inspect(schema)
+    assert (
+        schema["$defs"]["_Analysis"]["properties"]["premises"]["items"]["$ref"]
+        == "#/$defs/_Item"
+    )
+
+
+@pytest.mark.parametrize("scheme", ["legacy", "unknown", None, True])
+def test_old_banks_keep_exact_600_chunks_without_default_fingerprint_rewrite_control(
+    scheme,
+):
+    import hashlib
+
+    row = mention(content="Una oración documental completa. " * 70)
+    content = prepared(row)
+    bank = content["factual_basis"]
+    bank.pop("passage_scheme")
+    source = bank["sources"][0]
+    source["passages"] = [
+        source["original"][start : start + 600].strip()
+        for start in range(0, len(source["original"]), 600)
+    ]
+    if scheme != "legacy":
+        bank["passage_scheme"] = scheme
+    body = {key: value for key, value in bank.items() if key != "fingerprint"}
+    bank["fingerprint"] = hashlib.sha256(
+        json.dumps(
+            body,
+            sort_keys=True,
+            ensure_ascii=False,
+            separators=(",", ":"),
+            allow_nan=False,
+        ).encode("utf-8")
+    ).hexdigest()
+    before = deepcopy(content)
+    if scheme == "legacy":
+        packet = factual_prompt_view(content)
+        assert packet["sources"][0]["passages"] == source["passages"]
+        assert packet["basis_fingerprint"] == bank["fingerprint"]
+        assert "passage_scheme" not in content["factual_basis"]
+    else:
+        with pytest.raises(FactualPlanError):
+            factual_prompt_view(content)
+    assert content == before
+
+
 def test_basis_separates_publication_from_occurrence_and_derivative():
     body = "El encuentro ocurrió el viernes anterior. " + "Contenido literal. " * 260
     row = mention(
@@ -372,7 +496,7 @@ def test_invalid_plan_is_atomic_and_never_licenses_generated_relations(path, val
     assert json.dumps([content, plan], sort_keys=True) == before
 
 
-def test_private_schema_is_finite_bounded_and_accepts_no_authored_factual_prose():
+def test_private_schema_bounds_facts_and_separates_optional_contextual_analysis():
     schema = factual_plan_schema()
     assert isinstance(schema, dict)
     assert schema["additionalProperties"] is False
@@ -380,10 +504,25 @@ def test_private_schema_is_finite_bounded_and_accepts_no_authored_factual_prose(
         "basis_fingerprint",
         "headline_index",
         "headline_frame",
+        "headline_analysis",
         "items",
         "seleccion",
     }
-    assert set(schema["required"]) == set(schema["properties"])
+    assert set(schema["required"]) == {
+        "basis_fingerprint",
+        "headline_index",
+        "headline_frame",
+        "items",
+        "seleccion",
+    }
+    assert set(schema["$defs"]["_Analysis"]["required"]) == {
+        "premises",
+        "interpretation",
+        "consequence",
+        "attention",
+        "conditions",
+        "relevance",
+    }
     assert schema["properties"]["items"]["maxItems"] == 1000
     assert schema["properties"]["seleccion"]["maxItems"] == 1000
     definitions = schema["$defs"]
@@ -399,6 +538,7 @@ def test_private_schema_is_finite_bounded_and_accepts_no_authored_factual_prose(
         "categoria",
         "frame",
         "action",
+        "analysis",
     }
     assert definitions["_Item"]["properties"]["passage_index"]["exclusiveMaximum"] == 7
     assert set(schema["properties"]["headline_frame"]["enum"]) == {

@@ -8,7 +8,7 @@ import pytest
 from app.models import Client, Event, MentionSource, queries
 from app.summaries import build_daily_summary
 
-from tests.digest_plan_fixtures import plan_completion
+from tests.digest_plan_fixtures import advisory_completion, reviewed_factory
 
 
 PRIOR = datetime(2026, 10, 9, 18, tzinfo=timezone.utc)
@@ -41,7 +41,7 @@ def _mention(session, client, published, material, *, title=TITLE, event_id=None
 
 
 def _generate(prompt):
-    return plan_completion(prompt)
+    return advisory_completion(prompt)
 
 
 def _view(prompt):
@@ -66,8 +66,13 @@ def _prior(session, client):
         event_id=event.id,
     )
     row = build_daily_summary(
-        session, client_id=client.id, day=PRIOR.date(), generate=_generate
+        session,
+        client_id=client.id,
+        day=PRIOR.date(),
+        generator_factory=reviewed_factory(_generate),
     )
+    assert row.content["generation"]["status"] == "plan_applied"
+    assert row.content["generation"]["review"]["status"] == "passed"
     assert row.mode == "llm"
     saved = copy.deepcopy(row.content)
     saved["noticias"][0]["summary"] = "CONCLUSION_ANTERIOR_NO_ES_FUENTE"
@@ -89,7 +94,7 @@ def test_public_prompt_uses_original_prior_material_and_actual_compared_date(ses
         session,
         client_id=foreign.id,
         day=(CURRENT - timedelta(days=1)).date(),
-        generate=_generate,
+        generator_factory=reviewed_factory(_generate),
     )
     _mention(
         session,
@@ -103,11 +108,16 @@ def test_public_prompt_uses_original_prior_material_and_actual_compared_date(ses
 
     def generate(prompt):
         captured.append(_view(prompt))
-        return plan_completion(prompt)
+        return advisory_completion(prompt)
 
     row = build_daily_summary(
-        session, client_id=client.id, day=CURRENT.date(), generate=generate
+        session,
+        client_id=client.id,
+        day=CURRENT.date(),
+        generator_factory=reviewed_factory(generate),
     )
+    assert row.content["generation"]["status"] == "plan_applied"
+    assert row.content["generation"]["review"]["status"] == "passed"
     context = captured[0]["comparison"]
     assert context["available"] is True
     assert context["date"] == PRIOR.date().isoformat()
@@ -174,8 +184,13 @@ def test_public_recovery_rejects_changed_prior_context_with_identical_current_cu
         event_id=old_mention.event_id,
     )
     first = build_daily_summary(
-        session, client_id=client.id, day=CURRENT.date(), generate=_generate
+        session,
+        client_id=client.id,
+        day=CURRENT.date(),
+        generator_factory=reviewed_factory(_generate),
     )
+    assert first.content["generation"]["status"] == "plan_applied"
+    assert first.content["generation"]["review"]["status"] == "passed"
     assert first.mode == "llm"
     assert first.content["generation"]["status"] == "plan_applied"
     current_evidence = copy.deepcopy(first.content["evidence"])
@@ -226,8 +241,13 @@ def test_public_identical_comparison_recovers_prose_without_rebinding_current_re
         event_id=old_mention.event_id,
     )
     first = build_daily_summary(
-        session, client_id=client.id, day=CURRENT.date(), generate=_generate
+        session,
+        client_id=client.id,
+        day=CURRENT.date(),
+        generator_factory=reviewed_factory(_generate),
     )
+    assert first.content["generation"]["status"] == "plan_applied"
+    assert first.content["generation"]["review"]["status"] == "passed"
     original = copy.deepcopy(first.content)
     row = build_daily_summary(
         session, client_id=client.id, day=CURRENT.date(), generate=_failed
@@ -246,8 +266,13 @@ def test_public_legacy_recovery_without_factual_prior_keeps_unknown_comparison_a
     client = _client(session)
     _mention(session, client, CURRENT, "Una publicación actual sin corte anterior.")
     first = build_daily_summary(
-        session, client_id=client.id, day=CURRENT.date(), generate=_generate
+        session,
+        client_id=client.id,
+        day=CURRENT.date(),
+        generator_factory=reviewed_factory(_generate),
     )
+    assert first.content["generation"]["status"] == "plan_applied"
+    assert first.content["generation"]["review"]["status"] == "passed"
     old = copy.deepcopy(first.content)
     old.pop("comparison", None)
     old.pop("generation", None)
@@ -294,8 +319,13 @@ def test_public_repeat_without_prior_edition_does_not_force_invented_novelty(ses
         return _generate(prompt)
 
     row = build_daily_summary(
-        session, client_id=client.id, day=CURRENT.date(), generate=generate
+        session,
+        client_id=client.id,
+        day=CURRENT.date(),
+        generator_factory=reviewed_factory(generate),
     )
+    assert row.content["generation"]["status"] == "plan_applied"
+    assert row.content["generation"]["review"]["status"] == "passed"
     assert row.content["noticias"][0]["repeat"] is True
     assert _view(captured[0])["comparison"]["available"] is False
     assert "ya fueron cubiertas en ediciones" not in captured[0]
@@ -343,7 +373,10 @@ def test_public_unavailable_prior_material_does_not_promote_authored_summaries(
         return _generate(prompt)
 
     build_daily_summary(
-        session, client_id=client.id, day=CURRENT.date(), generate=generate
+        session,
+        client_id=client.id,
+        day=CURRENT.date(),
+        generator_factory=reviewed_factory(generate),
     )
     assert captured[0]["comparison"]["available"] is False
     assert "CONCLUSION_ANTERIOR_NO_ES_FUENTE" not in json.dumps(
@@ -388,8 +421,13 @@ def test_public_prior_story_bound_keeps_all_own_sources_without_reindexing(sessi
             title=f"Convocatoria académica en {place}",
         )
     previous = build_daily_summary(
-        session, client_id=client.id, day=PRIOR.date(), generate=_generate
+        session,
+        client_id=client.id,
+        day=PRIOR.date(),
+        generator_factory=reviewed_factory(_generate),
     )
+    assert previous.content["generation"]["status"] == "plan_applied"
+    assert previous.content["generation"]["review"]["status"] == "passed"
     original = copy.deepcopy(previous.content)
     expected = {
         ref for note in original["noticias"][:12] for ref in note["source_refs"]
@@ -410,8 +448,13 @@ def test_public_prior_story_bound_keeps_all_own_sources_without_reindexing(sessi
         return _generate(prompt)
 
     row = build_daily_summary(
-        session, client_id=client.id, day=CURRENT.date(), generate=generate
+        session,
+        client_id=client.id,
+        day=CURRENT.date(),
+        generator_factory=reviewed_factory(generate),
     )
+    assert row.content["generation"]["status"] == "plan_applied"
+    assert row.content["generation"]["review"]["status"] == "passed"
     context = captured[0]["comparison"]
     assert len(context["stories"]) == 12
     assert {source["index"] for source in context["sources"]} == {
@@ -457,7 +500,10 @@ def test_public_correspondence_preserves_registered_identity_over_equal_titles(
         return _generate(prompt)
 
     build_daily_summary(
-        session, client_id=client.id, day=CURRENT.date(), generate=generate
+        session,
+        client_id=client.id,
+        day=CURRENT.date(),
+        generator_factory=reviewed_factory(generate),
     )
     story = captured[0]["comparison"]["stories"][0]
     assert story["current_indexes"] == ([0] if same_event else [])
@@ -471,8 +517,13 @@ def test_public_explicit_invalid_comparison_cannot_downgrade_to_legacy_recovery(
     client = _client(session)
     _mention(session, client, CURRENT, "Una publicación actual sin corte anterior.")
     row = build_daily_summary(
-        session, client_id=client.id, day=CURRENT.date(), generate=_generate
+        session,
+        client_id=client.id,
+        day=CURRENT.date(),
+        generator_factory=reviewed_factory(_generate),
     )
+    assert row.content["generation"]["status"] == "plan_applied"
+    assert row.content["generation"]["review"]["status"] == "passed"
     saved = copy.deepcopy(row.content)
     saved["comparison"] = bad
     row.content = saved
@@ -489,7 +540,10 @@ def test_public_idless_title_correspondence_is_explicitly_weak(session):
     client = _client(session)
     _mention(session, client, PRIOR, "La fuente describe la negociación.")
     build_daily_summary(
-        session, client_id=client.id, day=PRIOR.date(), generate=_generate
+        session,
+        client_id=client.id,
+        day=PRIOR.date(),
+        generator_factory=reviewed_factory(_generate),
     )
     current = _mention(
         session,
@@ -507,7 +561,10 @@ def test_public_idless_title_correspondence_is_explicitly_weak(session):
         return _generate(prompt)
 
     build_daily_summary(
-        session, client_id=client.id, day=CURRENT.date(), generate=generate
+        session,
+        client_id=client.id,
+        day=CURRENT.date(),
+        generator_factory=reviewed_factory(generate),
     )
     story = captured[0]["comparison"]["stories"][0]
     assert story["identity"] == "title_fallback"
@@ -540,8 +597,13 @@ def test_public_overlong_prior_catalogue_fails_closed_without_rewriting_snapshot
         return _generate(prompt)
 
     row = build_daily_summary(
-        session, client_id=client.id, day=CURRENT.date(), generate=generate
+        session,
+        client_id=client.id,
+        day=CURRENT.date(),
+        generator_factory=reviewed_factory(generate),
     )
+    assert row.content["generation"]["status"] == "plan_applied"
+    assert row.content["generation"]["review"]["status"] == "passed"
     assert captured[0]["comparison"]["available"] is False
     assert captured[0]["comparison"]["sources"] == []
     assert row.content["comparison"]["evidence"] is None

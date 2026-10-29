@@ -2,7 +2,7 @@
 
 import copy
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
 import pytest
@@ -12,9 +12,14 @@ from app.summaries import build_daily_summary, builder
 from app.summaries.provider_contract import RequestBudget, RequestBudgetExhausted
 from sqlalchemy import select
 
+from tests.digest_plan_fixtures import (
+    advisory_completion,
+    review_completion,
+    reviewed_factory,
+)
 from tests.test_summaries import api as api  # noqa: PLC0414 - pytest fixture re-export
 
-DAY = datetime(2026, 10, 10, 18, tzinfo=timezone.utc)
+DAY = datetime(2026, 10, 10, 18, tzinfo=UTC)
 
 
 def _material(session):
@@ -41,27 +46,7 @@ def _material(session):
 
 
 def _plan(prompt):
-    packet = json.loads(prompt)
-    return {
-        "basis_fingerprint": packet["basis_fingerprint"],
-        "headline_index": 0,
-        "headline_frame": "visibility",
-        "items": [
-            {
-                "index": 0,
-                "source_ref": packet["stories"][0]["source_refs"][0],
-                "passage_index": 0,
-            }
-        ],
-        "seleccion": [
-            {
-                "index": 0,
-                "categoria": "decision",
-                "frame": "governance_followup",
-                "action": "verify_record",
-            }
-        ],
-    }
+    return json.loads(advisory_completion(prompt, [(0, "decision")], item_indexes=[0]))
 
 
 @pytest.mark.parametrize(
@@ -116,14 +101,12 @@ def test_public_factory_sends_scoped_choices_and_one_contextual_schema(
     emitted = []
     monkeypatch.setattr(builder.httpx, "post", respond)
     row = build_daily_summary(session, client_id=client.id, day=DAY.date())
-    assert row.mode == ("llm" if corruption is None else "heuristic")
-    assert row.content["generation"]["status"] == (
-        "plan_applied" if corruption is None else "source_fallback"
-    )
+    # Both planning attempts are consumed: a valid plan is not review approval.
+    assert row.mode == "heuristic"
+    assert row.content["generation"]["status"] == "source_fallback"
     assert row.content["generation"]["raw_proposal"] == emitted[0]
-    if corruption is not None:
-        assert row.content["generation"]["plan"] is None
-        assert row.content["brief"]["decisiones"] == []
+    assert row.content["generation"]["plan"] is None
+    assert row.content["brief"]["decisiones"] == []
     assert len(calls) == row.content["generation"]["physical_requests"] == 2
     packet = json.loads(calls[0]["json"]["messages"][1]["content"])
     assert len(packet["stories"]) == 2
@@ -179,7 +162,7 @@ def test_headline_projections_match_the_accepted_code_owned_headline(session):
         session,
         client_id=client.id,
         day=DAY.date(),
-        generate=lambda prompt: json.dumps(_plan(prompt)),
+        generator_factory=reviewed_factory(lambda prompt: json.dumps(_plan(prompt))),
     )
     assert row.mode == "llm"
     assert row.content["generation"]["status"] == "plan_applied"
@@ -197,19 +180,20 @@ def _origins(value):
     return []
 
 
-def test_rendered_advice_bindings_are_code_owned(session):
+def test_rendered_facts_are_code_owned_but_advice_remains_model_authored(session):
     client, _ = _material(session)
     row = build_daily_summary(
         session,
         client_id=client.id,
         day=DAY.date(),
-        generate=lambda prompt: json.dumps(_plan(prompt)),
+        generator_factory=reviewed_factory(lambda prompt: json.dumps(_plan(prompt))),
     )
     assert row.mode == "llm"
     origins = _origins(row.content["brief"])
     assert origins
-    assert "model_output" not in origins
-    assert "derived" in origins
+    assert "model_output" in origins
+    assert row.content["noticias"][0]["provenance"]["summary"]["origin"] == "derived"
+    assert row.content["provenance"]["headline"]["origin"] == "model_output"
 
 
 def test_saved_plan_uses_its_input_namespace_and_can_be_rerendered(session):
@@ -224,13 +208,15 @@ def test_saved_plan_uses_its_input_namespace_and_can_be_rerendered(session):
     )
 
     def choose_second(prompt):
-        proposal = _plan(prompt)
-        proposal["headline_index"] = 1
-        proposal["seleccion"][0]["index"] = 1
-        return json.dumps(proposal)
+        return advisory_completion(
+            prompt, [(1, "decision")], headline_index=1, item_indexes=[0]
+        )
 
     row = build_daily_summary(
-        session, client_id=client.id, day=DAY.date(), generate=choose_second
+        session,
+        client_id=client.id,
+        day=DAY.date(),
+        generator_factory=reviewed_factory(choose_second),
     )
     assert row.mode == "llm"
     assert "factual_basis" not in row.content
@@ -278,7 +264,7 @@ def test_new_generation_never_invokes_agenda_source_mutation(session, monkeypatc
         session,
         client_id=client.id,
         day=DAY.date(),
-        generate=lambda prompt: json.dumps(_plan(prompt)),
+        generator_factory=reviewed_factory(lambda prompt: json.dumps(_plan(prompt))),
     )
     assert row.content["generation"]["agenda_promotion_allowed"] is False
     assert calls == []
@@ -393,7 +379,7 @@ def test_restoring_legacy_prose_invalidates_new_plan_receipt(api):
         db,
         client_id=client.id,
         day=DAY.date(),
-        generate=lambda prompt: json.dumps(_plan(prompt)),
+        generator_factory=reviewed_factory(lambda prompt: json.dumps(_plan(prompt))),
     )
     before = copy.deepcopy(row.content)
     restored_text = "Texto histórico sin referencias: se conserva sin certificarlo."
@@ -460,7 +446,8 @@ def test_plain_provider_retry_receives_the_same_closed_plan_contract(
 
     monkeypatch.setattr(builder.httpx, "post", respond)
     row = build_daily_summary(session, client_id=client.id, day=DAY.date())
-    assert row.mode == "llm"
+    assert row.mode == "heuristic"
+    assert row.content["generation"]["review"]["status"] == "unavailable"
     assert len(calls) == 2
     assert row.content["generation"]["physical_requests"] == 2
     assert "response_format" in calls[0]["json"]
@@ -502,7 +489,11 @@ def test_factual_http_preserves_raw_fences_without_repair(session, monkeypatch, 
 
     def respond(url, **options):
         prompt = options["json"]["messages"][1]["content"]
-        raw = "```json\n" + json.dumps(_plan(prompt)) + ("\n```" if closed else "")
+        raw = (
+            review_completion(prompt)
+            if "scope" in json.loads(prompt)
+            else "```json\n" + json.dumps(_plan(prompt)) + ("\n```" if closed else "")
+        )
         emitted.append(raw)
         return httpx.Response(
             200,
@@ -512,13 +503,28 @@ def test_factual_http_preserves_raw_fences_without_repair(session, monkeypatch, 
 
     monkeypatch.setattr(builder.httpx, "post", respond)
     row = build_daily_summary(session, client_id=client.id, day=DAY.date())
-    assert len(emitted) == 1
+    assert len(emitted) == (2 if closed else 1)
     assert row.mode == ("llm" if closed else "heuristic")
     assert row.content["generation"]["status"] == (
         "plan_applied" if closed else "source_fallback"
     )
     assert row.content["generation"]["raw_proposal"] == emitted[0]
-    assert row.content["generation"]["physical_requests"] == 1
+    assert row.content["generation"]["physical_requests"] == (2 if closed else 1)
+
+
+@pytest.mark.parametrize(
+    "source,label",
+    [
+        ("news_rss", "noticias por RSS"),
+        ("x_twitter", "X"),
+        ("facebook_page", "Facebook"),
+        ("unfamiliar_channel", "Unfamiliar Channel"),
+    ],
+)
+def test_source_only_headline_uses_spanish_channel_labels(source, label):
+    headline = builder._heuristic_headline(DAY.date(), 2, [], {source: 2})
+    assert f"La fuente con más notas fue {label}." in headline
+    assert source not in headline or source == label
 
 
 def test_publication_day_cannot_become_an_accepted_act_date(session):

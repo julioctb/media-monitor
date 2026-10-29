@@ -23,7 +23,7 @@ import logging
 import re
 import time
 from collections.abc import Callable
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -44,6 +44,14 @@ from app.models import (
 )
 from app.models.settings import DEFAULT_OPENAI_BASE_URL
 from app.settings_runtime import EffectiveSettings, resolve_effective_settings
+from app.summaries.advisory_review import (
+    REVIEW_SYSTEM_PROMPT,
+    assess_review,
+    compatible_review,
+    review_packet,
+    review_receipt,
+    review_schema,
+)
 from app.summaries.agenda_detect import (
     near_dup_tokens,
     normalize_title,
@@ -78,6 +86,7 @@ from app.summaries.factual_contract import (
     factual_plan_schema,
     factual_prompt_view,
     render_factual_plan,
+    require_contextual_plan,
 )
 from app.summaries.indicators import uses_indicators
 from app.summaries.provider_contract import RequestBudget, decode_plan
@@ -544,7 +553,7 @@ def augment_fechas_from_agenda(
 #: contando en cobertura y en el log por fuente de redes.
 COSMETIC_TITLE_RE = re.compile(
     r"\b(?:actualiz|cambi|renov)[oó]\s+(?:su\s+)?(?:foto|imagen|portada|avatar|perfil)\b",
-    re.I,
+    re.IGNORECASE,
 )
 
 
@@ -556,8 +565,8 @@ def is_cosmetic_story(title: str | None) -> bool:
     return bool(COSMETIC_TITLE_RE.search(title))
 
 
-_URL_RE = re.compile(r"https?://\S+|www\.\S+", re.I)
-HANDLE_RE = re.compile(r"(?<![a-z0-9])@[a-z0-9_]+", re.I)
+_URL_RE = re.compile(r"https?://\S+|www\.\S+", re.IGNORECASE)
+HANDLE_RE = re.compile(r"(?<![a-z0-9])@[a-z0-9_]+", re.IGNORECASE)
 _EMOJI_RE = re.compile(
     "["
     "\U0001f000-\U0001faff"  # symbols, pictographs, emoji blocks
@@ -948,7 +957,16 @@ def _heuristic_headline(
     parts.append(f"Se registraron {total} {_noun(total)}.")
     if by_source:
         dominant_source = max(by_source.items(), key=lambda kv: (kv[1], kv[0]))[0]
-        parts.append(f"La fuente con más notas fue {dominant_source}.")
+        source_label = {
+            "news_rss": "noticias por RSS",
+            "gdelt": "GDELT",
+            "x_twitter": "X",
+            "facebook_page": "Facebook",
+            "rss_custom": "RSS personalizado",
+            "scraper": "sitios web",
+            "field_report": "reportes de campo",
+        }.get(dominant_source, dominant_source.replace("_", " ").title())
+        parts.append(f"La fuente con más notas fue {source_label}.")
     if negative_events:
         parts.append(
             f"{negative_events} {'nota' if negative_events == 1 else 'notas'} con tono "
@@ -1119,7 +1137,7 @@ def build_vigilancia(
             continue
         effective_dt = mention.published_at or mention.ingested_at
         if effective_dt.tzinfo is None:
-            effective_dt = effective_dt.replace(tzinfo=timezone.utc)
+            effective_dt = effective_dt.replace(tzinfo=UTC)
         entry = per_person.setdefault(person_id, {"name": name, "rows": []})
         entry["rows"].append((mention, effective_dt))
 
@@ -1525,32 +1543,35 @@ def _cut_source_stories(content: dict) -> dict | None:
     return stories
 
 
-def _derived_factual_bindings(value: object) -> None:
-    """Code renders the text; a model may only have selected its inputs."""
+def _derived_factual_bindings(value: object, *, preserve_model=False) -> None:
+    """Literal facts are code-owned; contextual analysis remains model-authored."""
     if isinstance(value, list):
         for item in value:
-            _derived_factual_bindings(item)
+            _derived_factual_bindings(item, preserve_model=preserve_model)
     elif isinstance(value, dict):
         for key, item in value.items():
             if key == "provenance" and isinstance(item, dict):
-                for binding in item.values():
+                for field, binding in item.items():
                     if (
                         isinstance(binding, dict)
                         and binding.get("origin") == "model_output"
+                        and (not preserve_model or field == "summary")
                     ):
                         binding["origin"] = "derived"
             elif key not in {"evidence", "comparison", "factual_basis", "generation"}:
-                _derived_factual_bindings(item)
+                _derived_factual_bindings(item, preserve_model=preserve_model)
 
 
-def _apply_factual_payload(content: dict, payload: dict) -> tuple[dict, str]:
+def _apply_factual_payload(
+    content: dict, payload: dict, *, contextual=False
+) -> tuple[dict, str]:
     candidate = copy.deepcopy(content)
     errors = apply_narrative(candidate, payload)
     headline = payload.get("headline")
     if errors or not isinstance(headline, str) or not headline.strip():
         raise FactualPlanError("rendered factual payload did not satisfy the receiver")
     candidate["headline"] = headline.strip()
-    _derived_factual_bindings(candidate)
+    _derived_factual_bindings(candidate, preserve_model=contextual)
     return candidate, headline.strip()
 
 
@@ -1613,6 +1634,7 @@ def build_daily_summary(
     client_id: int,
     day: date,
     generate: Callable[[str], str] | None = None,
+    generator_factory: Callable | None = None,
 ):
     """Assemble digest v2 and upsert the DailySummary row.
 
@@ -1628,8 +1650,8 @@ def build_daily_summary(
     # lexically, so the bounds travel as UTC walls (the ingest pipeline
     # stores UTC); PostgreSQL compares true timestamps and reads the same
     # instants either way.
-    utc_start = start.astimezone(timezone.utc)
-    utc_end = end.astimezone(timezone.utc)
+    utc_start = start.astimezone(UTC)
+    utc_end = end.astimezone(UTC)
     mentions = list(
         session.scalars(
             select(Mention).where(
@@ -1679,7 +1701,7 @@ def build_daily_summary(
 
     # An earlier publication establishes circulation, not prior report
     # membership or a factual development in the current window.
-    window_start_utc = start.astimezone(timezone.utc)
+    window_start_utc = start.astimezone(UTC)
     for noticia in content["noticias"]:
         eid = noticia.get("event_id")
         if not eid:
@@ -1692,7 +1714,7 @@ def build_daily_summary(
         if earliest is not None:
             # SQLite returns naive walls; normalize for the comparison.
             if earliest.tzinfo is None:
-                earliest = earliest.replace(tzinfo=timezone.utc)
+                earliest = earliest.replace(tzinfo=UTC)
             if earliest < window_start_utc:
                 noticia["repeat"] = True
 
@@ -1746,6 +1768,26 @@ def build_daily_summary(
     focus = None
     focus_resolved = False
     budget = RequestBudget()
+    injected_generate = generate is not None
+
+    def phase_generator(phase, system_prompt, response_schema):
+        if generator_factory is not None:
+            return generator_factory(
+                effective,
+                phase=phase,
+                budget=budget,
+                system_prompt=system_prompt,
+                response_schema=response_schema,
+            )
+        if injected_generate:
+            return generate if phase == "proposal" else None
+        return summary_generator(
+            effective,
+            budget=budget,
+            system_prompt=system_prompt,
+            response_schema=response_schema,
+        )
+
     raw_output = None
     accepted_plan = None
     generation_status = "source_fallback"
@@ -1753,6 +1795,14 @@ def build_daily_summary(
     context_fingerprint = None
     metadata: dict = {}
     material_available = False
+    safe_content = None
+    safe_narrative = narrative
+    semantic_review = None
+    recovered_generation = None
+    same_cut = queries.get_daily_summary(session, client_id, day)
+    previous_generation = (
+        copy.deepcopy((same_cut.content or {}).get("generation")) if same_cut else None
+    )
     try:
         content["factual_basis"] = build_factual_basis(
             content, mentions, client_id=client_id
@@ -1786,6 +1836,7 @@ def build_daily_summary(
         brief_payload = safe_payload
         material_available = True
         metadata = _factual_metadata(content, prior_content.get("window"))
+        safe_content, safe_narrative = copy.deepcopy(content), narrative
     except FactualPlanError:
         generation_reason = "invalid_factual_material"
         content["agenda"] = []
@@ -1802,14 +1853,10 @@ def build_daily_summary(
     if material_available and total > 0 and content["noticias"]:
         try:
             response_schema = factual_plan_schema(content)
-            if generate is None:
-                generate = summary_generator(
-                    effective,
-                    budget=budget,
-                    system_prompt=FACTUAL_SYSTEM_PROMPT,
-                    response_schema=response_schema,
-                )
-            if callable(generate):
+            proposal_generate = phase_generator(
+                "proposal", FACTUAL_SYSTEM_PROMPT, response_schema
+            )
+            if callable(proposal_generate):
                 focus = _focus_person_context(session, effective)
                 focus_resolved = True
                 context_fingerprint = _factual_context(content, focus, metadata)
@@ -1820,10 +1867,13 @@ def build_daily_summary(
                 packet["response_schema"] = response_schema
                 if focus is not None:
                     packet["focus_person"] = focus
-                raw_output = generate(json.dumps(packet, ensure_ascii=False))
+                raw_output = proposal_generate(json.dumps(packet, ensure_ascii=False))
                 proposal = decode_plan(raw_output)
                 rendered = render_factual_plan(content, proposal)
-                content, narrative = _apply_factual_payload(content, rendered)
+                require_contextual_plan(proposal)
+                content, narrative = _apply_factual_payload(
+                    content, rendered, contextual=True
+                )
                 brief_payload = rendered
                 accepted_plan = proposal
                 mode, llm_ok = "llm", True
@@ -1866,17 +1916,21 @@ def build_daily_summary(
         ):
             try:
                 rendered = render_factual_plan(content, prior_generation["plan"])
+                require_contextual_plan(prior_generation["plan"])
                 if not focus_resolved:
                     focus = _focus_person_context(session, effective)
                     focus_resolved = True
                     context_fingerprint = _factual_context(content, focus, metadata)
                 if prior_generation.get("context_fingerprint") != context_fingerprint:
                     raise FactualPlanError("Generation context changed")
-                content, narrative = _apply_factual_payload(content, rendered)
+                content, narrative = _apply_factual_payload(
+                    content, rendered, contextual=True
+                )
                 brief_payload = rendered
                 accepted_plan = prior_generation["plan"]
                 mode, llm_ok = "llm", True
                 generation_status, generation_reason = "plan_recovered", None
+                recovered_generation = copy.deepcopy(prior_generation)
             except FactualPlanError:
                 pass
 
@@ -1892,78 +1946,133 @@ def build_daily_summary(
         "veracity": "not_evaluated",
     }
 
-    # Factual cards remain available without a political assessment. Only
-    # accepted model picks or compatible authored recovery populate buckets.
-    content["tarjetas"] = build_tarjetas(content["noticias"], content=content)
-    content["brief"] = {
-        "delta": brief_delta(prev_noticias, content["noticias"]),
-        "decisiones": [],
-        "riesgos": [],
-        "ruido": [],
-        "a_favor": [],
-        "fechas": brief_fechas(content.get("agenda") or [], day),
-    }
-    # T8.D: la agenda REAL (tabla) alimenta fechas que obligan — el 28-oct a
-    # 4 días entra aunque el narrador no haya listado agenda.
-    content["brief"]["fechas"] = augment_fechas_from_agenda(
-        session, client_id, day, content["brief"]["fechas"]
-    )
-    if brief_payload is not None:
-        apply_brief(content, brief_payload)
-    elif recovered_brief is not None:
-        content["brief"].update(recovered_brief)
-    _derived_factual_bindings(content)
-    # Accepted/recovered prose without recorded references stays unbacked.
-    for bucket in BRIEF_BUCKETS:
-        for pick in content["brief"].get(bucket) or []:
-            if isinstance(pick.get("razon"), str) and pick["razon"]:
-                pick.setdefault("provenance", {}).setdefault(
-                    "razon",
-                    make_binding(
-                        content,
-                        pick["razon"],
-                        [],
-                        cut_refs(content),
-                        origin="fallback",
-                    ),
-                )
-    # Structured annotations read the final accepted/recovered risk bucket;
-    # vigilance keeps its existing configured sensitivity and anti-dup rule.
-    annotate_afectacion(session, client_id, content, prev_noticias, day)
-    vigilancia = build_vigilancia(
-        session, effective, content, utc_start, utc_end, prev_noticias
-    )
-    if vigilancia:
-        content["brief"]["vigilancia"] = vigilancia
-    content["brief"]["headline"] = narrative
-    content.setdefault("provenance", {}).setdefault(
-        "headline",
-        make_binding(
-            content,
-            narrative,
-            [],
-            cut_refs(content),
-            origin="fallback",
-        ),
-    )
-    if descartes_cosmeticas + historias_fundadas > 0:
-        content["brief"]["descarte"] = {
-            "cosmeticas": descartes_cosmeticas,
-            "fundadas": historias_fundadas,
+    def compose(content, narrative, brief_payload):
+        # Factual cards remain available without a political assessment. Only
+        # accepted model picks or compatible authored recovery populate buckets.
+        content["tarjetas"] = build_tarjetas(content["noticias"], content=content)
+        content["brief"] = {
+            "delta": brief_delta(prev_noticias, content["noticias"]),
+            "decisiones": [],
+            "riesgos": [],
+            "ruido": [],
+            "a_favor": [],
+            "fechas": brief_fechas(content.get("agenda") or [], day),
         }
-    content["campo"] = build_campo(session, client_id, utc_start, utc_end)
+        # T8.D: la agenda REAL (tabla) alimenta fechas que obligan — el 28-oct a
+        # 4 días entra aunque el narrador no haya listado agenda.
+        content["brief"]["fechas"] = augment_fechas_from_agenda(
+            session, client_id, day, content["brief"]["fechas"]
+        )
+        if brief_payload is not None:
+            apply_brief(content, brief_payload)
+        elif recovered_brief is not None:
+            content["brief"].update(recovered_brief)
+        _derived_factual_bindings(content, preserve_model=bool(accepted_plan))
+        # Accepted/recovered prose without recorded references stays unbacked.
+        for bucket in BRIEF_BUCKETS:
+            for pick in content["brief"].get(bucket) or []:
+                if isinstance(pick.get("razon"), str) and pick["razon"]:
+                    pick.setdefault("provenance", {}).setdefault(
+                        "razon",
+                        make_binding(
+                            content,
+                            pick["razon"],
+                            [],
+                            cut_refs(content),
+                            origin="fallback",
+                        ),
+                    )
+        # Structured annotations read the final accepted/recovered risk bucket;
+        # vigilance keeps its existing configured sensitivity and anti-dup rule.
+        annotate_afectacion(session, client_id, content, prev_noticias, day)
+        vigilancia = build_vigilancia(
+            session, effective, content, utc_start, utc_end, prev_noticias
+        )
+        if vigilancia:
+            content["brief"]["vigilancia"] = vigilancia
+        content["brief"]["headline"] = narrative
+        content.setdefault("provenance", {}).setdefault(
+            "headline",
+            make_binding(
+                content,
+                narrative,
+                [],
+                cut_refs(content),
+                origin="fallback",
+            ),
+        )
+        if descartes_cosmeticas + historias_fundadas > 0:
+            content["brief"]["descarte"] = {
+                "cosmeticas": descartes_cosmeticas,
+                "fundadas": historias_fundadas,
+            }
+        content["campo"] = build_campo(session, client_id, utc_start, utc_end)
 
-    # T8.B: orden editorial (decision -> impacto -> ruido) y fusión de la
-    # cola menor en «También hoy». Siempre POST-brief: los índices que
-    # remapea son los definitivos.
-    apply_impact_order(content)
-    compile_tail_cards(content)
-    # Editorial sorting/compilation changes display indexes. Preserve the
-    # validated producer bank with the original plan namespace, not as a
-    # misleading claim about the post-editorial output order.
-    content["generation"]["input_basis"] = content.pop("factual_basis", None)
+        # T8.B: orden editorial (decision -> impacto -> ruido) y fusión de la
+        # cola menor en «También hoy». Siempre POST-brief: los índices que
+        # remapea son los definitivos.
+        apply_impact_order(content)
+        compile_tail_cards(content)
+        # Editorial sorting/compilation changes display indexes. Preserve the
+        # validated producer bank with the original plan namespace, not as a
+        # misleading claim about the post-editorial output order.
+        content["generation"]["input_basis"] = content.pop("factual_basis", None)
 
-    content["plain_text"] = render_plain_text(content, narrative)
+        content["plain_text"] = render_plain_text(content, narrative)
+        return content
+
+    content = compose(content, narrative, brief_payload)
+    if llm_ok:
+        packet = review_packet(
+            content,
+            plan=accepted_plan,
+            basis=content["generation"]["input_basis"],
+            context=context_fingerprint,
+            focus=focus,
+            metadata=metadata,
+        )
+        if recovered_generation is not None:
+            semantic_review = copy.deepcopy(recovered_generation.get("review"))
+            approved = compatible_review(semantic_review, packet)
+            if not approved:
+                semantic_review = review_receipt(
+                    packet, error="incompatible_recovery_receipt"
+                )
+        else:
+            semantic_review = review_receipt(packet)
+            approved = False
+            try:
+                schema = review_schema(packet)
+                reviewer = phase_generator("review", REVIEW_SYSTEM_PROMPT, schema)
+                if callable(reviewer):
+                    request = {**packet, "response_schema": schema}
+                    raw_review = reviewer(json.dumps(request, ensure_ascii=False))
+                    semantic_review = review_receipt(
+                        packet, status="rejected", raw=raw_review
+                    )
+                    assess_review(raw_review, packet)
+                    semantic_review["status"] = "passed"
+                    approved = True
+            except Exception as exc:  # noqa: BLE001 - review is fail-closed
+                semantic_review["error"] = type(exc).__name__
+        if not approved:
+            trace = copy.deepcopy(content["generation"])
+            trace.update(
+                status="source_fallback",
+                reason="semantic_review_" + semantic_review["status"],
+                plan=None,
+            )
+            trace["rejected_plan"] = accepted_plan
+            content = copy.deepcopy(safe_content)
+            content["generation"] = trace
+            accepted_plan = None
+            narrative, mode, llm_ok = safe_narrative, "heuristic", False
+            content = compose(content, narrative, safe_payload)
+    content["generation"]["review"] = semantic_review
+    content["generation"]["physical_requests"] = budget.used
+    if isinstance(previous_generation, dict):
+        content["generation"]["prior_generation"] = previous_generation
+
     row = queries.upsert_daily_summary(
         session,
         client_id=client_id,

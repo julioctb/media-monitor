@@ -8,7 +8,7 @@ from app.summaries.builder import SYSTEM_PROMPT, build_daily_summary
 from app.summaries.digest import build_digest_facts, render_plain_text, validate_digest
 from app.summaries.evidence import freeze_sources, resolved_provenance
 
-from tests.digest_plan_fixtures import plan_completion
+from tests.digest_plan_fixtures import advisory_completion, reviewed_factory
 from tests.test_digest_facts import DAY, NOON, TZ, _client, _mention
 
 
@@ -19,7 +19,7 @@ def test_constrained_packet_carries_original_indexed_nonfactual_context(
 
     from app.summaries import builder
 
-    from tests.digest_plan_fixtures import plan_completion
+    from tests.digest_plan_fixtures import advisory_completion, reviewed_factory
 
     start, end = builder.day_window(DAY, TZ)
     monkeypatch.setattr(
@@ -34,9 +34,13 @@ def test_constrained_packet_carries_original_indexed_nonfactual_context(
 
     def generate(prompt):
         captured.append(json.loads(prompt))
-        return plan_completion(prompt)
+        return advisory_completion(prompt)
 
-    row = build_daily_summary(session, client_id=owner, day=DAY, generate=generate)
+    row = build_daily_summary(
+        session, client_id=owner, day=DAY, generator_factory=reviewed_factory(generate)
+    )
+    assert row.content["generation"]["status"] == "plan_applied"
+    assert row.content["generation"]["review"]["status"] == "passed"
     packet = captured[0]
     assert packet["cut"] == {
         "date": DAY.isoformat(),
@@ -243,9 +247,13 @@ def test_public_generation_projects_metrics_not_truth_and_retains_optional_note(
 
     def generate(prompt):
         captured.append(json.loads(prompt))
-        return plan_completion(prompt)
+        return advisory_completion(prompt)
 
-    row = build_daily_summary(session, client_id=owner, day=DAY, generate=generate)
+    row = build_daily_summary(
+        session, client_id=owner, day=DAY, generator_factory=reviewed_factory(generate)
+    )
+    assert row.content["generation"]["status"] == "plan_applied"
+    assert row.content["generation"]["review"]["status"] == "passed"
     assert row.mode == "llm"
     view = captured[0]
     assert view["indicators_version"] == 1
@@ -320,8 +328,12 @@ def test_recovery_keeps_fresh_metrics_and_compatible_prose_not_old_levels(
         session,
         client_id=owner,
         day=DAY,
-        generate=lambda prompt: plan_completion(prompt, [(0, "decision")]),
+        generator_factory=reviewed_factory(
+            lambda prompt: advisory_completion(prompt, [(0, "decision")])
+        ),
     )
+    assert row.content["generation"]["status"] == "plan_applied"
+    assert row.content["generation"]["review"]["status"] == "passed"
     assert row.mode == "llm"
     expected_headline = row.narrative
     expected_summary = row.content["noticias"][0]["summary"]
@@ -377,8 +389,12 @@ def test_public_compilation_keeps_each_bullets_media_count_including_zero(sessio
         session,
         client_id=owner,
         day=DAY,
-        generate=lambda prompt: plan_completion(prompt, [(10, "decision")]),
+        generator_factory=reviewed_factory(
+            lambda prompt: advisory_completion(prompt, [(10, "decision")])
+        ),
     )
+    assert row.content["generation"]["status"] == "plan_applied"
+    assert row.content["generation"]["review"]["status"] == "passed"
     assert row.mode == "llm"
     content = row.content
     compiled = content["tarjetas"][-1]

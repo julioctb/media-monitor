@@ -16,7 +16,7 @@ from app.models import (
 from app.settings_runtime import EffectiveSettings
 from app.summaries import builder
 
-from tests.digest_plan_fixtures import plan_completion
+from tests.digest_plan_fixtures import advisory_completion, reviewed_factory
 
 
 PUBLISHED = datetime(2026, 10, 9, 18, tzinfo=timezone.utc)
@@ -62,11 +62,16 @@ def test_build_passes_focus_person_even_without_person_mentions(session):
 
     def generate(prompt):
         captured.append(prompt_json(prompt))
-        return plan_completion(prompt)
+        return advisory_completion(prompt)
 
     row = builder.build_daily_summary(
-        session, client_id=client.id, day=PUBLISHED.date(), generate=generate
+        session,
+        client_id=client.id,
+        day=PUBLISHED.date(),
+        generator_factory=reviewed_factory(generate),
     )
+    assert row.content["generation"]["status"] == "plan_applied"
+    assert row.content["generation"]["review"]["status"] == "passed"
 
     assert len(captured) == 1
     assert captured[0].get("focus_person") == {
@@ -202,11 +207,16 @@ def test_build_omits_unresolvable_focus_without_substitute(session, focus_kind):
 
     def generate(prompt):
         captured.append(prompt)
-        return plan_completion(prompt)
+        return advisory_completion(prompt)
 
     row = builder.build_daily_summary(
-        session, client_id=client.id, day=PUBLISHED.date(), generate=generate
+        session,
+        client_id=client.id,
+        day=PUBLISHED.date(),
+        generator_factory=reviewed_factory(generate),
     )
+    assert row.content["generation"]["status"] == "plan_applied"
+    assert row.content["generation"]["review"]["status"] == "passed"
 
     assert len(captured) == 1
     payload = prompt_json(captured[0])
@@ -285,8 +295,13 @@ def test_recovery_resolves_focus_only_for_a_valid_plan(session, monkeypatch, cha
         published_at=PUBLISHED,
     )
     first = builder.build_daily_summary(
-        session, client_id=client.id, day=PUBLISHED.date(), generate=plan_completion
+        session,
+        client_id=client.id,
+        day=PUBLISHED.date(),
+        generator_factory=reviewed_factory(advisory_completion),
     )
+    assert first.content["generation"]["status"] == "plan_applied"
+    assert first.content["generation"]["review"]["status"] == "passed"
     assert first.mode == "llm"
     if change == "role":
         person.role = "Rectora"

@@ -13,7 +13,7 @@ from app.summaries.builder import (
 )
 from app.summaries.digest import build_digest_facts
 
-from tests.digest_plan_fixtures import plan_completion
+from tests.digest_plan_fixtures import advisory_completion, reviewed_factory
 
 DAY = date(2026, 10, 17)
 NOON = datetime(2026, 10, 17, 18, tzinfo=UTC)
@@ -198,9 +198,16 @@ def test_public_build_prompts_only_frozen_material_and_rejects_catalogue_injecti
         article.title = "Texto posterior no congelado"
         article.summary = "Resumen posterior no congelado"
         article.content = "Cuerpo posterior no congelado"
-        return plan_completion(prompt)
+        return advisory_completion(prompt)
 
-    row = build_daily_summary(session, client_id=owner.id, day=DAY, generate=generate)
+    row = build_daily_summary(
+        session,
+        client_id=owner.id,
+        day=DAY,
+        generator_factory=reviewed_factory(generate),
+    )
+    assert row.content["generation"]["status"] == "plan_applied"
+    assert row.content["generation"]["review"]["status"] == "passed"
     session.refresh(row)
     frozen = copy.deepcopy(row.content["evidence"])
     assert row.mode == "llm"
@@ -295,8 +302,12 @@ def test_public_build_preserves_source_zero_and_bullet_refs_after_reorder(sessio
         session,
         client_id=owner.id,
         day=DAY,
-        generate=lambda prompt: plan_completion(prompt, [(10, "decision")]),
+        generator_factory=reviewed_factory(
+            lambda prompt: advisory_completion(prompt, [(10, "decision")])
+        ),
     )
+    assert row.content["generation"]["status"] == "plan_applied"
+    assert row.content["generation"]["review"]["status"] == "passed"
     session.refresh(row)
     content = row.content
     assert [s["mention_id"] for s in content["evidence"]["sources"]] == [
@@ -655,8 +666,12 @@ def test_public_cards_and_compiled_bullets_keep_object_bound_provenance(session)
         session,
         client_id=owner.id,
         day=DAY,
-        generate=lambda prompt: plan_completion(prompt, [(10, "decision")]),
+        generator_factory=reviewed_factory(
+            lambda prompt: advisory_completion(prompt, [(10, "decision")])
+        ),
     )
+    assert row.content["generation"]["status"] == "plan_applied"
+    assert row.content["generation"]["review"]["status"] == "passed"
     content = row.content
     first = content["tarjetas"][0]
     assert first["source_refs"] == [10]
