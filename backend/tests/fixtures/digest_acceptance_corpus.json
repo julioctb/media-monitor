@@ -1,0 +1,1624 @@
+{
+  "scope": "Self-contained retained captures and raw completions; original rejected outputs are never repaired. Semantic expectations are documentary fixtures, not executed reviewer verdicts.",
+  "origin": {
+    "candidate": "ff1c1abaa89dcc18eff8f097d82b63250db3a9e1",
+    "run": "guided-20261010-20261030T084443Z",
+    "files_sha256": {
+      "proposal-completion.txt": "b08bd61b9ecd4d7fef374c7820b9f597e310e23d3b1959f0a278c86ef2151d3f",
+      "candidate.json": "00d2b8c3d2195fafa9c4c125afeadb7efed5f9e04e140f69b973aeb81792ae2c",
+      "prior-proposal-completion.txt": "0ac0c33addfa2c6ad477712d9c8af6923441d0eaa4258ac92a038b200828dde9",
+      "prior-review-completion.txt": "24d9c793ed1fd902fa36518bade0fdd228d12ed2c078afabf65e88de2c793d9e"
+    }
+  },
+  "content": {
+    "date": "2026-10-10",
+    "timezone": "America/Mexico_City",
+    "window_start": "2026-10-10T00:00:00-06:00",
+    "window": {
+      "from": "2026-10-10T00:00:00-06:00",
+      "to": "2026-10-11T00:00:00-06:00"
+    },
+    "noticias": [
+      {
+        "event_id": 1275,
+        "title": "Inauguran mural en el Complejo Regional Mixteca de la BUAP - e-consulta.com",
+        "summary": "Título registrado: «Inauguran mural en el Complejo Regional Mixteca de la BUAP - e-consulta.com». Fecha de publicación registrada: 2026-10-10T21:03:38+00:00. Autor no registrado. Pasaje original de la publicación: «La obra pictórica se realizó en la sede de Atlixco de la BUAP por sus estudiantes\nEn la sede Atlixco del Complejo Regional Mixteca de la Benemeritica Universidad Autónoma de Puebla ( BUAP ), se develó el mural que llevaron a cabo alumnos del taller Pintando nuestra identidad colectiva.\nPintando nuestra identidad colectiva se trata de iniciativa que organizó la Vicerrectoría de Extensión y Difusión de la Cultura (VEDC) de la BUAP con la intención de que la comunidad estudiantil participe, trabaje, sea creativa y muestre su talento en la misma universidad.»",
+        "source_refs": [
+          4,
+          5,
+          6,
+          7,
+          9,
+          11,
+          16,
+          17
+        ],
+        "material_ref": 9,
+        "topic": "infrastructure",
+        "sources": [
+          {
+            "source": "news_rss",
+            "url": "https://leviatan.mx/2026/10/10/inauguran-mural-en-el-complejo-regional-mixteca-de-la-buap/",
+            "title": "Inauguran mural en el Complejo Regional Mixteca de la BUAP - leviatan.mx"
+          },
+          {
+            "source": "news_rss",
+            "url": "https://contraparte.mx/educacion/80498-inauguran-mural-en-el-complejo-regional-mixteca-de-la-buap.html",
+            "title": "Inauguran mural en el Complejo Regional Mixteca de la BUAP - Contraparte | Periodismo en Equilibrio"
+          },
+          {
+            "source": "news_rss",
+            "url": "https://hipocritalector.com/portada/buap-devela-mural-colectivo-en-complejo-regional-mixteca/",
+            "title": "BUAP devela mural colectivo en Complejo Regional Mixteca - Hipócrita Lector"
+          },
+          {
+            "source": "news_rss",
+            "url": "https://primeraplanapuebla.com/educacion/inauguran-mural-en-el-complejo-regional-mixteca-de-la-buap/",
+            "title": "Inauguran mural en el Complejo Regional Mixteca de la BUAP - Primera Plana Puebla"
+          },
+          {
+            "source": "news_rss",
+            "url": "https://www.e-consulta.com/educacion/inauguran-mural-en-el-complejo-regional-mixteca-de-la-buap",
+            "title": "Inauguran mural en el Complejo Regional Mixteca de la BUAP - e-consulta.com"
+          },
+          {
+            "source": "news_rss",
+            "url": "https://boletin.buap.mx/node/4699",
+            "title": "Inauguran mural en el Complejo Regional Mixteca de la BUAP - Boletines BUAP |"
+          },
+          {
+            "source": "news_rss",
+            "url": "https://sucesospuebla.com/inauguran-mural-en-el-complejo-regional-mixteca-de-la-buap/",
+            "title": "Inauguran mural en el Complejo Regional Mixteca de la BUAP - Sucesos Puebla"
+          },
+          {
+            "source": "news_rss",
+            "url": "https://curul.com.mx/buap-inaugura-mural-artistico-en-el-complejo-regional-mixteca-sede-atlixco/",
+            "title": "BUAP inaugura mural artístico en el Complejo Regional Mixteca, sede Atlixco - Curul Puebla"
+          }
+        ],
+        "media_diversity": {
+          "identified_outlet_count": 8
+        },
+        "veracity": "not_evaluated",
+        "tone": {
+          "positive": 8
+        },
+        "person_ids": [
+          32,
+          59,
+          60
+        ],
+        "when_label": "10 oct.",
+        "provenance": {
+          "title": {
+            "text": "Inauguran mural en el Complejo Regional Mixteca de la BUAP - e-consulta.com",
+            "source_refs": [
+              9
+            ],
+            "state": "linked",
+            "origin": "source_material",
+            "catalogue_fingerprint": "e52cf98c8d6ca4b064308aa05be7f478c040d09c4bbe6ae77eb1e9eea1b11303"
+          },
+          "summary": {
+            "text": "Título registrado: «Inauguran mural en el Complejo Regional Mixteca de la BUAP - e-consulta.com». Fecha de publicación registrada: 2026-10-10T21:03:38+00:00. Autor no registrado. Pasaje original de la publicación: «La obra pictórica se realizó en la sede de Atlixco de la BUAP por sus estudiantes\nEn la sede Atlixco del Complejo Regional Mixteca de la Benemeritica Universidad Autónoma de Puebla ( BUAP ), se develó el mural que llevaron a cabo alumnos del taller Pintando nuestra identidad colectiva.\nPintando nuestra identidad colectiva se trata de iniciativa que organizó la Vicerrectoría de Extensión y Difusión de la Cultura (VEDC) de la BUAP con la intención de que la comunidad estudiantil participe, trabaje, sea creativa y muestre su talento en la misma universidad.»",
+            "source_refs": [
+              9
+            ],
+            "state": "linked",
+            "origin": "derived",
+            "catalogue_fingerprint": "e52cf98c8d6ca4b064308aa05be7f478c040d09c4bbe6ae77eb1e9eea1b11303"
+          },
+          "why_it_matters": {
+            "text": "Lectura política no disponible para esta noticia.",
+            "source_refs": [],
+            "state": "unbacked",
+            "origin": "derived",
+            "catalogue_fingerprint": "e52cf98c8d6ca4b064308aa05be7f478c040d09c4bbe6ae77eb1e9eea1b11303"
+          }
+        },
+        "why_it_matters": "Lectura política no disponible para esta noticia."
+      },
+      {
+        "event_id": 1281,
+        "title": "Alumnos de la BUAP plasman su identidad colectiva en un mural en la sede Atlixco - El Popular, periodismo con causa",
+        "summary": "Título registrado: «Alumnos de la BUAP plasman su identidad colectiva en un mural en la sede Atlixco - El Popular, periodismo con causa». Fecha de publicación registrada: 2026-10-10T23:31:00+00:00. Autor no registrado. Pasaje original de la publicación: «Estudiantes de la BUAP realizaron un mural en la sede Atlixco mediante el taller “Pintando nuestra identidad colectiva”, impulsado por la VEDC\nLa Benemérita Universidad Autónoma de Puebla ( BUAP ) develó un mural elaborado por estudiantes del Complejo Regional Mixteca , en su sede Atlixco , como parte de una iniciativa para fomentar la creatividad, el trabajo colaborativo y la identidad universitaria .»",
+        "source_refs": [
+          10,
+          13
+        ],
+        "material_ref": 13,
+        "topic": "infrastructure",
+        "sources": [
+          {
+            "source": "news_rss",
+            "url": "https://puebla.quadratin.com.mx/universidad/inauguran-en-la-sede-atlixco-de-la-buap-el-mural-pintando-nuestra-identidad-colectiva/",
+            "title": "Inauguran en la sede Atlixco de la BUAP el mural “Pintando nuestra identidad colectiva” - Quadratín Puebla"
+          },
+          {
+            "source": "news_rss",
+            "url": "https://elpopular.mx/universidad/2026/10/10/alumnos-de-la-buap-plasman-su-identidad-colectiva-en-un-mural-en-la-sede-atlixco",
+            "title": "Alumnos de la BUAP plasman su identidad colectiva en un mural en la sede Atlixco - El Popular, periodismo con causa"
+          }
+        ],
+        "media_diversity": {
+          "identified_outlet_count": 2
+        },
+        "veracity": "not_evaluated",
+        "tone": {
+          "positive": 2
+        },
+        "person_ids": [
+          32,
+          59,
+          60
+        ],
+        "when_label": "10 oct.",
+        "provenance": {
+          "title": {
+            "text": "Alumnos de la BUAP plasman su identidad colectiva en un mural en la sede Atlixco - El Popular, periodismo con causa",
+            "source_refs": [
+              13
+            ],
+            "state": "linked",
+            "origin": "source_material",
+            "catalogue_fingerprint": "e52cf98c8d6ca4b064308aa05be7f478c040d09c4bbe6ae77eb1e9eea1b11303"
+          },
+          "summary": {
+            "text": "Título registrado: «Alumnos de la BUAP plasman su identidad colectiva en un mural en la sede Atlixco - El Popular, periodismo con causa». Fecha de publicación registrada: 2026-10-10T23:31:00+00:00. Autor no registrado. Pasaje original de la publicación: «Estudiantes de la BUAP realizaron un mural en la sede Atlixco mediante el taller “Pintando nuestra identidad colectiva”, impulsado por la VEDC\nLa Benemérita Universidad Autónoma de Puebla ( BUAP ) develó un mural elaborado por estudiantes del Complejo Regional Mixteca , en su sede Atlixco , como parte de una iniciativa para fomentar la creatividad, el trabajo colaborativo y la identidad universitaria .»",
+            "source_refs": [
+              13
+            ],
+            "state": "linked",
+            "origin": "derived",
+            "catalogue_fingerprint": "e52cf98c8d6ca4b064308aa05be7f478c040d09c4bbe6ae77eb1e9eea1b11303"
+          },
+          "why_it_matters": {
+            "text": "Lectura política no disponible para esta noticia.",
+            "source_refs": [],
+            "state": "unbacked",
+            "origin": "derived",
+            "catalogue_fingerprint": "e52cf98c8d6ca4b064308aa05be7f478c040d09c4bbe6ae77eb1e9eea1b11303"
+          }
+        },
+        "why_it_matters": "Lectura política no disponible para esta noticia."
+      },
+      {
+        "event_id": 1273,
+        "title": "Lobos BUAP, líder e invicto en Segunda División CONADEIP - Grada Puebla",
+        "summary": "Título registrado: «Lobos BUAP, líder e invicto en Segunda División CONADEIP - Grada Puebla». Fecha de publicación registrada: 2026-10-10T06:18:00+00:00. Autor no registrado. Pasaje original de la publicación: «Con mucho sudor, empeño y una dosis de impetu, los Lobos de la Benemérita Universidad Autónoma de Puebla vencieron 1-0 a los Tuzos de la Universidad Autónoma de Zacatecas (UAZ) en la Jornada 4 de la Segunda División de la Comisión Nacional Deportiva Estudiantil de Instituciones Privadas (CONADEIP).\nDesde la cancha del Estadio Universitario BUAP, la Manada recibió este encuentro que de principio a fin fue muy disputado, pues los Tuzos de la UAZ trataron de sorprender con una descolgada inicial que terminó en un susto.»",
+        "source_refs": [
+          0
+        ],
+        "material_ref": 0,
+        "topic": "sports",
+        "sources": [
+          {
+            "source": "news_rss",
+            "url": "https://grada.mx/articles/universitario/2026/10/10/9200/lobos-buap-lider-e-invicto-en-segunda-division-conadeip",
+            "title": "Lobos BUAP, líder e invicto en Segunda División CONADEIP - Grada Puebla"
+          }
+        ],
+        "media_diversity": {
+          "identified_outlet_count": 1
+        },
+        "veracity": "not_evaluated",
+        "tone": {
+          "positive": 1
+        },
+        "person_ids": [
+          55
+        ],
+        "when_label": "10 oct.",
+        "provenance": {
+          "title": {
+            "text": "Lobos BUAP, líder e invicto en Segunda División CONADEIP - Grada Puebla",
+            "source_refs": [
+              0
+            ],
+            "state": "linked",
+            "origin": "source_material",
+            "catalogue_fingerprint": "e52cf98c8d6ca4b064308aa05be7f478c040d09c4bbe6ae77eb1e9eea1b11303"
+          },
+          "summary": {
+            "text": "Título registrado: «Lobos BUAP, líder e invicto en Segunda División CONADEIP - Grada Puebla». Fecha de publicación registrada: 2026-10-10T06:18:00+00:00. Autor no registrado. Pasaje original de la publicación: «Con mucho sudor, empeño y una dosis de impetu, los Lobos de la Benemérita Universidad Autónoma de Puebla vencieron 1-0 a los Tuzos de la Universidad Autónoma de Zacatecas (UAZ) en la Jornada 4 de la Segunda División de la Comisión Nacional Deportiva Estudiantil de Instituciones Privadas (CONADEIP).\nDesde la cancha del Estadio Universitario BUAP, la Manada recibió este encuentro que de principio a fin fue muy disputado, pues los Tuzos de la UAZ trataron de sorprender con una descolgada inicial que terminó en un susto.»",
+            "source_refs": [
+              0
+            ],
+            "state": "linked",
+            "origin": "derived",
+            "catalogue_fingerprint": "e52cf98c8d6ca4b064308aa05be7f478c040d09c4bbe6ae77eb1e9eea1b11303"
+          },
+          "why_it_matters": {
+            "text": "Lectura política no disponible para esta noticia.",
+            "source_refs": [],
+            "state": "unbacked",
+            "origin": "derived",
+            "catalogue_fingerprint": "e52cf98c8d6ca4b064308aa05be7f478c040d09c4bbe6ae77eb1e9eea1b11303"
+          }
+        },
+        "why_it_matters": "Lectura política no disponible para esta noticia."
+      },
+      {
+        "event_id": 1274,
+        "title": "Promueve BUAP bienestar laboral con Carrera Vertical 2026 - tribunanoticias.mx",
+        "summary": "Título registrado: «Promueve BUAP bienestar laboral con Carrera Vertical 2026 - tribunanoticias.mx». Fecha de publicación registrada: 2026-10-10T06:21:37+00:00. Autor no registrado. Pasaje original de la publicación: «Un total de 55 trabajadores de la Benemérita Universidad Autónoma de Puebla (BUAP) participaron en la Carrera Vertical 2026, una competencia realizada en las escaleras de la Torre de Gestión Académica y Servicios Administrativos para promover la actividad física y el bienestar de la comunidad universitaria.»",
+        "source_refs": [
+          1
+        ],
+        "material_ref": 1,
+        "topic": "sports",
+        "sources": [
+          {
+            "source": "news_rss",
+            "url": "https://tribunanoticias.mx/promueve-buap-bienestar-laboral-con-carrera-vertical-2026/",
+            "title": "Promueve BUAP bienestar laboral con Carrera Vertical 2026 - tribunanoticias.mx"
+          }
+        ],
+        "media_diversity": {
+          "identified_outlet_count": 1
+        },
+        "veracity": "not_evaluated",
+        "tone": {
+          "positive": 1
+        },
+        "person_ids": [
+          42
+        ],
+        "when_label": "10 oct.",
+        "provenance": {
+          "title": {
+            "text": "Promueve BUAP bienestar laboral con Carrera Vertical 2026 - tribunanoticias.mx",
+            "source_refs": [
+              1
+            ],
+            "state": "linked",
+            "origin": "source_material",
+            "catalogue_fingerprint": "e52cf98c8d6ca4b064308aa05be7f478c040d09c4bbe6ae77eb1e9eea1b11303"
+          },
+          "summary": {
+            "text": "Título registrado: «Promueve BUAP bienestar laboral con Carrera Vertical 2026 - tribunanoticias.mx». Fecha de publicación registrada: 2026-10-10T06:21:37+00:00. Autor no registrado. Pasaje original de la publicación: «Un total de 55 trabajadores de la Benemérita Universidad Autónoma de Puebla (BUAP) participaron en la Carrera Vertical 2026, una competencia realizada en las escaleras de la Torre de Gestión Académica y Servicios Administrativos para promover la actividad física y el bienestar de la comunidad universitaria.»",
+            "source_refs": [
+              1
+            ],
+            "state": "linked",
+            "origin": "derived",
+            "catalogue_fingerprint": "e52cf98c8d6ca4b064308aa05be7f478c040d09c4bbe6ae77eb1e9eea1b11303"
+          },
+          "why_it_matters": {
+            "text": "Lectura política no disponible para esta noticia.",
+            "source_refs": [],
+            "state": "unbacked",
+            "origin": "derived",
+            "catalogue_fingerprint": "e52cf98c8d6ca4b064308aa05be7f478c040d09c4bbe6ae77eb1e9eea1b11303"
+          }
+        },
+        "why_it_matters": "Lectura política no disponible para esta noticia."
+      },
+      {
+        "event_id": 1276,
+        "title": "Siete universitarios de la BUAP se capacitan en Japón con apoyo de OISCA - El Incorrecto",
+        "summary": "Título registrado: «Siete universitarios de la BUAP se capacitan en Japón con apoyo de OISCA - El Incorrecto». Fecha de publicación registrada: 2026-10-10T08:15:25+00:00. Autor no registrado. Pasaje original de la publicación: «Un total de siete estudiantes de la Benemérita Universidad Autónoma de Puebla (BUAP) han viajado a Japón para recibir capacitación en actividades productivas, ambientales y de desarrollo comunitario, como parte de un programa de la Organización Internacional para el Desarrollo de la Comunidad (OISCA), que busca trasladar los conocimientos adquiridos al trabajo en sus lugares de origen.\nJosé Martín Atela Echeverría, director ejecutivo de OISCA México , informó que la organización ha enviado a 15 jóvenes mexicanos a centros de formación en Japón .»",
+        "source_refs": [
+          2
+        ],
+        "material_ref": 2,
+        "topic": "students",
+        "sources": [
+          {
+            "source": "news_rss",
+            "url": "https://elincorrecto.mx/2026/portada/siete-universitarios-de-la-buap-se-capacitan-en-japon-con-apoyo-de-oisca/77997/",
+            "title": "Siete universitarios de la BUAP se capacitan en Japón con apoyo de OISCA - El Incorrecto"
+          }
+        ],
+        "media_diversity": {
+          "identified_outlet_count": 1
+        },
+        "veracity": "not_evaluated",
+        "tone": {
+          "positive": 1
+        },
+        "person_ids": [
+          39
+        ],
+        "when_label": "10 oct.",
+        "provenance": {
+          "title": {
+            "text": "Siete universitarios de la BUAP se capacitan en Japón con apoyo de OISCA - El Incorrecto",
+            "source_refs": [
+              2
+            ],
+            "state": "linked",
+            "origin": "source_material",
+            "catalogue_fingerprint": "e52cf98c8d6ca4b064308aa05be7f478c040d09c4bbe6ae77eb1e9eea1b11303"
+          },
+          "summary": {
+            "text": "Título registrado: «Siete universitarios de la BUAP se capacitan en Japón con apoyo de OISCA - El Incorrecto». Fecha de publicación registrada: 2026-10-10T08:15:25+00:00. Autor no registrado. Pasaje original de la publicación: «Un total de siete estudiantes de la Benemérita Universidad Autónoma de Puebla (BUAP) han viajado a Japón para recibir capacitación en actividades productivas, ambientales y de desarrollo comunitario, como parte de un programa de la Organización Internacional para el Desarrollo de la Comunidad (OISCA), que busca trasladar los conocimientos adquiridos al trabajo en sus lugares de origen.\nJosé Martín Atela Echeverría, director ejecutivo de OISCA México , informó que la organización ha enviado a 15 jóvenes mexicanos a centros de formación en Japón .»",
+            "source_refs": [
+              2
+            ],
+            "state": "linked",
+            "origin": "derived",
+            "catalogue_fingerprint": "e52cf98c8d6ca4b064308aa05be7f478c040d09c4bbe6ae77eb1e9eea1b11303"
+          },
+          "why_it_matters": {
+            "text": "Lectura política no disponible para esta noticia.",
+            "source_refs": [],
+            "state": "unbacked",
+            "origin": "derived",
+            "catalogue_fingerprint": "e52cf98c8d6ca4b064308aa05be7f478c040d09c4bbe6ae77eb1e9eea1b11303"
+          }
+        },
+        "why_it_matters": "Lectura política no disponible para esta noticia."
+      },
+      {
+        "event_id": 1277,
+        "title": "Un año de logros bajo el liderazgo de la Dra. Lilia Cedillo Ramírez - e-consulta.com",
+        "summary": "Título registrado: «Un año de logros bajo el liderazgo de la Dra. Lilia Cedillo Ramírez - e-consulta.com». Fecha de publicación registrada: 2026-10-10T13:27:53+00:00. Autor no registrado. Pasaje original de la publicación: «Médico de profesión, maestro en Ciencias Fisiológicas por la BUAP y doctor en Neurociencias por el CINVESTAV del IPN. Es miembro del SNI y de la Academia Nacional de Medicina. Actualmente es director General de Internacionalización de la Benemérita Universidad Autónoma de Puebla.\nLa gestión de la Dra. María Lilia Cedillo Ramírez al frente de la Benemérita Universidad Autónoma de Puebla se ha orientado a ampliar el acceso a la educación superior, fortalecer la investigación, modernizar la infraestructura y promover el bienestar de la comunidad universitaria.»",
+        "source_refs": [
+          3
+        ],
+        "material_ref": 3,
+        "topic": "institutional",
+        "sources": [
+          {
+            "source": "news_rss",
+            "url": "https://www.e-consulta.com/opinion/un-ano-de-logros-bajo-el-liderazgo-de-la-dra-lilia-cedillo-ramirez",
+            "title": "Un año de logros bajo el liderazgo de la Dra. Lilia Cedillo Ramírez - e-consulta.com"
+          }
+        ],
+        "media_diversity": {
+          "identified_outlet_count": 1
+        },
+        "veracity": "not_evaluated",
+        "tone": {
+          "positive": 1
+        },
+        "person_ids": [
+          4
+        ],
+        "when_label": "10 oct.",
+        "provenance": {
+          "title": {
+            "text": "Un año de logros bajo el liderazgo de la Dra. Lilia Cedillo Ramírez - e-consulta.com",
+            "source_refs": [
+              3
+            ],
+            "state": "linked",
+            "origin": "source_material",
+            "catalogue_fingerprint": "e52cf98c8d6ca4b064308aa05be7f478c040d09c4bbe6ae77eb1e9eea1b11303"
+          },
+          "summary": {
+            "text": "Título registrado: «Un año de logros bajo el liderazgo de la Dra. Lilia Cedillo Ramírez - e-consulta.com». Fecha de publicación registrada: 2026-10-10T13:27:53+00:00. Autor no registrado. Pasaje original de la publicación: «Médico de profesión, maestro en Ciencias Fisiológicas por la BUAP y doctor en Neurociencias por el CINVESTAV del IPN. Es miembro del SNI y de la Academia Nacional de Medicina. Actualmente es director General de Internacionalización de la Benemérita Universidad Autónoma de Puebla.\nLa gestión de la Dra. María Lilia Cedillo Ramírez al frente de la Benemérita Universidad Autónoma de Puebla se ha orientado a ampliar el acceso a la educación superior, fortalecer la investigación, modernizar la infraestructura y promover el bienestar de la comunidad universitaria.»",
+            "source_refs": [
+              3
+            ],
+            "state": "linked",
+            "origin": "derived",
+            "catalogue_fingerprint": "e52cf98c8d6ca4b064308aa05be7f478c040d09c4bbe6ae77eb1e9eea1b11303"
+          },
+          "why_it_matters": {
+            "text": "Lectura política no disponible para esta noticia.",
+            "source_refs": [],
+            "state": "unbacked",
+            "origin": "derived",
+            "catalogue_fingerprint": "e52cf98c8d6ca4b064308aa05be7f478c040d09c4bbe6ae77eb1e9eea1b11303"
+          }
+        },
+        "why_it_matters": "Lectura política no disponible para esta noticia."
+      },
+      {
+        "event_id": 1282,
+        "title": "Calaveras y Catrinas llegará al CCU BUAP con artesanías y actividades por Día de Muertos - El Sol de México",
+        "summary": "Título registrado: «Calaveras y Catrinas llegará al CCU BUAP con artesanías y actividades por Día de Muertos - El Sol de México». Fecha de publicación registrada: 2026-10-10T21:34:53+00:00. Autor no registrado. Pasaje original de la publicación: «La primera edición en Puebla reunirá a creadores mexicanos con productos hechos a mano, además de ofrecer maquillaje temático y presentaciones artísticas\n¿Te quedas fuera de la conversación? Mandamos a tu correo el mejor resumen informativo.»",
+        "source_refs": [
+          8
+        ],
+        "material_ref": 8,
+        "topic": "culture",
+        "sources": [
+          {
+            "source": "news_rss",
+            "url": "https://oem.com.mx/elsoldepuebla/cultura/calaveras-y-catrinas-llegara-al-ccu-buap-con-artesanias-y-actividades-por-dia-de-muertos-32535051",
+            "title": "Calaveras y Catrinas llegará al CCU BUAP con artesanías y actividades por Día de Muertos - El Sol de México"
+          }
+        ],
+        "media_diversity": {
+          "identified_outlet_count": 1
+        },
+        "veracity": "not_evaluated",
+        "tone": {
+          "positive": 1
+        },
+        "person_ids": [],
+        "when_label": "10 oct.",
+        "provenance": {
+          "title": {
+            "text": "Calaveras y Catrinas llegará al CCU BUAP con artesanías y actividades por Día de Muertos - El Sol de México",
+            "source_refs": [
+              8
+            ],
+            "state": "linked",
+            "origin": "source_material",
+            "catalogue_fingerprint": "e52cf98c8d6ca4b064308aa05be7f478c040d09c4bbe6ae77eb1e9eea1b11303"
+          },
+          "summary": {
+            "text": "Título registrado: «Calaveras y Catrinas llegará al CCU BUAP con artesanías y actividades por Día de Muertos - El Sol de México». Fecha de publicación registrada: 2026-10-10T21:34:53+00:00. Autor no registrado. Pasaje original de la publicación: «La primera edición en Puebla reunirá a creadores mexicanos con productos hechos a mano, además de ofrecer maquillaje temático y presentaciones artísticas\n¿Te quedas fuera de la conversación? Mandamos a tu correo el mejor resumen informativo.»",
+            "source_refs": [
+              8
+            ],
+            "state": "linked",
+            "origin": "derived",
+            "catalogue_fingerprint": "e52cf98c8d6ca4b064308aa05be7f478c040d09c4bbe6ae77eb1e9eea1b11303"
+          },
+          "why_it_matters": {
+            "text": "Lectura política no disponible para esta noticia.",
+            "source_refs": [],
+            "state": "unbacked",
+            "origin": "derived",
+            "catalogue_fingerprint": "e52cf98c8d6ca4b064308aa05be7f478c040d09c4bbe6ae77eb1e9eea1b11303"
+          }
+        },
+        "why_it_matters": "Lectura política no disponible para esta noticia."
+      },
+      {
+        "event_id": 1278,
+        "title": "Tapitas por la educación 2026: dónde donar tapas de plástico en la BUAP - Poblanerías",
+        "summary": "Título registrado: «Tapitas por la educación 2026: dónde donar tapas de plástico en la BUAP - Poblanerías». Fecha de publicación registrada: 2026-10-10T17:15:20+00:00. Autor no registrado. Pasaje original de la publicación: «A partir del 1 de octubre al 16 de diciembre, el Centro Universitario de Participación Social de la BUAP recaudará tapas de plástico de botellas de agua, refresco, leche (que no tengan Tetra Pak o metal) y detergentes. Esto, dentro de la campaña “Tapitas por la educación 2026”.\nA través de sus redes sociales, el Centro Universitario de Participación Social explica que todo lo recaudado será en beneficio de niñas y niños de las escuelas comunitarias del mismo centro.\nLa BUAP contará con diversos centros de acopio para facilitar la participación de la comunidad.»",
+        "source_refs": [
+          12
+        ],
+        "material_ref": 12,
+        "topic": "institutional",
+        "sources": [
+          {
+            "source": "news_rss",
+            "url": "https://www.poblanerias.com/2026/10/donde-donar-tapas-de-plastico/",
+            "title": "Tapitas por la educación 2026: dónde donar tapas de plástico en la BUAP - Poblanerías"
+          }
+        ],
+        "media_diversity": {
+          "identified_outlet_count": 1
+        },
+        "veracity": "not_evaluated",
+        "tone": {
+          "positive": 1
+        },
+        "person_ids": [],
+        "when_label": "10 oct.",
+        "provenance": {
+          "title": {
+            "text": "Tapitas por la educación 2026: dónde donar tapas de plástico en la BUAP - Poblanerías",
+            "source_refs": [
+              12
+            ],
+            "state": "linked",
+            "origin": "source_material",
+            "catalogue_fingerprint": "e52cf98c8d6ca4b064308aa05be7f478c040d09c4bbe6ae77eb1e9eea1b11303"
+          },
+          "summary": {
+            "text": "Título registrado: «Tapitas por la educación 2026: dónde donar tapas de plástico en la BUAP - Poblanerías». Fecha de publicación registrada: 2026-10-10T17:15:20+00:00. Autor no registrado. Pasaje original de la publicación: «A partir del 1 de octubre al 16 de diciembre, el Centro Universitario de Participación Social de la BUAP recaudará tapas de plástico de botellas de agua, refresco, leche (que no tengan Tetra Pak o metal) y detergentes. Esto, dentro de la campaña “Tapitas por la educación 2026”.\nA través de sus redes sociales, el Centro Universitario de Participación Social explica que todo lo recaudado será en beneficio de niñas y niños de las escuelas comunitarias del mismo centro.\nLa BUAP contará con diversos centros de acopio para facilitar la participación de la comunidad.»",
+            "source_refs": [
+              12
+            ],
+            "state": "linked",
+            "origin": "derived",
+            "catalogue_fingerprint": "e52cf98c8d6ca4b064308aa05be7f478c040d09c4bbe6ae77eb1e9eea1b11303"
+          },
+          "why_it_matters": {
+            "text": "Lectura política no disponible para esta noticia.",
+            "source_refs": [],
+            "state": "unbacked",
+            "origin": "derived",
+            "catalogue_fingerprint": "e52cf98c8d6ca4b064308aa05be7f478c040d09c4bbe6ae77eb1e9eea1b11303"
+          }
+        },
+        "why_it_matters": "Lectura política no disponible para esta noticia."
+      },
+      {
+        "event_id": 1280,
+        "title": "BUAP cierra con éxito su I Congreso Internacional de Investigación en Ciencias Administrativas - https://leviatan.mx/",
+        "summary": "Título registrado: «BUAP cierra con éxito su I Congreso Internacional de Investigación en Ciencias Administrativas - https://leviatan.mx/». Fecha de publicación registrada: 2026-10-10T20:38:56+00:00. Autor no registrado. Pasaje original de la publicación: «PUEBLA, Pue.— Con la participación de 134 autoras y autores nacionales e internacionales, concluyó el I Congreso Internacional de Investigación y Estudios de Posgrado en Ciencias Administrativas , organizado por la Facultad de Administración de la BUAP , con el objetivo de fortalecer la investigación científica y su impacto en el desarrollo social.»",
+        "source_refs": [
+          14
+        ],
+        "material_ref": 14,
+        "topic": "academic",
+        "sources": [
+          {
+            "source": "news_rss",
+            "url": "https://leviatan.mx/2026/10/10/buap-cierra-con-exito-su-i-congreso-internacional-de-investigacion-en-ciencias-administrativas/",
+            "title": "BUAP cierra con éxito su I Congreso Internacional de Investigación en Ciencias Administrativas - https://leviatan.mx/"
+          }
+        ],
+        "media_diversity": {
+          "identified_outlet_count": 1
+        },
+        "veracity": "not_evaluated",
+        "tone": {
+          "positive": 1
+        },
+        "person_ids": [],
+        "when_label": "10 oct.",
+        "provenance": {
+          "title": {
+            "text": "BUAP cierra con éxito su I Congreso Internacional de Investigación en Ciencias Administrativas - https://leviatan.mx/",
+            "source_refs": [
+              14
+            ],
+            "state": "linked",
+            "origin": "source_material",
+            "catalogue_fingerprint": "e52cf98c8d6ca4b064308aa05be7f478c040d09c4bbe6ae77eb1e9eea1b11303"
+          },
+          "summary": {
+            "text": "Título registrado: «BUAP cierra con éxito su I Congreso Internacional de Investigación en Ciencias Administrativas - https://leviatan.mx/». Fecha de publicación registrada: 2026-10-10T20:38:56+00:00. Autor no registrado. Pasaje original de la publicación: «PUEBLA, Pue.— Con la participación de 134 autoras y autores nacionales e internacionales, concluyó el I Congreso Internacional de Investigación y Estudios de Posgrado en Ciencias Administrativas , organizado por la Facultad de Administración de la BUAP , con el objetivo de fortalecer la investigación científica y su impacto en el desarrollo social.»",
+            "source_refs": [
+              14
+            ],
+            "state": "linked",
+            "origin": "derived",
+            "catalogue_fingerprint": "e52cf98c8d6ca4b064308aa05be7f478c040d09c4bbe6ae77eb1e9eea1b11303"
+          },
+          "why_it_matters": {
+            "text": "Lectura política no disponible para esta noticia.",
+            "source_refs": [],
+            "state": "unbacked",
+            "origin": "derived",
+            "catalogue_fingerprint": "e52cf98c8d6ca4b064308aa05be7f478c040d09c4bbe6ae77eb1e9eea1b11303"
+          }
+        },
+        "why_it_matters": "Lectura política no disponible para esta noticia."
+      },
+      {
+        "event_id": 1261,
+        "title": "Investigador de la BUAP gana premio por proyecto que transforma residuos en fertilizante - Diario Red",
+        "summary": "Título registrado: «Investigador de la BUAP gana premio por proyecto que transforma residuos en fertilizante - Diario Red». Fecha de publicación registrada: 2026-10-10T13:23:46+00:00. Autor no registrado. Pasaje original de la publicación: «José Cinco Patrón Ibarra, profesor investigador del Centro de Agroecología del Instituto de Ciencias de la Benemérita Universidad Autónoma de Puebla (BUAP) obtuvo el primer lugar del Concurso Estatal de Proyecto: Transformación Sostenible por el Planeta, en la categoría de Producción y Consumo Responsable.\nPatrón Ibarra dirige el proyecto \"Manejo, transformación y aprovechamiento de residuos orgánicos domésticos en centros de acopio gratuitos y a través de lombricompostaje\", que convierte desechos orgánicos domésticos en fertilizante y cuenta con una trayectoria de 17 años.»",
+        "source_refs": [
+          15
+        ],
+        "material_ref": 15,
+        "topic": "academic",
+        "sources": [
+          {
+            "source": "news_rss",
+            "url": "https://www.diario-red.com/articulo/puebla/investigador-buap-recibe/20261010152346078058.html",
+            "title": "Investigador de la BUAP gana premio por proyecto que transforma residuos en fertilizante - Diario Red"
+          }
+        ],
+        "media_diversity": {
+          "identified_outlet_count": 1
+        },
+        "veracity": "not_evaluated",
+        "tone": {
+          "positive": 1
+        },
+        "person_ids": [
+          6
+        ],
+        "when_label": "10 oct.",
+        "provenance": {
+          "title": {
+            "text": "Investigador de la BUAP gana premio por proyecto que transforma residuos en fertilizante - Diario Red",
+            "source_refs": [
+              15
+            ],
+            "state": "linked",
+            "origin": "source_material",
+            "catalogue_fingerprint": "e52cf98c8d6ca4b064308aa05be7f478c040d09c4bbe6ae77eb1e9eea1b11303"
+          },
+          "summary": {
+            "text": "Título registrado: «Investigador de la BUAP gana premio por proyecto que transforma residuos en fertilizante - Diario Red». Fecha de publicación registrada: 2026-10-10T13:23:46+00:00. Autor no registrado. Pasaje original de la publicación: «José Cinco Patrón Ibarra, profesor investigador del Centro de Agroecología del Instituto de Ciencias de la Benemérita Universidad Autónoma de Puebla (BUAP) obtuvo el primer lugar del Concurso Estatal de Proyecto: Transformación Sostenible por el Planeta, en la categoría de Producción y Consumo Responsable.\nPatrón Ibarra dirige el proyecto \"Manejo, transformación y aprovechamiento de residuos orgánicos domésticos en centros de acopio gratuitos y a través de lombricompostaje\", que convierte desechos orgánicos domésticos en fertilizante y cuenta con una trayectoria de 17 años.»",
+            "source_refs": [
+              15
+            ],
+            "state": "linked",
+            "origin": "derived",
+            "catalogue_fingerprint": "e52cf98c8d6ca4b064308aa05be7f478c040d09c4bbe6ae77eb1e9eea1b11303"
+          },
+          "why_it_matters": {
+            "text": "Lectura política no disponible para esta noticia.",
+            "source_refs": [],
+            "state": "unbacked",
+            "origin": "derived",
+            "catalogue_fingerprint": "e52cf98c8d6ca4b064308aa05be7f478c040d09c4bbe6ae77eb1e9eea1b11303"
+          }
+        },
+        "repeat": true,
+        "why_it_matters": "Lectura política no disponible para esta noticia."
+      },
+      {
+        "event_id": 1279,
+        "title": "🌼 ¡Al CCU llegan las historias que ni la muerte se lleva! ¿Se atreven a vivirlo? Consulta la programación y prepárate para celebrar con nosotros esta temporada de Día de Muertos. 📍 Complejo Cultural Universitario BUAP #CCUBUAP #SomosGrandesPorqu",
+        "summary": "Título registrado: «🌼 ¡Al CCU llegan las historias que ni la muerte se lleva! ¿Se atreven a vivirlo? Consulta la programación y prepárate para celebrar con nosotros esta temporada de Día de Muertos. 📍 Complejo Cultural Universitario BUAP #CCUBUAP #SomosGrandesPorqu». Fecha de publicación registrada: 2026-10-10T19:02:33+00:00. Autor no registrado. Solo título original disponible; no es cuerpo de la publicación: «🌼 ¡Al CCU llegan las historias que ni la muerte se lleva! ¿Se atreven a vivirlo? Consulta la programación y prepárate para celebrar con nosotros esta temporada de Día de Muertos. 📍 Complejo Cultural Universitario BUAP #CCUBUAP #SomosGrandesPorqu»",
+        "source_refs": [
+          18
+        ],
+        "material_ref": 18,
+        "topic": "culture",
+        "sources": [
+          {
+            "source": "x_twitter",
+            "url": "https://x.com/CCUBUAP/status/2108996627360862580",
+            "title": "🌼 ¡Al CCU llegan las historias que ni la muerte se lleva! ¿Se atreven a vivirlo? Consulta la programación y prepárate para celebrar con nosotros esta temporada de Día de Muertos. 📍 Complejo Cultural Universitario BUAP #CCUBUAP #SomosGrandesPorqu"
+          }
+        ],
+        "media_diversity": {
+          "identified_outlet_count": 0
+        },
+        "veracity": "not_evaluated",
+        "tone": {
+          "positive": 1
+        },
+        "person_ids": [],
+        "when_label": "10 oct.",
+        "provenance": {
+          "title": {
+            "text": "🌼 ¡Al CCU llegan las historias que ni la muerte se lleva! ¿Se atreven a vivirlo? Consulta la programación y prepárate para celebrar con nosotros esta temporada de Día de Muertos. 📍 Complejo Cultural Universitario BUAP #CCUBUAP #SomosGrandesPorqu",
+            "source_refs": [
+              18
+            ],
+            "state": "linked",
+            "origin": "source_material",
+            "catalogue_fingerprint": "e52cf98c8d6ca4b064308aa05be7f478c040d09c4bbe6ae77eb1e9eea1b11303"
+          },
+          "summary": {
+            "text": "Título registrado: «🌼 ¡Al CCU llegan las historias que ni la muerte se lleva! ¿Se atreven a vivirlo? Consulta la programación y prepárate para celebrar con nosotros esta temporada de Día de Muertos. 📍 Complejo Cultural Universitario BUAP #CCUBUAP #SomosGrandesPorqu». Fecha de publicación registrada: 2026-10-10T19:02:33+00:00. Autor no registrado. Solo título original disponible; no es cuerpo de la publicación: «🌼 ¡Al CCU llegan las historias que ni la muerte se lleva! ¿Se atreven a vivirlo? Consulta la programación y prepárate para celebrar con nosotros esta temporada de Día de Muertos. 📍 Complejo Cultural Universitario BUAP #CCUBUAP #SomosGrandesPorqu»",
+            "source_refs": [
+              18
+            ],
+            "state": "linked",
+            "origin": "derived",
+            "catalogue_fingerprint": "e52cf98c8d6ca4b064308aa05be7f478c040d09c4bbe6ae77eb1e9eea1b11303"
+          },
+          "why_it_matters": {
+            "text": "Lectura política no disponible para esta noticia.",
+            "source_refs": [],
+            "state": "unbacked",
+            "origin": "derived",
+            "catalogue_fingerprint": "e52cf98c8d6ca4b064308aa05be7f478c040d09c4bbe6ae77eb1e9eea1b11303"
+          }
+        },
+        "why_it_matters": "Lectura política no disponible para esta noticia."
+      }
+    ],
+    "evidence": {
+      "version": 1,
+      "sources": [
+        {
+          "index": 0,
+          "mention_id": 153,
+          "source": "news_rss",
+          "url": "https://grada.mx/articles/universitario/2026/10/10/9200/lobos-buap-lider-e-invicto-en-segunda-division-conadeip",
+          "outlet": "grada.mx",
+          "author": null,
+          "title": "Lobos BUAP, líder e invicto en Segunda División CONADEIP - Grada Puebla",
+          "published_at": "2026-10-10T06:18:00+00:00",
+          "summary": "Lobos BUAP venció 1-0 a Tuzos de la UAZ en la Jornada 4 de la Segunda División CONADEIP, en un partido muy disputado en el Estadio Universitario BUAP. Con el resultado, la Manada se mantiene líder e invicto en el torneo.",
+          "excerpt": "Con mucho sudor, empeño y una dosis de impetu, los Lobos de la Benemérita Universidad Autónoma de Puebla vencieron 1-0 a los Tuzos de la Universidad Autónoma de Zacatecas (UAZ) en la Jornada 4 de la Segunda División de la Comisión Nacional Deportiva Estudiantil de Instituciones Privadas (CONADEIP).\n"
+        },
+        {
+          "index": 1,
+          "mention_id": 155,
+          "source": "news_rss",
+          "url": "https://tribunanoticias.mx/promueve-buap-bienestar-laboral-con-carrera-vertical-2026/",
+          "outlet": "tribunanoticias.mx",
+          "author": null,
+          "title": "Promueve BUAP bienestar laboral con Carrera Vertical 2026 - tribunanoticias.mx",
+          "published_at": "2026-10-10T06:21:37+00:00",
+          "summary": "55 trabajadores de la BUAP participaron en la Carrera Vertical 2026 en la Torre de Gestión Académica, evento organizado por la Secretaría Administrativa vía el programa CuIDAATE para promover el bienestar laboral. Ángel Pérez Solís ganó con 3:16 minutos.",
+          "excerpt": "Un total de 55 trabajadores de la Benemérita Universidad Autónoma de Puebla (BUAP) participaron en la Carrera Vertical 2026, una competencia realizada en las escaleras de la Torre de Gestión Académica y Servicios Administrativos para promover la actividad física y el bienestar de la comunidad univer"
+        },
+        {
+          "index": 2,
+          "mention_id": 157,
+          "source": "news_rss",
+          "url": "https://elincorrecto.mx/2026/portada/siete-universitarios-de-la-buap-se-capacitan-en-japon-con-apoyo-de-oisca/77997/",
+          "outlet": "elincorrecto.mx",
+          "author": null,
+          "title": "Siete universitarios de la BUAP se capacitan en Japón con apoyo de OISCA - El Incorrecto",
+          "published_at": "2026-10-10T08:15:25+00:00",
+          "summary": "Siete estudiantes de la BUAP viajaron a Japón para capacitarse en actividades productivas, ambientales y de desarrollo comunitario mediante el programa de OISCA. Para 2027 otros dos universitarios fueron seleccionados para participar.",
+          "excerpt": "Un total de siete estudiantes de la Benemérita Universidad Autónoma de Puebla (BUAP) han viajado a Japón para recibir capacitación en actividades productivas, ambientales y de desarrollo comunitario, como parte de un programa de la Organización Internacional para el Desarrollo de la Comunidad (OISCA"
+        },
+        {
+          "index": 3,
+          "mention_id": 167,
+          "source": "news_rss",
+          "url": "https://www.e-consulta.com/opinion/un-ano-de-logros-bajo-el-liderazgo-de-la-dra-lilia-cedillo-ramirez",
+          "outlet": "e-consulta.com",
+          "author": null,
+          "title": "Un año de logros bajo el liderazgo de la Dra. Lilia Cedillo Ramírez - e-consulta.com",
+          "published_at": "2026-10-10T13:27:53+00:00",
+          "summary": "La rectora de la BUAP, María Lilia Cedillo Ramírez, presenta su primer informe de gestión destacando la creación de 49 planes de estudio, la expansión a 32 municipios y el aumento de la matrícula a más de 130,000 estudiantes.",
+          "excerpt": "Médico de profesión, maestro en Ciencias Fisiológicas por la BUAP y doctor en Neurociencias por el CINVESTAV del IPN. Es miembro del SNI y de la Academia Nacional de Medicina. Actualmente es director General de Internacionalización de la Benemérita Universidad Autónoma de Puebla.\nLa gestión de la Dr"
+        },
+        {
+          "index": 4,
+          "mention_id": 168,
+          "source": "news_rss",
+          "url": "https://leviatan.mx/2026/10/10/inauguran-mural-en-el-complejo-regional-mixteca-de-la-buap/",
+          "outlet": "leviatan.mx",
+          "author": null,
+          "title": "Inauguran mural en el Complejo Regional Mixteca de la BUAP - leviatan.mx",
+          "published_at": "2026-10-10T18:02:46+00:00",
+          "summary": "Estudiantes del taller 'Pintando nuestra identidad colectiva' develaron un mural en la sede Atlixco del Complejo Regional Mixteca de la BUAP, reflejando su visión del territorio y la identidad universitaria. La iniciativa fue organizada por la Vicerrectoría de Extensión y Difusión de la Cultura.",
+          "excerpt": "PUEBLA.- La sede Atlixco del Complejo Regional Mixteca de la BUAP amaneció más colorida, más viva y más suya. Estudiantes del taller “Pintando nuestra identidad colectiva” develaron un mural que refleja su visión del territorio, la comunidad y la identidad universitaria.\nLa iniciativa, organizada po"
+        },
+        {
+          "index": 5,
+          "mention_id": 169,
+          "source": "news_rss",
+          "url": "https://contraparte.mx/educacion/80498-inauguran-mural-en-el-complejo-regional-mixteca-de-la-buap.html",
+          "outlet": "contraparte.mx",
+          "author": null,
+          "title": "Inauguran mural en el Complejo Regional Mixteca de la BUAP - Contraparte | Periodismo en Equilibrio",
+          "published_at": "2026-10-10T17:59:00+00:00",
+          "summary": "Se inauguró un mural en la sede Atlixco del Complejo Regional Mixteca de la BUAP, realizado por alumnos del taller 'Pintando nuestra identidad colectiva'. La iniciativa fue organizada por la Vicerrectoría de Extensión y Difusión de la Cultura.",
+          "excerpt": "La obra pictórica se realizó en la sede Atlixco por estudiantes\nEn la sede Atlixco, del Complejo Regional Mixteca, se develó el mural realizado por alumnos del taller “Pintando nuestra identidad colectiva”, iniciativa organizada por la Vicerrectoría de Extensión y Difusión de la Cultura (VEDC), con "
+        },
+        {
+          "index": 6,
+          "mention_id": 170,
+          "source": "news_rss",
+          "url": "https://hipocritalector.com/portada/buap-devela-mural-colectivo-en-complejo-regional-mixteca/",
+          "outlet": "hipocritalector.com",
+          "author": null,
+          "title": "BUAP devela mural colectivo en Complejo Regional Mixteca - Hipócrita Lector",
+          "published_at": "2026-10-10T18:24:29+00:00",
+          "summary": "La BUAP inauguró un mural colectivo en la sede Atlixco del Complejo Regional Mixteca, creado por estudiantes del taller 'Pintando nuestra identidad colectiva' coordinado por la VEDC. La develación fue encabezada por el secretario general Damián Hernández Méndez.",
+          "excerpt": "Con el propósito de fomentar la participación artística y el trabajo colaborativo en la vida universitaria, autoridades de la Benemérita Universidad Autónoma de Puebla (BUAP) inauguraron una nueva obra pictórica en las instalaciones de la sede Atlixco , perteneciente al Complejo Regional Mixteca .\nL"
+        },
+        {
+          "index": 7,
+          "mention_id": 186,
+          "source": "news_rss",
+          "url": "https://primeraplanapuebla.com/educacion/inauguran-mural-en-el-complejo-regional-mixteca-de-la-buap/",
+          "outlet": "primeraplanapuebla.com",
+          "author": null,
+          "title": "Inauguran mural en el Complejo Regional Mixteca de la BUAP - Primera Plana Puebla",
+          "published_at": "2026-10-10T19:39:28+00:00",
+          "summary": "La BUAP inauguró un mural colectivo en la sede Atlixco del Complejo Regional Mixteca, creado por estudiantes en el taller 'Pintando nuestra identidad colectiva'. La develación fue encabezada por el secretario General Damián Hernández Méndez, el secretario Administrativo Juan Antonio Cruz Moctezuma y",
+          "excerpt": "El arte se convirtió en un espacio de expresión y encuentro para estudiantes de la Benemérita Universidad Autónoma de Puebla (BUAP), quienes plasmaron su creatividad en un mural colectivo develado en la sede Atlixco del Complejo Regional Mixteca.\nLa obra es resultado del taller “Pintando nuestra ide"
+        },
+        {
+          "index": 8,
+          "mention_id": 187,
+          "source": "news_rss",
+          "url": "https://oem.com.mx/elsoldepuebla/cultura/calaveras-y-catrinas-llegara-al-ccu-buap-con-artesanias-y-actividades-por-dia-de-muertos-32535051",
+          "outlet": "oem.com.mx",
+          "author": null,
+          "title": "Calaveras y Catrinas llegará al CCU BUAP con artesanías y actividades por Día de Muertos - El Sol de México",
+          "published_at": "2026-10-10T21:34:53+00:00",
+          "summary": "La primera edición en Puebla del evento Calaveras y Catrinas llegará al CCU BUAP por Día de Muertos, con artesanías de creadores mexicanos, maquillaje temático y presentaciones artísticas.",
+          "excerpt": "La primera edición en Puebla reunirá a creadores mexicanos con productos hechos a mano, además de ofrecer maquillaje temático y presentaciones artísticas\n¿Te quedas fuera de la conversación? Mandamos a tu correo el mejor resumen informativo."
+        },
+        {
+          "index": 9,
+          "mention_id": 188,
+          "source": "news_rss",
+          "url": "https://www.e-consulta.com/educacion/inauguran-mural-en-el-complejo-regional-mixteca-de-la-buap",
+          "outlet": "e-consulta.com",
+          "author": null,
+          "title": "Inauguran mural en el Complejo Regional Mixteca de la BUAP - e-consulta.com",
+          "published_at": "2026-10-10T21:03:38+00:00",
+          "summary": "La BUAP develó un mural en la sede Atlixco del Complejo Regional Mixteca, realizado por alumnos del taller Pintando nuestra identidad colectiva. La obra refleja la cultura mixteca poblana y homenajea al pedagogo Paulo Freire.",
+          "excerpt": "La obra pictórica se realizó en la sede de Atlixco de la BUAP por sus estudiantes\nEn la sede Atlixco del Complejo Regional Mixteca de la Benemeritica Universidad Autónoma de Puebla ( BUAP ), se develó el mural que llevaron a cabo alumnos del taller Pintando nuestra identidad colectiva.\nPintando nues"
+        },
+        {
+          "index": 10,
+          "mention_id": 189,
+          "source": "news_rss",
+          "url": "https://puebla.quadratin.com.mx/universidad/inauguran-en-la-sede-atlixco-de-la-buap-el-mural-pintando-nuestra-identidad-colectiva/",
+          "outlet": "puebla.quadratin.com.mx",
+          "author": null,
+          "title": "Inauguran en la sede Atlixco de la BUAP el mural “Pintando nuestra identidad colectiva” - Quadratín Puebla",
+          "published_at": "2026-10-10T21:30:00+00:00",
+          "summary": "La BUAP develó el mural 'Pintando nuestra identidad colectiva' en su sede Atlixco, creado por alumnos del taller homónimo impulsado por la Vicerrectoría de Extensión y Difusión de la Cultura. Autoridades universitarias destacaron el valor cultural de la obra.",
+          "excerpt": "PUEBLA, Pue., 10 de octubre de 2026.- Con el propósito de fomentar la participación, la creatividad y la expresión artística de la comunidad estudiantil, la Benemérita Universidad Autónoma de Puebla (BUAP) llevó a cabo la develación del mural realizado en la sede Atlixco , perteneciente al Complejo "
+        },
+        {
+          "index": 11,
+          "mention_id": 190,
+          "source": "news_rss",
+          "url": "https://boletin.buap.mx/node/4699",
+          "outlet": "boletin.buap.mx",
+          "author": null,
+          "title": "Inauguran mural en el Complejo Regional Mixteca de la BUAP - Boletines BUAP |",
+          "published_at": "2026-10-10T17:48:00+00:00",
+          "summary": "Se develó un mural en la sede Atlixco del Complejo Regional Mixteca de la BUAP, realizado por alumnos del taller 'Pintando nuestra identidad colectiva'. El acto fue encabezado por autoridades de la BUAP y la VEDC.",
+          "excerpt": "En la sede Atlixco, del Complejo Regional Mixteca, se develó el mural realizado por alumnos del taller “Pintando nuestra identidad colectiva”, iniciativa organizada por la Vicerrectoría de Extensión y Difusión de la Cultura (VEDC), con la intención de que la comunidad estudiantil participe, trabaje,"
+        },
+        {
+          "index": 12,
+          "mention_id": 191,
+          "source": "news_rss",
+          "url": "https://www.poblanerias.com/2026/10/donde-donar-tapas-de-plastico/",
+          "outlet": "poblanerias.com",
+          "author": null,
+          "title": "Tapitas por la educación 2026: dónde donar tapas de plástico en la BUAP - Poblanerías",
+          "published_at": "2026-10-10T17:15:20+00:00",
+          "summary": "La BUAP, a través del Centro Universitario de Participación Social, realiza la campaña 'Tapitas por la educación 2026' del 1 de octubre al 16 de diciembre para recaudar tapas de plástico en beneficio de niñas y niños de escuelas comunitarias. Se habilitan centros de acopio en Ciudad Universitaria, l",
+          "excerpt": "A partir del 1 de octubre al 16 de diciembre, el Centro Universitario de Participación Social de la BUAP recaudará tapas de plástico de botellas de agua, refresco, leche (que no tengan Tetra Pak o metal) y detergentes. Esto, dentro de la campaña “Tapitas por la educación 2026”.\nA través de sus redes"
+        },
+        {
+          "index": 13,
+          "mention_id": 192,
+          "source": "news_rss",
+          "url": "https://elpopular.mx/universidad/2026/10/10/alumnos-de-la-buap-plasman-su-identidad-colectiva-en-un-mural-en-la-sede-atlixco",
+          "outlet": "elpopular.mx",
+          "author": null,
+          "title": "Alumnos de la BUAP plasman su identidad colectiva en un mural en la sede Atlixco - El Popular, periodismo con causa",
+          "published_at": "2026-10-10T23:31:00+00:00",
+          "summary": "Estudiantes de la BUAP develaron un mural en la sede Atlixco del Complejo Regional Mixteca, creado en el taller 'Pintando nuestra identidad colectiva' impulsado por la VEDC. La ceremonia fue encabezada por autoridades universitarias.",
+          "excerpt": "Estudiantes de la BUAP realizaron un mural en la sede Atlixco mediante el taller “Pintando nuestra identidad colectiva”, impulsado por la VEDC\nLa Benemérita Universidad Autónoma de Puebla ( BUAP ) develó un mural elaborado por estudiantes del Complejo Regional Mixteca , en su sede Atlixco , como par"
+        },
+        {
+          "index": 14,
+          "mention_id": 193,
+          "source": "news_rss",
+          "url": "https://leviatan.mx/2026/10/10/buap-cierra-con-exito-su-i-congreso-internacional-de-investigacion-en-ciencias-administrativas/",
+          "outlet": "leviatan.mx",
+          "author": null,
+          "title": "BUAP cierra con éxito su I Congreso Internacional de Investigación en Ciencias Administrativas - https://leviatan.mx/",
+          "published_at": "2026-10-10T20:38:56+00:00",
+          "summary": "La BUAP concluyó con éxito su I Congreso Internacional de Investigación y Estudios de Posgrado en Ciencias Administrativas, con 134 autores y actividades como conferencias magistrales, mesas de trabajo y ponencias. El evento contó con colaboración internacional y buscó que la investigación trasciend",
+          "excerpt": "PUEBLA, Pue.— Con la participación de 134 autoras y autores nacionales e internacionales, concluyó el I Congreso Internacional de Investigación y Estudios de Posgrado en Ciencias Administrativas , organizado por la Facultad de Administración de la BUAP , con el objetivo de fortalecer la investigació"
+        },
+        {
+          "index": 15,
+          "mention_id": 194,
+          "source": "news_rss",
+          "url": "https://www.diario-red.com/articulo/puebla/investigador-buap-recibe/20261010152346078058.html",
+          "outlet": "diario-red.com",
+          "author": null,
+          "title": "Investigador de la BUAP gana premio por proyecto que transforma residuos en fertilizante - Diario Red",
+          "published_at": "2026-10-10T13:23:46+00:00",
+          "summary": "José Cinco Patrón Ibarra, investigador del Centro de Agroecología de la BUAP, ganó el primer lugar del Concurso Estatal de Proyecto: Transformación Sostenible por el Planeta. Su proyecto de lombricompostaje, con 17 años de trayectoria, transforma residuos orgánicos domésticos en fertilizante y ha ev",
+          "excerpt": "José Cinco Patrón Ibarra, profesor investigador del Centro de Agroecología del Instituto de Ciencias de la Benemérita Universidad Autónoma de Puebla (BUAP) obtuvo el primer lugar del Concurso Estatal de Proyecto: Transformación Sostenible por el Planeta, en la categoría de Producción y Consumo Respo"
+        },
+        {
+          "index": 16,
+          "mention_id": 196,
+          "source": "news_rss",
+          "url": "https://sucesospuebla.com/inauguran-mural-en-el-complejo-regional-mixteca-de-la-buap/",
+          "outlet": "sucesospuebla.com",
+          "author": null,
+          "title": "Inauguran mural en el Complejo Regional Mixteca de la BUAP - Sucesos Puebla",
+          "published_at": "2026-10-10T18:24:00+00:00",
+          "summary": "La BUAP inauguró un mural en la sede Atlixco del Complejo Regional Mixteca, elaborado por estudiantes en el taller 'Pintando nuestra identidad colectiva' de la VEDC. El acto fue encabezado por el secretario General Damián Hernández Méndez.",
+          "excerpt": "Inauguran mural en el Complejo Regional Mixteca de la BUAP\nEstudiantes de la Benemérita Universidad Autónoma de Puebla (BUAP) participaron en la elaboración de un mural en la sede Atlixco del Complejo Regional Mixteca, como parte del taller “Pintando nuestra identidad colectiva”, organizado por la V"
+        },
+        {
+          "index": 17,
+          "mention_id": 197,
+          "source": "news_rss",
+          "url": "https://curul.com.mx/buap-inaugura-mural-artistico-en-el-complejo-regional-mixteca-sede-atlixco/",
+          "outlet": "curul.com.mx",
+          "author": null,
+          "title": "BUAP inaugura mural artístico en el Complejo Regional Mixteca, sede Atlixco - Curul Puebla",
+          "published_at": "2026-10-10T07:00:00+00:00",
+          "summary": "La BUAP inauguró un mural en la sede Atlixco del Complejo Regional Mixteca, elaborado por estudiantes del taller 'Pintando nuestra identidad colectiva'. El acto fue encabezado por autoridades universitarias y forma parte de las actividades de la Vicerrectoría de Extensión y Difusión de la Cultura.",
+          "excerpt": "La Benemérita Universidad Autónoma de Puebla (BUAP) inauguró un mural en la sede Atlixco del Complejo Regional Mixteca, elaborado por estudiantes que participaron en el taller “Pintando nuestra identidad colectiva” , una iniciativa orientada a fomentar la creatividad y la expresión artística entre l"
+        },
+        {
+          "index": 18,
+          "mention_id": 953,
+          "source": "x_twitter",
+          "url": "https://x.com/CCUBUAP/status/2108996627360862580",
+          "outlet": "x.com",
+          "author": null,
+          "title": "🌼 ¡Al CCU llegan las historias que ni la muerte se lleva! ¿Se atreven a vivirlo? Consulta la programación y prepárate para celebrar con nosotros esta temporada de Día de Muertos. 📍 Complejo Cultural Universitario BUAP #CCUBUAP #SomosGrandesPorqu",
+          "published_at": "2026-10-10T19:02:33+00:00",
+          "summary": "El Complejo Cultural Universitario BUAP invita a su programación especial para celebrar la temporada de Día de Muertos.",
+          "excerpt": null
+        }
+      ],
+      "catalogue_fingerprint": "e52cf98c8d6ca4b064308aa05be7f478c040d09c4bbe6ae77eb1e9eea1b11303"
+    },
+    "factual_basis": {
+      "version": 1,
+      "passage_scheme": "readable-v1",
+      "client_id": 1,
+      "cut": {
+        "date": "2026-10-10",
+        "timezone": "America/Mexico_City",
+        "window_start": "2026-10-10T00:00:00-06:00",
+        "window": {
+          "from": "2026-10-10T00:00:00-06:00",
+          "to": "2026-10-11T00:00:00-06:00"
+        }
+      },
+      "catalogue_fingerprint": "e52cf98c8d6ca4b064308aa05be7f478c040d09c4bbe6ae77eb1e9eea1b11303",
+      "stories": [
+        {
+          "index": 0,
+          "source_refs": [
+            4,
+            5,
+            6,
+            7,
+            9,
+            11,
+            16,
+            17
+          ],
+          "material_ref": 9
+        },
+        {
+          "index": 1,
+          "source_refs": [
+            10,
+            13
+          ],
+          "material_ref": 13
+        },
+        {
+          "index": 2,
+          "source_refs": [
+            0
+          ],
+          "material_ref": 0
+        },
+        {
+          "index": 3,
+          "source_refs": [
+            1
+          ],
+          "material_ref": 1
+        },
+        {
+          "index": 4,
+          "source_refs": [
+            2
+          ],
+          "material_ref": 2
+        },
+        {
+          "index": 5,
+          "source_refs": [
+            3
+          ],
+          "material_ref": 3
+        },
+        {
+          "index": 6,
+          "source_refs": [
+            8
+          ],
+          "material_ref": 8
+        },
+        {
+          "index": 7,
+          "source_refs": [
+            12
+          ],
+          "material_ref": 12
+        },
+        {
+          "index": 8,
+          "source_refs": [
+            14
+          ],
+          "material_ref": 14
+        },
+        {
+          "index": 9,
+          "source_refs": [
+            15
+          ],
+          "material_ref": 15
+        },
+        {
+          "index": 10,
+          "source_refs": [
+            18
+          ],
+          "material_ref": 18
+        }
+      ],
+      "sources": [
+        {
+          "source_ref": 0,
+          "title": "Lobos BUAP, líder e invicto en Segunda División CONADEIP - Grada Puebla",
+          "publication_date": "2026-10-10T06:18:00+00:00",
+          "captured_author": null,
+          "original": "Con mucho sudor, empeño y una dosis de impetu, los Lobos de la Benemérita Universidad Autónoma de Puebla vencieron 1-0 a los Tuzos de la Universidad Autónoma de Zacatecas (UAZ) en la Jornada 4 de la Segunda División de la Comisión Nacional Deportiva Estudiantil de Instituciones Privadas (CONADEIP).\nDesde la cancha del Estadio Universitario BUAP, la Manada recibió este encuentro que de principio a fin fue muy disputado, pues los Tuzos de la UAZ trataron de sorprender con una descolgada inicial que terminó en un susto. Conforme pasaron los primeros minutos, Lobos BUAP se asentó en la cancha teniendo algunas dificultades para generar su estilo ofensivo entre la lluvia, el pasto mojado y la postura defensiva.\nPasados los 10 minutos del partido, la Manada generó su primera ocasión en los linderos del área con un centro potente donde Jared López no pudo cerrar la pinza, elevando la acción con una alta dosis de intensidad, paridad, lucha y roces en la cancha de Ciudad Universitaria.\nSuperando los 20’ minutos, el juego se caracterizó por ser de ida y vuelta en el que ninguno dejó nada a la suerte, apostando a la velocidad, sin embargo, ninguno pudo aprovechar la constante posesión del esférico ante la cerrazón del otro que provocó muchos pases hacia atrás, lo que a su vez se reflejó con pocas llegadas a los arcos.\nLos dirigidos por Julio Abel Alcázar se mantuvieron enfocados en querer hacer daño por las bandas, teniendo una aproximación al 21’ por parte de Paul Rosales que sacó un disparo sin fuerza. La Manada con Uriel Sainos, Daniel Sánchez y Máximo Posadas trató de ser insistente en todas las zonas sin mucho éxito.\nEntre tumbos y empujones, la jauría universitaria tuvo su primera aproximación clara con un remate de Jared López al 25’ que terminó muy desvíado. Posteriormente, en una descolgada, Daniel Sánchez dejó ir la oportunidad más clara de Lobos BUAP al 28’ con un remate directo que no pudo capitalizar para la jauría.\nPasada la media hora, la UAZ empezó a ganar confianza aprovechando algunos errores de los locales acercándose al arco licántropo, sin embargo, otra descolgada de Paul Rosales se quedó a nada de marcar la diferencia al 32’, sin embargo, el portero visitante se puso en plan grande que volvió a aparecer al minuto 37 siendo desviada.\nEn la recta final del primer tiempo, los Tuzos UAZ apretaron la zona baja viviendo sus mejores momentos del partido logrando acercarse con un par de centros sin mayor peligro. Lobos BUAP trató de sacudirse el mal momento con un disparo lejano de Arath López al 44’, mientras que la visita buscó hacer daño con un contragolpe infructífero dejando el empate sin goles al descanso.\nPara el complemento, la lluvia se hizo presente generando más complicaciones en el partido que en todo momento fue muy ríspido para manos conjuntos, teniendo un duelo de ida y vuelta en el que se peleó el esférico en todas las áreas sin lograr acercarse a las porterías, extendiendo la sequía de emociones.\nAl pasar los 50 minutos de partido, los Tuzos de la UAZ volvieron a dar señales de peligro, pues al 52’ desaprovechó un error increíble de la zaga defensiva lobezna que le dejó al delantero una clara oportunidad de adelantarse en el marcador, pero decidió alargar la pelota dejando escapar su chance más clara en el arco.\nEl ímpetu fue el protagonista del encuentro donde las faltas fueron una constante causando un lento ritmo. Lobos BUAP intentó darle vuelta al pasmoso nivel en CU, apostando al control masivo de la pelota con posesiones largas tratando de organizar alguna ocasión de peligro logrando dejar un susto en tiro de esquina.\nLlegando a los 60 minutos, el partido se mantuvo con pocas emociones debido a la paridad mostrada en la cancha, lo que generó una sacudida en la banca de los licántropos que paulatinamente empezó a tener acercamientos al arco visitante sin la contundencia mostrada en otros juegos.\nLuego de tanto estirar el encuentro, fue al minuto 71 cuando el partido por fin tuvo acción, pues el delanter",
+          "derived_summary": "Lobos BUAP venció 1-0 a Tuzos de la UAZ en la Jornada 4 de la Segunda División CONADEIP, en un partido muy disputado en el Estadio Universitario BUAP. Con el resultado, la Manada se mantiene líder e invicto en el torneo.",
+          "passage_kind": "body",
+          "passages": [
+            "Con mucho sudor, empeño y una dosis de impetu, los Lobos de la Benemérita Universidad Autónoma de Puebla vencieron 1-0 a los Tuzos de la Universidad Autónoma de Zacatecas (UAZ) en la Jornada 4 de la Segunda División de la Comisión Nacional Deportiva Estudiantil de Instituciones Privadas (CONADEIP).\nDesde la cancha del Estadio Universitario BUAP, la Manada recibió este encuentro que de principio a fin fue muy disputado, pues los Tuzos de la UAZ trataron de sorprender con una descolgada inicial que terminó en un susto.",
+            "Conforme pasaron los primeros minutos, Lobos BUAP se asentó en la cancha teniendo algunas dificultades para generar su estilo ofensivo entre la lluvia, el pasto mojado y la postura defensiva.\nPasados los 10 minutos del partido, la Manada generó su primera ocasión en los linderos del área con un centro potente donde Jared López no pudo cerrar la pinza, elevando la acción con una alta dosis de intensidad, paridad, lucha y roces en la cancha de Ciudad Universitaria.",
+            "Superando los 20’ minutos, el juego se caracterizó por ser de ida y vuelta en el que ninguno dejó nada a la suerte, apostando a la velocidad, sin embargo, ninguno pudo aprovechar la constante posesión del esférico ante la cerrazón del otro que provocó muchos pases hacia atrás, lo que a su vez se reflejó con pocas llegadas a los arcos.\nLos dirigidos por Julio Abel Alcázar se mantuvieron enfocados en querer hacer daño por las bandas, teniendo una aproximación al 21’ por parte de Paul Rosales que sacó un disparo sin fuerza.",
+            "La Manada con Uriel Sainos, Daniel Sánchez y Máximo Posadas trató de ser insistente en todas las zonas sin mucho éxito.\nEntre tumbos y empujones, la jauría universitaria tuvo su primera aproximación clara con un remate de Jared López al 25’ que terminó muy desvíado. Posteriormente, en una descolgada, Daniel Sánchez dejó ir la oportunidad más clara de Lobos BUAP al 28’ con un remate directo que no pudo capitalizar para la jauría.",
+            "Pasada la media hora, la UAZ empezó a ganar confianza aprovechando algunos errores de los locales acercándose al arco licántropo, sin embargo, otra descolgada de Paul Rosales se quedó a nada de marcar la diferencia al 32’, sin embargo, el portero visitante se puso en plan grande que volvió a aparecer al minuto 37 siendo desviada.\nEn la recta final del primer tiempo, los Tuzos UAZ apretaron la zona baja viviendo sus mejores momentos del partido logrando acercarse con un par de centros sin mayor peligro.",
+            "Lobos BUAP trató de sacudirse el mal momento con un disparo lejano de Arath López al 44’, mientras que la visita buscó hacer daño con un contragolpe infructífero dejando el empate sin goles al descanso.\nPara el complemento, la lluvia se hizo presente generando más complicaciones en el partido que en todo momento fue muy ríspido para manos conjuntos, teniendo un duelo de ida y vuelta en el que se peleó el esférico en todas las áreas sin lograr acercarse a las porterías, extendiendo la sequía de emociones.",
+            "Al pasar los 50 minutos de partido, los Tuzos de la UAZ volvieron a dar señales de peligro, pues al 52’ desaprovechó un error increíble de la zaga defensiva lobezna que le dejó al delantero una clara oportunidad de adelantarse en el marcador, pero decidió alargar la pelota dejando escapar su chance más clara en el arco.\nEl ímpetu fue el protagonista del encuentro donde las faltas fueron una constante causando un lento ritmo. Lobos BUAP intentó darle vuelta al pasmoso nivel en CU, apostando al control masivo de la pelota con posesiones largas tratando de organizar alguna ocasión de peligro logrando dejar un susto en tiro de esquina.\nLlegando a los 60 minutos, el partido se mantuvo con pocas emociones debido a la paridad mostrada en la cancha, lo que generó una sacudida en la banca de los licántropos que paulatinamente empezó a tener acercamientos al arco visitante sin la contundencia mostrada en otros juegos.\nLuego de tanto estirar el encuentro, fue al minuto 71 cuando el partido por fin tuvo acción, pues el delanter"
+          ]
+        },
+        {
+          "source_ref": 1,
+          "title": "Promueve BUAP bienestar laboral con Carrera Vertical 2026 - tribunanoticias.mx",
+          "publication_date": "2026-10-10T06:21:37+00:00",
+          "captured_author": null,
+          "original": "Un total de 55 trabajadores de la Benemérita Universidad Autónoma de Puebla (BUAP) participaron en la Carrera Vertical 2026, una competencia realizada en las escaleras de la Torre de Gestión Académica y Servicios Administrativos para promover la actividad física y el bienestar de la comunidad universitaria.\nEl evento fue organizado por la Secretaría Administrativa, a través del programa de Cuidado Integral, Diagnóstico y Acompañamiento en Alimentación, Terapia y Ejercicio (CuIDAATE), iniciativa que ofrece atención interdisciplinaria para favorecer la salud física, emocional y laboral del personal universitario.\nEl primer lugar fue para Ángel Pérez Solís , quien completó el recorrido en tres minutos y 16 segundos. En segundo lugar quedó Eduardo Aldama Ramos, seguido de Luis David Orea Flores, quienes ocuparon el segundo y tercer puesto, respectivamente.\nLos diez primeros corredores recibieron un presente y el ganador obtuvo un artículo deportivo. Además, todos los participantes inscritos recibieron un reconocimiento por su participación.\nA través de CuIDAATE, la BUAP brinda acompañamiento personalizado, asesoría profesional y talleres especializados en alimentación, prevención y atención de lesiones, así como promoción de la actividad física.\nEl programa busca contribuir al bienestar integral de los trabajadores universitarios mediante acciones que favorezcan hábitos saludables y la atención de sus necesidades físicas y emocionales.",
+          "derived_summary": "55 trabajadores de la BUAP participaron en la Carrera Vertical 2026 en la Torre de Gestión Académica, evento organizado por la Secretaría Administrativa vía el programa CuIDAATE para promover el bienestar laboral. Ángel Pérez Solís ganó con 3:16 minutos.",
+          "passage_kind": "body",
+          "passages": [
+            "Un total de 55 trabajadores de la Benemérita Universidad Autónoma de Puebla (BUAP) participaron en la Carrera Vertical 2026, una competencia realizada en las escaleras de la Torre de Gestión Académica y Servicios Administrativos para promover la actividad física y el bienestar de la comunidad universitaria.",
+            "El evento fue organizado por la Secretaría Administrativa, a través del programa de Cuidado Integral, Diagnóstico y Acompañamiento en Alimentación, Terapia y Ejercicio (CuIDAATE), iniciativa que ofrece atención interdisciplinaria para favorecer la salud física, emocional y laboral del personal universitario.\nEl primer lugar fue para Ángel Pérez Solís , quien completó el recorrido en tres minutos y 16 segundos. En segundo lugar quedó Eduardo Aldama Ramos, seguido de Luis David Orea Flores, quienes ocuparon el segundo y tercer puesto, respectivamente.",
+            "Los diez primeros corredores recibieron un presente y el ganador obtuvo un artículo deportivo. Además, todos los participantes inscritos recibieron un reconocimiento por su participación.\nA través de CuIDAATE, la BUAP brinda acompañamiento personalizado, asesoría profesional y talleres especializados en alimentación, prevención y atención de lesiones, así como promoción de la actividad física.\nEl programa busca contribuir al bienestar integral de los trabajadores universitarios mediante acciones que favorezcan hábitos saludables y la atención de sus necesidades físicas y emocionales."
+          ]
+        },
+        {
+          "source_ref": 2,
+          "title": "Siete universitarios de la BUAP se capacitan en Japón con apoyo de OISCA - El Incorrecto",
+          "publication_date": "2026-10-10T08:15:25+00:00",
+          "captured_author": null,
+          "original": "Un total de siete estudiantes de la Benemérita Universidad Autónoma de Puebla (BUAP) han viajado a Japón para recibir capacitación en actividades productivas, ambientales y de desarrollo comunitario, como parte de un programa de la Organización Internacional para el Desarrollo de la Comunidad (OISCA), que busca trasladar los conocimientos adquiridos al trabajo en sus lugares de origen.\nJosé Martín Atela Echeverría, director ejecutivo de OISCA México , informó que la organización ha enviado a 15 jóvenes mexicanos a centros de formación en Japón . De ese grupo, aproximadamente siete pertenecen a la BUAP, mientras que las estancias de capacitación tienen una duración habitual de un año, con la posibilidad de extenderse en algunos casos.\nLa preparación incluye agricultura orgánica, producción de huevo, cultivo de hongos, elaboración de conservas y preparación de alimentos, además de conocimientos sobre economía familiar, liderazgo e idioma japonés.\nActualmente, tres jóvenes mexicanos permanecen en Japón : dos cursan programas de dos años y una participante realiza una estancia como voluntaria internacional, después de completar previamente un año de capacitación.\nPara 2027, otros dos universitarios de la BUAP fueron seleccionados para participar en el programa. Se trata de una joven originaria de San Isidro Atecozco y un joven de Pancingo, en el municipio de Ajalpan, quienes viajarán a Japón para permanecer aproximadamente un año en los centros de formación de la organización.\nAtela Echeverría explicó que OISCA Internacional y OISCA Japón financian la capacitación, incluida la alimentación y los traslados durante la estancia, además de brindar apoyos económicos para cubrir algunas necesidades personales de los participantes. El objetivo es que la experiencia internacional les permita desarrollar habilidades que puedan aplicar posteriormente en sus comunidades.\nAdemás del intercambio internacional, OISCA desarrolla proyectos ambientales en territorio poblano. Durante los últimos dos años, la organización estableció 14 viveros, algunos en planteles educativos, donde mantiene seguimiento para asegurar su funcionamiento y fortalecer la participación de estudiantes y comunidades.\nUno de estos espacios se creó en colaboración con el Complejo Regional Sur de la BUAP, en Tehuacán . Actualmente, la organización trabaja en cinco municipios vinculados con el acuífero de esa región, con actividades de viverismo, reforestación, agricultura agroecológica y agroforestal, así como conservación del suelo, el agua y la biodiversidad.\nSu meta es ampliar progresivamente la cobertura hasta llegar a los 21 municipios con influencia en el acuífero de Tehuacán.\nEl director de OISCA México sostuvo que el trabajo no termina con la instalación de un vivero o la plantación de árboles, sino que requiere acompañamiento constante y colaboración con las comunidades e instituciones.\nBajo este modelo, la organización busca vincular la formación de jóvenes en Japón con proyectos productivos y ambientales que contribuyan al desarrollo local.",
+          "derived_summary": "Siete estudiantes de la BUAP viajaron a Japón para capacitarse en actividades productivas, ambientales y de desarrollo comunitario mediante el programa de OISCA. Para 2027 otros dos universitarios fueron seleccionados para participar.",
+          "passage_kind": "body",
+          "passages": [
+            "Un total de siete estudiantes de la Benemérita Universidad Autónoma de Puebla (BUAP) han viajado a Japón para recibir capacitación en actividades productivas, ambientales y de desarrollo comunitario, como parte de un programa de la Organización Internacional para el Desarrollo de la Comunidad (OISCA), que busca trasladar los conocimientos adquiridos al trabajo en sus lugares de origen.\nJosé Martín Atela Echeverría, director ejecutivo de OISCA México , informó que la organización ha enviado a 15 jóvenes mexicanos a centros de formación en Japón .",
+            "De ese grupo, aproximadamente siete pertenecen a la BUAP, mientras que las estancias de capacitación tienen una duración habitual de un año, con la posibilidad de extenderse en algunos casos.\nLa preparación incluye agricultura orgánica, producción de huevo, cultivo de hongos, elaboración de conservas y preparación de alimentos, además de conocimientos sobre economía familiar, liderazgo e idioma japonés.",
+            "Actualmente, tres jóvenes mexicanos permanecen en Japón : dos cursan programas de dos años y una participante realiza una estancia como voluntaria internacional, después de completar previamente un año de capacitación.\nPara 2027, otros dos universitarios de la BUAP fueron seleccionados para participar en el programa. Se trata de una joven originaria de San Isidro Atecozco y un joven de Pancingo, en el municipio de Ajalpan, quienes viajarán a Japón para permanecer aproximadamente un año en los centros de formación de la organización.",
+            "Atela Echeverría explicó que OISCA Internacional y OISCA Japón financian la capacitación, incluida la alimentación y los traslados durante la estancia, además de brindar apoyos económicos para cubrir algunas necesidades personales de los participantes. El objetivo es que la experiencia internacional les permita desarrollar habilidades que puedan aplicar posteriormente en sus comunidades.\nAdemás del intercambio internacional, OISCA desarrolla proyectos ambientales en territorio poblano.",
+            "Durante los últimos dos años, la organización estableció 14 viveros, algunos en planteles educativos, donde mantiene seguimiento para asegurar su funcionamiento y fortalecer la participación de estudiantes y comunidades.\nUno de estos espacios se creó en colaboración con el Complejo Regional Sur de la BUAP, en Tehuacán . Actualmente, la organización trabaja en cinco municipios vinculados con el acuífero de esa región, con actividades de viverismo, reforestación, agricultura agroecológica y agroforestal, así como conservación del suelo, el agua y la biodiversidad.",
+            "Su meta es ampliar progresivamente la cobertura hasta llegar a los 21 municipios con influencia en el acuífero de Tehuacán.\nEl director de OISCA México sostuvo que el trabajo no termina con la instalación de un vivero o la plantación de árboles, sino que requiere acompañamiento constante y colaboración con las comunidades e instituciones.\nBajo este modelo, la organización busca vincular la formación de jóvenes en Japón con proyectos productivos y ambientales que contribuyan al desarrollo local."
+          ]
+        },
+        {
+          "source_ref": 3,
+          "title": "Un año de logros bajo el liderazgo de la Dra. Lilia Cedillo Ramírez - e-consulta.com",
+          "publication_date": "2026-10-10T13:27:53+00:00",
+          "captured_author": null,
+          "original": "Médico de profesión, maestro en Ciencias Fisiológicas por la BUAP y doctor en Neurociencias por el CINVESTAV del IPN. Es miembro del SNI y de la Academia Nacional de Medicina. Actualmente es director General de Internacionalización de la Benemérita Universidad Autónoma de Puebla.\nLa gestión de la Dra. María Lilia Cedillo Ramírez al frente de la Benemérita Universidad Autónoma de Puebla se ha orientado a ampliar el acceso a la educación superior, fortalecer la investigación, modernizar la infraestructura y promover el bienestar de la comunidad universitaria.\nDurante su primer informe se destaca la creación de 49 planes de estudio y la extensión de programas educativos a los Complejos Regionales, con el propósito de acercar la formación universitaria a más municipios. La universidad ya tiene presencia en 32 municipios y se han dado cambios en los procesos de ingreso, lo que significa que se ha duplicado el número de estudiantes a la institución en tan solo 5 años. Esto hace que la matrícula actual rebase los 130,000 estudiantes . Esto se debe a una política de admisión que favorece el ingreso de más estudiantes, además de que los apoyos económicos se han incrementado a través de distintas becas. Para mejorar las tasas de egreso y de titulación se está implementando un sistema de microcredenciales, que dotarán a los estudiantes de herramientas que favorezcan su ingreso al mercado laboral además de programas con formación dual, un proceso de internacionalización con diferentes estrategias y los compromisos con la sociedad, con lo que la universidad hoy más que nunca impacta diferentes sectores sociales y privados.\nLa Benemérita Universidad Autónoma de Puebla ha mantenido una importante comunidad científica, con más de mil investigadores reconocidos en el Sistema Nacional de Investigadoras e Investigadores. Se han impulsado proyectos en salud, medio ambiente, ciencias agroalimentarias, tecnologías estratégicas y humanidades. La Universidad es ya la cuarta universidad con más títulos de patentes, y ya se está trabajando en fortalecer a los laboratorios, en transferencia de conocimiento y en proyectos que atiendan necesidades concretas de Puebla, la región y el país.\nLos avances en Ciudad Universitaria 2 representan uno de los proyectos emblemáticos para ampliar la matrícula en las áreas de ingenierías y de ciencias naturales. A ello se suman acciones de equipamiento a los laboratorios, infraestructura de simulación para ciencias de la salud, ingeniería, biología y una mejora en las instalaciones universitarias. La agenda ambiental incluye reforestación, uso eficiente de energía y de protección del entorno en la zona de Valsequillo.\nPara la salud emocional se ha vuelto prioritaria la atención a situaciones de violencia o discriminación, en este aspecto son importantes el Centro de Apoyo Emocional y Terapia Ocupacional y los perros adiestrados para operar como coterapeutas que se han vuelto un ejemplo a nivel nacional. La institución tiene uno de los sistemas más eficientes de apoyo y reconocimiento al personal docente y administrativo . Tras las expresiones de inconformidad estudiantil, se ha subrayado la necesidad de mejorar la comunicación y dar seguimiento verificable a los acuerdos en plataformas digitales abiertas a todos los universitarios y a la sociedad. La confianza institucional se basa sin duda en procesos transparentes, con participación efectiva de todos los sectores de la universidad y de una vocación de rendición de cuentas.\nEl principal resultado de este primer año es la expansión de la matrícula y una atención integral a toda la comunidad universitaria en programas de salud, de activación física, de mejora en la atención en el Hospital Universitario de Puebla. La Benemérita Universidad Autónoma de Puebla es una institución que tiene políticas claras de respeto con un código de ética, una defensoría con áreas enfocadas a evitar la violencia, de no discriminación por razones de género, raza, creencia religiosas, etc. S",
+          "derived_summary": "La rectora de la BUAP, María Lilia Cedillo Ramírez, presenta su primer informe de gestión destacando la creación de 49 planes de estudio, la expansión a 32 municipios y el aumento de la matrícula a más de 130,000 estudiantes.",
+          "passage_kind": "body",
+          "passages": [
+            "Médico de profesión, maestro en Ciencias Fisiológicas por la BUAP y doctor en Neurociencias por el CINVESTAV del IPN. Es miembro del SNI y de la Academia Nacional de Medicina. Actualmente es director General de Internacionalización de la Benemérita Universidad Autónoma de Puebla.\nLa gestión de la Dra. María Lilia Cedillo Ramírez al frente de la Benemérita Universidad Autónoma de Puebla se ha orientado a ampliar el acceso a la educación superior, fortalecer la investigación, modernizar la infraestructura y promover el bienestar de la comunidad universitaria.",
+            "Durante su primer informe se destaca la creación de 49 planes de estudio y la extensión de programas educativos a los Complejos Regionales, con el propósito de acercar la formación universitaria a más municipios. La universidad ya tiene presencia en 32 municipios y se han dado cambios en los procesos de ingreso, lo que significa que se ha duplicado el número de estudiantes a la institución en tan solo 5 años. Esto hace que la matrícula actual rebase los 130,000 estudiantes .",
+            "Esto se debe a una política de admisión que favorece el ingreso de más estudiantes, además de que los apoyos económicos se han incrementado a través de distintas becas. Para mejorar las tasas de egreso y de titulación se está implementando un sistema de microcredenciales, que dotarán a los estudiantes de herramientas que favorezcan su ingreso al mercado laboral además de programas con formación dual, un proceso de internacionalización con diferentes estrategias y los compromisos con la sociedad, con lo que la universidad hoy más que nunca impacta diferentes sectores sociales y privados.",
+            "La Benemérita Universidad Autónoma de Puebla ha mantenido una importante comunidad científica, con más de mil investigadores reconocidos en el Sistema Nacional de Investigadoras e Investigadores. Se han impulsado proyectos en salud, medio ambiente, ciencias agroalimentarias, tecnologías estratégicas y humanidades. La Universidad es ya la cuarta universidad con más títulos de patentes, y ya se está trabajando en fortalecer a los laboratorios, en transferencia de conocimiento y en proyectos que atiendan necesidades concretas de Puebla, la región y el país.",
+            "Los avances en Ciudad Universitaria 2 representan uno de los proyectos emblemáticos para ampliar la matrícula en las áreas de ingenierías y de ciencias naturales. A ello se suman acciones de equipamiento a los laboratorios, infraestructura de simulación para ciencias de la salud, ingeniería, biología y una mejora en las instalaciones universitarias. La agenda ambiental incluye reforestación, uso eficiente de energía y de protección del entorno en la zona de Valsequillo.",
+            "Para la salud emocional se ha vuelto prioritaria la atención a situaciones de violencia o discriminación, en este aspecto son importantes el Centro de Apoyo Emocional y Terapia Ocupacional y los perros adiestrados para operar como coterapeutas que se han vuelto un ejemplo a nivel nacional. La institución tiene uno de los sistemas más eficientes de apoyo y reconocimiento al personal docente y administrativo .",
+            "Tras las expresiones de inconformidad estudiantil, se ha subrayado la necesidad de mejorar la comunicación y dar seguimiento verificable a los acuerdos en plataformas digitales abiertas a todos los universitarios y a la sociedad. La confianza institucional se basa sin duda en procesos transparentes, con participación efectiva de todos los sectores de la universidad y de una vocación de rendición de cuentas.\nEl principal resultado de este primer año es la expansión de la matrícula y una atención integral a toda la comunidad universitaria en programas de salud, de activación física, de mejora en la atención en el Hospital Universitario de Puebla. La Benemérita Universidad Autónoma de Puebla es una institución que tiene políticas claras de respeto con un código de ética, una defensoría con áreas enfocadas a evitar la violencia, de no discriminación por razones de género, raza, creencia religiosas, etc. S"
+          ]
+        },
+        {
+          "source_ref": 4,
+          "title": "Inauguran mural en el Complejo Regional Mixteca de la BUAP - leviatan.mx",
+          "publication_date": "2026-10-10T18:02:46+00:00",
+          "captured_author": null,
+          "original": "PUEBLA.- La sede Atlixco del Complejo Regional Mixteca de la BUAP amaneció más colorida, más viva y más suya. Estudiantes del taller “Pintando nuestra identidad colectiva” develaron un mural que refleja su visión del territorio, la comunidad y la identidad universitaria.\nLa iniciativa, organizada por la Vicerrectoría de Extensión y Difusión de la Cultura (VEDC) , busca que las y los jóvenes se apropien de los espacios, trabajen en equipo y expresen su talento a través del arte.\nEl mural es resultado de días de trabajo colaborativo, diálogo y creatividad. Cada trazo y cada color representan la mirada de las y los estudiantes sobre su entorno, su historia y su papel dentro de la BUAP.\nSu presencia reafirmó el compromiso institucional de impulsar proyectos culturales que fortalezcan la identidad universitaria y acerquen el arte a todas las sedes regionales.\nEste mural no solo embellece el espacio: cuenta quiénes son, de dónde vienen y hacia dónde quieren ir .\nPUEBLA.- La BUAP sigue demostrando el talento de su comunidad estudiantil en el escenario internacional. Los\nPUEBLA, Pue.— Con la participación de 134 autoras y autores nacionales e internacionales, concluyó el I\nPUEBLA, Pue.— El Gobierno del Estado otorgó el primer lugar en el Concurso Estatal de Proyecto",
+          "derived_summary": "Estudiantes del taller 'Pintando nuestra identidad colectiva' develaron un mural en la sede Atlixco del Complejo Regional Mixteca de la BUAP, reflejando su visión del territorio y la identidad universitaria. La iniciativa fue organizada por la Vicerrectoría de Extensión y Difusión de la Cultura.",
+          "passage_kind": "body",
+          "passages": [
+            "PUEBLA.- La sede Atlixco del Complejo Regional Mixteca de la BUAP amaneció más colorida, más viva y más suya. Estudiantes del taller “Pintando nuestra identidad colectiva” develaron un mural que refleja su visión del territorio, la comunidad y la identidad universitaria.\nLa iniciativa, organizada por la Vicerrectoría de Extensión y Difusión de la Cultura (VEDC) , busca que las y los jóvenes se apropien de los espacios, trabajen en equipo y expresen su talento a través del arte.\nEl mural es resultado de días de trabajo colaborativo, diálogo y creatividad.",
+            "Cada trazo y cada color representan la mirada de las y los estudiantes sobre su entorno, su historia y su papel dentro de la BUAP.\nSu presencia reafirmó el compromiso institucional de impulsar proyectos culturales que fortalezcan la identidad universitaria y acerquen el arte a todas las sedes regionales.\nEste mural no solo embellece el espacio: cuenta quiénes son, de dónde vienen y hacia dónde quieren ir .\nPUEBLA.- La BUAP sigue demostrando el talento de su comunidad estudiantil en el escenario internacional.",
+            "Los\nPUEBLA, Pue.— Con la participación de 134 autoras y autores nacionales e internacionales, concluyó el I\nPUEBLA, Pue.— El Gobierno del Estado otorgó el primer lugar en el Concurso Estatal de Proyecto"
+          ]
+        },
+        {
+          "source_ref": 5,
+          "title": "Inauguran mural en el Complejo Regional Mixteca de la BUAP - Contraparte | Periodismo en Equilibrio",
+          "publication_date": "2026-10-10T17:59:00+00:00",
+          "captured_author": null,
+          "original": "La obra pictórica se realizó en la sede Atlixco por estudiantes\nEn la sede Atlixco, del Complejo Regional Mixteca, se develó el mural realizado por alumnos del taller “Pintando nuestra identidad colectiva”, iniciativa organizada por la Vicerrectoría de Extensión y Difusión de la Cultura (VEDC), con la intención de que la comunidad estudiantil participe, trabaje, sea creativa y muestre su talento.\nEncabezaron el acto, Damián Hernández Méndez, Secretario General de la BUAP; Juan Antonio Cruz Moctezuma, Secretario Administrativo, y Rosalinda Merino Calderón, encargada de despacho de la VEDC.",
+          "derived_summary": "Se inauguró un mural en la sede Atlixco del Complejo Regional Mixteca de la BUAP, realizado por alumnos del taller 'Pintando nuestra identidad colectiva'. La iniciativa fue organizada por la Vicerrectoría de Extensión y Difusión de la Cultura.",
+          "passage_kind": "body",
+          "passages": [
+            "La obra pictórica se realizó en la sede Atlixco por estudiantes\nEn la sede Atlixco, del Complejo Regional Mixteca, se develó el mural realizado por alumnos del taller “Pintando nuestra identidad colectiva”, iniciativa organizada por la Vicerrectoría de Extensión y Difusión de la Cultura (VEDC), con la intención de que la comunidad estudiantil participe, trabaje, sea creativa y muestre su talento.\nEncabezaron el acto, Damián Hernández Méndez, Secretario General de la BUAP; Juan Antonio Cruz Moctezuma, Secretario Administrativo, y Rosalinda Merino Calderón, encargada de despacho de la VEDC."
+          ]
+        },
+        {
+          "source_ref": 6,
+          "title": "BUAP devela mural colectivo en Complejo Regional Mixteca - Hipócrita Lector",
+          "publication_date": "2026-10-10T18:24:29+00:00",
+          "captured_author": null,
+          "original": "Con el propósito de fomentar la participación artística y el trabajo colaborativo en la vida universitaria, autoridades de la Benemérita Universidad Autónoma de Puebla (BUAP) inauguraron una nueva obra pictórica en las instalaciones de la sede Atlixco , perteneciente al Complejo Regional Mixteca .\nLa pieza artística fue desarrollada de manera colectiva por alumnas y alumnos participantes en el taller “Pintando nuestra identidad colectiva” , un espacio formativo impulsado para canalizar la creatividad y el sentido de pertenencia entre los jóvenes de la región.\nEl proyecto estuvo coordinado por la Vicerrectoría de Extensión y Difusión de la Cultura (VEDC) , instancia que diseñó esta iniciativa para propiciar espacios donde la comunidad estudiantil se involucre directamente en la intervención y apropiación de sus áreas formativas mediante el talento visual.\nA través de esta dinámica, el alumnado plasmó elementos gráficos representativos de la convivencia escolar y la identidad local, reforzando las actividades extracurriculares en los complejos regionales de la máxima casa de estudios.\nLa ceremonia oficial de develación estuvo encabezada por el secretario general de la institución, Damián Hernández Méndez , en compañía del secretario administrativo, Juan Antonio Cruz Moctezuma , y la encargada de despacho de la VEDC, Rosalinda Merino Calderón .\nDurante el acto protocolario, los directivos universitarios destacaron la relevancia de abrir canales institucionales que articulen el desarrollo académico con las expresiones culturales comunitarias en cada uno de los campus universitarios de la entidad.",
+          "derived_summary": "La BUAP inauguró un mural colectivo en la sede Atlixco del Complejo Regional Mixteca, creado por estudiantes del taller 'Pintando nuestra identidad colectiva' coordinado por la VEDC. La develación fue encabezada por el secretario general Damián Hernández Méndez.",
+          "passage_kind": "body",
+          "passages": [
+            "Con el propósito de fomentar la participación artística y el trabajo colaborativo en la vida universitaria, autoridades de la Benemérita Universidad Autónoma de Puebla (BUAP) inauguraron una nueva obra pictórica en las instalaciones de la sede Atlixco , perteneciente al Complejo Regional Mixteca .\nLa pieza artística fue desarrollada de manera colectiva por alumnas y alumnos participantes en el taller “Pintando nuestra identidad colectiva” , un espacio formativo impulsado para canalizar la creatividad y el sentido de pertenencia entre los jóvenes de la región.",
+            "El proyecto estuvo coordinado por la Vicerrectoría de Extensión y Difusión de la Cultura (VEDC) , instancia que diseñó esta iniciativa para propiciar espacios donde la comunidad estudiantil se involucre directamente en la intervención y apropiación de sus áreas formativas mediante el talento visual.\nA través de esta dinámica, el alumnado plasmó elementos gráficos representativos de la convivencia escolar y la identidad local, reforzando las actividades extracurriculares en los complejos regionales de la máxima casa de estudios.",
+            "La ceremonia oficial de develación estuvo encabezada por el secretario general de la institución, Damián Hernández Méndez , en compañía del secretario administrativo, Juan Antonio Cruz Moctezuma , y la encargada de despacho de la VEDC, Rosalinda Merino Calderón .\nDurante el acto protocolario, los directivos universitarios destacaron la relevancia de abrir canales institucionales que articulen el desarrollo académico con las expresiones culturales comunitarias en cada uno de los campus universitarios de la entidad."
+          ]
+        },
+        {
+          "source_ref": 7,
+          "title": "Inauguran mural en el Complejo Regional Mixteca de la BUAP - Primera Plana Puebla",
+          "publication_date": "2026-10-10T19:39:28+00:00",
+          "captured_author": null,
+          "original": "El arte se convirtió en un espacio de expresión y encuentro para estudiantes de la Benemérita Universidad Autónoma de Puebla (BUAP), quienes plasmaron su creatividad en un mural colectivo develado en la sede Atlixco del Complejo Regional Mixteca.\nLa obra es resultado del taller “Pintando nuestra identidad colectiva” , una iniciativa organizada por la Vicerrectoría de Extensión y Difusión de la Cultura (VEDC), con el propósito de promover la participación estudiantil, el trabajo colaborativo y la expresión artística.\nA través de esta actividad, los universitarios encontraron en la pintura una oportunidad para compartir ideas, desarrollar su talento y contribuir a la construcción de una identidad colectiva mediante el arte.\nLa ceremonia de develación estuvo encabezada por el secretario General de la BUAP, Damián Hernández Méndez; el secretario Administrativo, Juan Antonio Cruz Moctezuma, y la encargada de despacho de la VEDC, Rosalinda Merino Calderón.\nCon este tipo de iniciativas, la BUAP busca fortalecer la vinculación de sus estudiantes con las actividades culturales y abrir espacios donde la creatividad y el trabajo colectivo formen parte de su desarrollo universitario.",
+          "derived_summary": "La BUAP inauguró un mural colectivo en la sede Atlixco del Complejo Regional Mixteca, creado por estudiantes en el taller 'Pintando nuestra identidad colectiva'. La develación fue encabezada por el secretario General Damián Hernández Méndez, el secretario Administrativo Juan Antonio Cruz Moctezuma y",
+          "passage_kind": "body",
+          "passages": [
+            "El arte se convirtió en un espacio de expresión y encuentro para estudiantes de la Benemérita Universidad Autónoma de Puebla (BUAP), quienes plasmaron su creatividad en un mural colectivo develado en la sede Atlixco del Complejo Regional Mixteca.\nLa obra es resultado del taller “Pintando nuestra identidad colectiva” , una iniciativa organizada por la Vicerrectoría de Extensión y Difusión de la Cultura (VEDC), con el propósito de promover la participación estudiantil, el trabajo colaborativo y la expresión artística.",
+            "A través de esta actividad, los universitarios encontraron en la pintura una oportunidad para compartir ideas, desarrollar su talento y contribuir a la construcción de una identidad colectiva mediante el arte.\nLa ceremonia de develación estuvo encabezada por el secretario General de la BUAP, Damián Hernández Méndez; el secretario Administrativo, Juan Antonio Cruz Moctezuma, y la encargada de despacho de la VEDC, Rosalinda Merino Calderón.",
+            "Con este tipo de iniciativas, la BUAP busca fortalecer la vinculación de sus estudiantes con las actividades culturales y abrir espacios donde la creatividad y el trabajo colectivo formen parte de su desarrollo universitario."
+          ]
+        },
+        {
+          "source_ref": 8,
+          "title": "Calaveras y Catrinas llegará al CCU BUAP con artesanías y actividades por Día de Muertos - El Sol de México",
+          "publication_date": "2026-10-10T21:34:53+00:00",
+          "captured_author": null,
+          "original": "La primera edición en Puebla reunirá a creadores mexicanos con productos hechos a mano, además de ofrecer maquillaje temático y presentaciones artísticas\n¿Te quedas fuera de la conversación? Mandamos a tu correo el mejor resumen informativo.",
+          "derived_summary": "La primera edición en Puebla del evento Calaveras y Catrinas llegará al CCU BUAP por Día de Muertos, con artesanías de creadores mexicanos, maquillaje temático y presentaciones artísticas.",
+          "passage_kind": "body",
+          "passages": [
+            "La primera edición en Puebla reunirá a creadores mexicanos con productos hechos a mano, además de ofrecer maquillaje temático y presentaciones artísticas\n¿Te quedas fuera de la conversación? Mandamos a tu correo el mejor resumen informativo."
+          ]
+        },
+        {
+          "source_ref": 9,
+          "title": "Inauguran mural en el Complejo Regional Mixteca de la BUAP - e-consulta.com",
+          "publication_date": "2026-10-10T21:03:38+00:00",
+          "captured_author": null,
+          "original": "La obra pictórica se realizó en la sede de Atlixco de la BUAP por sus estudiantes\nEn la sede Atlixco del Complejo Regional Mixteca de la Benemeritica Universidad Autónoma de Puebla ( BUAP ), se develó el mural que llevaron a cabo alumnos del taller Pintando nuestra identidad colectiva.\nPintando nuestra identidad colectiva se trata de iniciativa que organizó la Vicerrectoría de Extensión y Difusión de la Cultura (VEDC) de la BUAP con la intención de que la comunidad estudiantil participe, trabaje, sea creativa y muestre su talento en la misma universidad.\nLa obra compuesta por mosaicos de diversos colores muestra simbología que refiere a las costumbres de la Mixteca poblana, así como la biodiversidad de la misma. El mural también recuerda al pedagogo brasileño Paulo Freire , iniciador del movimiento educativo y político conocido como pedagogía de la liberación .\nEn la imagen de Paulo Freire los alumnoscitaron “la educación no cambia el mundo, cambia a las personas que van a cambiar el mundo”, una de sus frases más reconocidas.\nEncabezaron el acto en el Complejo Regional Mixteca, Damián Hernández Méndez, secretario general de la BUAP ; Juan Antonio Cruz Moctezuma, secretario administrativo, y Rosalinda Merino Calderón, encargada de despacho de la VEDC . (JRLM)",
+          "derived_summary": "La BUAP develó un mural en la sede Atlixco del Complejo Regional Mixteca, realizado por alumnos del taller Pintando nuestra identidad colectiva. La obra refleja la cultura mixteca poblana y homenajea al pedagogo Paulo Freire.",
+          "passage_kind": "body",
+          "passages": [
+            "La obra pictórica se realizó en la sede de Atlixco de la BUAP por sus estudiantes\nEn la sede Atlixco del Complejo Regional Mixteca de la Benemeritica Universidad Autónoma de Puebla ( BUAP ), se develó el mural que llevaron a cabo alumnos del taller Pintando nuestra identidad colectiva.\nPintando nuestra identidad colectiva se trata de iniciativa que organizó la Vicerrectoría de Extensión y Difusión de la Cultura (VEDC) de la BUAP con la intención de que la comunidad estudiantil participe, trabaje, sea creativa y muestre su talento en la misma universidad.",
+            "La obra compuesta por mosaicos de diversos colores muestra simbología que refiere a las costumbres de la Mixteca poblana, así como la biodiversidad de la misma. El mural también recuerda al pedagogo brasileño Paulo Freire , iniciador del movimiento educativo y político conocido como pedagogía de la liberación .\nEn la imagen de Paulo Freire los alumnoscitaron “la educación no cambia el mundo, cambia a las personas que van a cambiar el mundo”, una de sus frases más reconocidas.",
+            "Encabezaron el acto en el Complejo Regional Mixteca, Damián Hernández Méndez, secretario general de la BUAP ; Juan Antonio Cruz Moctezuma, secretario administrativo, y Rosalinda Merino Calderón, encargada de despacho de la VEDC . (JRLM)"
+          ]
+        },
+        {
+          "source_ref": 10,
+          "title": "Inauguran en la sede Atlixco de la BUAP el mural “Pintando nuestra identidad colectiva” - Quadratín Puebla",
+          "publication_date": "2026-10-10T21:30:00+00:00",
+          "captured_author": null,
+          "original": "PUEBLA, Pue., 10 de octubre de 2026.- Con el propósito de fomentar la participación, la creatividad y la expresión artística de la comunidad estudiantil, la Benemérita Universidad Autónoma de Puebla (BUAP) llevó a cabo la develación del mural realizado en la sede Atlixco , perteneciente al Complejo Regional Mixteca .\nLa obra fue creada por los propios alumnos como resultado del taller \"Pintando nuestra identidad colectiva\" , iniciativa impulsada y organizada por la Vicerrectoría de Extensión y Difusión de la Cultura (VEDC) para abrir espacios de integración y desarrollo talento universitario.\nEl acto protocolario contó con la presencia del secretario general de la BUAP, Damián Hernández Méndez ; el secretario administrativo, Juan Antonio Cruz Moctezuma ; y la encargada de despacho de la VEDC, Rosalinda Merino Calderón , quienes destacaron el valor cultural de la obra para el campus.\nLa intervención artística busca consolidar los espacios universitarios regionales a través del trabajo colaborativo:",
+          "derived_summary": "La BUAP develó el mural 'Pintando nuestra identidad colectiva' en su sede Atlixco, creado por alumnos del taller homónimo impulsado por la Vicerrectoría de Extensión y Difusión de la Cultura. Autoridades universitarias destacaron el valor cultural de la obra.",
+          "passage_kind": "body",
+          "passages": [
+            "PUEBLA, Pue., 10 de octubre de 2026.- Con el propósito de fomentar la participación, la creatividad y la expresión artística de la comunidad estudiantil, la Benemérita Universidad Autónoma de Puebla (BUAP) llevó a cabo la develación del mural realizado en la sede Atlixco , perteneciente al Complejo Regional Mixteca .\nLa obra fue creada por los propios alumnos como resultado del taller \"Pintando nuestra identidad colectiva\" , iniciativa impulsada y organizada por la Vicerrectoría de Extensión y Difusión de la Cultura (VEDC) para abrir espacios de integración y desarrollo talento universitario.",
+            "El acto protocolario contó con la presencia del secretario general de la BUAP, Damián Hernández Méndez ; el secretario administrativo, Juan Antonio Cruz Moctezuma ; y la encargada de despacho de la VEDC, Rosalinda Merino Calderón , quienes destacaron el valor cultural de la obra para el campus.\nLa intervención artística busca consolidar los espacios universitarios regionales a través del trabajo colaborativo:"
+          ]
+        },
+        {
+          "source_ref": 11,
+          "title": "Inauguran mural en el Complejo Regional Mixteca de la BUAP - Boletines BUAP |",
+          "publication_date": "2026-10-10T17:48:00+00:00",
+          "captured_author": null,
+          "original": "En la sede Atlixco, del Complejo Regional Mixteca, se develó el mural realizado por alumnos del taller “Pintando nuestra identidad colectiva”, iniciativa organizada por la Vicerrectoría de Extensión y Difusión de la Cultura (VEDC), con la intención de que la comunidad estudiantil participe, trabaje, sea creativa y muestre su talento.\nEncabezaron el acto, Damián Hernández Méndez, Secretario General de la BUAP; Juan Antonio Cruz Moctezuma, Secretario Administrativo, y Rosalinda Merino Calderón, encargada de despacho de la VEDC.",
+          "derived_summary": "Se develó un mural en la sede Atlixco del Complejo Regional Mixteca de la BUAP, realizado por alumnos del taller 'Pintando nuestra identidad colectiva'. El acto fue encabezado por autoridades de la BUAP y la VEDC.",
+          "passage_kind": "body",
+          "passages": [
+            "En la sede Atlixco, del Complejo Regional Mixteca, se develó el mural realizado por alumnos del taller “Pintando nuestra identidad colectiva”, iniciativa organizada por la Vicerrectoría de Extensión y Difusión de la Cultura (VEDC), con la intención de que la comunidad estudiantil participe, trabaje, sea creativa y muestre su talento.\nEncabezaron el acto, Damián Hernández Méndez, Secretario General de la BUAP; Juan Antonio Cruz Moctezuma, Secretario Administrativo, y Rosalinda Merino Calderón, encargada de despacho de la VEDC."
+          ]
+        },
+        {
+          "source_ref": 12,
+          "title": "Tapitas por la educación 2026: dónde donar tapas de plástico en la BUAP - Poblanerías",
+          "publication_date": "2026-10-10T17:15:20+00:00",
+          "captured_author": null,
+          "original": "A partir del 1 de octubre al 16 de diciembre, el Centro Universitario de Participación Social de la BUAP recaudará tapas de plástico de botellas de agua, refresco, leche (que no tengan Tetra Pak o metal) y detergentes. Esto, dentro de la campaña “Tapitas por la educación 2026”.\nA través de sus redes sociales, el Centro Universitario de Participación Social explica que todo lo recaudado será en beneficio de niñas y niños de las escuelas comunitarias del mismo centro.\nLa BUAP contará con diversos centros de acopio para facilitar la participación de la comunidad. El primero se encuentra en Ciudad Universitaria BUAP , ubicada en Av. del Infante s/n, con un horario de atención de lunes a viernes, de 10:00 a 16:00 horas.\nOtro centro de acopio de tapas de plástico estará ubicado en la Biblioteca Central Universitaria BUAP, en Av. del Conocimiento s/n, dentro de Ciudad Universitaria. Este espacio recibirá donaciones de lunes a sábado, de 8:00 a 20:00 horas.\nAsimismo, se podrán entregar donaciones en la Torre de Gestión Académica y Servicios Administrativos BUAP , ubicada en Av. Central s/n, en Ciudad Universitaria BUAP. Su horario de atención será de lunes a viernes, de 10:00 a 17:00 horas.\nSigue leyendo: Cine de terror gratis: El resplandor, El exorcista y más en Puebla\nLa Casa del Jubilado BUAP , ubicada en Río Suchiate 5505, Colonia Jardines de San Manuel, también funcionará como centro de acopio. En este lugar se recibirán las tapas de plástico de lunes a viernes, de 9:00 a 16:00 horas.\nFinalmente, el Centro Universitario de Participación Social de la BUAP que se encuentra ubicado en 4 Sur 302, Colonia Centro atenderá de lunes a viernes, de 9:00 a 17:00 horas.",
+          "derived_summary": "La BUAP, a través del Centro Universitario de Participación Social, realiza la campaña 'Tapitas por la educación 2026' del 1 de octubre al 16 de diciembre para recaudar tapas de plástico en beneficio de niñas y niños de escuelas comunitarias. Se habilitan centros de acopio en Ciudad Universitaria, l",
+          "passage_kind": "body",
+          "passages": [
+            "A partir del 1 de octubre al 16 de diciembre, el Centro Universitario de Participación Social de la BUAP recaudará tapas de plástico de botellas de agua, refresco, leche (que no tengan Tetra Pak o metal) y detergentes. Esto, dentro de la campaña “Tapitas por la educación 2026”.\nA través de sus redes sociales, el Centro Universitario de Participación Social explica que todo lo recaudado será en beneficio de niñas y niños de las escuelas comunitarias del mismo centro.\nLa BUAP contará con diversos centros de acopio para facilitar la participación de la comunidad.",
+            "El primero se encuentra en Ciudad Universitaria BUAP , ubicada en Av. del Infante s/n, con un horario de atención de lunes a viernes, de 10:00 a 16:00 horas.\nOtro centro de acopio de tapas de plástico estará ubicado en la Biblioteca Central Universitaria BUAP, en Av. del Conocimiento s/n, dentro de Ciudad Universitaria. Este espacio recibirá donaciones de lunes a sábado, de 8:00 a 20:00 horas.\nAsimismo, se podrán entregar donaciones en la Torre de Gestión Académica y Servicios Administrativos BUAP , ubicada en Av. Central s/n, en Ciudad Universitaria BUAP.",
+            "Su horario de atención será de lunes a viernes, de 10:00 a 17:00 horas.\nSigue leyendo: Cine de terror gratis: El resplandor, El exorcista y más en Puebla\nLa Casa del Jubilado BUAP , ubicada en Río Suchiate 5505, Colonia Jardines de San Manuel, también funcionará como centro de acopio. En este lugar se recibirán las tapas de plástico de lunes a viernes, de 9:00 a 16:00 horas.\nFinalmente, el Centro Universitario de Participación Social de la BUAP que se encuentra ubicado en 4 Sur 302, Colonia Centro atenderá de lunes a viernes, de 9:00 a 17:00 horas."
+          ]
+        },
+        {
+          "source_ref": 13,
+          "title": "Alumnos de la BUAP plasman su identidad colectiva en un mural en la sede Atlixco - El Popular, periodismo con causa",
+          "publication_date": "2026-10-10T23:31:00+00:00",
+          "captured_author": null,
+          "original": "Estudiantes de la BUAP realizaron un mural en la sede Atlixco mediante el taller “Pintando nuestra identidad colectiva”, impulsado por la VEDC\nLa Benemérita Universidad Autónoma de Puebla ( BUAP ) develó un mural elaborado por estudiantes del Complejo Regional Mixteca , en su sede Atlixco , como parte de una iniciativa para fomentar la creatividad, el trabajo colaborativo y la identidad universitaria .\nTe puede interesar: BUAP destaca con dispositivo para prevenir enfermedades cardiovasculares\nLa obra fue realizada por alumnas y alumnos que participaron en el taller “Pintando nuestra identidad colectiva” , impulsado por la Vicerrectoría de Extensión y Difusión de la Cultura (VEDC) para promover la participación artística de la comunidad estudiantil .\nMediante esta actividad, las y los participantes intervinieron un espacio universitario a través de una propuesta pictórica colectiva, como parte de las actividades culturales y extracurriculares desarrolladas en los complejos regionales de la institución .\nLa ceremonia de develación fue encabezada por Damián Hernández Méndez , secretario general de la BUAP; Juan Antonio Cruz Moctezuma , secretario administrativo, y Rosalinda Merino Calderón , encargada de despacho de la VEDC.\nDurante el acto, las autoridades universitarias destacaron la importancia de impulsar espacios que vinculen la formación académica con las expresiones culturales de las comunidades en las que la institución tiene presencia.",
+          "derived_summary": "Estudiantes de la BUAP develaron un mural en la sede Atlixco del Complejo Regional Mixteca, creado en el taller 'Pintando nuestra identidad colectiva' impulsado por la VEDC. La ceremonia fue encabezada por autoridades universitarias.",
+          "passage_kind": "body",
+          "passages": [
+            "Estudiantes de la BUAP realizaron un mural en la sede Atlixco mediante el taller “Pintando nuestra identidad colectiva”, impulsado por la VEDC\nLa Benemérita Universidad Autónoma de Puebla ( BUAP ) develó un mural elaborado por estudiantes del Complejo Regional Mixteca , en su sede Atlixco , como parte de una iniciativa para fomentar la creatividad, el trabajo colaborativo y la identidad universitaria .",
+            "Te puede interesar: BUAP destaca con dispositivo para prevenir enfermedades cardiovasculares\nLa obra fue realizada por alumnas y alumnos que participaron en el taller “Pintando nuestra identidad colectiva” , impulsado por la Vicerrectoría de Extensión y Difusión de la Cultura (VEDC) para promover la participación artística de la comunidad estudiantil .",
+            "Mediante esta actividad, las y los participantes intervinieron un espacio universitario a través de una propuesta pictórica colectiva, como parte de las actividades culturales y extracurriculares desarrolladas en los complejos regionales de la institución .\nLa ceremonia de develación fue encabezada por Damián Hernández Méndez , secretario general de la BUAP; Juan Antonio Cruz Moctezuma , secretario administrativo, y Rosalinda Merino Calderón , encargada de despacho de la VEDC.",
+            "Durante el acto, las autoridades universitarias destacaron la importancia de impulsar espacios que vinculen la formación académica con las expresiones culturales de las comunidades en las que la institución tiene presencia."
+          ]
+        },
+        {
+          "source_ref": 14,
+          "title": "BUAP cierra con éxito su I Congreso Internacional de Investigación en Ciencias Administrativas - https://leviatan.mx/",
+          "publication_date": "2026-10-10T20:38:56+00:00",
+          "captured_author": null,
+          "original": "PUEBLA, Pue.— Con la participación de 134 autoras y autores nacionales e internacionales, concluyó el I Congreso Internacional de Investigación y Estudios de Posgrado en Ciencias Administrativas , organizado por la Facultad de Administración de la BUAP , con el objetivo de fortalecer la investigación científica y su impacto en el desarrollo social.\nDurante las jornadas académicas se llevaron a cabo dos conferencias magistrales , dos presentaciones de libros , tres presentaciones de redes académicas , así como seis mesas de trabajo con 37 ponencias presenciales y 27 ponencias virtuales , cumpliendo la meta planteada por el comité organizador.\nEl Congreso contó con la colaboración de instituciones internacionales como la UPTC de Colombia , la UCAM y la UNED de España, además de la Red Internacional de Investigadores en Gestión y Desarrollo de las Organizaciones (RIIGESDO) , que participaron en la organización y en el Comité Científico.\nEl programa abordó temas estratégicos para las ciencias administrativas, entre ellos:\nAl cierre del encuentro se destacó la importancia de que la investigación en ciencias administrativas trascienda el ámbito académico , contribuya a resolver problemáticas sociales, fortalezca organizaciones locales y promueva modelos de desarrollo con sentido ético y humano.\nTambién se reconoció la participación de estudiantes de posgrado de la Facultad —Maestría en PYMES, Maestría en Gestión del Turismo y Doctorado en Gestión Empresarial—, así como el apoyo de la SECIHTI , del comité organizador y de 12 estudiantes de servicio social y prácticas profesionales .\nCon este congreso, la Facultad de Administración reafirmó su compromiso con la excelencia académica , la colaboración científica y la formación de investigadoras e investigadores capaces de generar conocimiento pertinente para el país. La jornada concluyó con la invitación a continuar las alianzas mediante nuevos artículos, proyectos aplicados y propuestas de solución, con miras al II Congreso Internacional .\nPUEBLA, MÉXICO.- La Facultad de Administración de la Benemérita Universidad Autónoma de Puebla (BUAP) levantó el\nPUEBLA.- La BUAP sigue demostrando el talento de su comunidad estudiantil en el escenario internacional. Los\nPUEBLA.- La sede Atlixco del Complejo Regional Mixteca de la BUAP amaneció más colorida, más viva",
+          "derived_summary": "La BUAP concluyó con éxito su I Congreso Internacional de Investigación y Estudios de Posgrado en Ciencias Administrativas, con 134 autores y actividades como conferencias magistrales, mesas de trabajo y ponencias. El evento contó con colaboración internacional y buscó que la investigación trasciend",
+          "passage_kind": "body",
+          "passages": [
+            "PUEBLA, Pue.— Con la participación de 134 autoras y autores nacionales e internacionales, concluyó el I Congreso Internacional de Investigación y Estudios de Posgrado en Ciencias Administrativas , organizado por la Facultad de Administración de la BUAP , con el objetivo de fortalecer la investigación científica y su impacto en el desarrollo social.",
+            "Durante las jornadas académicas se llevaron a cabo dos conferencias magistrales , dos presentaciones de libros , tres presentaciones de redes académicas , así como seis mesas de trabajo con 37 ponencias presenciales y 27 ponencias virtuales , cumpliendo la meta planteada por el comité organizador.\nEl Congreso contó con la colaboración de instituciones internacionales como la UPTC de Colombia , la UCAM y la UNED de España, además de la Red Internacional de Investigadores en Gestión y Desarrollo de las Organizaciones (RIIGESDO) , que participaron en la organización y en el Comité Científico.",
+            "El programa abordó temas estratégicos para las ciencias administrativas, entre ellos:\nAl cierre del encuentro se destacó la importancia de que la investigación en ciencias administrativas trascienda el ámbito académico , contribuya a resolver problemáticas sociales, fortalezca organizaciones locales y promueva modelos de desarrollo con sentido ético y humano.",
+            "También se reconoció la participación de estudiantes de posgrado de la Facultad —Maestría en PYMES, Maestría en Gestión del Turismo y Doctorado en Gestión Empresarial—, así como el apoyo de la SECIHTI , del comité organizador y de 12 estudiantes de servicio social y prácticas profesionales .\nCon este congreso, la Facultad de Administración reafirmó su compromiso con la excelencia académica , la colaboración científica y la formación de investigadoras e investigadores capaces de generar conocimiento pertinente para el país.",
+            "La jornada concluyó con la invitación a continuar las alianzas mediante nuevos artículos, proyectos aplicados y propuestas de solución, con miras al II Congreso Internacional .\nPUEBLA, MÉXICO.- La Facultad de Administración de la Benemérita Universidad Autónoma de Puebla (BUAP) levantó el\nPUEBLA.- La BUAP sigue demostrando el talento de su comunidad estudiantil en el escenario internacional. Los\nPUEBLA.- La sede Atlixco del Complejo Regional Mixteca de la BUAP amaneció más colorida, más viva"
+          ]
+        },
+        {
+          "source_ref": 15,
+          "title": "Investigador de la BUAP gana premio por proyecto que transforma residuos en fertilizante - Diario Red",
+          "publication_date": "2026-10-10T13:23:46+00:00",
+          "captured_author": null,
+          "original": "José Cinco Patrón Ibarra, profesor investigador del Centro de Agroecología del Instituto de Ciencias de la Benemérita Universidad Autónoma de Puebla (BUAP) obtuvo el primer lugar del Concurso Estatal de Proyecto: Transformación Sostenible por el Planeta, en la categoría de Producción y Consumo Responsable.\nPatrón Ibarra dirige el proyecto \"Manejo, transformación y aprovechamiento de residuos orgánicos domésticos en centros de acopio gratuitos y a través de lombricompostaje\", que convierte desechos orgánicos domésticos en fertilizante y cuenta con una trayectoria de 17 años.\nSu iniciativa busca reducir la cantidad de residuos que llegan a los rellenos sanitarios mediante el aprovechamiento de materiales que las familias separan desde sus hogares.\nDurante ese periodo, el proyecto ha evitado que aproximadamente 2 mil 500 toneladas de residuos orgánicos terminen en rellenos sanitarios, de acuerdo con el investigador. La iniciativa también involucra a cerca de 600 familias, que contribuyen con la separación de los desechos.\nEl centro en el que se reciben restos de cocina, pasto, hojarasca, cartón de huevo y aceite de cocina, cuenta con la participación de estudiantes, principalmente del posgrado en Manejo Sostenible de Agroecosistemas.\nEl premio, otorgado por el gobierno estatal mediante la Secretaría de Planeación, Finanzas y Administración, reconoce una iniciativa que combina la participación de familias, la investigación universitaria y el aprovechamiento de residuos para producir fertilizantes.",
+          "derived_summary": "José Cinco Patrón Ibarra, investigador del Centro de Agroecología de la BUAP, ganó el primer lugar del Concurso Estatal de Proyecto: Transformación Sostenible por el Planeta. Su proyecto de lombricompostaje, con 17 años de trayectoria, transforma residuos orgánicos domésticos en fertilizante y ha ev",
+          "passage_kind": "body",
+          "passages": [
+            "José Cinco Patrón Ibarra, profesor investigador del Centro de Agroecología del Instituto de Ciencias de la Benemérita Universidad Autónoma de Puebla (BUAP) obtuvo el primer lugar del Concurso Estatal de Proyecto: Transformación Sostenible por el Planeta, en la categoría de Producción y Consumo Responsable.\nPatrón Ibarra dirige el proyecto \"Manejo, transformación y aprovechamiento de residuos orgánicos domésticos en centros de acopio gratuitos y a través de lombricompostaje\", que convierte desechos orgánicos domésticos en fertilizante y cuenta con una trayectoria de 17 años.",
+            "Su iniciativa busca reducir la cantidad de residuos que llegan a los rellenos sanitarios mediante el aprovechamiento de materiales que las familias separan desde sus hogares.\nDurante ese periodo, el proyecto ha evitado que aproximadamente 2 mil 500 toneladas de residuos orgánicos terminen en rellenos sanitarios, de acuerdo con el investigador. La iniciativa también involucra a cerca de 600 familias, que contribuyen con la separación de los desechos.",
+            "El centro en el que se reciben restos de cocina, pasto, hojarasca, cartón de huevo y aceite de cocina, cuenta con la participación de estudiantes, principalmente del posgrado en Manejo Sostenible de Agroecosistemas.\nEl premio, otorgado por el gobierno estatal mediante la Secretaría de Planeación, Finanzas y Administración, reconoce una iniciativa que combina la participación de familias, la investigación universitaria y el aprovechamiento de residuos para producir fertilizantes."
+          ]
+        },
+        {
+          "source_ref": 16,
+          "title": "Inauguran mural en el Complejo Regional Mixteca de la BUAP - Sucesos Puebla",
+          "publication_date": "2026-10-10T18:24:00+00:00",
+          "captured_author": null,
+          "original": "Inauguran mural en el Complejo Regional Mixteca de la BUAP\nEstudiantes de la Benemérita Universidad Autónoma de Puebla (BUAP) participaron en la elaboración de un mural en la sede Atlixco del Complejo Regional Mixteca, como parte del taller “Pintando nuestra identidad colectiva”, organizado por la Vicerrectoría de Extensión y Difusión de la Cultura (VEDC).\nLa obra pictórica fue develada durante un acto institucional encabezado por el secretario General de la BUAP, Damián Hernández Méndez; el secretario Administrativo, Juan Antonio Cruz Moctezuma, y Rosalinda Merino Calderón, encargada de despacho de la Vicerrectoría de Extensión y Difusión de la Cultura.\nEl proyecto tuvo como propósito promover la participación de la comunidad estudiantil mediante actividades artísticas que permitieran desarrollar la creatividad, el trabajo colectivo y la expresión de sus capacidades.\nA través del taller, los alumnos tuvieron la oportunidad de involucrarse en la realización de una obra pictórica dentro de su espacio universitario, mediante una actividad que reunió el trabajo y las aportaciones de los participantes.\nLa iniciativa también buscó generar espacios para que los estudiantes mostraran su talento y participaran en propuestas culturales vinculadas con su entorno académico.\nLa elaboración del mural formó parte de las actividades impulsadas por la VEDC para acercar las expresiones artísticas a la comunidad universitaria y propiciar la participación de los alumnos en proyectos colectivos.\nLa sede Atlixco del Complejo Regional Mixteca fue el espacio donde se desarrolló esta actividad, mediante la cual los estudiantes plasmaron su creatividad en una obra que representa el trabajo realizado durante el taller.\nCon la develación del mural concluyó esta etapa del proyecto “Pintando nuestra identidad colectiva”, que permitió integrar las habilidades artísticas de los participantes en una actividad compartida.\nLa presencia de autoridades universitarias durante la presentación de la obra dio marco al reconocimiento del trabajo realizado por los alumnos, quienes participaron directamente en su elaboración.\nEl mural quedó como resultado de una iniciativa cultural desarrollada por estudiantes de la BUAP, orientada a fomentar la expresión artística, la colaboración y la construcción de una identidad colectiva dentro de la comunidad universitaria.\nInauguran mural en el Complejo Regional Mixteca de la BUAP",
+          "derived_summary": "La BUAP inauguró un mural en la sede Atlixco del Complejo Regional Mixteca, elaborado por estudiantes en el taller 'Pintando nuestra identidad colectiva' de la VEDC. El acto fue encabezado por el secretario General Damián Hernández Méndez.",
+          "passage_kind": "body",
+          "passages": [
+            "Inauguran mural en el Complejo Regional Mixteca de la BUAP\nEstudiantes de la Benemérita Universidad Autónoma de Puebla (BUAP) participaron en la elaboración de un mural en la sede Atlixco del Complejo Regional Mixteca, como parte del taller “Pintando nuestra identidad colectiva”, organizado por la Vicerrectoría de Extensión y Difusión de la Cultura (VEDC).",
+            "La obra pictórica fue develada durante un acto institucional encabezado por el secretario General de la BUAP, Damián Hernández Méndez; el secretario Administrativo, Juan Antonio Cruz Moctezuma, y Rosalinda Merino Calderón, encargada de despacho de la Vicerrectoría de Extensión y Difusión de la Cultura.\nEl proyecto tuvo como propósito promover la participación de la comunidad estudiantil mediante actividades artísticas que permitieran desarrollar la creatividad, el trabajo colectivo y la expresión de sus capacidades.",
+            "A través del taller, los alumnos tuvieron la oportunidad de involucrarse en la realización de una obra pictórica dentro de su espacio universitario, mediante una actividad que reunió el trabajo y las aportaciones de los participantes.\nLa iniciativa también buscó generar espacios para que los estudiantes mostraran su talento y participaran en propuestas culturales vinculadas con su entorno académico.",
+            "La elaboración del mural formó parte de las actividades impulsadas por la VEDC para acercar las expresiones artísticas a la comunidad universitaria y propiciar la participación de los alumnos en proyectos colectivos.\nLa sede Atlixco del Complejo Regional Mixteca fue el espacio donde se desarrolló esta actividad, mediante la cual los estudiantes plasmaron su creatividad en una obra que representa el trabajo realizado durante el taller.",
+            "Con la develación del mural concluyó esta etapa del proyecto “Pintando nuestra identidad colectiva”, que permitió integrar las habilidades artísticas de los participantes en una actividad compartida.\nLa presencia de autoridades universitarias durante la presentación de la obra dio marco al reconocimiento del trabajo realizado por los alumnos, quienes participaron directamente en su elaboración.",
+            "El mural quedó como resultado de una iniciativa cultural desarrollada por estudiantes de la BUAP, orientada a fomentar la expresión artística, la colaboración y la construcción de una identidad colectiva dentro de la comunidad universitaria.\nInauguran mural en el Complejo Regional Mixteca de la BUAP"
+          ]
+        },
+        {
+          "source_ref": 17,
+          "title": "BUAP inaugura mural artístico en el Complejo Regional Mixteca, sede Atlixco - Curul Puebla",
+          "publication_date": "2026-10-10T07:00:00+00:00",
+          "captured_author": null,
+          "original": "La Benemérita Universidad Autónoma de Puebla (BUAP) inauguró un mural en la sede Atlixco del Complejo Regional Mixteca, elaborado por estudiantes que participaron en el taller “Pintando nuestra identidad colectiva” , una iniciativa orientada a fomentar la creatividad y la expresión artística entre los jóvenes.\nLa develación de la obra reunió a autoridades universitarias, quienes destacaron la importancia de generar espacios para que los alumnos se involucren en actividades culturales, colaboren en proyectos colectivos y expresen su talento a través de distintas manifestaciones artísticas.\nEl mural fue realizado como parte de las actividades impulsadas por la Vicerrectoría de Extensión y Difusión de la Cultura (VEDC), instancia que promueve la participación de la comunidad estudiantil en iniciativas que contribuyen al desarrollo cultural y al fortalecimiento de la identidad universitaria.\nEl acto estuvo encabezado por Damián Hernández Méndez, secretario general de la BUAP; Juan Antonio Cruz Moctezuma, secretario administrativo, y Rosalinda Merino Calderón, encargada de despacho de la Vicerrectoría de Extensión y Difusión de la Cultura.\nCon esta actividad, la BUAP impulsa la participación de sus estudiantes en proyectos culturales que permiten vincular el aprendizaje con la creatividad y el trabajo en equipo, además de abrir espacios para que la comunidad universitaria comparta su visión e identidad mediante el arte.\nLa obra se suma a las acciones de difusión cultural desarrolladas en el Complejo Regional Mixteca, particularmente en su sede de Atlixco, donde los estudiantes tuvieron la oportunidad de plasmar su talento en un proyecto colectivo.",
+          "derived_summary": "La BUAP inauguró un mural en la sede Atlixco del Complejo Regional Mixteca, elaborado por estudiantes del taller 'Pintando nuestra identidad colectiva'. El acto fue encabezado por autoridades universitarias y forma parte de las actividades de la Vicerrectoría de Extensión y Difusión de la Cultura.",
+          "passage_kind": "body",
+          "passages": [
+            "La Benemérita Universidad Autónoma de Puebla (BUAP) inauguró un mural en la sede Atlixco del Complejo Regional Mixteca, elaborado por estudiantes que participaron en el taller “Pintando nuestra identidad colectiva” , una iniciativa orientada a fomentar la creatividad y la expresión artística entre los jóvenes.\nLa develación de la obra reunió a autoridades universitarias, quienes destacaron la importancia de generar espacios para que los alumnos se involucren en actividades culturales, colaboren en proyectos colectivos y expresen su talento a través de distintas manifestaciones artísticas.",
+            "El mural fue realizado como parte de las actividades impulsadas por la Vicerrectoría de Extensión y Difusión de la Cultura (VEDC), instancia que promueve la participación de la comunidad estudiantil en iniciativas que contribuyen al desarrollo cultural y al fortalecimiento de la identidad universitaria.\nEl acto estuvo encabezado por Damián Hernández Méndez, secretario general de la BUAP; Juan Antonio Cruz Moctezuma, secretario administrativo, y Rosalinda Merino Calderón, encargada de despacho de la Vicerrectoría de Extensión y Difusión de la Cultura.",
+            "Con esta actividad, la BUAP impulsa la participación de sus estudiantes en proyectos culturales que permiten vincular el aprendizaje con la creatividad y el trabajo en equipo, además de abrir espacios para que la comunidad universitaria comparta su visión e identidad mediante el arte.\nLa obra se suma a las acciones de difusión cultural desarrolladas en el Complejo Regional Mixteca, particularmente en su sede de Atlixco, donde los estudiantes tuvieron la oportunidad de plasmar su talento en un proyecto colectivo."
+          ]
+        },
+        {
+          "source_ref": 18,
+          "title": "🌼 ¡Al CCU llegan las historias que ni la muerte se lleva! ¿Se atreven a vivirlo? Consulta la programación y prepárate para celebrar con nosotros esta temporada de Día de Muertos. 📍 Complejo Cultural Universitario BUAP #CCUBUAP #SomosGrandesPorqu",
+          "publication_date": "2026-10-10T19:02:33+00:00",
+          "captured_author": null,
+          "original": null,
+          "derived_summary": "El Complejo Cultural Universitario BUAP invita a su programación especial para celebrar la temporada de Día de Muertos.",
+          "passage_kind": "title",
+          "passages": [
+            "🌼 ¡Al CCU llegan las historias que ni la muerte se lleva! ¿Se atreven a vivirlo? Consulta la programación y prepárate para celebrar con nosotros esta temporada de Día de Muertos. 📍 Complejo Cultural Universitario BUAP #CCUBUAP #SomosGrandesPorqu"
+          ]
+        }
+      ],
+      "fingerprint": "e7610da49363dadcf0a8a11683afa5e828223b71ea409bc757c80bc26e017c6c"
+    }
+  },
+  "raw_duplicate_proposal": "{\"basis_fingerprint\":\"e7610da49363dadcf0a8a11683afa5e828223b71ea409bc757c80bc26e017c6c\",\"headline_index\":5,\"headline_frame\":\"institutional_positioning\",\"headline_analysis\":{\"premises\":[{\"index\":5,\"source_ref\":3,\"passage_index\":1},{\"index\":5,\"source_ref\":3,\"passage_index\":2},{\"index\":5,\"source_ref\":3,\"passage_index\":6}],\"interpretation\":\"El pasaje 1 registra la expansión a 32 municipios y una matrícula que rebasa los 130,000 estudiantes; el pasaje 2 atribuye ese crecimiento a una política de admisión que favorece el ingreso y a becas, además de microcredenciales y formación dual; el pasaje 6, al cierre, vincula el primer año con la expansión de matrícula y la atención integral a la comunidad. Leído en conjunto, el material configura un relato de posicionamiento institucional centrado en acceso masivo y bienestar, en el que la rectora María Lilia Cedillo Ramírez aparece como titular de la gestión descrita.\",\"consequence\":\"Si la narrativa de expansión se consolida como eje del primer informe, la expectativa pública sobre capacidad instalada, tasas de egreso y titulación podría crecer en la misma proporción que la matrícula, generando un escenario donde los próximos informes se midan contra esa promesa de acceso.\",\"attention\":\"Dar seguimiento verificable a los indicadores de egreso y titulación que el propio texto menciona como objetivo del sistema de microcredenciales, así como a la evolución de la infraestructura en Ciudad Universitaria 2 frente al crecimiento de la matrícula.\",\"conditions\":\"La lectura supone que el texto del primer informe refleja datos oficiales de la institución; no verifica las cifras ni acredita que la política de admisión produzca los resultados descritos. La ventana es del 10 de octubre de 2026 y la fuente es única.\",\"relevance\":\"La persona monitoreada es rectora de la BUAP; un relato de primer año que la asocia con expansión de matrícula y bienestar comunitario delimita el marco institucional dentro del cual se evaluará su gestión.\"},\"items\":[{\"index\":5,\"source_ref\":3,\"passage_index\":1},{\"index\":0,\"source_ref\":9,\"passage_index\":0},{\"index\":0,\"source_ref\":9,\"passage_index\":1},{\"index\":9,\"source_ref\":15,\"passage_index\":1},{\"index\":8,\"source_ref\":14,\"passage_index\":0},{\"index\":4,\"source_ref\":2,\"passage_index\":0},{\"index\":3,\"source_ref\":1,\"passage_index\":1},{\"index\":7,\"source_ref\":12,\"passage_index\":0},{\"index\":6,\"source_ref\":8,\"passage_index\":0},{\"index\":2,\"source_ref\":0,\"passage_index\":0}],\"seleccion\":[{\"index\":5,\"categoria\":\"a_favor\",\"frame\":\"institutional_positioning\",\"action\":\"monitor_followup\",\"analysis\":{\"premises\":[{\"index\":5,\"source_ref\":3,\"passage_index\":1},{\"index\":5,\"source_ref\":3,\"passage_index\":2}],\"interpretation\":\"El pasaje 1 documenta presencia en 32 municipios y matrícula superior a 130,000 estudiantes tras duplicar el ingreso en cinco años; el pasaje 2 atribuye ese crecimiento a una política de admisión favorable y a becas, y añade microcredenciales y formación dual como herramientas de egreso y titulación. La lectura política es que la rectora ha elegido el acceso masivo como sello distintivo de su gestión, aceptando el costo de sostener calidad y capacidad con una base estudiantil en expansión rápida.\",\"consequence\":\"Si la matrícula sigue creciendo al ritmo descrito, la presión sobre infraestructura, planta académica y servicios podría convertir el logro de acceso en un desafío de sostenibilidad que los actores políticos y académicos podrían usar para evaluar la gestión.\",\"attention\":\"Comparar la evolución de matrícula con indicadores de egreso, titulación y carga docente en los próximos informes, especialmente en los complejos regionales recién incorporados.\",\"conditions\":\"Los datos provienen de un solo medio que resume el primer informe; las cifras no fueron verificadas de forma independiente y la atribución causal entre política de admisión y crecimiento es la que ofrece el propio texto.\",\"relevance\":\"Siendo la persona monitoreada la rectora, este relato de primer año define el estándar público contra el que se medirá su gestión.\"}},{\"index\":0,\"categoria\":\"decision\",\"frame\":\"institutional_positioning\",\"action\":\"monitor_followup\",\"analysis\":{\"premises\":[{\"index\":0,\"source_ref\":9,\"passage_index\":0},{\"index\":0,\"source_ref\":9,\"passage_index\":1}],\"interpretation\":\"El pasaje 0 documenta la develación del mural en la sede Atlixco del Complejo Regional Mixteca, obra de alumnos del taller Pintando nuestra identidad colectiva organizado por la VEDC; el pasaje 1 detalla que la obra incluye simbología de la Mixteca poblana, biodiversidad y una referencia explícita a Paulo Freire con una cita sobre educación y cambio social. La presencia del secretario general, del secretario administrativo y de la encargada de la VEDC en el acto sugiere que la institución decidió visibilizar una obra con carga pedagógica y política explícita, no meramente decorativa.\",\"consequence\":\"Si la referencia a Freire y la pedagogía de la liberación se convierte en un elemento recurrente del discurso institucional en sedes regionales, podría abrir un espacio de posicionamiento educativo con resonancia más allá del ámbito universitario local.\",\"attention\":\"Observar si futuras obras y eventos de la VEDC en complejos regionales incorporan referentes pedagógicos o políticos explícitos, y qué autoridades presiden cada develación.\",\"conditions\":\"La interpretación se limita al contenido descrito del mural y a la composición de la mesa protocolaria; no implica un programa institucional formalizado ni una línea editorial definida.\",\"relevance\":\"Para la rectora, la elección de referentes en eventos con la plana mayor universitaria delimita el perfil ideológico-institucional que su gestión proyecta en el territorio.\"}},{\"index\":9,\"categoria\":\"a_favor\",\"frame\":\"institutional_positioning\",\"action\":\"monitor_followup\",\"analysis\":{\"premises\":[{\"index\":9,\"source_ref\":15,\"passage_index\":1}],\"interpretation\":\"El pasaje 1 registra que José Cinco Patrón Ibarra, del Centro de Agroecología, obtuvo el primer lugar del Concurso Estatal de Proyecto: Transformación Sostenible por el Planeta, en la categoría de Producción y Consumo Responsable, por un proyecto con 17 años de trayectoria que transforma residuos orgánicos en fertilizante mediante lombricompostaje. La lectura política es que un reconocimiento otorgado por el gobierno estatal a un proyecto universitario de larga data ofrece a la institución un capital de credibilidad ambiental difícil de replicar, y a la rectora un ejemplo concreto de investigación con impacto territorial.\",\"consequence\":\"Si el proyecto escala o se integra a políticas públicas de residuos, la BUAP podría consolidarse como referente técnico ante el gobierno estatal, con la consiguiente capacidad de negociación en agendas ambientales.\",\"attention\":\"Verificar si el premio se traduce en financiamiento adicional, convenios con la Secretaría de Planeación, Finanzas y Administración o replicación del modelo en otros municipios.\",\"conditions\":\"La cifra de 2,500 toneladas evitadas y 600 familias involucradas proviene del propio investigador según el pasaje 2; el premio está documentado pero su efecto institucional es un escenario, no un hecho.\",\"relevance\":\"Un reconocimiento estatal a investigación de la BUAP refuerza el perfil de gestión de la rectora en materia de ciencia aplicada y vinculación, eje declarado de su administración.\"}},{\"index\":8,\"categoria\":\"a_favor\",\"frame\":\"institutional_positioning\",\"action\":\"monitor_followup\",\"analysis\":{\"premises\":[{\"index\":8,\"source_ref\":14,\"passage_index\":0},{\"index\":8,\"source_ref\":14,\"passage_index\":2}],\"interpretation\":\"El pasaje 0 documenta el cierre del I Congreso Internacional de Investigación y Estudios de Posgrado en Ciencias Administrativas con 134 autores y el pasaje 2 detalla la colaboración de la UPTC de Colombia, la UCAM y la UNED de España, además de la red RIIGESDO. La lectura política es que la Facultad de Administración construye una red internacional propia que diversifica las alianzas de la universidad más allá de los convenios rectores, generando capital académico descentralizado que la rectora puede capitalizar sin haberlo mediado directamente.\",\"consequence\":\"Si la red consolidada en este congreso produce artículos conjuntos y un segundo evento, la Facultad podría ganar autonomía relativa en la agenda internacional de la institución, con posibles tensiones sobre prioridades y recursos.\",\"attention\":\"Dar seguimiento a la convocatoria del II Congreso anunciada en el pasaje 5 y a la producción bibliométrica conjunta con las instituciones participantes durante el próximo año.\",\"conditions\":\"La cifra de participantes y la lista de aliados provienen del propio evento; no acredita producción posterior ni sostenibilidad de la red, y la ventana es de un solo día.\",\"relevance\":\"La internacionalización es un eje declarado de la gestión de la persona monitoreada; este evento muestra su materialización en una unidad académica específica.\"}},{\"index\":4,\"categoria\":\"decision\",\"frame\":\"institutional_positioning\",\"action\":\"assess_scope\",\"analysis\":{\"premises\":[{\"index\":4,\"source_ref\":2,\"passage_index\":0},{\"index\":4,\"source_ref\":2,\"passage_index\":4}],\"interpretation\":\"El pasaje 0 documenta que siete estudiantes de la BUAP viajaron a Japón para capacitación en actividades productivas y ambientales mediante el programa de OISCA, y el pasaje 4 añade que dos más fueron seleccionados para 2027, con financiamiento de la propia organización para alimentación, traslados y apoyos. La lectura política es que la universidad canaliza movilidad estudiantil a través de un actor externo no gubernamental, lo que amplía oportunidades sin costo fiscal pero también externaliza la selección y el contenido formativo en una organización con agenda propia de desarrollo comunitario.\",\"consequence\":\"Si el modelo se expande, la institución podría depender crecientemente de filtros de selección externos para la movilidad internacional, con el riesgo de que el perfil de los beneficiarios refleje criterios ajenos a la política académica universitaria.\",\"attention\":\"Revisar si existe convenio formal entre la BUAP y OISCA, qué criterios de selección se aplican y cómo se reconoce académicamente la estancia al retorno.\",\"conditions\":\"Los datos provienen del director de OISCA México en una sola nota; la cifra de siete estudiantes es aproximada según el texto y no acredita supervisión académica de la BUAP sobre el programa.\",\"relevance\":\"Para la rectora, la internacionalización vía terceros plantea la disyuntiva entre ampliar cobertura sin costo y mantener control académico sobre la formación de sus estudiantes.\"}},{\"index\":3,\"categoria\":\"ruido\",\"frame\":\"execution_logistics\",\"action\":\"defer_judgment\",\"analysis\":{\"premises\":[{\"index\":3,\"source_ref\":1,\"passage_index\":1}],\"interpretation\":\"El pasaje 1 documenta que la Carrera Vertical 2026 fue organizada por la Secretaría Administrativa a través del programa CuIDAATE, con 55 participantes en las escaleras de la Torre de Gestión Académica. La lectura es que se trata de una acción de bienestar laboral de baja escala y alto contenido simbólico, coherente con el eje de bienestar del discurso rectoral pero sin implicaciones de gobernabilidad ni asignación relevante de recursos.\",\"consequence\":\"Si este tipo de actividades se multiplican sin métricas de impacto en salud laboral, podrían consolidar una narrativa de bienestar basada en eventos más que en resultados, exponiendo la gestión a la pregunta por su efectividad.\",\"attention\":\"Observar si el programa CuIDAATE publica indicadores de uso y resultados en salud del personal, más allá de la cobertura de eventos.\",\"conditions\":\"La cifra de participantes y la estructura organizativa provienen de una sola nota; el evento no compromete recursos significativos ni modifica condiciones laborales.\",\"relevance\":\"Refuerza el eje de bienestar que la rectora ha hecho central, pero su peso político es marginal frente a los temas de matrícula e infraestructura.\"}},{\"index\":7,\"categoria\":\"ruido\",\"frame\":\"visibility\",\"action\":\"monitor_followup\",\"analysis\":{\"premises\":[{\"index\":7,\"source_ref\":12,\"passage_index\":0}],\"interpretation\":\"El pasaje 0 documenta que el Centro Universitario de Participación Social recaudará tapas de plástico del 1 de octubre al 16 de diciembre para beneficio de escuelas comunitarias, con centros de acopio en Ciudad Universitaria. La lectura es que se trata de una campaña de vinculación comunitaria de bajo costo y alta visibilidad, que refuerza la presencia territorial de la universidad sin comprometer recursos institucionales significativos.\",\"consequence\":\"Si la campaña logra participación masiva, podría ofrecer a la institución un ejemplo tangible de responsabilidad social para su narrativa pública, aunque su impacto material dependerá del volumen recaudado.\",\"attention\":\"Verificar al cierre de la campaña la cantidad recaudada y su destino efectivo en las escuelas comunitarias beneficiarias.\",\"conditions\":\"El beneficio declarado proviene de las redes del propio centro convocante; no hay cifra objetivo ni garantía de destino documentada en el pasaje.\",\"relevance\":\"Es coherente con la vocación de vinculación social del proyecto rectoral, pero su peso en la agenda es menor que el de los temas académicos y de infraestructura.\"}},{\"index\":6,\"categoria\":\"ruido\",\"frame\":\"visibility\",\"action\":\"defer_judgment\",\"analysis\":{\"premises\":[{\"index\":6,\"source_ref\":8,\"passage_index\":0}],\"interpretation\":\"El pasaje 0, único y breve, anuncia que la primera edición poblacional de Calaveras y Catrinas llegará al Complejo Cultural Universitario con creadores mexicanos, productos artesanales, maquillaje temático y presentaciones artísticas. La lectura es que la BUAP aloja un evento comercial-cultural de convocatoria masiva en temporada de Día de Muertos, lo que refuerza la vocación del CCU como espacio público y generador de afluencia.\",\"consequence\":\"Si el evento se consolida, el CCU podría posicionarse como sede de referencia para eventos masivos en la ciudad, con los beneficios de visibilidad y los costos operativos y de convivencia que ello implica.\",\"attention\":\"Observar la afluencia real, la convivencia con la agenda académica del complejo y si se repite en siguientes ediciones.\",\"conditions\":\"La información proviene de un solo pasaje promocional sin detalles logísticos, cifras de asistencia ni condiciones de realización; el evento es futuro respecto al corte.\",\"relevance\":\"Aporta visibilidad urbana a la institución, pero no toca los ejes de gestión de la persona monitoreada más allá de la agenda cultural.\"}},{\"index\":2,\"categoria\":\"ruido\",\"frame\":\"visibility\",\"action\":\"defer_judgment\",\"analysis\":{\"premises\":[{\"index\":2,\"source_ref\":0,\"passage_index\":0}],\"interpretation\":\"El pasaje 0 documenta el triunfo 1-0 de Lobos BUAP sobre Tuzos de la UAZ en la Jornada 4 de la Segunda División CONADEIP, en el Estadio Universitario. La lectura es que el resultado deportivo refuerza la visibilidad de la marca institucional en el ámbito estudiantil, sin implicaciones de gestión ni de política universitaria.\",\"consequence\":\"Si el equipo sostiene el liderazgo invicto, la exposición deportiva podría sumar capital simbólico a la institución entre públicos jóvenes, sin traducirse necesariamente en indicadores académicos.\",\"attention\":\"Dar seguimiento al desempeño del equipo en las siguientes jornadas y a la cobertura que recibe en medios locales.\",\"conditions\":\"El resultado proviene de una sola crónica deportiva; la condición de líder e invicto corresponde al título y no está desglosada en el pasaje transcrito.\",\"relevance\":\"Visibilidad deportiva marginal para la gestión de la rectora, aunque coherente con la imagen integral de la institución.\"}}]}",
+  "raw_singleton_proposal": "{\"basis_fingerprint\":\"e7610da49363dadcf0a8a11683afa5e828223b71ea409bc757c80bc26e017c6c\",\"headline_index\":5,\"headline_frame\":\"institutional_positioning\",\"headline_analysis\":{\"premises\":[{\"index\":5,\"source_ref\":3,\"passage_index\":1},{\"index\":5,\"source_ref\":3,\"passage_index\":2},{\"index\":5,\"source_ref\":3,\"passage_index\":6}],\"interpretation\":\"A\"\n,\"consequence\":\"B\",\"attention\":\"C\",\"conditions\":\"D\",\"relevance\":\"E\"},\"items\":[{\"index\":5,\"source_ref\":3,\"passage_index\":1},{\"index\":0,\"source_ref\":9,\"passage_index\":1},{\"index\":9,\"source_ref\":15,\"passage_index\":1},{\"index\":4,\"source_ref\":2,\"passage_index\":0},{\"index\":8,\"source_ref\":14,\"passage_index\":0}],\"seleccion\":[{\"index\":5,\"categoria\":\"a_favor\",\"frame\":\"institutional_positioning\",\"action\":\"monitor_followup\",\"analysis\":{\"premises\":[{\"index\":5,\"source_ref\":3,\"passage_index\":1}],\"interpretation\":\"A\",\"consequence\":\"B\",\"attention\":\"C\",\"conditions\":\"D\",\"relevance\":\"E\"}},{\"index\":0,\"categoria\":\"a_favor\",\"frame\":\"visibility\",\"action\":\"monitor_followup\",\"analysis\":{\"premises\":[{\"index\":0,\"source_ref\":9,\"passage_index\":1}],\"interpretation\":\"A\",\"consequence\":\"B\",\"attention\":\"C\",\"conditions\":\"D\",\"relevance\":\"E\"}},{\"index\":9,\"categoria\":\"a_favor\",\"frame\":\"institutional_positioning\",\"action\":\"monitor_followup\",\"analysis\":{\"premises\":[{\"index\":9,\"source_ref\":15,\"passage_index\":1}],\"interpretation\":\"A\",\"consequence\":\"B\",\"attention\":\"C\",\"conditions\":\"D\",\"relevance\":\"E\"}},{\"index\":4,\"categoria\":\"decision\",\"frame\":\"governance_followup\",\"action\":\"assess_scope\",\"analysis\":{\"premises\":[{\"index\":4,\"source_ref\":2,\"passage_index\":0}],\"interpretation\":\"A\",\"consequence\":\"B\",\"attention\":\"C\",\"conditions\":\"D\",\"relevance\":\"E\"}},{\"index\":8,\"categoria\":\"decision\",\"frame\":\"institutional_positioning\",\"action\":\"monitor_followup\",\"analysis\":{\"premises\":[{\"index\":8,\"source_ref\":14,\"passage_index\":0}],\"interpretation\":\"A\",\"consequence\":\"B\",\"attention\":\"C\",\"conditions\":\"D\",\"relevance\":\"E\"}}]}",
+  "raw_singleton_review": "{\"input_fingerprint\":\"e24f0fbfac554536352fa87bcd9d11c0fd4319f5d8596f64433a59c4f7118e66\",\"passed\":true,\"checks\":{\"attribution\":true,\"factual_premises\":true,\"omissions\":true,\"profile_relevance\":true,\"categories\":true,\"uncertainty\":true,\"distinct_attention\":true,\"passage_suitability\":true},\"assessments\":[{\"path\":\"brief.a_favor.0.accion_sugerida\",\"passed\":true,\"reason\":\"A\"}\n\n\n,{\"path\":\"brief.a_favor.0.condicion\",\"passed\":true,\"reason\":\"D\"},{\"path\":\"brief.a_favor.0.razon\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"brief.a_favor.1.accion_sugerida\",\"passed\":true,\"reason\":\"A\"},{\"path\":\"brief.a_favor.1.condicion\",\"passed\":true,\"reason\":\"D\"},{\"path\":\"brief.a_favor.1.razon\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"brief.a_favor.2.accion_sugerida\",\"passed\":true,\"reason\":\"A\"},{\"path\":\"brief.a_favor.2.condicion\",\"passed\":true,\"reason\":\"D\"},{\"path\":\"brief.a_favor.2.razon\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"brief.decisiones.0.accion_sugerida\",\"passed\":true,\"reason\":\"A\"},{\"path\":\"brief.decisiones.0.condicion\",\"passed\":true,\"reason\":\"D\"},{\"path\":\"brief.decisiones.0.razon\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"brief.decisiones.1.accion_sugerida\",\"passed\":true,\"reason\":\"A\"},{\"path\":\"brief.decisiones.1.condicion\",\"passed\":true,\"reason\":\"D\"},{\"path\":\"brief.decisiones.1.razon\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"brief.delta.0.titulo\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"brief.delta.1.titulo\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"brief.delta.2.titulo\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"brief.delta.3.titulo\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"brief.delta.4.titulo\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"brief.headline\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"coverage.gaps.0\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"date\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"headline\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.0.summary\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.0.title\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.0.topic\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.0.veracity\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.0.when_label\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.0.why_it_matters\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.1.summary\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.1.title\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.1.topic\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.1.veracity\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.1.when_label\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.1.why_it_matters\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.10.summary\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.10.title\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.10.topic\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.10.veracity\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.10.when_label\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.10.why_it_matters\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.2.summary\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.2.title\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.2.topic\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.2.veracity\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.2.when_label\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.2.why_it_matters\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.3.summary\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.3.title\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.3.topic\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.3.veracity\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.3.when_label\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.3.why_it_matters\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.4.summary\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.4.title\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.4.topic\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.4.veracity\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.4.when_label\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.4.why_it_matters\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.5.summary\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.5.title\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.5.topic\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.5.veracity\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.5.when_label\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.5.why_it_matters\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.6.summary\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.6.title\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.6.topic\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.6.veracity\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.6.when_label\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.6.why_it_matters\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.7.summary\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.7.title\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.7.topic\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.7.veracity\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.7.when_label\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.7.why_it_matters\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.8.summary\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.8.title\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.8.topic\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.8.veracity\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.8.when_label\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.8.why_it_matters\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.9.summary\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.9.title\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.9.topic\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.9.veracity\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.9.when_label\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"noticias.9.why_it_matters\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"pendientes.0\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"personas.0.fact\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"personas.0.name\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"personas.0.org\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"personas.0.role\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"personas.1.fact\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"personas.1.name\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"personas.1.org\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"personas.1.role\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"personas.2.fact\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"personas.2.name\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"personas.2.org\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"personas.2.role\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"personas.3.fact\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"personas.3.name\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"personas.3.org\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"personas.3.role\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"personas.4.fact\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"personas.4.name\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"personas.4.org\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"personas.4.role\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"personas.5.fact\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"personas.5.name\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"personas.5.org\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"personas.5.role\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"personas.6.fact\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"personas.6.name\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"personas.6.org\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"personas.6.role\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"personas.7.fact\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"personas.7.name\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"personas.7.org\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"personas.7.role\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"plain_text\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.0.fuentes.0\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.0.hecho\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.0.por_que\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.0.titulo\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.0.tono\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.0.veracity\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.1.fuentes.0\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.1.hecho\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.1.por_que\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.1.titulo\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.1.tono\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.1.veracity\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.10.fuentes.0\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.10.hecho\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.10.por_que\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.10.titulo\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.10.tono\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.10.veracity\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.2.fuentes.0\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.2.fuentes.1\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.2.fuentes.2\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.2.fuentes.3\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.2.fuentes.4\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.2.fuentes.5\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.2.fuentes.6\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.2.fuentes.7\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.2.hecho\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.2.por_que\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.2.titulo\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.2.tono\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.2.veracity\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.3.fuentes.0\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.3.fuentes.1\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.3.hecho\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.3.por_que\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.3.titulo\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.3.tono\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.3.veracity\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.4.fuentes.0\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.4.hecho\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.4.por_que\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.4.titulo\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.4.tono\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.4.veracity\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.5.fuentes.0\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.5.hecho\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.5.por_que\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.5.titulo\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.5.tono\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.5.veracity\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.6.fuentes.0\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.6.hecho\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.6.por_que\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.6.titulo\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.6.tono\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.6.veracity\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.7.fuentes.0\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.7.hecho\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.7.por_que\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.7.titulo\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.7.tono\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.7.veracity\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.8.fuentes.0\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.8.hecho\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.8.por_que\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.8.titulo\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.8.tono\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.8.veracity\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.9.fuentes.0\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.9.hecho\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.9.por_que\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.9.titulo\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.9.tono\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"tarjetas.9.veracity\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"timezone\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"window.from\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"window.to\",\"passed\":true,\"reason\":\"C\"},{\"path\":\"window_start\",\"passed\":true,\"reason\":\"C\"}]}",
+  "review_controls": {
+    "input_fingerprint": "e24f0fbfac554536352fa87bcd9d11c0fd4319f5d8596f64433a59c4f7118e66",
+    "scope": [
+      "brief.a_favor.0.accion_sugerida",
+      "brief.a_favor.0.condicion",
+      "brief.a_favor.0.razon",
+      "brief.a_favor.1.accion_sugerida",
+      "brief.a_favor.1.condicion",
+      "brief.a_favor.1.razon",
+      "brief.a_favor.2.accion_sugerida",
+      "brief.a_favor.2.condicion",
+      "brief.a_favor.2.razon",
+      "brief.decisiones.0.accion_sugerida",
+      "brief.decisiones.0.condicion",
+      "brief.decisiones.0.razon",
+      "brief.decisiones.1.accion_sugerida",
+      "brief.decisiones.1.condicion",
+      "brief.decisiones.1.razon",
+      "brief.delta.0.titulo",
+      "brief.delta.1.titulo",
+      "brief.delta.2.titulo",
+      "brief.delta.3.titulo",
+      "brief.delta.4.titulo",
+      "brief.headline",
+      "coverage.gaps.0",
+      "date",
+      "headline",
+      "noticias.0.summary",
+      "noticias.0.title",
+      "noticias.0.topic",
+      "noticias.0.veracity",
+      "noticias.0.when_label",
+      "noticias.0.why_it_matters",
+      "noticias.1.summary",
+      "noticias.1.title",
+      "noticias.1.topic",
+      "noticias.1.veracity",
+      "noticias.1.when_label",
+      "noticias.1.why_it_matters",
+      "noticias.10.summary",
+      "noticias.10.title",
+      "noticias.10.topic",
+      "noticias.10.veracity",
+      "noticias.10.when_label",
+      "noticias.10.why_it_matters",
+      "noticias.2.summary",
+      "noticias.2.title",
+      "noticias.2.topic",
+      "noticias.2.veracity",
+      "noticias.2.when_label",
+      "noticias.2.why_it_matters",
+      "noticias.3.summary",
+      "noticias.3.title",
+      "noticias.3.topic",
+      "noticias.3.veracity",
+      "noticias.3.when_label",
+      "noticias.3.why_it_matters",
+      "noticias.4.summary",
+      "noticias.4.title",
+      "noticias.4.topic",
+      "noticias.4.veracity",
+      "noticias.4.when_label",
+      "noticias.4.why_it_matters",
+      "noticias.5.summary",
+      "noticias.5.title",
+      "noticias.5.topic",
+      "noticias.5.veracity",
+      "noticias.5.when_label",
+      "noticias.5.why_it_matters",
+      "noticias.6.summary",
+      "noticias.6.title",
+      "noticias.6.topic",
+      "noticias.6.veracity",
+      "noticias.6.when_label",
+      "noticias.6.why_it_matters",
+      "noticias.7.summary",
+      "noticias.7.title",
+      "noticias.7.topic",
+      "noticias.7.veracity",
+      "noticias.7.when_label",
+      "noticias.7.why_it_matters",
+      "noticias.8.summary",
+      "noticias.8.title",
+      "noticias.8.topic",
+      "noticias.8.veracity",
+      "noticias.8.when_label",
+      "noticias.8.why_it_matters",
+      "noticias.9.summary",
+      "noticias.9.title",
+      "noticias.9.topic",
+      "noticias.9.veracity",
+      "noticias.9.when_label",
+      "noticias.9.why_it_matters",
+      "pendientes.0",
+      "personas.0.fact",
+      "personas.0.name",
+      "personas.0.org",
+      "personas.0.role",
+      "personas.1.fact",
+      "personas.1.name",
+      "personas.1.org",
+      "personas.1.role",
+      "personas.2.fact",
+      "personas.2.name",
+      "personas.2.org",
+      "personas.2.role",
+      "personas.3.fact",
+      "personas.3.name",
+      "personas.3.org",
+      "personas.3.role",
+      "personas.4.fact",
+      "personas.4.name",
+      "personas.4.org",
+      "personas.4.role",
+      "personas.5.fact",
+      "personas.5.name",
+      "personas.5.org",
+      "personas.5.role",
+      "personas.6.fact",
+      "personas.6.name",
+      "personas.6.org",
+      "personas.6.role",
+      "personas.7.fact",
+      "personas.7.name",
+      "personas.7.org",
+      "personas.7.role",
+      "plain_text",
+      "tarjetas.0.fuentes.0",
+      "tarjetas.0.hecho",
+      "tarjetas.0.por_que",
+      "tarjetas.0.titulo",
+      "tarjetas.0.tono",
+      "tarjetas.0.veracity",
+      "tarjetas.1.fuentes.0",
+      "tarjetas.1.hecho",
+      "tarjetas.1.por_que",
+      "tarjetas.1.titulo",
+      "tarjetas.1.tono",
+      "tarjetas.1.veracity",
+      "tarjetas.10.fuentes.0",
+      "tarjetas.10.hecho",
+      "tarjetas.10.por_que",
+      "tarjetas.10.titulo",
+      "tarjetas.10.tono",
+      "tarjetas.10.veracity",
+      "tarjetas.2.fuentes.0",
+      "tarjetas.2.fuentes.1",
+      "tarjetas.2.fuentes.2",
+      "tarjetas.2.fuentes.3",
+      "tarjetas.2.fuentes.4",
+      "tarjetas.2.fuentes.5",
+      "tarjetas.2.fuentes.6",
+      "tarjetas.2.fuentes.7",
+      "tarjetas.2.hecho",
+      "tarjetas.2.por_que",
+      "tarjetas.2.titulo",
+      "tarjetas.2.tono",
+      "tarjetas.2.veracity",
+      "tarjetas.3.fuentes.0",
+      "tarjetas.3.fuentes.1",
+      "tarjetas.3.hecho",
+      "tarjetas.3.por_que",
+      "tarjetas.3.titulo",
+      "tarjetas.3.tono",
+      "tarjetas.3.veracity",
+      "tarjetas.4.fuentes.0",
+      "tarjetas.4.hecho",
+      "tarjetas.4.por_que",
+      "tarjetas.4.titulo",
+      "tarjetas.4.tono",
+      "tarjetas.4.veracity",
+      "tarjetas.5.fuentes.0",
+      "tarjetas.5.hecho",
+      "tarjetas.5.por_que",
+      "tarjetas.5.titulo",
+      "tarjetas.5.tono",
+      "tarjetas.5.veracity",
+      "tarjetas.6.fuentes.0",
+      "tarjetas.6.hecho",
+      "tarjetas.6.por_que",
+      "tarjetas.6.titulo",
+      "tarjetas.6.tono",
+      "tarjetas.6.veracity",
+      "tarjetas.7.fuentes.0",
+      "tarjetas.7.hecho",
+      "tarjetas.7.por_que",
+      "tarjetas.7.titulo",
+      "tarjetas.7.tono",
+      "tarjetas.7.veracity",
+      "tarjetas.8.fuentes.0",
+      "tarjetas.8.hecho",
+      "tarjetas.8.por_que",
+      "tarjetas.8.titulo",
+      "tarjetas.8.tono",
+      "tarjetas.8.veracity",
+      "tarjetas.9.fuentes.0",
+      "tarjetas.9.hecho",
+      "tarjetas.9.por_que",
+      "tarjetas.9.titulo",
+      "tarjetas.9.tono",
+      "tarjetas.9.veracity",
+      "timezone",
+      "window.from",
+      "window.to",
+      "window_start"
+    ],
+    "required_checks": [
+      "attribution",
+      "factual_premises",
+      "omissions",
+      "profile_relevance",
+      "categories",
+      "uncertainty",
+      "distinct_attention",
+      "passage_suitability"
+    ]
+  },
+  "semantic_cases": [
+    {
+      "id": "nonexistent_textual_passage",
+      "path": [
+        "seleccion",
+        3,
+        "analysis",
+        "attention"
+      ],
+      "expectation": "reject",
+      "reason": "The text cites passage 5, but source14 has only passages0..4.",
+      "evidence": [
+        {
+          "source_ref": 14,
+          "passage_index": 4,
+          "text": "La jornada concluyó con la invitación a continuar las alianzas mediante nuevos artículos, proyectos aplicados y propuestas de solución, con miras al II Congreso Internacional .\nPUEBLA, MÉXICO.- La Facultad de Administración de la Benemérita Universidad Autónoma de Puebla (BUAP) levantó el\nPUEBLA.- La BUAP sigue demostrando el talento de su comunidad estudiantil en el escenario internacional. Los\nPUEBLA.- La sede Atlixco del Complejo Regional Mixteca de la BUAP amaneció más colorida, más viva"
+        }
+      ],
+      "literal_model_text": "Dar seguimiento a la convocatoria del II Congreso anunciada en el pasaje 5 y a la producción bibliométrica conjunta con las instituciones participantes durante el próximo año."
+    },
+    {
+      "id": "invitation_promoted_to_announcement",
+      "path": [
+        "seleccion",
+        3,
+        "analysis",
+        "attention"
+      ],
+      "expectation": "reject",
+      "reason": "The source invites continued collaboration with a view to a future congress; it does not announce a formal call.",
+      "evidence": [
+        {
+          "source_ref": 14,
+          "passage_index": 4,
+          "text": "La jornada concluyó con la invitación a continuar las alianzas mediante nuevos artículos, proyectos aplicados y propuestas de solución, con miras al II Congreso Internacional .\nPUEBLA, MÉXICO.- La Facultad de Administración de la Benemérita Universidad Autónoma de Puebla (BUAP) levantó el\nPUEBLA.- La BUAP sigue demostrando el talento de su comunidad estudiantil en el escenario internacional. Los\nPUEBLA.- La sede Atlixco del Complejo Regional Mixteca de la BUAP amaneció más colorida, más viva"
+        }
+      ],
+      "literal_model_text": "Dar seguimiento a la convocatoria del II Congreso anunciada en el pasaje 5 y a la producción bibliométrica conjunta con las instituciones participantes durante el próximo año."
+    },
+    {
+      "id": "quantitative_qualification_loss",
+      "path": [
+        "seleccion",
+        2,
+        "analysis",
+        "conditions"
+      ],
+      "expectation": "reject",
+      "reason": "The source says approximately/about and attributes cumulative figures; exact claims and passage2 attribution lose those qualifications.",
+      "evidence": [
+        {
+          "source_ref": 15,
+          "passage_index": 1,
+          "text": "Su iniciativa busca reducir la cantidad de residuos que llegan a los rellenos sanitarios mediante el aprovechamiento de materiales que las familias separan desde sus hogares.\nDurante ese periodo, el proyecto ha evitado que aproximadamente 2 mil 500 toneladas de residuos orgánicos terminen en rellenos sanitarios, de acuerdo con el investigador. La iniciativa también involucra a cerca de 600 familias, que contribuyen con la separación de los desechos."
+        }
+      ],
+      "literal_model_text": "La cifra de 2,500 toneladas evitadas y 600 familias involucradas proviene del propio investigador según el pasaje 2; el premio está documentado pero su efecto institucional es un escenario, no un hecho."
+    },
+    {
+      "id": "unsupported_zero_fiscal_cost",
+      "path": [
+        "seleccion",
+        4,
+        "analysis",
+        "interpretation"
+      ],
+      "expectation": "reject",
+      "reason": "Funding for specified support does not establish zero total institutional fiscal cost.",
+      "evidence": [
+        {
+          "source_ref": 2,
+          "passage_index": 2,
+          "text": "Actualmente, tres jóvenes mexicanos permanecen en Japón : dos cursan programas de dos años y una participante realiza una estancia como voluntaria internacional, después de completar previamente un año de capacitación.\nPara 2027, otros dos universitarios de la BUAP fueron seleccionados para participar en el programa. Se trata de una joven originaria de San Isidro Atecozco y un joven de Pancingo, en el municipio de Ajalpan, quienes viajarán a Japón para permanecer aproximadamente un año en los centros de formación de la organización."
+        },
+        {
+          "source_ref": 2,
+          "passage_index": 3,
+          "text": "Atela Echeverría explicó que OISCA Internacional y OISCA Japón financian la capacitación, incluida la alimentación y los traslados durante la estancia, además de brindar apoyos económicos para cubrir algunas necesidades personales de los participantes. El objetivo es que la experiencia internacional les permita desarrollar habilidades que puedan aplicar posteriormente en sus comunidades.\nAdemás del intercambio internacional, OISCA desarrolla proyectos ambientales en territorio poblano."
+        }
+      ],
+      "literal_model_text": "El pasaje 0 documenta que siete estudiantes de la BUAP viajaron a Japón para capacitación en actividades productivas y ambientales mediante el programa de OISCA, y el pasaje 4 añade que dos más fueron seleccionados para 2027, con financiamiento de la propia organización para alimentación, traslados y apoyos. La lectura política es que la universidad canaliza movilidad estudiantil a través de un actor externo no gubernamental, lo que amplía oportunidades sin costo fiscal pero también externaliza la selección y el contenido formativo en una organización con agenda propia de desarrollo comunitario."
+    },
+    {
+      "id": "legitimate_conditional_consequence",
+      "path": [
+        "headline_analysis",
+        "consequence"
+      ],
+      "expectation": "accept",
+      "reason": "An explicitly conditional expectation/capacity scenario is interpretation, not a measured result or adopted commitment.",
+      "evidence": [
+        {
+          "source_ref": 3,
+          "passage_index": 1,
+          "text": "Durante su primer informe se destaca la creación de 49 planes de estudio y la extensión de programas educativos a los Complejos Regionales, con el propósito de acercar la formación universitaria a más municipios. La universidad ya tiene presencia en 32 municipios y se han dado cambios en los procesos de ingreso, lo que significa que se ha duplicado el número de estudiantes a la institución en tan solo 5 años. Esto hace que la matrícula actual rebase los 130,000 estudiantes ."
+        },
+        {
+          "source_ref": 3,
+          "passage_index": 2,
+          "text": "Esto se debe a una política de admisión que favorece el ingreso de más estudiantes, además de que los apoyos económicos se han incrementado a través de distintas becas. Para mejorar las tasas de egreso y de titulación se está implementando un sistema de microcredenciales, que dotarán a los estudiantes de herramientas que favorezcan su ingreso al mercado laboral además de programas con formación dual, un proceso de internacionalización con diferentes estrategias y los compromisos con la sociedad, con lo que la universidad hoy más que nunca impacta diferentes sectores sociales y privados."
+        }
+      ],
+      "literal_model_text": "Si la narrativa de expansión se consolida como eje del primer informe, la expectativa pública sobre capacidad instalada, tasas de egreso y titulación podría crecer en la misma proporción que la matrícula, generando un escenario donde los próximos informes se midan contra esa promesa de acceso."
+    }
+  ],
+  "semantic_variant": "Tests omit ALL optional item overrides in a detached synthetic copy solely to reach structural eligibility. This copy is not the rejected original, an approved report or a provider-review receipt."
+}
