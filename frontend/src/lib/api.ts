@@ -696,7 +696,7 @@ export interface PersonDetail extends PersonSummary {
   timeline: PersonTimelineItem[];
 }
 
-export function listPersons(
+export async function listPersons(
   query: {
     sort?: "mentions" | "recent";
     q?: string;
@@ -715,11 +715,14 @@ export function listPersons(
     since: query.since,
     until: query.until,
   });
-  return request<PersonSummary[]>(
+  // El backend envuelve la colección en {items:[...]}: se normaliza AQUÍ,
+  // única fuente del contrato, para que la firma (array) sea verdad.
+  const result = await request<PersonSummary[] | { items?: PersonSummary[] }>(
     `/api/clients/1/persons${qs}`,
     { method: "GET" },
     options,
   );
+  return Array.isArray(result) ? result : (result.items ?? []);
 }
 
 export function getPerson(
