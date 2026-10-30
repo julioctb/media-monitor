@@ -21,11 +21,8 @@
 </svelte:head>
 
 <header class="persons-intro">
-	<h1 class="page-title">Actores</h1>
-	<p>
-		{data.persons.length}
-		protagonistas detectados en la cobertura, con su volumen de menciones.
-	</p>
+	<h1 class="page-title">Personajes</h1>
+	<p>Quién aparece, en qué contexto y cómo evoluciona su presencia.</p>
 </header>
 
 <section class="directory-panel" aria-labelledby="persons-list-title">

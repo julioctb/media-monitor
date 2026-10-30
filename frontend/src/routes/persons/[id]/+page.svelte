@@ -49,15 +49,12 @@
 </a>
 
 <header class="person-head">
-	<p class="eyebrow">Actor</p>
+	<p class="eyebrow">Persona · {person.id}</p>
 	<h1 class="page-title">{person.name}</h1>
 	{#if person.role || person.org}
 		<p class="lead">
 			{[person.role, person.org].filter(Boolean).join(' · ')}
 		</p>
-	{/if}
-	{#if person.aliases.length > 0}
-		<p class="person-aliases">También mencionado como: {person.aliases.join(', ')}</p>
 	{/if}
 </header>
 
@@ -85,6 +82,12 @@
 		<dt>Última mención</dt>
 		<dd>{formatDisplayDateTime(person.last_seen_at)}</dd>
 	</div>
+	{#if person.aliases.length > 0}
+		<div>
+			<dt>Variantes anotadas</dt>
+			<dd>{person.aliases.join(', ')}</dd>
+		</div>
+	{/if}
 </dl>
 
 <section class="person-timeline" aria-labelledby="person-timeline-title">

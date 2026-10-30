@@ -87,6 +87,11 @@ describe('persons list', () => {
 		const { text, root } = renderList([person(), person({ id: 2, name: 'Beto Lara', aliases: [] })]);
 
 		expect(text()).toContain('Personajes');
+		// Mockup «personajes.html»: page title + subtitles.people verbatim.
+		expect(root.querySelector('h1.page-title')?.textContent).toBe('Personajes');
+		expect(text()).toContain(
+			'Quién aparece, en qué contexto y cómo evoluciona su presencia.'
+		);
 		expect(text()).toContain('Personajes en seguimiento');
 		expect(text()).toContain('También mencionado como: Mejía Ruiz');
 		expect(root.querySelector('section.directory-panel')).toBeTruthy();
@@ -130,10 +135,16 @@ describe('persons detail', () => {
 			]
 		});
 
-		expect(root.querySelector('.person-head .eyebrow')?.textContent).toBe('Actor');
-		expect(text()).toContain('También mencionado como: Mejía Ruiz');
+		// Mockup directoryDetail: eyebrow «PERSONA · id»; aliases live in the
+		// meta dl as «Variantes anotadas», not in the header.
+		expect(root.querySelector('.person-head .eyebrow')?.textContent?.trim()).toBe(
+			'Persona · 1'
+		);
+		expect(text()).not.toContain('También mencionado como');
 		const dts = [...root.querySelectorAll('.directory-detail-meta dt')].map((el) => el.textContent);
-		expect(dts).toEqual(['Primera mención', 'Última mención']);
+		expect(dts).toEqual(['Primera mención', 'Última mención', 'Variantes anotadas']);
+		const variantes = [...root.querySelectorAll('.directory-detail-meta dd')].at(-1);
+		expect(variantes?.textContent).toBe('Mejía Ruiz');
 
 		// Two local days → two groups; stamp carries only the HH:MM.
 		expect(root.querySelectorAll('.mention-day').length).toBe(2);
