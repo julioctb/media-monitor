@@ -86,6 +86,15 @@ omissions, monitored-profile relevance, category justification, uncertainty,
 distinct useful attention and intelligible passage context. A valid citation does
 not answer these semantic questions. A fake positive judge tests the gate only.
 
+Review wire schemas project only assessment reasons to no-pattern strings bounded
+by `minLength: 2` and `maxLength: 500`; they do not expose the historical regex
+type to guided decoding. Runtime acceptance rejects blank or trimmed
+single-character reasons while preserving exact valid text and all existing
+strict type, length, scope, fingerprint and eight-check constraints. The floor
+is a mechanical degeneration guard, not evidence that a reason is meaningful.
+An invalid reason fails closed after the second physical request with both raw
+responses and the rejected plan retained; it never earns a third request.
+
 ## Receipts, rejection and recovery
 
 `generation` preserves the exact `raw_proposal`, accepted `plan` or
@@ -108,6 +117,9 @@ whose raw response still validates against the exact recomposed request. It does
 not copy arbitrary stored prose or mint approval for frame-only historical plans.
 Changed analysis, source material, context, scope or review invalidates recovery.
 The previous generation/review traces are retained even when recovery is refused.
+Previously marked-passed receipts whose raw explanations are single characters
+are ineligible for new recovery. Stored historical prose and receipts are not
+rewritten or deleted by this validation change.
 Revision restoration invalidates the generation plan using the existing API route;
 restored historical prose cannot become newly reviewed analysis through recovery.
 

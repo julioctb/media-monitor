@@ -90,7 +90,11 @@ act date; captured author is unverified identity, not account ownership.
 There are one to four unique premise selectors, all belonging to the analytical
 entry's own story. The existing atomic validator checks strict selector types,
 source membership, passage existence, bank identity and duplicate story indexes.
-Each of the five prose strings is nonblank and at most 1,000 characters. Unknown
+Each of the five prose strings is nonblank and at most 1,000 characters. Fresh
+acceptance and recovery also require at least two characters after trimming for
+validation only; exact original prose is never normalized or replaced. This
+rejects demonstrated single-character placeholders, not semantic nonsense in
+general. Historical rendering keeps its existing structural contract. Unknown
 keys are rejected atomically. A conditional sentence can still smuggle a factual
 premise; these structural checks do **not** establish semantic support.
 
@@ -115,6 +119,16 @@ The contextual schema fixes the bank hash and legal story/source/passage choices
 keeps nested selector references resolvable, and is sent unchanged in both guided
 and plain requests. `factual_plan_schema()` retains the unbound structural API.
 The atomic validator remains authoritative for uniqueness and ownership.
+
+Contextual wire schemas project only the five generated analysis fields to
+`minLength: 2`, `maxLength: 1000`, without a regex pattern. The no-argument schema,
+historical `_Prose` type and captured source/title/passage constraints remain
+unchanged. This avoids a demonstrated installed-decoder mismatch where `\S`
+permitted only one generated character and pattern/length combinations ignored
+length limits. Whitespace can satisfy the wire envelope: strict runtime
+nonblank, raw-length and fresh-text checks remain authoritative. Guided and plain
+requests carry the same projected schema. CPU-only decoder probes establish
+only their enumerated cases, not universal adapter or escaped-string support.
 
 The prompt carries captured source material, own-story navigation choices,
 registered focus name/role/organization, coverage and measured indicators. Missing,

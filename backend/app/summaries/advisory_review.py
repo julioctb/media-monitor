@@ -122,6 +122,11 @@ def review_packet(
 
 def review_schema(packet: dict) -> dict:
     schema = _Review.model_json_schema()
+    # Keep bounded prose usable in guided decoders; assess_review remains the
+    # authoritative nonblank and fresh-explanation boundary.
+    reason = schema["$defs"]["_Assessment"]["properties"]["reason"]
+    reason.pop("pattern", None)
+    reason["minLength"] = 2
     schema["properties"]["input_fingerprint"]["const"] = packet["input_fingerprint"]
     schema["properties"]["checks"] = {
         "type": "object",
@@ -144,6 +149,8 @@ def assess_review(raw: str, packet: dict) -> dict:
         result = _Review.model_validate(decode_plan(raw)).model_dump()
     except (ValueError, TypeError, ValidationError) as exc:
         raise ReviewError("Malformed semantic review") from exc
+    if any(len(entry["reason"].strip()) < 2 for entry in result["assessments"]):
+        raise ReviewError("Semantic review explanation is invalid")
     paths = [entry["path"] for entry in result["assessments"]]
     if (
         result["input_fingerprint"] != packet["input_fingerprint"]

@@ -113,6 +113,13 @@ class _Item(_Strict):
 
 
 _Prose = Annotated[str, Field(min_length=1, max_length=1000, pattern=r"\S")]
+_ADVISORY_PROSE_FIELDS = (
+    "interpretation",
+    "consequence",
+    "attention",
+    "conditions",
+    "relevance",
+)
 
 
 class _Analysis(_Strict):
@@ -437,6 +444,12 @@ def factual_plan_schema(content: dict | None = None) -> dict:
     schema = _Plan.model_json_schema()
     if content is None:
         return schema
+    # Some guided decoders treat a search pattern as the entire string. Keep
+    # numeric wire bounds; fresh acceptance still enforces nonblank prose.
+    for field in _ADVISORY_PROSE_FIELDS:
+        text = schema["$defs"]["_Analysis"]["properties"][field]
+        text.pop("pattern", None)
+        text["minLength"] = 2
     basis = _validated_basis(content)
     indexes = [story["index"] for story in basis["stories"]]
     properties = schema["properties"]
@@ -553,6 +566,18 @@ def require_contextual_plan(plan: dict) -> None:
         raise FactualPlanError("Contextual headline analysis is required")
     if any(not pick.get("analysis") for pick in plan["seleccion"]):
         raise FactualPlanError("Contextual analysis is required for each selection")
+    analyses = [plan["headline_analysis"]] + [
+        pick["analysis"] for pick in plan["seleccion"]
+    ]
+    for analysis in analyses:
+        for field in _ADVISORY_PROSE_FIELDS:
+            value = analysis.get(field)
+            if (
+                not isinstance(value, str)
+                or len(value.strip()) < 2
+                or len(value) > 1000
+            ):
+                raise FactualPlanError("Contextual advisory prose is invalid")
 
 
 def _contextual_reading(basis: dict, analysis: dict) -> str:
