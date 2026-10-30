@@ -893,6 +893,8 @@ h4 {
 }
 .empty h3 {
   color: var(--color-ink);
+  /* Mockup keeps UA-like 1em space under the title; preflight zeroes it. */
+  margin: 0 0 1em;
 }
 .footnote {
   margin: 18px 0 0;
