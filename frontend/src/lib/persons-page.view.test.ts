@@ -192,7 +192,10 @@ describe('persons list', () => {
 		expect(root.querySelector('.directory-table')).toBeNull();
 		// Mockup empty state (filters produce no identities).
 		expect(text()).toContain('No hay identidades con estos filtros');
-		expect(root.querySelector('a.button[href="/persons"]')?.textContent).toBe('Ver todos');
+		expect(text()).toContain(
+			'Prueba otro nombre o amplía los filtros. El ejemplo actual solo contiene organizaciones.'
+		);
+		expect(root.querySelector('a.button[href="/persons"]')?.textContent).toBe('Limpiar filtros');
 	});
 
 	it('renders the mockup Todos/En seguimiento segmented control', () => {
@@ -278,8 +281,11 @@ describe('persons list', () => {
 		await tick();
 		expect(root.querySelector('.directory-table')).toBeNull();
 		expect(text()).toContain('No hay identidades con estos filtros');
+		expect(text()).toContain(
+			'Prueba otro nombre o amplía los filtros. El ejemplo actual solo contiene organizaciones.'
+		);
 		const reset = root.querySelector<HTMLButtonElement>('button.button');
-		expect(reset?.textContent).toBe('Ver todos');
+		expect(reset?.textContent).toBe('Limpiar filtros');
 		reset?.click();
 		await tick();
 		expect(root.querySelectorAll('.directory-table tbody tr')).toHaveLength(1);

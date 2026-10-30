@@ -1,9 +1,9 @@
 <script lang="ts">
 	import PersonsDetailDialog from '$lib/components/PersonsDetailDialog.svelte';
+	import SourceBadge from '$lib/components/SourceBadge.svelte';
 	import { BTN_PRIMARY_CLS } from '$lib/ui';
 	import { ICON_PATHS } from '$lib/icons';
 	import {
-		CHANNEL_ICON,
 		channelClassFor,
 		channelLabelFor,
 		formatDirectoryDate,
@@ -168,11 +168,7 @@
 
 	{#if data.persons.length === 0}
 		{#if data.q}
-			<div class="empty">
-				<h3>No hay identidades con estos filtros</h3>
-				<p>Prueba con otro nombre o variante.</p>
-				<a class="button" href="/persons">Ver todos</a>
-			</div>
+			{@render directoryEmpty()}
 		{:else}
 			<div class="person-empty">
 				<p class="empty">
@@ -182,17 +178,7 @@
 			</div>
 		{/if}
 	{:else if visible.length === 0}
-		<div class="empty">
-			<h3>No hay identidades con estos filtros</h3>
-			<p>Prueba con otro nombre o quita el filtro de seguimiento.</p>
-			{#if data.q}
-				<a class="button" href="/persons">Ver todos</a>
-			{:else}
-				<button type="button" class="button" onclick={() => setFollowing('all')}>
-					Ver todos
-				</button>
-			{/if}
-		</div>
+		{@render directoryEmpty()}
 	{:else}
 		<div class="directory-result-heading">
 			<p role="status" aria-live="polite">
@@ -251,12 +237,7 @@
 								{#if channels.length}
 									<div class="chips">
 										{#each channels as channel (channel.cls)}
-											<span class={`source-badge ${channel.cls}`}>
-												<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true">
-													<path d={ICON_PATHS[CHANNEL_ICON[channel.cls]]} />
-												</svg>
-												{channel.label}
-											</span>
+											<SourceBadge channelClass={channel.cls} label={channel.label} />
 										{/each}
 									</div>
 								{:else}
@@ -315,5 +296,20 @@
 		dentro del mismo texto. Cada ficha mantiene el historial completo de menciones.
 	</p>
 </details>
+
+{#snippet directoryEmpty()}
+	<!-- Mockup directoryResults empty state (shared by search-empty and follow-empty). -->
+	<div class="empty">
+		<h3>No hay identidades con estos filtros</h3>
+		<p>Prueba otro nombre o amplía los filtros. El ejemplo actual solo contiene organizaciones.</p>
+		{#if data.q}
+			<a class="button" href="/persons">Limpiar filtros</a>
+		{:else}
+			<button type="button" class="button" onclick={() => setFollowing('all')}>
+				Limpiar filtros
+			</button>
+		{/if}
+	</div>
+{/snippet}
 
 <PersonsDetailDialog personId={openFichaId} onclose={() => (openFichaId = null)} {loadFicha} />

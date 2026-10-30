@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { ICON_PATHS } from '$lib/icons';
-	import { CHANNEL_ICON } from '$lib/format';
+	import SourceBadge from '$lib/components/SourceBadge.svelte';
 	import type { Snippet } from 'svelte';
 
 	/**
@@ -61,16 +61,9 @@
 	} = $props();
 </script>
 
-<article class="feed-item" aria-labelledby={titleId}>
+	<article class="feed-item" aria-labelledby={titleId}>
 	<div class="feed-meta">
-		<span class={`source-badge${channelClass ? ` ${channelClass}` : ''}`}>
-			{#if channelClass}
-				<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true">
-					<path d={ICON_PATHS[CHANNEL_ICON[channelClass]]} />
-				</svg>
-			{/if}
-			{channelLabel}
-		</span>
+		<SourceBadge {channelClass} label={channelLabel} />
 		{#if sourceLabel}<span>{sourceLabel}</span>{/if}
 		{#if author}<span class="feed-author">{author}</span>{/if}
 		{#if sentimentClass && sentimentText}

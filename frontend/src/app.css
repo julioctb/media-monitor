@@ -3693,7 +3693,7 @@ table.coverage th {
   font-size: 10px;
 }
 .chips a,
-.chips span:not(.topic-chip) {
+.chips span:not(.topic-chip):not(.source-badge) {
   border: 1px solid var(--color-line);
   background: var(--color-surface);
   color: var(--color-ink-2);
@@ -5170,6 +5170,13 @@ button.text-link {
 }
 .directory-table tbody tr:last-child td {
   border-bottom: 0;
+}
+/* Mockup directory-table tweaks: tighter chips, smaller badge text. */
+.directory-table .chips {
+  gap: 4px;
+}
+.directory-table .source-badge {
+  font-size: 10px;
 }
 .directory-person-cell {
   display: flex;
