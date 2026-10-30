@@ -92,31 +92,64 @@ describe('persons list', () => {
 		expect(text()).toContain(
 			'Quién aparece, en qué contexto y cómo evoluciona su presencia.'
 		);
-		expect(text()).toContain('Personajes en seguimiento');
-		expect(text()).toContain('También mencionado como: Mejía Ruiz');
+		// Mockup peopleView: panel header verbatim.
+		expect(root.querySelector('.directory-header h2')?.textContent).toBe(
+			'Directorio de personajes'
+		);
+		expect(text()).toContain('2 identidades detectadas');
+		// Search: visible label + honest placeholder (backend q = name_key/alias_keys).
+		expect(text()).toContain('Buscar por nombre');
+		expect(root.querySelector<HTMLInputElement>('.directory-search input')?.placeholder).toBe(
+			'Nombre o variante…'
+		);
+		// Toolbar: sort select behind the mockup's filter toggle.
+		expect(root.querySelector('.directory-filter-toggle')?.getAttribute('aria-expanded')).toBe(
+			'false'
+		);
+		expect(root.querySelector('.directory-filters.is-open')).toBeNull();
+		expect(root.querySelectorAll('.directory-filters option').length).toBe(3);
+		// Result heading + pagination per mockup directoryResults.
+		expect(text()).toContain('2 identidades · 1–2 visibles');
+		expect(text()).toContain('25 por página');
+		expect(text()).toContain('Página 1 de 1');
+		const prev = root.querySelector<HTMLButtonElement>(
+			'.directory-pagination button:first-of-type'
+		);
+		expect(prev?.hasAttribute('disabled')).toBe(true);
 		expect(root.querySelector('section.directory-panel')).toBeTruthy();
-		expect(root.querySelector('.directory-header h2')).toBeTruthy();
 		expect(root.querySelectorAll('.directory-monogram').length).toBe(2);
 		const name = root.querySelector<HTMLAnchorElement>('a.directory-name');
 		expect(name?.getAttribute('href')).toBe('/persons/1');
-		expect(root.querySelectorAll('.directory-table th').length).toBe(5);
-		expect(text()).toContain('Menciones');
+		// Mockup columns verbatim; aliases are NOT a row element (they live in
+		// the ficha dl «Variantes anotadas»).
+		expect([...root.querySelectorAll('.directory-table th')].map((el) => el.textContent)).toEqual([
+			'Identidad',
+			'Tipo',
+			'Menciones',
+			'Fuentes',
+			'Última aparición'
+		]);
+		expect(text()).not.toContain('También mencionado como');
+		expect(root.querySelector('td[data-label="Tipo"]')?.textContent).toBe('Persona');
 		const count = root.querySelector('td[data-label="Menciones"] strong');
 		expect(count?.textContent).toBe('7');
-		const seen = root.querySelector('td[data-label="Última vez"] time');
+		const seen = root.querySelector('td[data-label="Última aparición"] time');
 		expect(seen?.getAttribute('datetime')).toBe('2026-10-27T21:30:00Z');
+		expect(seen?.querySelector('.directory-time')).toBeTruthy();
 		expect(root.querySelector('.directory-disclaimer')).toBeTruthy();
+		expect(root.querySelector('details.directory-method')).toBeTruthy();
 	});
 
-	it('keeps the search form and shows the empty state without a table', () => {
+	it('keeps the search form and shows the mockup empty state for a query', () => {
 		const { text, root } = renderList([], 'rectoría');
 
 		expect(root.querySelector('form[method="get"]')).toBeTruthy();
 		const input = root.querySelector<HTMLInputElement>('input[name="q"]');
 		expect(input?.value).toBe('rectoría');
-		expect(root.querySelector('.person-empty .empty')).toBeTruthy();
 		expect(root.querySelector('.directory-table')).toBeNull();
-		expect(text()).toContain('Sin personajes registrados');
+		// Mockup empty state (filters produce no identities).
+		expect(text()).toContain('No hay identidades con estos filtros');
+		expect(root.querySelector('a.button[href="/persons"]')?.textContent).toBe('Ver todos');
 	});
 });
 

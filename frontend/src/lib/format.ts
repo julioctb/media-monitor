@@ -343,6 +343,19 @@ export function formatFeedStamp(value: string | null | undefined): string {
 	return `${feedStampDate(date)} · ${time}`;
 }
 
+/** Mockup directory cell date: «29 oct 2026» (es-MX, numeric day + short month). */
+export function formatDirectoryDate(value: string | null | undefined): string {
+	if (!value) return '—';
+	const date = new Date(value);
+	if (Number.isNaN(date.getTime())) return value;
+	return new Intl.DateTimeFormat('es-MX', {
+		timeZone: DISPLAY_TIMEZONE,
+		day: 'numeric',
+		month: 'short',
+		year: 'numeric'
+	}).format(date);
+}
+
 /** HH:MM in the display timezone; raw string when unparseable, '—' when absent. */
 export function formatDisplayTime(value: string | null | undefined): string {
 	if (!value) return '—';

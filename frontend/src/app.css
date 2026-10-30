@@ -4933,19 +4933,17 @@ button.text-link {
 
 /* ============================================================
    Persons view v3 — «Panel de monitoreo informativo».
-   Ported from the directory (people) view of the v3 reference
-   (app.js peopleView / directoryDetail; final cascade of
-   styles.css → tailwind.css). Product copy prevails over the
-   mockup: the page says «Actores» (mockup «Personajes») and
-   keeps the fixed relevance order — sin toggle de vista, sin
-   selector de orden, sin filtros avanzados (la app tiene una
-   sola búsqueda). Slots del mockup sin dato en la app,
-   omitidos: seguimiento (localStorage), identidad por validar /
-   posibles homónimos, paginación de tabla (resultado único),
-   details «cómo se organiza», chips de fuente por celda.
-   Extras de la app preservados: columnas Cargo/Institución,
-   línea de alias, conteos por tono, rol en la mención, link a
-   evento. Breakpoints 768 / 600 / 480 + hover.
+   1:1 con la vista directory (people) del mockup de referencia
+   (app.js peopleView / directoryResults; cascada final de
+   styles.css → tailwind.css). Desviaciones honestas por datos
+   reales: búsqueda server-side única con submit (el mockup
+   filtra al instante), selector de orden tras el botón
+   «Filtrar» (único control real), columna «Fuentes» sin
+   payload (—), paginación de 25 en cliente. Slots del mockup
+   omitidos por no existir el dato en la app: Seguir y
+   segmentado en seguimiento, filtros por tipo/fuente/identidad
+   (por validar / homónimos). Breakpoints 1100 / 768 / 600 / 480
+   + hover.
    ============================================================ */
 .persons-intro p {
   margin: 0;
@@ -4977,15 +4975,106 @@ button.text-link {
   color: var(--color-muted);
   font-size: 14px;
 }
-.person-search {
-  display: flex;
+.directory-header .directory-search {
+  display: grid;
+  gap: 6px;
+  width: min(100%, 300px);
   flex: none;
-  align-items: center;
-  gap: 8px;
-  width: min(100%, 380px);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-muted);
 }
-.person-search .search {
+.directory-header .directory-search .search {
+  flex: 1;
+  min-width: 0;
   background: #fff;
+}
+.directory-header .directory-search input {
+  height: 44px;
+  font-size: 14px;
+}
+/* The app searches server-side, so the mockup's field keeps a submit. */
+.directory-search-row {
+  display: flex;
+  gap: 8px;
+}
+.directory-toolbar {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 0 28px 24px;
+}
+.directory-filter-toggle {
+  display: none;
+}
+.directory-filters {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(120px, 1fr));
+  gap: 12px;
+  flex: 1;
+  padding: 0;
+  border: 0;
+}
+.directory-filters label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  color: var(--color-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+.directory-filters select {
+  width: 100%;
+  min-height: 44px;
+  color: var(--color-ink);
+  font-size: 13px;
+  background: #fff;
+}
+.directory-result-heading,
+.directory-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+.directory-result-heading {
+  padding: 12px 28px;
+  border-top: 1px solid var(--color-line);
+}
+.directory-result-heading p {
+  margin: 0;
+}
+.directory-pagination {
+  padding: 16px 28px;
+  border-top: 1px solid var(--color-line);
+  font-size: 13px;
+}
+.directory-pagination .button {
+  min-height: 44px;
+}
+.directory-time {
+  display: block;
+  margin-top: 2px;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+.directory-method {
+  max-width: 80ch;
+  margin-top: 20px;
+  color: var(--color-muted);
+  font-size: 13px;
+}
+.directory-method summary {
+  min-height: 44px;
+  color: var(--color-ink);
+  cursor: pointer;
+}
+.directory-method p {
+  line-height: 1.7;
 }
 .directory-table-wrap {
   width: 100%;
@@ -5064,11 +5153,6 @@ button.text-link {
   text-decoration: none;
   overflow-wrap: anywhere;
 }
-.person-aliases {
-  margin: 4px 0 0;
-  color: var(--color-muted);
-  font-size: 12px;
-}
 .person-empty {
   margin: 24px 28px 28px;
 }
@@ -5085,9 +5169,6 @@ button.text-link {
 }
 .person-head .eyebrow {
   margin: 0 0 6px;
-}
-.person-head .person-aliases {
-  margin: 6px 0 0;
 }
 .directory-detail-meta {
   display: grid;
@@ -5215,7 +5296,15 @@ button.text-link {
   color: var(--color-ink);
 }
 
-/* Responsive del mockup: 768 / 600 / 480 + hover. */
+/* Responsive: 1100 / 768 / 600 / 480 + hover. */
+@media (max-width: 1100px) {
+  .directory-toolbar {
+    display: block;
+  }
+  .directory-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
 @media (hover: hover) {
   .directory-name:hover {
     color: var(--color-accent);
@@ -5236,8 +5325,44 @@ button.text-link {
     gap: 16px;
     padding: 20px 20px 16px;
   }
-  .person-search {
+  .directory-header .directory-search {
     width: 100%;
+    max-width: none;
+  }
+  .directory-toolbar {
+    padding: 0 20px 20px;
+  }
+  .directory-filter-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    margin: 0 0 12px;
+    padding: 8px 14px;
+    border: 1px solid var(--color-line);
+    border-radius: 7px;
+    background: #fff;
+    color: var(--color-accent);
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .directory-filter-toggle[aria-expanded='true'] {
+    background: var(--color-accent-soft);
+  }
+  .directory-filters {
+    display: none;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 0;
+  }
+  .directory-filters.is-open {
+    display: grid;
+  }
+  .directory-result-heading,
+  .directory-pagination {
+    padding: 14px 20px;
+  }
+  .directory-table-wrap {
+    overflow: visible;
   }
   .directory-table {
     min-width: 0;
@@ -5313,6 +5438,10 @@ button.text-link {
   .directory-table tbody .directory-name {
     min-height: 44px;
   }
+  .directory-table tbody .directory-time {
+    display: inline;
+    margin: 0 0 0 6px;
+  }
   .person-empty {
     margin: 24px 20px;
   }
@@ -5320,6 +5449,13 @@ button.text-link {
 @media (max-width: 600px) {
   .directory-header {
     padding: 20px 16px 16px;
+  }
+  .directory-toolbar {
+    padding: 0 16px 16px;
+  }
+  .directory-result-heading,
+  .directory-pagination {
+    padding: 14px 16px;
   }
   .directory-table tbody {
     padding: 0 16px 16px;
