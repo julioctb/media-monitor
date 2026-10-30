@@ -1433,6 +1433,22 @@ def list_persons(
     else:
         stmt = stmt.order_by(Person.last_seen_at.desc(), Person.id.desc())
     rows = session.execute(stmt.limit(limit).offset(max(0, offset))).all()
+    # Fuentes badges: distinct ingest sources per person. One extra DISTINCT
+    # query for the page's ids (portable across engines — no array_agg) —
+    # dedupe/sort happen in Python.
+    sources_by_person: dict[int, list[str]] = defaultdict(list)
+    person_ids = [person.id for person, _count in rows]
+    if person_ids:
+        pair_rows = session.execute(
+            select(MentionPerson.person_id, Mention.source)
+            .join(Mention, Mention.id == MentionPerson.mention_id)
+            .where(
+                Mention.client_id == client_id, MentionPerson.person_id.in_(person_ids)
+            )
+            .distinct()
+        ).all()
+        for pid, src in pair_rows:
+            sources_by_person[pid].append(getattr(src, "value", str(src)))
     return [
         {
             "id": person.id,
@@ -1444,6 +1460,7 @@ def list_persons(
             "first_seen_at": person.first_seen_at,
             "last_seen_at": person.last_seen_at,
             "mention_count": count,
+            "sources": sorted(sources_by_person.get(person.id, [])),
         }
         for person, count in rows
     ]

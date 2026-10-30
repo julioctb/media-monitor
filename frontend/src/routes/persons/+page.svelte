@@ -2,10 +2,16 @@
 	import PersonsDetailDialog from '$lib/components/PersonsDetailDialog.svelte';
 	import { BTN_PRIMARY_CLS } from '$lib/ui';
 	import { ICON_PATHS } from '$lib/icons';
-	import { formatDirectoryDate, formatDisplayTime } from '$lib/format';
+	import {
+		CHANNEL_ICON,
+		channelClassFor,
+		channelLabelFor,
+		formatDirectoryDate,
+		formatDisplayTime
+	} from '$lib/format';
 	import { prefs, seedPrefsFromServer } from '$lib/prefs';
 	import type { PageProps } from './$types';
-	import type { PersonDetail } from '$lib/api';
+	import type { PersonDetail, PersonSummary } from '$lib/api';
 
 	interface Props extends PageProps {
 		/** Bridge override for view tests (isolated fixtures). */
@@ -23,9 +29,10 @@
 	/** Mockup directoryResults: 25 identities per page. */
 	const PAGE_SIZE = 25;
 
-	type SortKey = 'mentions' | 'recent' | 'name';
-	let sort = $state<SortKey>('mentions');
-	let filtersOpen = $state(false);
+	type SortDir = 'asc' | 'desc';
+	// The «Menciones» column is clickable (Julio: that column only; the
+	// mockup's «Ordenar por» select was removed in its favor).
+	let sortDir = $state<SortDir>('desc');
 	let following = $state<'all' | 'followed'>('all');
 	let page = $state(1);
 	let openFichaId = $state<number | null>(null);
@@ -42,21 +49,13 @@
 
 	// Client-side view over the loaded set (presentation only; the server
 	// payload stays untouched). Ties break by name, like the mockup.
+	const nameOrder = (a: PersonSummary, b: PersonSummary) => a.name.localeCompare(b.name, 'es');
 	const sorted = $derived.by(() => {
 		const list = [...data.persons];
-		const nameOrder = (a: (typeof list)[number], b: (typeof list)[number]) =>
-			a.name.localeCompare(b.name, 'es');
-		if (sort === 'mentions')
-			list.sort(
-				(a, b) => b.mention_count - a.mention_count || nameOrder(a, b)
-			);
-		else if (sort === 'recent')
-			list.sort(
-				(a, b) =>
-					(b.last_seen_at ?? '').localeCompare(a.last_seen_at ?? '') ||
-					nameOrder(a, b)
-			);
-		else list.sort(nameOrder);
+		list.sort((a, b) => {
+			const byMentions = b.mention_count - a.mention_count;
+			return (sortDir === 'desc' ? byMentions : -byMentions) || nameOrder(a, b);
+		});
 		return list;
 	});
 
@@ -78,9 +77,21 @@
 		page = 1;
 	}
 
-	function onSortChange(event: Event) {
-		sort = (event.target as HTMLSelectElement).value as SortKey;
+	function toggleMentionsSort() {
+		sortDir = sortDir === 'asc' ? 'desc' : 'asc';
 		page = 1;
+	}
+
+	// Fuentes badges: one per channel (Noticias/Redes sociales/Campo) in the
+	// mockup's fixed order; labels come from the single channelLabelFor helper.
+	const CHANNEL_ORDER = ['news', 'social', 'field'] as const;
+	function personChannels(sources: string[] | undefined) {
+		const out: { cls: (typeof CHANNEL_ORDER)[number]; label: string }[] = [];
+		for (const cls of CHANNEL_ORDER) {
+			const rep = (sources ?? []).find((source) => channelClassFor(source) === cls);
+			if (rep) out.push({ cls, label: channelLabelFor(rep) });
+		}
+		return out;
 	}
 
 	function initials(name: string): string {
@@ -153,25 +164,6 @@
 				En seguimiento
 			</button>
 		</div>
-		<button
-			type="button"
-			class="directory-filter-toggle"
-			aria-controls="directory-advanced-filters"
-			aria-expanded={filtersOpen}
-			onclick={() => (filtersOpen = !filtersOpen)}
-		>
-			Filtrar
-		</button>
-		<div class="directory-filters {filtersOpen ? 'is-open' : ''}" id="directory-advanced-filters">
-			<label>
-				<span>Ordenar por</span>
-				<select value={sort} onchange={onSortChange}>
-					<option value="recent">Más recientes</option>
-					<option value="mentions">Más mencionados</option>
-					<option value="name">Nombre A–Z</option>
-				</select>
-			</label>
-		</div>
 	</div>
 
 	{#if data.persons.length === 0}
@@ -220,13 +212,16 @@
 					<tr>
 						<th scope="col">Identidad</th>
 						<th scope="col">Tipo</th>
-						<th scope="col">Menciones</th>
+						<th scope="col" aria-sort={sortDir === 'asc' ? 'ascending' : 'descending'}>
+							<button type="button" class="directory-sort" onclick={toggleMentionsSort}>Menciones</button>
+						</th>
 						<th scope="col">Fuentes</th>
 						<th scope="col">Última aparición</th>
 					</tr>
 				</thead>
 				<tbody>
 					{#each visible as person (person.id)}
+						{@const channels = personChannels(person.sources)}
 						<tr>
 							<td data-label="Nombre">
 								<div class="directory-person-cell">
@@ -253,7 +248,20 @@
 							<td data-label="Tipo">Persona</td>
 							<td data-label="Menciones"><strong>{person.mention_count}</strong></td>
 							<td data-label="Fuentes">
-								<span class="muted">—</span>
+								{#if channels.length}
+									<div class="chips">
+										{#each channels as channel (channel.cls)}
+											<span class={`source-badge ${channel.cls}`}>
+												<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true">
+													<path d={ICON_PATHS[CHANNEL_ICON[channel.cls]]} />
+												</svg>
+												{channel.label}
+											</span>
+										{/each}
+									</div>
+								{:else}
+									<span class="muted">—</span>
+								{/if}
 							</td>
 							<td data-label="Última aparición">
 								{#if person.last_seen_at}

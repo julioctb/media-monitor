@@ -785,6 +785,8 @@ class TestPersonsAPI:
         assert [p["name"] for p in body] == ["Xóchitl Gálvez", "Beto"]
         assert body[0]["mention_count"] == 3
         assert body[0]["role"] == "Senadora"
+        # Fuentes badges: every row carries its distinct sources.
+        assert body[0]["sources"] == ["news_rss"]
 
     def test_list_sort_recent_and_validation(self, api, db) -> None:
         client_id = first_client_id(db)

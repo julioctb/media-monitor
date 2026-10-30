@@ -5030,31 +5030,36 @@ button.text-link {
   gap: 20px;
   padding: 0 28px 24px;
 }
-.directory-filter-toggle {
-  display: none;
-}
-.directory-filters {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(120px, 1fr));
-  gap: 12px;
-  flex: 1;
+/* Sortable columns (Identidad/Menciones/Última aparición): the th text IS the
+   control; the caret mirrors aria-sort. Mobile-only chip fallback below. */
+.directory-table th .directory-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 0;
   padding: 0;
   border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
 }
-.directory-filters label {
-  display: grid;
-  gap: 6px;
-  min-width: 0;
+.directory-table th .directory-sort::after {
+  content: '↕';
   color: var(--color-muted);
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 10px;
 }
-.directory-filters select {
-  width: 100%;
-  min-height: 44px;
-  color: var(--color-ink);
-  font-size: 13px;
-  background: #fff;
+.directory-table th[aria-sort='descending'] .directory-sort,
+.directory-table th[aria-sort='ascending'] .directory-sort {
+  color: var(--color-accent);
+}
+.directory-table th[aria-sort='descending'] .directory-sort::after {
+  content: '↓';
+  color: var(--color-accent);
+}
+.directory-table th[aria-sort='ascending'] .directory-sort::after {
+  content: '↑';
+  color: var(--color-accent);
 }
 .directory-result-heading,
 .directory-pagination {
@@ -5345,11 +5350,11 @@ button.text-link {
   .directory-toolbar {
     display: block;
   }
-  .directory-filters {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 @media (hover: hover) {
+  .directory-table th .directory-sort:hover {
+    color: var(--color-accent);
+  }
   .directory-segmented button:not(.active):hover {
     color: var(--color-accent);
     background: #e9eef3;
@@ -5379,31 +5384,6 @@ button.text-link {
   }
   .directory-toolbar {
     padding: 0 20px 20px;
-  }
-  .directory-filter-toggle {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 44px;
-    margin: 0 0 12px;
-    padding: 8px 14px;
-    border: 1px solid var(--color-line);
-    border-radius: 7px;
-    background: #fff;
-    color: var(--color-accent);
-    font-size: 13px;
-    font-weight: 600;
-  }
-  .directory-filter-toggle[aria-expanded='true'] {
-    background: var(--color-accent-soft);
-  }
-  .directory-filters {
-    display: none;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    padding: 0;
-  }
-  .directory-filters.is-open {
-    display: grid;
   }
   .directory-result-heading,
   .directory-pagination {

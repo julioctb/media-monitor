@@ -671,6 +671,9 @@ export interface PersonSummary {
   first_seen_at: string;
   last_seen_at: string;
   mention_count: number;
+  /** Distinct MentionSource values behind the person (Fuentes badges);
+   *  day-window rows may omit it. */
+  sources?: string[];
 }
 
 /** One mention of the person: quote, source and context (F3 exit gate). */

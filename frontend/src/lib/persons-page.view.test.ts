@@ -116,12 +116,22 @@ describe('persons list', () => {
 		expect(root.querySelector<HTMLInputElement>('.directory-search input')?.placeholder).toBe(
 			'Nombre o variante…'
 		);
-		// Toolbar: sort select behind the mockup's filter toggle.
-		expect(root.querySelector('.directory-filter-toggle')?.getAttribute('aria-expanded')).toBe(
-			'false'
-		);
-		expect(root.querySelector('.directory-filters.is-open')).toBeNull();
-		expect(root.querySelectorAll('.directory-filters option').length).toBe(3);
+		// Sorting happens by clicking the columns: the «Ordenar por» select and
+		// the mockup's filter toggle are gone (Julio: headers are the control).
+		expect(root.querySelector('select')).toBeNull();
+		expect(root.querySelector('.directory-filter-toggle')).toBeNull();
+		expect(root.querySelector('.directory-filters')).toBeNull();
+		const sortButtons = [...root.querySelectorAll('.directory-table th button')];
+		expect(sortButtons.map((b) => b.textContent)).toEqual(['Menciones']);
+		expect([
+			...root.querySelectorAll('.directory-table th')
+		].map((th) => th.getAttribute('aria-sort'))).toEqual([
+			null,
+			null,
+			'descending',
+			null,
+			null
+		]);
 		// Result heading + pagination per mockup directoryResults.
 		expect(text()).toContain('2 identidades · 1–2 visibles');
 		expect(text()).toContain('25 por página');
@@ -196,6 +206,49 @@ describe('persons list', () => {
 		expect(buttons[0]?.getAttribute('aria-pressed')).toBe('true');
 		expect(buttons[0]?.classList.contains('active')).toBe(true);
 		expect(buttons[1]?.getAttribute('aria-pressed')).toBe('false');
+	});
+
+	it('renders the Fuentes channel badges deduped in fixed mockup order', () => {
+		const { root } = renderList([
+			person({ sources: ['gdelt', 'news_rss', 'x_twitter', 'field_report'] })
+		]);
+		const badges = [...root.querySelectorAll('td[data-label="Fuentes"] .source-badge')];
+		expect(badges.map((b) => [b.className, b.textContent?.trim()])).toEqual([
+			['source-badge news', 'Noticias'],
+			['source-badge social', 'Redes sociales'],
+			['source-badge field', 'Campo']
+		]);
+
+		const plain = renderList([person({ id: 3, name: 'Sin Fuentes', sources: [] })]);
+		expect(
+			plain.root.querySelector('td[data-label="Fuentes"]')?.textContent?.trim()
+		).toBe('—');
+	});
+
+	it('toggles direction on the Menciones header with honest aria-sort', async () => {
+		const beto = person({
+			id: 2,
+			name: 'Beto Lara',
+			aliases: [],
+			mention_count: 900,
+			last_seen_at: '2026-10-14T10:00:00Z'
+		});
+		const { root } = renderList([person(), beto]);
+		const firstRow = () => root.querySelector('a.directory-name')?.textContent;
+		const menciones = () =>
+			root.querySelectorAll<HTMLTableCellElement>('.directory-table th')[2];
+		const clickHeader = async () => {
+			menciones().querySelector('button')!.click();
+			await tick();
+		};
+
+		expect(firstRow()).toBe('Beto Lara'); // default: most mentioned first
+		await clickHeader();
+		expect(menciones().getAttribute('aria-sort')).toBe('ascending');
+		expect(firstRow()).toBe('Alina Mejía');
+		await clickHeader();
+		expect(menciones().getAttribute('aria-sort')).toBe('descending');
+		expect(firstRow()).toBe('Beto Lara');
 	});
 
 	it('counts followed persons in the header and filters with the segmented', async () => {

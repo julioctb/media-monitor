@@ -506,6 +506,9 @@ class PersonOut(BaseModel):
     first_seen_at: datetime
     last_seen_at: datetime
     mention_count: int
+    # Distinct ingest sources (MentionSource values) behind the person;
+    # empty for day-window rows, which only carry the windowed rank.
+    sources: list[str] = []
 
 
 class PersonTimelineItem(BaseModel):

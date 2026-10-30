@@ -396,6 +396,20 @@ class TestListPersons:
         with pytest.raises(ValueError):
             queries.list_persons(session, client_id, sort="nope")
 
+    def test_sources_distinct_sorted_per_person(self, session) -> None:
+        """Fuentes column: distinct ingest sources per person."""
+        client_id, people = self._seed(session)
+        ana = people["Ana Torres"]
+        # Two more mentions for Ana, both x_twitter: dedupe is per source.
+        for n in (90, 91):
+            extra = _mention(session, client_id, n)
+            extra.source = MentionSource.x_twitter
+            session.add(MentionPerson(mention_id=extra.id, person_id=ana.id))
+        session.commit()
+        rows = {r["name"]: r for r in queries.list_persons(session, client_id)}
+        assert rows["Ana Torres"]["sources"] == ["news_rss", "x_twitter"]
+        assert rows["Beto Ibarra"]["sources"] == ["news_rss"]
+
 
 class TestPersonTimeline:
     def test_rows_carry_quote_event_and_political_label(self, session) -> None:
