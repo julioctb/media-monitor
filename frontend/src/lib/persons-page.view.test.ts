@@ -195,7 +195,8 @@ describe('persons list', () => {
 		expect(text()).toContain(
 			'Prueba otro nombre o amplía los filtros. El ejemplo actual solo contiene organizaciones.'
 		);
-		expect(root.querySelector('a.button[href="/persons"]')?.textContent).toBe('Limpiar filtros');
+		// No «Limpiar filtros» action inside the empty state (Julio, L28).
+		expect(root.querySelector('.empty .button')).toBeNull();
 	});
 
 	it('renders the mockup Todos/En seguimiento segmented control', () => {
@@ -275,18 +276,14 @@ describe('persons list', () => {
 		expect(root.querySelectorAll('.directory-table tbody tr')).toHaveLength(2);
 	});
 
-	it('shows the filter empty state with a reset button when nothing is followed', async () => {
+	it('shows the filter empty state when nothing is followed; Todos restores the list', async () => {
 		const { text, root } = renderList([person()]);
 		root.querySelectorAll<HTMLButtonElement>('.directory-segmented button')[1].click();
 		await tick();
 		expect(root.querySelector('.directory-table')).toBeNull();
 		expect(text()).toContain('No hay identidades con estos filtros');
-		expect(text()).toContain(
-			'Prueba otro nombre o amplía los filtros. El ejemplo actual solo contiene organizaciones.'
-		);
-		const reset = root.querySelector<HTMLButtonElement>('button.button');
-		expect(reset?.textContent).toBe('Limpiar filtros');
-		reset?.click();
+		expect(root.querySelector('.empty .button')).toBeNull();
+		root.querySelectorAll<HTMLButtonElement>('.directory-segmented button')[0].click();
 		await tick();
 		expect(root.querySelectorAll('.directory-table tbody tr')).toHaveLength(1);
 	});

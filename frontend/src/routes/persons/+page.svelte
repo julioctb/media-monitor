@@ -298,17 +298,12 @@
 </details>
 
 {#snippet directoryEmpty()}
-	<!-- Mockup directoryResults empty state (shared by search-empty and follow-empty). -->
+	<!-- Mockup directoryResults empty state minus its «Limpiar filtros» button
+	     (Julio, L28): the search field and the Todos segment stay visible above,
+	     so the button was redundant. -->
 	<div class="empty">
 		<h3>No hay identidades con estos filtros</h3>
 		<p>Prueba otro nombre o amplía los filtros. El ejemplo actual solo contiene organizaciones.</p>
-		{#if data.q}
-			<a class="button" href="/persons">Limpiar filtros</a>
-		{:else}
-			<button type="button" class="button" onclick={() => setFollowing('all')}>
-				Limpiar filtros
-			</button>
-		{/if}
 	</div>
 {/snippet}
 
