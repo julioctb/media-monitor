@@ -39,7 +39,7 @@ function dataFixture(): PageProps['data'] {
 		focusEvents: [],
 		persons: [],
 		agendaUpcoming: [],
-		prefs: { saved: [], follow: [], seen: {} },
+		prefs: { saved: [], follow: [], persons: [], seen: {} },
 		sourceCounts: { news_rss: 200, x_twitter: 30 }, mediumCounts: { 'global.example': 200 }, newsMediumCount: 40,
 		channelGroups: { news: ['news_rss'], social: ['x_twitter'], field: [] },
 		feedStats: { total: 96, by_source: { news_rss: 96 }, by_sentiment: { negative: 96, positive: 0, neutral: 0, none: 0 }, news_medium_count: 17, result_group_count: 63 },
@@ -340,7 +340,7 @@ it('filters the loaded page under Guardadas and counts visible mentions', async 
 	const data = dataFixture();
 	const second = { ...data.mentions.items[0], id: 2, event_id: null, title: 'Segunda publicación suelta' };
 	data.mentions = { items: [...data.mentions.items, second as Mention], total: 2 };
-	data.prefs = { saved: [2], follow: [], seen: {} };
+	data.prefs = { saved: [2], follow: [], persons: [], seen: {} };
 	const target = await render(data);
 	await tick();
 
@@ -364,7 +364,7 @@ it('shows the filtered empty state when nothing saved matches', async () => {
 	const data = dataFixture();
 	data.mentions = { items: [], total: 0 };
 	data.feedStats = { total: 0, by_source: {}, by_sentiment: { positive: 0, negative: 0, neutral: 0, none: 0 }, news_medium_count: 0, result_group_count: 0 };
-	data.prefs = { saved: [9], follow: [], seen: {} };
+	data.prefs = { saved: [9], follow: [], persons: [], seen: {} };
 	const target = await render(data);
 	const filter = target.querySelector<HTMLButtonElement>('[id="saved-filter"]');
 	filter!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -393,7 +393,7 @@ it('labels lone mentions, news authors and person chips per the mockup', async (
 
 it('renders the focus panel with followed events, unread marker and window counts', async () => {
 	const data = dataFixture();
-	data.prefs = { saved: [], follow: [1], seen: {} };
+	data.prefs = { saved: [], follow: [1], persons: [], seen: {} };
 	data.focusEvents = [{ id: 1, title: 'Evento sintético', mentions: 1, sourceKinds: 1 }];
 	const target = await render(data);
 
@@ -424,12 +424,12 @@ it('renders the focus panel with followed events, unread marker and window count
 
 it('renders the focus panel empty states verbatim', async () => {
 	const data = dataFixture();
-	data.prefs = { saved: [], follow: [], seen: {} };
+	data.prefs = { saved: [], follow: [], persons: [], seen: {} };
 	const none = await render(data);
 	expect(none.textContent).toContain('Aún no sigues eventos. Puedes marcarlos en la página Eventos.');
 
 	const quiet = dataFixture();
-	quiet.prefs = { saved: [], follow: [1], seen: {} };
+	quiet.prefs = { saved: [], follow: [1], persons: [], seen: {} };
 	quiet.focusEvents = [];
 	const quietTarget = await render(quiet);
 	expect(quietTarget.textContent).toContain('Sin menciones de eventos en foco en este periodo.');

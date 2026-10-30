@@ -4998,6 +4998,31 @@ button.text-link {
   display: flex;
   gap: 8px;
 }
+.directory-segmented {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 8px;
+  background: var(--color-surface);
+}
+.directory-segmented button {
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-muted);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.directory-segmented button.active {
+  background: #fff;
+  color: var(--color-accent);
+  box-shadow: 0 1px 5px rgba(36, 50, 65, 0.1);
+}
 .directory-toolbar {
   display: flex;
   align-items: end;
@@ -5075,6 +5100,25 @@ button.text-link {
 }
 .directory-method p {
   line-height: 1.7;
+}
+/* Ficha (page + dialog): mockup .directory-detail-heading + evidence heading. */
+.directory-detail-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.directory-detail-heading .page-title,
+.directory-detail-heading .daily-dialog-title,
+.directory-detail-heading h2 {
+  margin: 0;
+}
+.directory-evidence-heading {
+  margin-top: 24px;
+}
+.detail-dialog .person-head {
+  margin: 0 0 16px;
 }
 .directory-table-wrap {
   width: 100%;
@@ -5306,6 +5350,10 @@ button.text-link {
   }
 }
 @media (hover: hover) {
+  .directory-segmented button:not(.active):hover {
+    color: var(--color-accent);
+    background: #e9eef3;
+  }
   .directory-name:hover {
     color: var(--color-accent);
     text-decoration: underline;

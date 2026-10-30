@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
-import { mount, unmount } from 'svelte';
+import { mount, tick, unmount } from 'svelte';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import type { PersonDetail, PersonSummary } from '$lib/api';
+import type { MmPrefs } from '$lib/prefs';
 
 import PersonsPage from '../routes/persons/+page.svelte';
 import PersonDetailPage from '../routes/persons/[id]/+page.svelte';
@@ -50,12 +51,24 @@ function timelineItem(overrides: Partial<PersonDetail['timeline'][number]> = {})
 	};
 }
 
-function renderList(persons: PersonSummary[], q = '') {
+const emptyPrefs = (): MmPrefs => ({ saved: [], follow: [], persons: [], seen: {} });
+
+const neverFicha = async (): Promise<never> => {
+	throw new Error('unexpected ficha load in this test');
+};
+
+function renderList(
+	persons: PersonSummary[],
+	q = '',
+	followedPersons: number[] = [],
+	loadFicha: (id: number) => Promise<PersonDetail> = neverFicha
+) {
 	const target = document.createElement('div');
 	document.body.appendChild(target);
+	const data = { persons, q, prefs: { ...emptyPrefs(), persons: followedPersons } };
 	const instance = mount(PersonsPage, {
 		target,
-		props: { params: {}, data: { persons, q }, form: null }
+		props: { params: {}, data, form: null, loadFicha }
 	});
 	mounted.push(instance as unknown as Record<string, unknown>);
 	return {
@@ -64,12 +77,13 @@ function renderList(persons: PersonSummary[], q = '') {
 	};
 }
 
-function renderDetail(personRow: PersonDetail) {
+function renderDetail(personRow: PersonDetail, followedPersons: number[] = []) {
 	const target = document.createElement('div');
 	document.body.appendChild(target);
+	const data = { person: personRow, prefs: { ...emptyPrefs(), persons: followedPersons } };
 	const instance = mount(PersonDetailPage, {
 		target,
-		props: { params: { id: '1' }, data: { person: personRow }, form: null }
+		props: { params: { id: '1' }, data, form: null }
 	});
 	mounted.push(instance as unknown as Record<string, unknown>);
 	return {
@@ -140,6 +154,25 @@ describe('persons list', () => {
 		expect(root.querySelector('details.directory-method')).toBeTruthy();
 	});
 
+	it('opens the mockup «Ficha de identidad» dialog when a row is clicked', async () => {
+		const ficha = { ...person(), timeline: [timelineItem()] };
+		const { root } = renderList([person()], '', [], async () => ficha);
+
+		root.querySelector<HTMLAnchorElement>('a.directory-name')?.click();
+		// Let the injected bridge promise settle, then flush Svelte.
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		await tick();
+
+		const dialog = root.querySelector('dialog.detail-dialog');
+		expect(dialog).toBeTruthy();
+		expect(root.textContent).toContain('Ficha de identidad');
+		expect(root.textContent).toContain('Eventos relacionados');
+		expect(root.textContent).toContain('#42 · Audiencia pública');
+		expect(root.textContent).toContain('Cronología de menciones · 1');
+		const followBtn = root.querySelector<HTMLButtonElement>('dialog button[aria-pressed]');
+		expect(followBtn?.textContent).toContain('Seguir persona');
+	});
+
 	it('keeps the search form and shows the mockup empty state for a query', () => {
 		const { text, root } = renderList([], 'rectoría');
 
@@ -150,6 +183,53 @@ describe('persons list', () => {
 		// Mockup empty state (filters produce no identities).
 		expect(text()).toContain('No hay identidades con estos filtros');
 		expect(root.querySelector('a.button[href="/persons"]')?.textContent).toBe('Ver todos');
+	});
+
+	it('renders the mockup Todos/En seguimiento segmented control', () => {
+		const { root } = renderList([person(), person({ id: 2, name: 'Beto Lara', aliases: [] })]);
+
+		const group = root.querySelector('.directory-segmented');
+		expect(group?.getAttribute('role')).toBe('group');
+		expect(group?.getAttribute('aria-label')).toBe('Filtrar por seguimiento');
+		const buttons = [...group!.querySelectorAll('button')];
+		expect(buttons.map((b) => b.textContent)).toEqual(['Todos', 'En seguimiento']);
+		expect(buttons[0]?.getAttribute('aria-pressed')).toBe('true');
+		expect(buttons[0]?.classList.contains('active')).toBe(true);
+		expect(buttons[1]?.getAttribute('aria-pressed')).toBe('false');
+	});
+
+	it('counts followed persons in the header and filters with the segmented', async () => {
+		const { text, root } = renderList(
+			[person(), person({ id: 2, name: 'Beto Lara', aliases: [] })],
+			'',
+			[2]
+		);
+		expect(text()).toContain('2 identidades detectadas · 1 en seguimiento');
+
+		const followedBtn = root.querySelectorAll<HTMLButtonElement>('.directory-segmented button')[1];
+		followedBtn.click();
+		await tick();
+		expect(followedBtn.getAttribute('aria-pressed')).toBe('true');
+		expect(root.querySelectorAll('.directory-table tbody tr')).toHaveLength(1);
+		expect(root.querySelector('a.directory-name')?.textContent).toBe('Beto Lara');
+		expect(text()).toContain('1 identidad · 1–1 visibles');
+
+		root.querySelectorAll<HTMLButtonElement>('.directory-segmented button')[0].click();
+		await tick();
+		expect(root.querySelectorAll('.directory-table tbody tr')).toHaveLength(2);
+	});
+
+	it('shows the filter empty state with a reset button when nothing is followed', async () => {
+		const { text, root } = renderList([person()]);
+		root.querySelectorAll<HTMLButtonElement>('.directory-segmented button')[1].click();
+		await tick();
+		expect(root.querySelector('.directory-table')).toBeNull();
+		expect(text()).toContain('No hay identidades con estos filtros');
+		const reset = root.querySelector<HTMLButtonElement>('button.button');
+		expect(reset?.textContent).toBe('Ver todos');
+		reset?.click();
+		await tick();
+		expect(root.querySelectorAll('.directory-table tbody tr')).toHaveLength(1);
 	});
 });
 
@@ -208,5 +288,39 @@ describe('persons detail', () => {
 		const empty = renderDetail({ ...person(), timeline: [] });
 		expect(empty.text()).toContain('Sin menciones registradas.');
 		expect(empty.root.querySelector('.mention-timeline')).toBeNull();
+	});
+
+	it('renders the follow button in the detail heading (mockup directoryDetail)', () => {
+		const detail = renderDetail({ ...person(), timeline: [] }, [1]);
+		const heading = detail.root.querySelector('.directory-detail-heading');
+		expect(heading).toBeTruthy();
+		const btn = heading?.querySelector<HTMLButtonElement>('button');
+		expect(btn?.getAttribute('aria-pressed')).toBe('true');
+		expect(btn?.textContent).toContain('En seguimiento');
+
+		const unfollowed = renderDetail({ ...person(), timeline: [] });
+		const btn2 = unfollowed.root.querySelector<HTMLButtonElement>('.directory-detail-heading button');
+		expect(btn2?.getAttribute('aria-pressed')).toBe('false');
+		expect(btn2?.textContent).toContain('Seguir persona');
+	});
+
+	it('paginates the timeline at 25 mentions per page (mockup directoryDetail)', async () => {
+		const timeline = Array.from({ length: 30 }, (_, i) =>
+			timelineItem({ mention_id: i + 1 })
+		);
+		const { text, root } = renderDetail({ ...person(), timeline });
+
+		expect(text()).toContain('Cronología de menciones · 30');
+		expect(text()).toContain('Página 1 de 2');
+		expect(text()).toContain('25 menciones en esta página');
+		expect(root.querySelectorAll('.mention-timeline-item')).toHaveLength(25);
+
+		root
+			.querySelectorAll<HTMLButtonElement>('.directory-pagination button')[1]
+			.click();
+		await tick();
+		expect(text()).toContain('Página 2 de 2');
+		expect(text()).toContain('5 menciones en esta página');
+		expect(root.querySelectorAll('.mention-timeline-item')).toHaveLength(5);
 	});
 });

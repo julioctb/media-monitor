@@ -24,12 +24,18 @@ export interface MmPrefs {
 	saved: number[];
 	/** Followed event ids («Seguir evento»). */
 	follow: number[];
+	/**
+	 * Followed PERSON ids (segmented «Todos / En seguimiento» + ficha
+	 * «Seguir persona»). Separate key from `follow`: person ids and event
+	 * ids are different domains and collide numerically.
+	 */
+	persons: number[];
 	/** event id -> last seen marker (the event's `last_seen_at`). */
 	seen: Record<string, string>;
 }
 
 function emptyPrefs(): MmPrefs {
-	return { saved: [], follow: [], seen: {} };
+	return { saved: [], follow: [], persons: [], seen: {} };
 }
 
 const asIdList = (value: unknown): number[] =>
@@ -50,14 +56,19 @@ export function parsePrefs(raw: string | null | undefined): MmPrefs {
 							.filter((entry): entry is [string, string] => typeof entry[1] === 'string')
 					)
 				: {};
-		return { saved: asIdList(record.saved), follow: asIdList(record.follow), seen };
+		return {
+			saved: asIdList(record.saved),
+			follow: asIdList(record.follow),
+			persons: asIdList(record.persons),
+			seen
+		};
 	} catch {
 		return emptyPrefs();
 	}
 }
 
 export function serializePrefs(prefs: MmPrefs): string {
-	return JSON.stringify({ saved: prefs.saved, follow: prefs.follow, seen: prefs.seen });
+	return JSON.stringify({ saved: prefs.saved, follow: prefs.follow, persons: prefs.persons, seen: prefs.seen });
 }
 
 const prefsStore = writable<MmPrefs>(emptyPrefs());
@@ -72,7 +83,12 @@ prefsStore.subscribe((value) => {
 
 /** Replace the store from server-load data (page init). */
 export function seedPrefsFromServer(next: MmPrefs): void {
-	prefsStore.set({ saved: [...next.saved], follow: [...next.follow], seen: { ...next.seen } });
+	prefsStore.set({
+		saved: [...next.saved],
+		follow: [...next.follow],
+		persons: [...next.persons],
+		seen: { ...next.seen }
+	});
 }
 
 function persist(next: MmPrefs): boolean {
@@ -131,4 +147,18 @@ export function setFollow(id: number, follow: boolean, lastSeenAt: string | null
 export function markSeen(id: number, lastSeenAt: string): boolean {
 	if (!snapshot.follow.includes(id)) return false;
 	return commit({ ...snapshot, seen: { ...snapshot.seen, [String(id)]: lastSeenAt } });
+}
+
+/**
+ * Follow/unfollow one person (mockup toggle('people'), keyed by stable
+ * person id instead of the mockup's demo name key). Owns only `persons`;
+ * event follow and seen markers are untouched.
+ */
+export function setFollowPerson(id: number, follow: boolean): boolean {
+	const persons = follow
+		? snapshot.persons.includes(id)
+			? snapshot.persons
+			: [...snapshot.persons, id]
+		: snapshot.persons.filter((followed) => followed !== id);
+	return commit({ ...snapshot, persons });
 }

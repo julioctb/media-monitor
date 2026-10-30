@@ -38,7 +38,7 @@ function baseData() {
 			}),
 			event({ id: 12, title: 'Cierre de convocatoria de becas', mention_count: 1, source_count: 1 })
 		],
-		prefs: { saved: [] as number[], follow: [] as number[], seen: {} as Record<string, string> }
+		prefs: { saved: [] as number[], follow: [] as number[], persons: [] as number[], seen: {} as Record<string, string> }
 	};
 }
 
@@ -181,7 +181,7 @@ describe('events view (mockup eventView)', () => {
 	});
 
 	it('keeps an honest empty state when no events exist at all', () => {
-		const page = renderPage({ events: [], prefs: { saved: [], follow: [], seen: {} } });
+		const page = renderPage({ events: [], prefs: { saved: [], follow: [], persons: [], seen: {} } });
 
 		expect(page.queryAll('section.events-group')).toHaveLength(0);
 		expect(page.text()).toContain('Sin eventos registrados todavía.');
@@ -194,7 +194,7 @@ describe('events view (mockup eventView)', () => {
 describe('events follow (mockup data-follow)', () => {
 	it('seeds the pressed state, groups followed cards and toggles the cookie', async () => {
 		const data = baseData();
-		data.prefs = { saved: [], follow: [31], seen: {} };
+		data.prefs = { saved: [], follow: [31], persons: [], seen: {} };
 		const page = renderPage(data);
 		await tick();
 

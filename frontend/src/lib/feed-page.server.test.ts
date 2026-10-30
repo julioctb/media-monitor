@@ -272,7 +272,7 @@ it('echoes the mm_prefs cookie and derives focus rows from followed events', asy
 		})
 	)) as Record<string, unknown>;
 	// cookie echoed for the client store seed, parsed tolerantly
-	expect(data.prefs).toEqual({ saved: [7], follow: [9, 404], seen: { '9': 'stale' } });
+	expect(data.prefs).toEqual({ saved: [7], follow: [9, 404], persons: [], seen: { '9': 'stale' } });
 	// focus = followed events with mentions inside the loaded window; counts
 	// over the windowed mentions, source-kind distinct, silent on failures
 	expect(data.focusEvents).toEqual([
