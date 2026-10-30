@@ -608,6 +608,12 @@ h3 {
   font-size: 17px;
   line-height: 1.5;
 }
+/* Tailwind preflight resets heading weights to inherit; the mockup's build
+   does not, so its h3/h4 render with the UA bold. Restore it here. */
+h3,
+h4 {
+  font-weight: 700;
+}
 h2,
 h3,
 h4 {
@@ -879,12 +885,14 @@ h4 {
 .profile-stat.neutral-stat strong {
   color: var(--color-ink-2);
 }
+/* Mockup global .empty: centered, borderless, muted copy (h3 back to ink). */
 .empty {
-  padding: 28px;
-  border: 1px solid var(--color-line);
-  border-radius: 12px;
-  color: var(--color-ink-2);
-  font-size: 14px;
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--color-muted);
+}
+.empty h3 {
+  color: var(--color-ink);
 }
 .footnote {
   margin: 18px 0 0;
