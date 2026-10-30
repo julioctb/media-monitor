@@ -190,11 +190,13 @@ describe('persons list', () => {
 		const input = root.querySelector<HTMLInputElement>('input[name="q"]');
 		expect(input?.value).toBe('rectoría');
 		expect(root.querySelector('.directory-table')).toBeNull();
-		// Mockup empty state (filters produce no identities).
+		// Mockup empty state inside the results shell (heading + pagination stay).
 		expect(text()).toContain('No hay identidades con estos filtros');
 		expect(text()).toContain(
 			'Prueba otro nombre o amplía los filtros. El ejemplo actual solo contiene organizaciones.'
 		);
+		expect(text()).toContain('0 identidades · 0–0 visibles');
+		expect(text()).toContain('Página 1 de 1');
 		// No «Limpiar filtros» action inside the empty state (Julio, L28).
 		expect(root.querySelector('.empty .button')).toBeNull();
 	});
@@ -282,6 +284,10 @@ describe('persons list', () => {
 		await tick();
 		expect(root.querySelector('.directory-table')).toBeNull();
 		expect(text()).toContain('No hay identidades con estos filtros');
+		// Mockup: results shell stays — 0–0 heading and disabled pagination.
+		expect(text()).toContain('0 identidades · 0–0 visibles');
+		expect(text()).toContain('Página 1 de 1');
+		expect(root.querySelectorAll('.directory-pagination button[disabled]')).toHaveLength(2);
 		expect(root.querySelector('.empty .button')).toBeNull();
 		root.querySelectorAll<HTMLButtonElement>('.directory-segmented button')[0].click();
 		await tick();

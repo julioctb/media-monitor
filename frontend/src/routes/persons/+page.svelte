@@ -166,29 +166,25 @@
 		</div>
 	</div>
 
-	{#if data.persons.length === 0}
-		{#if data.q}
-			{@render directoryEmpty()}
-		{:else}
-			<div class="person-empty">
-				<p class="empty">
-					Sin personajes registrados todavía. Los personajes se detectan al enriquecer las
-					menciones (protagonistas de cada nota).
-				</p>
-			</div>
-		{/if}
-	{:else if visible.length === 0}
-		{@render directoryEmpty()}
+	{#if data.persons.length === 0 && !data.q}
+		<div class="person-empty">
+			<p class="empty">
+				Sin personajes registrados todavía. Los personajes se detectan al enriquecer las
+				menciones (protagonistas de cada nota).
+			</p>
+		</div>
 	{:else}
 		<div class="directory-result-heading">
 			<p role="status" aria-live="polite">
 				{filtered.length}
 				{filtered.length === 1 ? 'identidad' : 'identidades'} ·
-				{offset + 1}–{Math.min(offset + PAGE_SIZE, filtered.length)} visibles
+				{filtered.length ? offset + 1 : 0}–{Math.min(offset + PAGE_SIZE, filtered.length)}
+				visibles
 			</p>
 			<span>{PAGE_SIZE} por página</span>
 		</div>
-		<div class="directory-table-wrap">
+		{#if visible.length}
+			<div class="directory-table-wrap">
 			<table class="directory-table">
 				<caption class="sr-only">
 					Personajes detectados en las menciones. Los conteos corresponden al historial
@@ -261,6 +257,9 @@
 				</tbody>
 			</table>
 		</div>
+		{:else}
+			{@render directoryEmpty()}
+		{/if}
 		<div class="directory-pagination">
 			<span>Página {currentPage} de {pages}</span>
 			<div class="od-row">
