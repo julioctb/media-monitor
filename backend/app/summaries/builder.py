@@ -51,6 +51,7 @@ from app.summaries.advisory_review import (
     review_packet,
     review_receipt,
     review_schema,
+    review_wire_schema,
 )
 from app.summaries.agenda_detect import (
     near_dup_tokens,
@@ -82,9 +83,11 @@ from app.summaries.factual_contract import (
     FACTUAL_SYSTEM_PROMPT,
     UNAVAILABLE_READING,
     FactualPlanError,
+    adapt_factual_wire_plan,
     build_factual_basis,
     factual_plan_schema,
     factual_prompt_view,
+    factual_wire_schema,
     render_factual_plan,
     require_contextual_plan,
 )
@@ -1769,6 +1772,7 @@ def build_daily_summary(
     focus_resolved = False
     budget = RequestBudget()
     injected_generate = generate is not None
+    fresh_wire = generator_factory is not None or not injected_generate
 
     def phase_generator(phase, system_prompt, response_schema):
         if generator_factory is not None:
@@ -1852,9 +1856,21 @@ def build_daily_summary(
 
     if material_available and total > 0 and content["noticias"]:
         try:
-            response_schema = factual_plan_schema(content)
+            response_schema = (
+                factual_wire_schema(content)
+                if fresh_wire
+                else factual_plan_schema(content)
+            )
+            system_prompt = FACTUAL_SYSTEM_PROMPT
+            if fresh_wire:
+                system_prompt += (
+                    "\nEn esta solicitud, items es un objeto de propiedades opcionales: "
+                    "usa como clave el índice original en texto y conserva ese mismo "
+                    "index entero dentro del selector; {} omite todas las sustituciones. "
+                    "seleccion sigue siendo un arreglo ordenado por prioridad."
+                )
             proposal_generate = phase_generator(
-                "proposal", FACTUAL_SYSTEM_PROMPT, response_schema
+                "proposal", system_prompt, response_schema
             )
             if callable(proposal_generate):
                 focus = _focus_person_context(session, effective)
@@ -1869,6 +1885,8 @@ def build_daily_summary(
                     packet["focus_person"] = focus
                 raw_output = proposal_generate(json.dumps(packet, ensure_ascii=False))
                 proposal = decode_plan(raw_output)
+                if fresh_wire:
+                    proposal = adapt_factual_wire_plan(content, proposal)
                 rendered = render_factual_plan(content, proposal)
                 require_contextual_plan(proposal)
                 content, narrative = _apply_factual_payload(
@@ -2042,7 +2060,9 @@ def build_daily_summary(
             semantic_review = review_receipt(packet)
             approved = False
             try:
-                schema = review_schema(packet)
+                schema = (
+                    review_wire_schema(packet) if fresh_wire else review_schema(packet)
+                )
                 reviewer = phase_generator("review", REVIEW_SYSTEM_PROMPT, schema)
                 if callable(reviewer):
                     request = {**packet, "response_schema": schema}

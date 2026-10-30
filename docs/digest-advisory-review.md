@@ -86,14 +86,22 @@ omissions, monitored-profile relevance, category justification, uncertainty,
 distinct useful attention and intelligible passage context. A valid citation does
 not answer these semantic questions. A fake positive judge tests the gate only.
 
-Review wire schemas project only assessment reasons to no-pattern strings bounded
-by `minLength: 2` and `maxLength: 500`; they do not expose the historical regex
-type to guided decoding. Runtime acceptance rejects blank or trimmed
-single-character reasons while preserving exact valid text and all existing
-strict type, length, scope, fingerprint and eight-check constraints. The floor
-is a mechanical degeneration guard, not evidence that a reason is meaningful.
-An invalid reason fails closed after the second physical request with both raw
-responses and the rejected plan retained; it never earns a third request.
+`review_schema(packet)` remains structurally unchanged for existing callers.
+Fresh provider/factory requests instead use detached `review_wire_schema(packet)`,
+which removes **only** `pattern`, `minLength` and `maxLength` from
+`_Assessment.reason`. Fingerprint const, exact scope, all eight checks and every
+other schema constraint/metadata remain intact. Guided and plain requests carry
+the same envelope. Numeric string bounds rejected valid escaped prose in an
+exercised decoder; the unbounded no-pattern envelope preserves quoted, multiline,
+backslash and Unicode text without normalization or truncation.
+
+This transport change never relaxes acceptance: `assess_review` retains strict
+string types, the raw 500-character maximum and nonblank/two-trimmed-character
+minimum, along with exact coverage, fingerprint and eight-check validation.
+The floor is a mechanical degeneration guard, not evidence that a reason is
+meaningful. An invalid reason fails closed after the second physical request with
+both exact raw responses and the **canonical array** rejected plan retained; it
+never earns a third request. No output-budget or review-policy change is made.
 
 ## Receipts, rejection and recovery
 

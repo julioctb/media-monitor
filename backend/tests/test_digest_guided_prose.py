@@ -358,7 +358,13 @@ def test_public_adapter_emits_identical_bounded_wire_schemas_and_keeps_raw_text(
     proposal = calls[0]["json"]["response_format"]["json_schema"]["schema"]
     review = calls[1]["json"]["response_format"]["json_schema"]["schema"]
     for field in PROSE_FIELDS:
-        assert proposal["$defs"]["_Analysis"]["properties"][field]["minLength"] == 2
+        assert proposal["$defs"]["_Analysis"]["properties"][field] == {
+            "title": field.title(),
+            "type": "string",
+        }
         assert "pattern" not in proposal["$defs"]["_Analysis"]["properties"][field]
-    assert review["$defs"]["_Assessment"]["properties"]["reason"]["minLength"] == 2
+    assert review["$defs"]["_Assessment"]["properties"]["reason"] == {
+        "title": "Reason",
+        "type": "string",
+    }
     assert "pattern" not in review["$defs"]["_Assessment"]["properties"]["reason"]

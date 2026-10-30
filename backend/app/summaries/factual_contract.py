@@ -1,5 +1,6 @@
 """Pure source-identity and literal-reporting boundary, not truth verification."""
 
+import copy
 import hashlib
 import json
 import re
@@ -480,6 +481,53 @@ def factual_plan_schema(content: dict | None = None) -> dict:
     else:
         properties["items"]["maxItems"] = 0
     return schema
+
+
+def factual_wire_schema(content: dict) -> dict:
+    """Project fresh transport only; canonical schemas and strict types stay intact."""
+    schema = copy.deepcopy(factual_plan_schema(content))
+    items = schema["properties"]["items"]
+    slots = {}
+    for choice in items["items"].get("anyOf", []):
+        key = str(choice["properties"]["index"]["const"])
+        slots.setdefault(key, {"anyOf": []})["anyOf"].append(choice)
+    schema["properties"]["items"] = {
+        "title": items["title"],
+        "type": "object",
+        "properties": slots,
+        "additionalProperties": False,
+    }
+    # Numeric string bounds in some decoders reject valid escaped JSON prose.
+    # Acceptance still enforces exact strict types, raw maxima and fresh minima.
+    for field in _ADVISORY_PROSE_FIELDS:
+        text = schema["$defs"]["_Analysis"]["properties"][field]
+        for constraint in ("pattern", "minLength", "maxLength"):
+            text.pop(constraint, None)
+    return schema
+
+
+def adapt_factual_wire_plan(content: dict, decoded: dict) -> dict:
+    """Detach fresh item slots into canonical order without repairing selectors.
+
+    Call only after decode_plan has rejected duplicate decoded object keys.
+    Atomic rendering still validates the entire canonical proposal.
+    """
+    result = copy.deepcopy(decoded)
+    items = result.get("items")
+    if type(items) is not dict:
+        return result
+    allowed = factual_wire_schema(content)["properties"]["items"]["properties"]
+    for key, item in items.items():
+        if (
+            type(key) is not str
+            or key not in allowed
+            or type(item) is not dict
+            or type(item.get("index")) is not int
+            or str(item["index"]) != key
+        ):
+            raise FactualPlanError("Invalid factual item slot")
+    result["items"] = list(items.values())
+    return result
 
 
 def _source_summary(source: dict, passage_index: int = 0) -> str:

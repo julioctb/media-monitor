@@ -141,6 +141,15 @@ def review_schema(packet: dict) -> dict:
     return schema
 
 
+def review_wire_schema(packet: dict) -> dict:
+    """Detach a lossless transport envelope; assess_review retains every guard."""
+    schema = copy.deepcopy(review_schema(packet))
+    reason = schema["$defs"]["_Assessment"]["properties"]["reason"]
+    for constraint in ("pattern", "minLength", "maxLength"):
+        reason.pop(constraint, None)
+    return schema
+
+
 def assess_review(raw: str, packet: dict) -> dict:
     """Validate coverage and binding, without certifying the judgments."""
     if not isinstance(raw, str):

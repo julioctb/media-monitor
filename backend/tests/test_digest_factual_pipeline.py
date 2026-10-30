@@ -115,10 +115,16 @@ def test_public_factory_sends_scoped_choices_and_one_contextual_schema(
         schema["properties"]["basis_fingerprint"].get("const")
         == packet["basis_fingerprint"]
     )
-    assert schema["properties"]["items"]["maxItems"] == 2
+    assert schema["properties"]["items"]["type"] == "object"
+    assert set(schema["properties"]["items"]["properties"]) == {"0", "1"}
+    assert schema["properties"]["items"]["additionalProperties"] is False
     assert schema["properties"]["seleccion"]["maxItems"] == 2
     assert schema["$defs"]["_Pick"]["properties"]["index"]["enum"] == [0, 1]
-    branches = schema["properties"]["items"]["items"]["anyOf"]
+    branches = [
+        branch
+        for slot in schema["properties"]["items"]["properties"].values()
+        for branch in slot["anyOf"]
+    ]
     actual = {
         (
             branch["properties"]["index"]["const"],
@@ -460,7 +466,9 @@ def test_plain_provider_retry_receives_the_same_closed_plan_contract(
             expected_schema["properties"]["basis_fingerprint"]["const"]
             == packet["basis_fingerprint"]
         )
-        assert expected_schema["properties"]["items"]["maxItems"] == 1
+        assert expected_schema["properties"]["items"]["type"] == "object"
+        assert set(expected_schema["properties"]["items"]["properties"]) == {"0"}
+        assert expected_schema["properties"]["items"]["additionalProperties"] is False
         assert expected_schema["$defs"]["_Pick"]["properties"]["index"]["enum"] == [0]
         assert call["timeout"] == 120.0
         assert call["follow_redirects"] is False

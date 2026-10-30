@@ -115,20 +115,60 @@ Explicit empty selection remains possible without ceremonial filler.
 
 ## Prompt and receiver compatibility
 
-The contextual schema fixes the bank hash and legal story/source/passage choices,
-keeps nested selector references resolvable, and is sent unchanged in both guided
-and plain requests. `factual_plan_schema()` retains the unbound structural API.
-The atomic validator remains authoritative for uniqueness and ownership.
+The existing APIs stay unchanged: `factual_plan_schema()` returns the unbound
+structural schema, and `factual_plan_schema(content)` narrows its canonical arrays
+to the bank's legal choices. Historical `_Prose`, source/title/passage types and
+all schema metadata retain their original contracts.
 
-Contextual wire schemas project only the five generated analysis fields to
-`minLength: 2`, `maxLength: 1000`, without a regex pattern. The no-argument schema,
-historical `_Prose` type and captured source/title/passage constraints remain
-unchanged. This avoids a demonstrated installed-decoder mismatch where `\S`
-permitted only one generated character and pattern/length combinations ignored
-length limits. Whitespace can satisfy the wire envelope: strict runtime
-nonblank, raw-length and fresh-text checks remain authoritative. Guided and plain
-requests carry the same projected schema. CPU-only decoder probes establish
-only their enumerated cases, not universal adapter or escaped-string support.
+### Fresh wire envelope
+
+Provider and caller-created factory routes use detached helpers:
+
+```python
+factual_wire_schema(content)
+adapt_factual_wire_plan(content, decoded)
+```
+
+Only root `items` changes from an array to finite **optional** original-story
+properties. Each value is exactly one existing own-story selector branch, with
+its strict integer `index` const intact. Slots without captured passage choices
+are absent. Unknown properties are forbidden; root `items` remains required.
+For example, a sparse response can contain:
+
+```json
+{"items": {"2": {"index": 2, "source_ref": 4, "passage_index": 0}}}
+```
+
+`items: {}` omits all passage overrides, not news coverage. The full plan still
+contains its other required fields. This shape prevents repeated story slots;
+it does not change `_Item` analytical premises, where multiple distinct own
+passages are legitimate, or make selectors proof of entailment.
+
+The builder retains exact raw text, then calls the existing duplicate-key-aware
+`decode_plan` **before** adaptation. Literal duplicates and escaped key aliases
+fail before an object can lose identity. Adaptation rejects unknown/padded keys,
+malformed or null slots, missing/noninteger indexes and key/index mismatches;
+it never infers indexes from keys or sorts, deduplicates, fills or repairs a plan.
+Detached canonical array values preserve received member order. `seleccion`
+remains a ranked array in received order. Legacy array responses still pass to
+the unchanged atomic validator, including duplicate rejection. Stored accepted
+and semantically rejected plans, review packets, fingerprints and recovery use
+canonical arrays, never the transport object.
+
+Only the five generated `_Analysis` strings lose `pattern`, `minLength` and
+`maxLength` in this fresh envelope. Numeric string bounds in an exercised decoder
+rejected valid escaped quotes, newlines, backslashes and Unicode; unbounded
+no-pattern strings retained them. This is a conservative transport envelope,
+**not accepted-output relaxation**: strict runtime types, raw 1,000-character
+maximum, nonblank and trimmed two-character fresh minimum remain authoritative.
+No text is truncated or normalized, and the output budget is unchanged.
+
+Guided and plain retries receive the same schema and shape-specific Spanish
+instruction; only `response_format` differs. A direct `generate=` callable without
+a factory retains exactly its old array schema and instructions, rejects object
+items and cannot activate configured review credentials. When both are supplied,
+the existing factory precedence selects the fresh wire route. These mechanisms
+do not certify advisory usefulness or universal decoder compatibility.
 
 The prompt carries captured source material, own-story navigation choices,
 registered focus name/role/organization, coverage and measured indicators. Missing,
