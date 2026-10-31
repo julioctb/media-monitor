@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.models import Mention, SavedSearch, queries
 from app.models.settings import DEFAULT_OPENAI_BASE_URL
+from app.llm_chat import NO_THINK_CHAT_KWARGS
 
 log = logging.getLogger("spike.summary")
 
@@ -72,6 +73,7 @@ def build_summary_generator(settings_row):
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {"role": "user", "content": prompt},
                 ],
+                "chat_template_kwargs": NO_THINK_CHAT_KWARGS,
             },
             timeout=HTTP_TIMEOUT_S,
         )

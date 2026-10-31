@@ -22,6 +22,7 @@ from app.sentiment.api_analyzer import (
 )
 from app.summaries.digest_schema import NarrativePayload, narrative_response_schema
 from app.models.settings import DEFAULT_OPENAI_BASE_URL
+from app.llm_chat import NO_THINK_CHAT_KWARGS
 
 router = APIRouter(tags=["settings"])
 
@@ -135,6 +136,7 @@ def _narrative_body(payload: AiProbeRequest, response_format: dict | None) -> di
         "model": payload.model or DEFAULT_OPENAI_MODEL,
         "messages": [{"role": "user", "content": _NARRATIVE_PROBE_PROMPT}],
         "temperature": 0,
+        "chat_template_kwargs": NO_THINK_CHAT_KWARGS,
     }
     if response_format is not None:
         body["response_format"] = response_format

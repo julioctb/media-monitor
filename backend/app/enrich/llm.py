@@ -29,6 +29,7 @@ import httpx
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.models.base import Sentiment
+from app.llm_chat import NO_THINK_CHAT_KWARGS
 
 log = logging.getLogger("enrich.llm")
 
@@ -301,6 +302,7 @@ class LLMEnricher:
                 {"role": "user", "content": user},
             ],
             "temperature": 0,
+            "chat_template_kwargs": NO_THINK_CHAT_KWARGS,
         }
         if json_mode:
             payload["response_format"] = {"type": "json_object"}

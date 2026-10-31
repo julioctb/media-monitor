@@ -351,7 +351,15 @@ def test_public_adapter_emits_identical_bounded_wire_schemas_and_keeps_raw_text(
             packet["response_schema"]
             == body["response_format"]["json_schema"]["schema"]
         )
-        assert set(body) == {"model", "messages", "temperature", "response_format"}
+        assert set(body) == {
+            "model",
+            "messages",
+            "temperature",
+            "response_format",
+            "chat_template_kwargs",
+        }
+        # Tarea mecanica del digest: sin razonamiento (ver app/llm_chat.py).
+        assert body["chat_template_kwargs"] == {"enable_thinking": False}
         assert body["model"] == "fixture"
         assert call["timeout"] == 120.0
         assert call["follow_redirects"] is False
