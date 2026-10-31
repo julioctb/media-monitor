@@ -19,6 +19,7 @@ import httpx
 
 from app.models.base import Sentiment
 from app.sentiment.base import SentimentAnalyzer, SentimentResult
+from app.llm_chat import NO_THINK_CHAT_KWARGS
 
 log = logging.getLogger("sentiment.api")
 
@@ -94,6 +95,7 @@ class ApiSentimentAnalyzer(SentimentAnalyzer):
                     {"role": "user", "content": text},
                 ],
                 "temperature": 0,
+                "chat_template_kwargs": NO_THINK_CHAT_KWARGS,
             },
             headers={"Authorization": f"Bearer {self._api_key}"},
         )

@@ -71,6 +71,7 @@ from app.summaries.evidence import (
     make_binding,
     resolved_provenance,
 )
+from app.llm_chat import NO_THINK_CHAT_KWARGS
 
 log = logging.getLogger("summaries.builder")
 
@@ -1365,6 +1366,7 @@ def _openai_generator(effective: EffectiveSettings) -> Callable[[str], str]:
                     {"role": "user", "content": prompt},
                 ],
                 "temperature": 0,
+                "chat_template_kwargs": NO_THINK_CHAT_KWARGS,
             }
             if attempt == 0:
                 # Guided generation (docs/contrato-narrativa-del-digest.md
