@@ -192,8 +192,10 @@
 	<title>Estadísticas | Media Monitor</title>
 </svelte:head>
 
-<h1 class="page-title">Estadísticas</h1>
-<p class="lead">Panorama de la cobertura: volumen, tono, clasificación y fuentes.</p>
+<header class="page-header">
+	<h1>Estadísticas</h1>
+	<p>Panorama de la cobertura: volumen, tono, clasificación y fuentes.</p>
+</header>
 
 <div class="mt-6 grid gap-4 sm:grid-cols-3">
 	{#each kpis as kpi (kpi.label)}

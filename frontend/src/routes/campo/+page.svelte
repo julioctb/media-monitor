@@ -210,7 +210,7 @@
 
 <header class="page-header">
 	<h1>Campo</h1>
-	<p class="page-sub">Operadores y reportes de territorio.</p>
+	<p>Operadores y reportes de territorio.</p>
 </header>
 
 {#if form?.message}

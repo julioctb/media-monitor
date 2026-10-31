@@ -32,10 +32,13 @@
 	<title>Búsquedas guardadas | Media Monitor</title>
 </svelte:head>
 
-<h1 class="page-title">Búsquedas guardadas</h1>
-<p class="lead">
-	Consultas almacenadas que alimentan la detección de picos y las alertas por cambio de sentimiento.
-</p>
+<header class="page-header">
+	<h1>Búsquedas guardadas</h1>
+	<p>
+		Consultas almacenadas que alimentan la detección de picos y las alertas por cambio de
+		sentimiento.
+	</p>
+</header>
 
 {#if form}
 	<div

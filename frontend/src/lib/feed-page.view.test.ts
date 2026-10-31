@@ -193,8 +193,8 @@ it('renders the v3 strip: four measured cards and the period reset link', async 
 it('renders the v3 panel anatomy: toolbar, tone filter, rail and item rows', async () => {
 	const target = await render();
 	const markers = [
-		'.feed-intro',
-		'.feed-intro .feed-refresh-status',
+		'.page-header',
+		'.page-header .feed-refresh-status',
 		'.feed-stats .stat .stat-value',
 		'.feed-content-grid',
 		'.feed-main .feed-toolbar .panel-heading',

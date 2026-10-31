@@ -108,8 +108,8 @@
 	<title>Personajes | Media Monitor</title>
 </svelte:head>
 
-<header class="persons-intro">
-	<h1 class="page-title">Personajes</h1>
+<header class="page-header">
+	<h1>Personajes</h1>
 	<p>Quién aparece, en qué contexto y cómo evoluciona su presencia.</p>
 </header>
 

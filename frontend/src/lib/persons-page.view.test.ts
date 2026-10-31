@@ -102,7 +102,7 @@ describe('persons list', () => {
 
 		expect(text()).toContain('Personajes');
 		// Mockup «personajes.html»: page title + subtitles.people verbatim.
-		expect(root.querySelector('h1.page-title')?.textContent).toBe('Personajes');
+		expect(root.querySelector('.page-header h1')?.textContent).toBe('Personajes');
 		expect(text()).toContain(
 			'Quién aparece, en qué contexto y cómo evoluciona su presencia.'
 		);

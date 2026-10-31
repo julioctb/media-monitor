@@ -261,9 +261,9 @@
 	</article>
 {/snippet}
 
-<header class="agenda-intro">
+<header class="page-header">
 	<div>
-		<h1 class="page-title">Agenda</h1>
+		<h1>Agenda</h1>
 		<p>Las fechas del monitoreo, convertidas en próximos pasos.</p>
 	</div>
 	<button class="button primary" type="button" onclick={() => (showForm = !showForm)}>

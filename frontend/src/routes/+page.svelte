@@ -177,7 +177,6 @@
 </svelte:head>
 
 <div class="daily-page">
-	<h1 class="sr-only">Resumen diario</h1>
 
 	{#snippet datePicker()}
 		<div class="briefing-date-picker">
@@ -206,8 +205,8 @@
 
 	<!-- Mockup shell intro: page title row with the date picker on the right
 	     (render() moves the picker into .intro on the daily view). -->
-	<header class="intro">
-		<h2 class="intro-title">Resumen diario</h2>
+	<header class="page-header">
+		<h1>Resumen diario</h1>
 		{@render datePicker()}
 	</header>
 

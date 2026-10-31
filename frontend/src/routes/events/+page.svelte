@@ -48,9 +48,9 @@
 	<title>Eventos | Media Monitor</title>
 </svelte:head>
 
-<header class="events-intro">
+<header class="page-header">
 	<div>
-		<h1 class="page-title">Eventos</h1>
+		<h1>Eventos</h1>
 		<p>De menciones dispersas a hechos con contexto y trazabilidad.</p>
 	</div>
 </header>

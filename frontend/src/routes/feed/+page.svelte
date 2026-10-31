@@ -471,9 +471,9 @@
 	<title>Feed | Media Monitor</title>
 </svelte:head>
 
-<header class="feed-intro">
+<header class="page-header">
 	<div>
-		<h1 id="feed-title" class="page-title">Feed de noticias</h1>
+		<h1 id="feed-title">Feed de noticias</h1>
 		<p>Todas las fuentes. Un solo lugar para entender lo que pasa.</p>
 	</div>
 	<p

@@ -783,10 +783,46 @@ h4 {
 }
 
 /* --- Page intro: titles/leads are page-level --- */
-.page-title {
-  margin: 0 0 8px;
-  font: 700 clamp(26px, 2.6vw, 34px) / 1.25 var(--font-display);
-  letter-spacing: 0;
+/* Page header v3 — EL único bloque de titular de página (port del
+   `.intro` v3 del mockup: línea inferior 1px, padding/margin 24, título
+   a la izquierda y controles a la derecha, h1 sin margen). Úsalo en
+   todas las páginas; no se crean variantes por página. */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  margin: 0 0 24px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--color-line);
+}
+.page-header h1 {
+  margin: 0;
+}
+.page-header p {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 14px;
+}
+@media (max-width: 768px) {
+  .page-header {
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .page-header p {
+    font-size: 13px;
+  }
+  .page-header .button {
+    padding: 8px 10px;
+  }
+}
+@media (max-width: 480px) {
+  .page-header {
+    flex-wrap: wrap;
+  }
+  .page-header .button {
+    min-height: 40px;
+  }
 }
 .lead {
   max-width: 75ch;
@@ -1778,21 +1814,10 @@ table.coverage th {
 
 
 /* ============================================================
-   Legacy shared scaffolding (consultas/home): .intro page header
-   card, pagination layout, medios disclosure, history-empty,
-   check-row, .back, .sidebar-section. The feed page wears the
-   v3 block at the end of this file.
+   Legacy shared scaffolding: pagination layout, medios
+   disclosure, check-row, .back, .sidebar-section. La tarjeta
+   `.intro` v2 se purgó: todas las páginas usan .page-header.
    ============================================================ */
-.intro {
-  display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(360px, 0.9fr);
-  gap: 28px;
-  align-items: center;
-  padding: 30px 32px;
-  border: 1px solid var(--color-line-soft);
-  border-radius: var(--radius-panel);
-  background: #fff;
-}
 .pagination {
   display: flex;
   justify-content: space-between;
@@ -1917,15 +1942,6 @@ table.coverage th {
   text-decoration-color: var(--color-ink);
 }
 
-@media (max-width: 1000px) {
-  .intro {
-    grid-template-columns: 1fr;
-  }
-  .intro {
-    padding: 24px 20px;
-  }
-}
-
 .chip {
   min-height: 36px;
   padding: 6px 14px;
@@ -1952,9 +1968,7 @@ table.coverage th {
    as a config card; keywords/fuentes are tabular directories and
    operación/LLM wear section cards.
    ============================================================ */
-.page-head {
-  max-width: 75ch;
-}
+/* (page-head purgado: settings usa .page-header del kit) */
 /* Scoped: settings only. The v3 chrome below mirrors the mockup's final
    cascade (workspace-scoped); panel interiors keep the shared skin. */
 .config-workspace {
@@ -2989,26 +3003,8 @@ table.coverage th {
    other routes. Breakpoints 1440 / 1150 / 768 / 480 + hover.
    ============================================================ */
 
-/* --- Page header (mockup .intro; the legacy .intro card above
-       stays for routes without their v3 pass yet) --- */
-.feed-intro {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 24px;
-  margin-bottom: 24px;
-  padding-bottom: 24px;
-  border-bottom: 1px solid var(--color-line);
-}
-.feed-intro h1 {
-  margin: 0;
-}
-.feed-intro p {
-  margin: 0;
-  color: var(--color-muted);
-  font-size: 14px;
-}
-.feed-intro .feed-refresh-status {
+/* --- Estado de refresco del feed (vive dentro de .page-header) --- */
+.feed-refresh-status {
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -3856,17 +3852,10 @@ button.text-link {
   }
 }
 @media (max-width: 768px) {
-  .feed-intro {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 16px;
-  }
-  .feed-intro p {
-    font-size: 13px;
-  }
-  .feed-intro .feed-refresh-status {
-    flex-basis: auto;
-    text-align: left;
+  .feed-refresh-status {
+    text-align: center;
+    flex: none;
+    justify-content: center;
   }
   .feed-stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3958,24 +3947,7 @@ button.text-link {
    480 + hover (title hover rides the shared .headline a:hover
    rule above).
    ============================================================ */
-.events-intro {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 24px;
-  margin-bottom: 24px;
-  padding-bottom: 24px;
-  border-bottom: 1px solid var(--color-line);
-}
-.events-intro h1 {
-  margin: 0;
-}
-.events-intro p {
-  margin: 0;
-  max-width: 75ch;
-  color: var(--color-muted);
-  font-size: 14px;
-}
+/* (intro duplicada purgada: .page-header del kit provee la línea y layout) */
 /* Mockup .aside-note as ONE rule — the events note is its only consumer, so
    the old base split (plain-text .aside-note + box overrides) is merged. */
 .events-note {
@@ -4078,14 +4050,6 @@ button.text-link {
 
 /* --- Responsive: mockup breakpoints 768 / 600 / 480 --- */
 @media (max-width: 768px) {
-  .events-intro {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 16px;
-  }
-  .events-intro p {
-    font-size: 13px;
-  }
   .section-grid {
     grid-template-columns: 1fr;
   }
@@ -4121,24 +4085,6 @@ button.text-link {
    completa» bucket, today marker. Breakpoints 1024 / 768 / 480
    + hover.
    ============================================================ */
-.agenda-intro {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 24px;
-  margin-bottom: 24px;
-  padding-bottom: 24px;
-  border-bottom: 1px solid var(--color-line);
-}
-.agenda-intro h1 {
-  margin: 0;
-}
-.agenda-intro p {
-  max-width: 75ch;
-  margin: 0;
-  color: var(--color-muted);
-  font-size: 14px;
-}
 
 /* Filtros propios de la app (búsqueda + mostrar): fila plana sobre el panel. */
 .agenda-toolbar {
@@ -4221,7 +4167,7 @@ button.text-link {
   color: var(--color-danger);
   font-size: 13px;
 }
-.agenda-intro .button:disabled,
+.page-header .button:disabled,
 .agenda-form-panel .button:disabled,
 .activity-actions .button:disabled {
   opacity: 0.55;
@@ -4513,14 +4459,12 @@ button.text-link {
     border-color: var(--color-accent);
     background: var(--calendar-day-soft);
   }
-  .agenda-intro .button:hover,
   .agenda-form-panel .button:hover,
   .calendar-controls .button:not(.primary):hover,
   .activity-actions .button:not(.primary):hover {
     background: var(--color-line-soft);
     color: var(--color-accent);
   }
-  .agenda-intro .button.primary:hover,
   .agenda-form-panel .button.primary:hover,
   .calendar-controls .button.primary:hover {
     background: var(--color-accent-hover);
@@ -4547,14 +4491,6 @@ button.text-link {
   }
 }
 @media (max-width: 768px) {
-  .agenda-intro {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 16px;
-  }
-  .agenda-intro p {
-    font-size: 13px;
-  }
   .activity {
     grid-template-columns: 44px minmax(0, 1fr);
     gap: 12px;
@@ -4628,11 +4564,6 @@ button.text-link {
    (por validar / homónimos). Breakpoints 1100 / 768 / 600 / 480
    + hover.
    ============================================================ */
-.persons-intro p {
-  margin: 0;
-  color: var(--color-muted);
-  font-size: 14px;
-}
 .directory-panel {
   margin-top: 24px;
   border: 1px solid var(--color-line-soft);
@@ -4798,7 +4729,7 @@ button.text-link {
   gap: 16px;
   flex-wrap: wrap;
 }
-.directory-detail-heading .page-title,
+.directory-detail-heading h1,
 .directory-detail-heading .daily-dialog-title,
 .directory-detail-heading h2 {
   margin: 0;
@@ -5531,12 +5462,6 @@ button.text-link {
    composer y aside. Va después de .panel/.aside-panel para que
    sus paddings propios ganen la cascada.
    ============================================================ */
-/* Intro de la página: solo h1 (la descripción del mockup está hidden en
-   render()); su separación equivale al margin-bottom 28px del .intro v3
-   (el h1 ya trae margin-bottom 8px). */
-.page-header + .query-layout {
-  margin-top: 20px;
-}
 .query-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 300px;
@@ -7230,28 +7155,6 @@ button.daily-upcoming {
 .daily-page .panel {
   border-color: #dce1e6;
 }
-.daily-page .intro {
-  display: flex;
-  grid-template-columns: none;
-  align-items: center;
-  justify-content: space-between;
-  gap: 24px;
-  margin: 0 0 24px;
-  padding: 0 0 24px;
-  background: transparent;
-  border-top: 0;
-  border-radius: 0;
-  border-bottom: 1px solid #dce1e6;
-}
-.daily-page .intro .intro-title {
-  margin: 0;
-  font-family: var(--font-display);
-  /* Mockup scale floor: never below 26px (its own mobile computed size). */
-  font-size: clamp(26px, calc(15.67px + 1.3457vw), 32.89px);
-  line-height: 1.25;
-  font-weight: 700;
-  color: #222b36;
-}
 .daily-page .daily-synthesis {
   border-color: #dce1e6;
   border-radius: 8px;
@@ -7426,11 +7329,7 @@ button.daily-upcoming {
   .daily-page .daily-synthesis-sources > span {
     flex-basis: 100%;
   }
-  .daily-page .intro {
-    flex-wrap: wrap;
-    align-items: flex-start;
-  }
-  .daily-page .intro .briefing-date-picker {
+  .daily-page .briefing-date-picker {
     display: grid;
     grid-template-columns: 1fr;
     justify-items: center;
@@ -7438,10 +7337,10 @@ button.daily-upcoming {
     width: min(100%, 360px);
     margin-inline: auto;
   }
-  .daily-page .intro .briefing-date-picker label {
+  .daily-page .briefing-date-picker label {
     justify-self: center;
   }
-  .daily-page .intro .briefing-date-picker select {
+  .daily-page .briefing-date-picker select {
     flex: none;
     width: 100%;
     min-width: 0;

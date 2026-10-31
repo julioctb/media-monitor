@@ -27,7 +27,7 @@
 	</div>
 {:then event}
 	<header class="mt-4">
-		<h1 class="page-title">{event.title}</h1>
+		<h1>{event.title}</h1>
 		<p class="lead">
 			<span class="tabular-nums"
 				>{event.mention_count}

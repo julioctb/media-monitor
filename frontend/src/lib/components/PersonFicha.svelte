@@ -15,7 +15,7 @@
 		/** Followed id lives in mm_prefs (parent resolves membership). */
 		followed: boolean;
 		onToggleFollow: () => void;
-		/** Page renders h1.page-title; the dialog renders a plain h2 (mockup). */
+		/** Page renders plain h1 (global h1 del kit); the dialog renders a plain h2 (mockup). */
 		headingTag?: 'h1' | 'h2';
 		headingClass?: string;
 	}
@@ -25,7 +25,7 @@
 		followed,
 		onToggleFollow,
 		headingTag = 'h1',
-		headingClass = 'page-title'
+		headingClass = ''
 	}: Props = $props();
 
 	const sentimentCounts = $derived.by(() => {

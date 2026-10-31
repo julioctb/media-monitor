@@ -25,7 +25,7 @@
 
 <header class="page-header">
 	<h1>Revisiones de narrativa</h1>
-	<p class="page-sub">
+	<p>
 		Historial de cada síntesis generada por corte; restaura cualquier versión sin perder las
 		demás.
 	</p>

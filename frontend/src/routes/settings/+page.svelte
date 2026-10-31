@@ -499,8 +499,8 @@
 	<title>Configuración | Media Monitor</title>
 </svelte:head>
 
-<header class="page-head">
-	<h1 class="page-title">Configuración</h1>
+<header class="page-header">
+	<h1>Configuración</h1>
 </header>
 
 <div class="config-workspace">
