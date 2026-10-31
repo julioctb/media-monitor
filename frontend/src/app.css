@@ -5964,6 +5964,8 @@ button.text-link {
   color: var(--color-muted);
 }
 .field-search-control input {
+  flex: 1;
+  min-width: 0;
   height: 42px;
   padding: 0;
   border: 0;
@@ -6442,6 +6444,14 @@ dialog.detail-dialog::backdrop {
   overflow: hidden;
   border-radius: 12px;
   box-shadow: 0 8px 28px #2432410a;
+}
+/* Tarjetas de Campo: el .panel del mockup NO tiene padding; los hijos lo
+   llevan (toolbar/header 28px, pagination 16px 28px). Sin esto, el padding
+   global del skin v2 (24px 28px) duplica los márgenes y la tabla no llega
+   al borde de la tarjeta. */
+.operators-view,
+.field-panel.reports-view {
+  padding: 0;
 }
 .field-operator-toolbar {
   display: flex;
