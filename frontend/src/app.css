@@ -206,15 +206,25 @@
     outline: 3px solid #607e9b;
     outline-offset: 3px;
   }
-  /* Native select chrome (arrow) collides with rounded/pill containers:
-	   strip it and paint a consistent chevron. */
+  /* Global select chrome ported 1:1 from the mockup stylesheet
+     (`select{border:1px solid var(--line);...}`): Tailwind preflight zeroes
+     native borders, so without this rule selects (e.g. «Por página») render
+     borderless. The mockup's native arrow collides with the rounded chip:
+     strip it and paint a consistent chevron. */
   select {
     appearance: none;
+    border: 1px solid var(--color-line);
+    border-radius: 7px;
+    max-width: 100%;
+    background-color: #fff;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%23596575' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 0.55rem center;
     background-size: 0.8rem 0.8rem;
+    color: var(--color-muted);
+    padding: 8px 12px;
     padding-right: 1.9rem;
+    font-size: 12px;
   }
 }
 
