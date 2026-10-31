@@ -1,5 +1,5 @@
 import { ApiError, askCorpus, getDailySummary, listSummaryDays } from '$lib/api';
-import { topicLabel, zonedToday } from '$lib/format';
+import { suggestionQuestions, zonedToday } from '$lib/format';
 import type { Actions, PageServerLoad } from './$types';
 
 /**
@@ -19,20 +19,7 @@ export const load: PageServerLoad = async () => {
 				if ((alt?.content?.noticias?.length ?? 0) > 0) summary = alt;
 			}
 		}
-		const suggestions = (summary?.content?.noticias ?? [])
-			.slice(0, 3)
-			.map((item) => {
-				// Asunto natural y real: el tópico canónico del digest cuando
-				// existe; si falta, el titular sin el sufijo de medio («… |»).
-				const subject = item.topic
-					? topicLabel(item.topic)
-					: (item.title ?? '').replace(/\s*[|–-]\s*$/, '');
-				return subject
-					? `¿Qué se reportó sobre ${subject.charAt(0).toLocaleLowerCase('es-MX')}${subject.slice(1)}?`
-					: null;
-			})
-			.filter((question): question is string => question !== null)
-			.slice(0, 3);
+		const suggestions = suggestionQuestions(summary?.content?.noticias);
 		let suggestionDate: string | null = null;
 		if (suggestions.length > 0 && summary?.summary_date) {
 			// «25 oct.» estilo dateShort del mockup; mediodía local para que el

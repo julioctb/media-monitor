@@ -439,3 +439,30 @@ export function channelLabelFor(source: string): string {
 	const key = channelClassFor(source);
 	return key === 'field' ? 'Campo' : key === 'news' ? 'Noticias' : 'Redes sociales';
 }
+
+/**
+ * Asuntos reales del digest → preguntas naturales del welcome de consultas,
+ * máximo tres y **distintas**: el digest puede cubrir un mismo asunto dos
+ * veces, y repetir chips sería mentira visual y un `each` keyed duplicado que
+ * rompe la hidratación de la página (crash del 31/oct con «academia»
+ * repetido). Asunto natural: el tópico canónico cuando existe; si no, el
+ * titular sin el sufijo de medio («… |»). Nunca se inventan preguntas.
+ */
+export function suggestionQuestions(
+	noticias: readonly { title: string | null; topic?: string | null }[] | undefined
+): string[] {
+	const seen = new Set<string>();
+	const questions: string[] = [];
+	for (const item of noticias ?? []) {
+		const subject = item.topic
+			? topicLabel(item.topic)
+			: (item.title ?? '').replace(/\s*[|–-]\s*$/, '');
+		if (!subject) continue;
+		const question = `¿Qué se reportó sobre ${subject.charAt(0).toLocaleLowerCase('es-MX')}${subject.slice(1)}?`;
+		if (seen.has(question)) continue;
+		seen.add(question);
+		questions.push(question);
+		if (questions.length === 3) break;
+	}
+	return questions;
+}
