@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from 'vitest';
 
-import { actions } from '../routes/settings/+page.server';
+import { actions, load } from '../routes/settings/+page.server';
 import { normalizeFacebookPageRef } from '$lib/facebook-page';
 
 /**
@@ -82,6 +82,68 @@ async function save(entries: Record<string, string | string[]>) {
 function failureOf(result: { status?: number; data?: Record<string, unknown> }) {
 	return { status: result.status ?? -1, data: result.data ?? {} };
 }
+
+it('saves only reviewer fields even when a full general form is submitted', async () => {
+	const fetchMock = stubFetch(SETTINGS_ROW);
+	const result = await actions['save-reviewer']({ request: formRequest({
+		digest_reviewer_provider: 'openai',
+		digest_reviewer_base_url: 'https://reviewer-fixture.invalid/v1',
+		digest_reviewer_model: 'reviewer-fixture-model',
+		digest_reviewer_api_key: 'synthetic-reviewer-key-only',
+		ai_provider: 'local', ai_model: 'do-not-change-generator',
+		ai_api_key: 'do-not-change-generator-key', digest_hour: ['8', '21'],
+		retention_days: '7', watchlist: ['3'], x_mode: 'paid'
+	}) } as never);
+	expect(result).toMatchObject({ action: 'save-reviewer', ok: true });
+	expect(savedBodies).toEqual([{
+		digest_reviewer_provider: 'openai',
+		digest_reviewer_base_url: 'https://reviewer-fixture.invalid/v1',
+		digest_reviewer_model: 'reviewer-fixture-model',
+		digest_reviewer_api_key: 'synthetic-reviewer-key-only'
+	}]);
+	expect(fetchMock).toHaveBeenCalledTimes(1);
+	expect(JSON.stringify(result)).not.toContain('synthetic-reviewer-key-only');
+});
+
+it('keeps blank reviewer keys and never echoes a backend error containing a secret', async () => {
+	stubFetch(SETTINGS_ROW);
+	await actions['save-reviewer']({ request: formRequest({
+		digest_reviewer_provider: 'inherit', digest_reviewer_api_key: '   '
+	}) } as never);
+	expect(savedBodies).toEqual([{
+		digest_reviewer_provider: 'inherit', digest_reviewer_base_url: null,
+		digest_reviewer_model: null, digest_reviewer_api_key: ''
+	}]);
+	vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
+		detail: 'synthetic-reviewer-key-only is invalid'
+	}), { status: 422, headers: { 'content-type': 'application/json' } })));
+	const result = await actions['save-reviewer']({ request: formRequest({
+		digest_reviewer_provider: 'openai', digest_reviewer_api_key: 'synthetic-reviewer-key-only'
+	}) } as never);
+	expect(result).toMatchObject({ status: 422, data: { action: 'save-reviewer', ok: false } });
+	expect(JSON.stringify(result)).not.toContain('synthetic-reviewer-key-only');
+});
+
+it('rejects unknown reviewer modes without contacting the API', async () => {
+	const fetchMock = stubFetch(SETTINGS_ROW);
+	const result = await actions['save-reviewer']({ request: formRequest({
+		digest_reviewer_provider: 'native-vendor-api'
+	}) } as never);
+	expect(result).toMatchObject({ status: 400, data: { ok: false } });
+	expect(fetchMock).not.toHaveBeenCalled();
+});
+
+it('never puts the reviewer credential in load or hydration data', async () => {
+	vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => new Response(
+		JSON.stringify(String(input).includes('/api/settings') ? {
+			...SETTINGS_ROW, digest_reviewer_api_key: 'synthetic-unexpected-readback-key',
+			digest_reviewer_api_key_set: true
+		} : []), { headers: { 'content-type': 'application/json' } }
+	)));
+	const result = await load({} as never);
+	expect(result).toMatchObject({ settings: { digest_reviewer_api_key: '', digest_reviewer_api_key_set: true } });
+	expect(JSON.stringify(result)).not.toContain('synthetic-unexpected-readback-key');
+});
 
 it('serializes digest hours as a deduped sorted array', async () => {
 	stubFetch(SETTINGS_ROW);

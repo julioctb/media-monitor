@@ -97,6 +97,19 @@
 	let xMode: XMode = $state(data.settings.x_mode);
 	/** Gates the X section's submit while its request is in flight. */
 	let xSaving = $state(false);
+	let reviewerSaving = $state(false);
+	const handleReviewer: SubmitFunction = ({ formElement }) => {
+		reviewerSaving = true;
+		return async ({ update }) => {
+			try {
+				await update({ reset: false });
+			} finally {
+				const key = formElement.elements.namedItem('digest_reviewer_api_key');
+				if (key instanceof HTMLInputElement) key.value = '';
+				reviewerSaving = false;
+			}
+		};
+	};
 
 	// Registry snapshot from the load: toggles write to `draft`, never to
 	// page data. Intentional snapshot, like `draft` above.
@@ -965,6 +978,47 @@
 				</button>
 				<p class="storage-note">Los cambios se aplican al pulsar Guardar configuración.</p>
 			</div>
+		</form>
+
+		<form method="POST" action="?/save-reviewer" use:enhance={handleReviewer}>
+			<section class="panel" aria-labelledby="reviewer-title">
+				<div class="panel-head">
+					<h2 id="reviewer-title">Revisor de informes</h2>
+					<p class="panel-note">Configura solo la revisión; no cambia la generación ni las demás tareas de IA.</p>
+				</div>
+				<div class="field-grid">
+					<div>
+						<label for="reviewer-provider" class={LABEL_CLS}>Modo del revisor</label>
+						<select id="reviewer-provider" name="digest_reviewer_provider"
+							value={data.settings.digest_reviewer_provider ?? 'inherit'} class={INPUT_CLS}>
+							<option value="inherit">Heredar configuración del generador</option>
+							<option value="openai">API compatible con OpenAI</option>
+						</select>
+					</div>
+					<div>
+						<label for="reviewer-url" class={LABEL_CLS}>URL base del revisor</label>
+						<input id="reviewer-url" name="digest_reviewer_base_url" type="url"
+							value={data.settings.digest_reviewer_base_url ?? ''} class={INPUT_CLS} />
+					</div>
+					<div>
+						<label for="reviewer-model" class={LABEL_CLS}>Identificador del modelo revisor</label>
+						<input id="reviewer-model" name="digest_reviewer_model" type="text"
+							value={data.settings.digest_reviewer_model ?? ''} class={INPUT_CLS} />
+					</div>
+					<div>
+						<label for="reviewer-key" class={LABEL_CLS}>Clave de API del revisor</label>
+						<input id="reviewer-key" name="digest_reviewer_api_key" type="password"
+							value="" autocomplete="new-password" class={INPUT_CLS} />
+						<p class="field-hint">{data.settings.digest_reviewer_api_key_set ? 'Clave guardada.' : 'Sin clave guardada.'} Deja el campo vacío para conservarla.</p>
+					</div>
+				</div>
+				<p class="field-hint">La API independiente requiere su propia URL, modelo y clave. Si falta la configuración o falla la revisión, se conserva el informe factual sin aprobar el análisis.</p>
+				<p class="field-hint">Guardar no realiza solicitudes al proveedor ni acredita la calidad del modelo.</p>
+				{#if form?.action === 'save-reviewer'}
+					<p role="status" class={form.ok ? 'text-success' : 'text-danger'}>{form.message}</p>
+				{/if}
+				<button type="submit" disabled={reviewerSaving} class={BTN_PRIMARY_CLS}>Guardar revisor</button>
+			</section>
 		</form>
 
 	<!-- Source dialogs live at page level: a <dialog> containing a <form>

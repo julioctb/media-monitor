@@ -43,7 +43,11 @@ from app.models import (
     queries,
 )
 from app.models.settings import DEFAULT_OPENAI_BASE_URL
-from app.settings_runtime import EffectiveSettings, resolve_effective_settings
+from app.settings_runtime import (
+    EffectiveSettings,
+    resolve_effective_settings,
+    resolve_review_settings,
+)
 from app.summaries.advisory_review import (
     REVIEW_SYSTEM_PROMPT,
     assess_review,
@@ -1646,6 +1650,7 @@ def build_daily_summary(
     narrative pass applied cleanly.
     """
     effective = resolve_effective_settings(session, client_id)
+    review_effective = resolve_review_settings(effective)
     start, end, window_extended = resolve_digest_window(
         session, client_id=client_id, day=day, tz_name=effective.timezone
     )
@@ -1775,18 +1780,22 @@ def build_daily_summary(
     fresh_wire = generator_factory is not None or not injected_generate
 
     def phase_generator(phase, system_prompt, response_schema):
+        # A legacy injected callable never activates configured credentials.
+        if injected_generate and generator_factory is None:
+            return generate if phase == "proposal" else None
+        role_settings = review_effective if phase == "review" else effective
+        if role_settings is None:
+            return None
         if generator_factory is not None:
             return generator_factory(
-                effective,
+                role_settings,
                 phase=phase,
                 budget=budget,
                 system_prompt=system_prompt,
                 response_schema=response_schema,
             )
-        if injected_generate:
-            return generate if phase == "proposal" else None
         return summary_generator(
-            effective,
+            role_settings,
             budget=budget,
             system_prompt=system_prompt,
             response_schema=response_schema,
@@ -1923,6 +1932,22 @@ def build_daily_summary(
         if (
             isinstance(prior_generation, dict)
             and prior_generation.get("contract") == "factual-plan-v1"
+            and review_effective is not None
+            # Unmarked receipts remain eligible only for the original inherited
+            # configuration. A random revision binds all later approvals without
+            # exposing a key, credential hash or provider identity in the receipt.
+            and (
+                (
+                    effective.digest_reviewer_revision is not None
+                    and prior_generation.get("reviewer_revision")
+                    == effective.digest_reviewer_revision
+                )
+                or (
+                    effective.digest_reviewer_provider == "inherit"
+                    and effective.digest_reviewer_revision is None
+                    and prior_generation.get("reviewer_revision") is None
+                )
+            )
             and prior_generation.get("status") in {"plan_applied", "plan_recovered"}
             and isinstance(prior_generation.get("plan"), dict)
             and previous_inventory is not None
@@ -1959,6 +1984,7 @@ def build_daily_summary(
         "context_fingerprint": context_fingerprint,
         "plan": accepted_plan,
         "raw_proposal": raw_output if isinstance(raw_output, str) else None,
+        "reviewer_revision": effective.digest_reviewer_revision,
         "physical_requests": budget.used,
         "agenda_promotion_allowed": False,
         "veracity": "not_evaluated",

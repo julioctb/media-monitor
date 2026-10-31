@@ -16,7 +16,7 @@ import type { Actions, PageServerLoad } from './$types';
 
 /** Uniform action result: every branch carries the same keys for the view. */
 interface SettingsActionResult {
-	action: 'save' | 'save-x' | 'test-ai';
+	action: 'save' | 'save-x' | 'save-reviewer' | 'test-ai';
 	ok: boolean;
 	/** Banner text on save; probe outcome/error on the test action. */
 	message: string;
@@ -150,7 +150,10 @@ export const load: PageServerLoad = async () => {
 			// Best-effort too: the focus select degrades to the none option.
 			listPersons().catch(() => [])
 		]);
-		return { settings: await getClientSettings(), scrapersAvailable, keywords, persons };
+		const settings = await getClientSettings();
+		// Defense in depth: a saved reviewer key never enters page/hydration data.
+		settings.digest_reviewer_api_key = '';
+		return { settings, scrapersAvailable, keywords, persons };
 	} catch (cause) {
 		const status = errorStatus(cause, 503);
 		const detail = errorMessage(cause, 'error desconocido');
@@ -260,6 +263,28 @@ export const actions: Actions = {
 			);
 		} catch (cause) {
 			return failureFrom(cause, 'test-ai', 'No se pudo contactar la prueba del proveedor.');
+		}
+	},
+
+	// Independent partial save; never dispatches a provider test request.
+	'save-reviewer': async ({ request }) => {
+		const form = await request.formData();
+		const provider = text(form, 'digest_reviewer_provider');
+		if (provider !== 'inherit' && provider !== 'openai') {
+			return failure('save-reviewer', 400, 'Elige el modo del revisor de informes.');
+		}
+		try {
+			await updateClientSettings({
+				digest_reviewer_provider: provider,
+				digest_reviewer_base_url: optionalText(form, 'digest_reviewer_base_url'),
+				digest_reviewer_model: optionalText(form, 'digest_reviewer_model'),
+				digest_reviewer_api_key: text(form, 'digest_reviewer_api_key')
+			});
+			return actionResult('save-reviewer', true, 'Configuración del revisor guardada.');
+		} catch (cause) {
+			// Do not forward backend diagnostics: they may contain submitted secrets.
+			return failure('save-reviewer', errorStatus(cause, 502),
+				'No se pudo guardar el revisor. Revisa el modo, la URL y el modelo.');
 		}
 	},
 

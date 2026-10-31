@@ -8,7 +8,12 @@ import pytest
 from app.models import MentionSource, queries
 from app.summaries import builder
 
+from tests import test_api as api_fixtures
 from tests.test_digest_factual_pipeline import DAY, _material, _plan
+
+reviewer_db = (
+    api_fixtures.db
+)  # Reuse the file-SQLite fixture across TestClient threads.
 
 
 def contextual_plan(prompt):
@@ -49,6 +54,318 @@ def configure(session, client):
     settings.ai_base_url = "https://fixture.invalid/v1"
     settings.ai_model = "fixture"
     session.commit()
+
+
+def configure_reviewer(session, client, **changes):
+    return queries.upsert_settings(
+        session,
+        client.id,
+        {
+            "digest_reviewer_provider": "openai",
+            "digest_reviewer_base_url": "https://reviewer-fixture.invalid/v1",
+            "digest_reviewer_model": "reviewer-fixture-model",
+            "digest_reviewer_api_key": "synthetic-reviewer-key-only",
+            **changes,
+        },
+    )
+
+
+def wire_response(url, options):
+    packet = json.loads(options["json"]["messages"][1]["content"])
+    value = (
+        passed_review(packet)
+        if "scope" in packet
+        else contextual_plan(json.dumps(packet))
+    )
+    return httpx.Response(
+        200,
+        request=httpx.Request("POST", url),
+        json={"choices": [{"message": {"content": json.dumps(value)}}]},
+    )
+
+
+@pytest.mark.parametrize("custom_factory", [False, True])
+def test_dedicated_reviewer_routes_only_review_with_shared_budget(
+    session, monkeypatch, custom_factory
+):
+    client, _ = _material(session)
+    configure(session, client)
+    configured = configure_reviewer(session, client)
+    calls, phases = [], []
+
+    def respond(url, **options):
+        calls.append((url, copy.deepcopy(options)))
+        return wire_response(url, options)
+
+    def factory(effective, *, phase, **options):
+        phases.append((phase, effective, options["budget"]))
+        return builder.summary_generator(effective, **options)
+
+    monkeypatch.setattr(builder.httpx, "post", respond)
+    row = builder.build_daily_summary(
+        session,
+        client_id=client.id,
+        day=DAY.date(),
+        **({"generator_factory": factory} if custom_factory else {}),
+    )
+    assert row.mode == "llm"
+    assert row.content["generation"]["review"]["status"] == "passed"
+    assert len(calls) == row.content["generation"]["physical_requests"] == 2
+    assert [
+        (url, options["json"]["model"], options["headers"]) for url, options in calls
+    ] == [
+        (
+            "https://fixture.invalid/v1/chat/completions",
+            "fixture",
+            {"Authorization": "Bearer fixture-only"},
+        ),
+        (
+            "https://reviewer-fixture.invalid/v1/chat/completions",
+            "reviewer-fixture-model",
+            {"Authorization": "Bearer synthetic-reviewer-key-only"},
+        ),
+    ]
+    assert all(
+        options["timeout"] == 120.0 and options["follow_redirects"] is False
+        for _, options in calls
+    )
+    if custom_factory:
+        assert [phase for phase, _, _ in phases] == ["proposal", "review"]
+        assert phases[0][2] is phases[1][2]
+        assert phases[0][1] is not phases[1][1]
+        assert phases[0][1].ai_model == "fixture"
+        assert phases[1][1].ai_model == "reviewer-fixture-model"
+    assert (
+        row.content["generation"]["reviewer_revision"]
+        == configured.digest_reviewer_revision
+    )
+    serialized = json.dumps(row.content)
+    assert "synthetic-reviewer-key-only" not in serialized
+    assert "fixture-only" not in serialized
+    assert set(row.content["generation"]["review"]) == {
+        "method",
+        "status",
+        "input_fingerprint",
+        "scope",
+        "raw_review",
+        "error",
+        "fallible",
+        "external_truth",
+    }
+
+
+@pytest.mark.parametrize("missing", ["base_url", "model", "api_key", "unknown_mode"])
+@pytest.mark.parametrize("custom_factory", [False, True])
+def test_incomplete_reviewer_never_borrows_generator_or_calls_factory(
+    session, monkeypatch, missing, custom_factory
+):
+    client, _ = _material(session)
+    configure(session, client)
+    changes = {"digest_reviewer_" + missing: None} if missing != "unknown_mode" else {}
+    settings = configure_reviewer(session, client, **changes)
+    if missing == "unknown_mode":
+        settings.digest_reviewer_provider = "unrecognized"
+        session.commit()
+    calls, phases = [], []
+
+    def respond(url, **options):
+        calls.append(url)
+        return wire_response(url, options)
+
+    def factory(effective, *, phase, **options):
+        phases.append(phase)
+        return builder.summary_generator(effective, **options)
+
+    monkeypatch.setattr(builder.httpx, "post", respond)
+    row = builder.build_daily_summary(
+        session,
+        client_id=client.id,
+        day=DAY.date(),
+        **({"generator_factory": factory} if custom_factory else {}),
+    )
+    assert row.mode == "heuristic"
+    assert row.content["generation"]["review"]["status"] == "unavailable"
+    assert calls == ["https://fixture.invalid/v1/chat/completions"]
+    assert phases == (["proposal"] if custom_factory else [])
+    assert row.content["brief"]["decisiones"] == []
+    delivered = copy.deepcopy(row.content)
+    control = builder.build_daily_summary(
+        session, client_id=client.id, day=DAY.date(), generate=lambda _: None
+    )
+    assert {key: value for key, value in delivered.items() if key != "generation"} == {
+        key: value for key, value in control.content.items() if key != "generation"
+    }
+    assert calls == ["https://fixture.invalid/v1/chat/completions"]
+
+
+@pytest.mark.parametrize("failure", ["unavailable", "rejected", "proposal_retry"])
+def test_dedicated_review_failure_never_dispatches_third_request(
+    session, monkeypatch, failure
+):
+    client, _ = _material(session)
+    configure(session, client)
+    configure_reviewer(session, client)
+    calls = []
+
+    def respond(url, **options):
+        calls.append((url, copy.deepcopy(options)))
+        if failure == "proposal_retry" and len(calls) == 1:
+            return httpx.Response(400, request=httpx.Request("POST", url))
+        if "reviewer-fixture" in url:
+            if failure == "unavailable":
+                raise httpx.ConnectError("Synthetic reviewer unavailable")
+            packet = json.loads(options["json"]["messages"][1]["content"])
+            review = passed_review(packet)
+            review["passed"] = False
+            return httpx.Response(
+                200,
+                request=httpx.Request("POST", url),
+                json={"choices": [{"message": {"content": json.dumps(review)}}]},
+            )
+        return wire_response(url, options)
+
+    monkeypatch.setattr(builder.httpx, "post", respond)
+    row = builder.build_daily_summary(session, client_id=client.id, day=DAY.date())
+    assert row.mode == "heuristic"
+    assert len(calls) == row.content["generation"]["physical_requests"] == 2
+    assert [url for url, _ in calls] == [
+        "https://fixture.invalid/v1/chat/completions",
+        (
+            "https://fixture.invalid/v1/chat/completions"
+            if failure == "proposal_retry"
+            else "https://reviewer-fixture.invalid/v1/chat/completions"
+        ),
+    ]
+    assert row.content["generation"]["review"]["status"] == (
+        "rejected" if failure == "rejected" else "unavailable"
+    )
+    assert row.content["brief"]["decisiones"] == []
+    delivered = copy.deepcopy(row.content)
+    control = builder.build_daily_summary(
+        session, client_id=client.id, day=DAY.date(), generate=lambda _: None
+    )
+    assert {key: value for key, value in delivered.items() if key != "generation"} == {
+        key: value for key, value in control.content.items() if key != "generation"
+    }
+    assert len(calls) == 2
+
+
+@pytest.mark.parametrize(
+    "mode,change,recover",
+    [
+        ("openai", "same", True),
+        ("openai", "blank_key", True),
+        ("openai", "key", False),
+        ("openai", "model", False),
+        ("openai", "url", False),
+        ("openai", "mode", False),
+        ("openai", "unmarked", False),
+        ("openai", "generator", True),
+        ("inherit", "same", True),
+        ("inherit", "unmarked", True),
+        ("inherit", "key", False),
+        ("inherit", "model", False),
+        ("inherit", "url", False),
+        ("inherit", "mode", False),
+        ("inherit", "fast_model", True),
+    ],
+)
+def test_recovery_is_bound_to_effective_reviewer_revision(
+    reviewer_db, monkeypatch, mode, change, recover
+):
+    from app.api.deps import get_client_id
+    from app.db import get_db
+    from app.main import create_app
+    from fastapi.testclient import TestClient
+
+    session = reviewer_db
+    client, _ = _material(session)
+    configure(session, client)
+    if mode == "openai":
+        configure_reviewer(session, client)
+    calls = []
+
+    def respond(url, **options):
+        calls.append(url)
+        return wire_response(url, options)
+
+    monkeypatch.setattr(builder.httpx, "post", respond)
+    first = builder.build_daily_summary(session, client_id=client.id, day=DAY.date())
+    assert first.mode == "llm"
+    original = copy.deepcopy(first.content["generation"])
+    initial_revision = queries.get_settings(session, client.id).digest_reviewer_revision
+    changes = {}
+    prefix = "digest_reviewer_" if mode == "openai" else "ai_"
+    if change in {"key", "model", "url"}:
+        field, value = {
+            "key": ("api_key", "synthetic-replaced-secret-only"),
+            "model": ("model", "replacement-fixture-model"),
+            "url": ("base_url", "https://replacement-fixture.invalid/v1"),
+        }[change]
+        changes[prefix + field] = value
+    elif change == "mode":
+        changes = (
+            {"digest_reviewer_provider": "inherit"}
+            if mode == "openai"
+            else {"ai_provider": "local"}
+        )
+    elif change == "generator":
+        changes = {"ai_model": "other-generator-fixture"}
+    elif change == "fast_model":
+        changes = {"ai_model_fast": "other-fast-fixture"}
+    elif change == "blank_key":
+        changes = {"digest_reviewer_api_key": "  "}
+    elif change == "same":
+        changes = {
+            prefix + "model": "reviewer-fixture-model"
+            if mode == "openai"
+            else "fixture"
+        }
+    elif change == "unmarked":
+        edited = copy.deepcopy(first.content)
+        edited["generation"].pop("reviewer_revision", None)
+        first.content = edited
+        session.commit()
+
+    app = create_app()
+
+    def override_db():
+        yield session
+
+    app.dependency_overrides[get_db] = override_db
+    app.dependency_overrides[get_client_id] = lambda: client.id
+    with TestClient(app) as api:
+        response = api.put("/api/settings", json=changes)
+        assert response.status_code == 200
+    revision = queries.get_settings(session, client.id).digest_reviewer_revision
+    if change != "unmarked":
+        assert (revision == initial_revision) is recover
+
+    def unavailable(_):
+        raise RuntimeError("Synthetic proposal unavailable")
+
+    row = builder.build_daily_summary(
+        session, client_id=client.id, day=DAY.date(), generate=unavailable
+    )
+    assert (row.mode == "llm") is recover
+    assert row.content["generation"]["status"] == (
+        "plan_recovered" if recover else "source_fallback"
+    )
+    assert calls == [
+        "https://fixture.invalid/v1/chat/completions",
+        (
+            "https://reviewer-fixture.invalid/v1/chat/completions"
+            if mode == "openai"
+            else "https://fixture.invalid/v1/chat/completions"
+        ),
+    ]
+    assert row.content["generation"]["prior_generation"]["review"] == original["review"]
+    if recover:
+        assert row.content["generation"]["review"] == original["review"]
+    else:
+        assert row.content["brief"]["decisiones"] == []
+        assert row.content["generation"]["plan"] is None
+    assert "synthetic-replaced-secret-only" not in json.dumps(row.content)
 
 
 def test_public_pipeline_reviews_actual_compiled_candidate_with_shared_budget(
@@ -268,12 +585,15 @@ def test_review_failure_rebuilds_complete_source_projection_control(
     assert hidden not in delivered
 
 
+@pytest.mark.parametrize("dedicated", [False, True])
 def test_injected_generation_never_activates_configured_reviewer_control(
-    session, monkeypatch
+    session, monkeypatch, dedicated
 ):
     client, _ = _material(session)
     configure(session, client)
     calls = []
+    if dedicated:
+        configure_reviewer(session, client)
 
     def forbidden(*args, **kwargs):
         calls.append(True)

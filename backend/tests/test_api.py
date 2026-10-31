@@ -31,6 +31,101 @@ from app.models import (
 )
 
 
+def test_reviewer_settings_are_tenant_scoped_write_only_and_partial(api, db):
+    """Synthetic credentials only; saving settings never tests a provider."""
+    client_id = first_client_id(db)
+    other = Client(name="reviewer-isolation-fixture")
+    db.add(other)
+    db.commit()
+    other_before = queries.get_settings(db, other.id)
+    assert (
+        api.put(
+            "/api/settings",
+            json={
+                "ai_provider": "openai",
+                "ai_model": "qwen-generator-fixture",
+                "ai_model_fast": "fast-arbitrator-fixture",
+                "ai_base_url": "https://generator-fixture.invalid/v1",
+                "ai_api_key": "synthetic-generator-key-only",
+                "watchlist": [9],
+                "digest_hours": [8, 21],
+                "retention_days": 90,
+            },
+        ).status_code
+        == 200
+    )
+    before = api.get("/api/settings").json()
+    assert before["digest_reviewer_provider"] == "inherit"
+    assert before["digest_reviewer_api_key"] == ""
+    assert before["digest_reviewer_api_key_set"] is False
+    body = {
+        "digest_reviewer_provider": "openai",
+        "digest_reviewer_base_url": "https://reviewer-fixture.invalid/v1",
+        "digest_reviewer_model": "reviewer-fixture-model",
+        "digest_reviewer_api_key": "synthetic-reviewer-key-only",
+    }
+    response = api.put("/api/settings", json=body)
+    assert response.status_code == 200
+    saved = response.json()
+    assert saved["digest_reviewer_api_key"] == ""
+    assert saved["digest_reviewer_api_key_set"] is True
+    assert "synthetic-reviewer-key-only" not in response.text
+    readback = api.get("/api/settings").json()
+    # SQLite drops the UTC offset on DB round-trip, not the stored wall time.
+    assert readback.pop("updated_at").removesuffix("Z") == saved[
+        "updated_at"
+    ].removesuffix("Z")
+    assert readback == {
+        key: value for key, value in saved.items() if key != "updated_at"
+    }
+    unaffected = {
+        key: value
+        for key, value in before.items()
+        if not key.startswith("digest_reviewer_") and key != "updated_at"
+    }
+    assert {key: saved[key] for key in unaffected} == unaffected
+    row = queries.get_settings(db, client_id)
+    revision = row.digest_reviewer_revision
+    assert isinstance(revision, str) and revision
+    for blank in ("", "   ", None, " synthetic-reviewer-key-only "):
+        kept = api.put("/api/settings", json={"digest_reviewer_api_key": blank})
+        assert kept.status_code == 200
+        assert kept.json()["digest_reviewer_api_key_set"] is True
+        db.refresh(row)
+        assert row.digest_reviewer_api_key == "synthetic-reviewer-key-only"
+        assert row.digest_reviewer_revision == revision
+    replaced = api.put(
+        "/api/settings", json={"digest_reviewer_api_key": "synthetic-replacement-only"}
+    )
+    assert replaced.status_code == 200
+    db.refresh(row)
+    assert row.digest_reviewer_revision != revision
+    assert "synthetic-replacement-only" not in replaced.text
+    api.app.dependency_overrides[get_client_id] = lambda: other.id
+    isolated = api.get("/api/settings").json()
+    assert isolated["digest_reviewer_provider"] == "inherit"
+    assert isolated["digest_reviewer_api_key_set"] is False
+    db.refresh(other_before)
+    assert other_before.digest_reviewer_revision is None
+
+
+def test_reviewer_validation_does_not_echo_credentials(api, db):
+    for changes in (
+        {"digest_reviewer_provider": "native-vendor-api"},
+        {"digest_reviewer_base_url": "file:///fixture"},
+        {"digest_reviewer_api_key": "synthetic-overlong-key-" * 30},
+        {"digest_reviewer_api_key": ["synthetic-non-string-key-only"]},
+    ):
+        secret = changes.get("digest_reviewer_api_key", "synthetic-key-error-only")
+        response = api.put(
+            "/api/settings", json={"digest_reviewer_api_key": secret, **changes}
+        )
+        assert response.status_code == 422
+        assert str(secret) not in response.text
+        assert "synthetic-non-string-key-only" not in response.text
+    assert api.get("/api/settings").json()["digest_reviewer_api_key_set"] is False
+
+
 def now_utc() -> datetime:
     return datetime.now(timezone.utc)
 

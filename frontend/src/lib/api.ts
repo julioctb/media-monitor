@@ -210,6 +210,13 @@ export interface ClientSettings {
   ai_base_url: string | null;
   ai_model: string | null;
   ai_model_fast: string | null;
+  /** Optional for older backends; current API always returns these fields. */
+  digest_reviewer_provider?: 'inherit' | 'openai';
+  digest_reviewer_base_url?: string | null;
+  digest_reviewer_model?: string | null;
+  /** Always empty on readback. Never hydrate a saved reviewer credential. */
+  digest_reviewer_api_key?: string;
+  digest_reviewer_api_key_set?: boolean;
   /** Paid-mode X source; see x-mode-settings. */
   x_mode: XMode;
   /** Always "" on the wire: the API masks the stored key. */
@@ -241,6 +248,11 @@ export interface ClientSettingsInput {
   ai_base_url?: string | null;
   ai_model?: string | null;
   ai_model_fast?: string | null;
+  digest_reviewer_provider?: 'inherit' | 'openai';
+  digest_reviewer_base_url?: string | null;
+  digest_reviewer_model?: string | null;
+  /** Nonempty replaces; blank/whitespace/null keeps the stored key. */
+  digest_reviewer_api_key?: string | null;
   x_mode?: XMode;
   /** Non-empty stores the key; ''/absent keeps the stored one. */
   x_api_key?: string;

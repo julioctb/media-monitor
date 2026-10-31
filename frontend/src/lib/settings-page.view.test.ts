@@ -70,6 +70,39 @@ afterEach(() => {
 const BANNER_HEAD = 'Modo gratuito: las menciones de X provienen del índice de Google News';
 const FALLBACK_NOTE = 'Sin key: se usará el modo gratuito como respaldo';
 
+it('renders an independent Spanish reviewer form with a write-only key', () => {
+	const { target, text } = renderPage(pageSettings({
+		digest_reviewer_provider: 'openai',
+		digest_reviewer_base_url: 'https://reviewer-fixture.invalid/v1',
+		digest_reviewer_model: 'reviewer-fixture-model',
+		digest_reviewer_api_key: 'synthetic-must-not-rehydrate',
+		digest_reviewer_api_key_set: true
+	}));
+	const reviewer = target.querySelector<HTMLFormElement>('form[action="?/save-reviewer"]');
+	expect(reviewer).not.toBeNull();
+	expect(reviewer!.parentElement?.closest('form')).toBeNull();
+	expect(text()).toContain('Revisor de informes');
+	expect(text()).toContain('Clave guardada');
+	expect(text()).toContain('Guardar no realiza solicitudes al proveedor');
+	const key = reviewer!.querySelector<HTMLInputElement>('[name="digest_reviewer_api_key"]')!;
+	expect(key.type).toBe('password');
+	expect(key.value).toBe('');
+	expect(target.innerHTML).not.toContain('synthetic-must-not-rehydrate');
+	const entries = Object.fromEntries(new FormData(reviewer!));
+	expect(entries).toEqual({
+		digest_reviewer_provider: 'openai',
+		digest_reviewer_base_url: 'https://reviewer-fixture.invalid/v1',
+		digest_reviewer_model: 'reviewer-fixture-model', digest_reviewer_api_key: ''
+	});
+	key.value = 'synthetic-new-key-only';
+	expect(new FormData(reviewer!).get('digest_reviewer_api_key')).toBe('synthetic-new-key-only');
+	const general = target.querySelector<HTMLFormElement>('form[action="?/save"]')!;
+	expect([...new FormData(general).keys()].some((name) => name.startsWith('digest_reviewer_'))).toBe(false);
+	expect(general.querySelector('[name="ai_provider"]')).not.toBeNull();
+	expect(general.querySelector('[formaction="?/test-ai"]')).not.toBeNull();
+	expect(reviewer!.querySelector('[formaction="?/test-ai"]')).toBeNull();
+});
+
 it('shows the free limitations banner and hides the paid-only key field', () => {
 	const { text } = renderPage(pageSettings({ x_mode: 'free', x_api_key_set: true }));
 
