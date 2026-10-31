@@ -1345,6 +1345,18 @@ export function createFieldOperator(
   );
 }
 
+export function patchFieldOperator(
+  id: number,
+  patch: { display_name?: string; phone?: string },
+  options: RequestOptions = {},
+): Promise<FieldOperatorRecord> {
+  return request<FieldOperatorRecord>(
+    `/api/field-operators/${id}`,
+    jsonInit("PATCH", patch),
+    options,
+  );
+}
+
 export function inviteFieldOperator(
   id: number,
   options: RequestOptions = {},

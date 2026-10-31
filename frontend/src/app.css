@@ -6179,7 +6179,7 @@ button.text-link {
   min-height: 44px;
   padding: 8px 12px;
 }
-.reports-view .field-pagination {
+.field-pagination {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -6189,16 +6189,16 @@ button.text-link {
   color: var(--color-muted);
   font-size: 13px;
 }
-.reports-view .field-pagination label {
+.field-pagination label {
   display: flex;
   align-items: center;
   gap: 8px;
 }
-.reports-view .field-pagination select {
+.field-pagination select {
   min-height: 44px;
   color: var(--color-ink);
 }
-.reports-view .field-pagination > div {
+.field-pagination > div {
   display: flex;
   gap: 8px;
 }
@@ -6389,7 +6389,7 @@ dialog.detail-dialog::backdrop {
   .field-inbox-table td:last-child {
     grid-column: 1 / -1;
   }
-  .reports-view .field-pagination {
+  .field-pagination {
     padding: 16px 20px;
   }
 }
@@ -6417,7 +6417,7 @@ dialog.detail-dialog::backdrop {
   .field-inbox-table tr {
     padding: 16px;
   }
-  .reports-view .field-pagination {
+  .field-pagination {
     padding: 16px;
   }
   .field-metadata {
@@ -6476,18 +6476,6 @@ dialog.detail-dialog::backdrop {
 }
 .field-operator-tools .button {
   min-height: 44px;
-}
-/* Alta embebida: el mockup la presenta como diálogo; aquí vive revelada
-   bajo la toolbar con la misma anatomía de formulario. */
-.operators-view .field-operator-form {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px 16px;
-  padding: 0 28px 24px;
-  border-bottom: 1px solid var(--color-line);
-}
-.operators-view .field-operator-form .field-actions {
-  grid-column: 1 / -1;
-  margin: 0;
 }
 .field-operator-table-wrap {
   width: 100%;
@@ -6589,24 +6577,6 @@ dialog.detail-dialog::backdrop {
   width: max-content;
   white-space: nowrap;
 }
-/* Panel de gestión: patrón «Gestionar» del mockup; revela en la fila las
-   acciones activar/desactivar + invitación (el mockup las pone en un
-   diálogo de edición que el modelo no soporta). */
-.field-operator-manage-row > td {
-  padding: 4px 18px 20px;
-}
-.field-operator-manage {
-  display: grid;
-  gap: 10px;
-}
-.field-operator-manage-note {
-  margin: 0;
-  color: var(--color-muted);
-  font-size: 13px;
-}
-.field-return {
-  margin: 16px 0 0;
-}
 @media (max-width: 1100px) {
   .field-operator-toolbar {
     align-items: stretch;
@@ -6659,13 +6629,6 @@ dialog.detail-dialog::backdrop {
   }
   .operators-view .field-table td.field-operator-phone {
     white-space: normal;
-  }
-  .field-operator-manage-row > td {
-    grid-column: 1 / -1;
-    padding: 0;
-  }
-  .field-operator-manage-row > td::before {
-    content: none;
   }
 }
 @media (max-width: 600px) {

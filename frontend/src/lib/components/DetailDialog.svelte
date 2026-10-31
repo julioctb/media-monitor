@@ -28,6 +28,9 @@
 
 	$effect(() => {
 		if (open && typeof dialogEl?.showModal === 'function') dialogEl.showModal();
+		// Parent cleared `open` (e.g. after a successful action): close too,
+		// otherwise the chrome would stay on screen with an unmounted body.
+		else if (!open && dialogEl?.open && typeof dialogEl.close === 'function') dialogEl.close();
 	});
 </script>
 
