@@ -5531,10 +5531,16 @@ button.text-link {
    composer y aside. Va después de .panel/.aside-panel para que
    sus paddings propios ganen la cascada.
    ============================================================ */
+/* Intro de la página: solo h1 (la descripción del mockup está hidden en
+   render()); su separación equivale al margin-bottom 28px del .intro v3
+   (el h1 ya trae margin-bottom 8px). */
+.page-header + .query-layout {
+  margin-top: 20px;
+}
 .query-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 280px;
-  gap: 20px;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 24px;
   align-items: start;
 }
 .query-layout > .panel {

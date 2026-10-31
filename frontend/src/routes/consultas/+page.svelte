@@ -15,7 +15,7 @@
 		type ChatCitation,
 		type ChatThread
 	} from '$lib/chat-history';
-	import { formatDisplayDateTime } from '$lib/format';
+	import { formatDisplayTime } from '$lib/format';
 
 	let { data, form: result }: PageProps = $props();
 
@@ -130,12 +130,10 @@
 	<title>Consultas | Media Monitor</title>
 </svelte:head>
 
-<header class="intro">
-	<h1 class="page-title">Consultas</h1>
-	<p class="lead">
-		Pregunta en lenguaje natural sobre la cobertura. Las respuestas se apoyan exclusivamente en
-		notas ingestadas y muestran sus citas.
-	</p>
+<!-- Intro como el mockup: solo el h1 (su page-description está hidden en
+     render()); sin la tarjeta .intro v2 (fondo/borde que el mockup no tiene). -->
+<header class="page-header">
+	<h1>Consultas</h1>
 </header>
 
 <div class="query-layout">
@@ -212,33 +210,38 @@
 	<aside class="panel aside-panel query-history" aria-labelledby="history-heading">
 		<h2 id="history-heading">Historial de preguntas</h2>
 		<p class="small muted">El historial se guarda solo en este navegador.</p>
-		{#if threads.length === 0}
-			<p class="small muted query-history-empty">Aún no hay preguntas guardadas.</p>
-		{:else}
-			<ol class="query-history-list">
-				{#each threads as thread (thread.id)}
-					<li>
-						<button
-							type="button"
-							aria-label="Abrir consulta: {threadTitle(thread)}"
-							aria-current={thread.id === activeId ? 'true' : undefined}
-							onclick={() => (activeId = thread.id)}
-						>
-							<span>{threadTitle(thread)}</span>
-							<time datetime={thread.updatedAt}>{formatDisplayDateTime(thread.updatedAt)}</time>
-						</button>
-						<button
-							class="delete-chat"
-							type="button"
-							aria-label="Borrar consulta: {threadTitle(thread)}"
-							onclick={() => deleteThread(thread.id)}
-						>
-							×
-						</button>
-					</li>
-				{/each}
-			</ol>
-		{/if}
+		<!-- Contenedor de items como #query-history-items del mockup: mantiene
+		     fuera del alcance de `.query-history > p` (11px) al aviso vacío, que
+		     en el mockup mide 12px vía .small. -->
+		<div id="query-history-items">
+			{#if threads.length === 0}
+				<p class="small muted query-history-empty">Aún no hay preguntas guardadas.</p>
+			{:else}
+				<ol class="query-history-list">
+					{#each threads as thread (thread.id)}
+						<li>
+							<button
+								type="button"
+								aria-label="Abrir consulta: {threadTitle(thread)}"
+								aria-current={thread.id === activeId ? 'true' : undefined}
+								onclick={() => (activeId = thread.id)}
+							>
+								<span>{threadTitle(thread)}</span>
+								<time datetime={thread.updatedAt}>{formatDisplayTime(thread.updatedAt)}</time>
+							</button>
+							<button
+								class="delete-chat"
+								type="button"
+								aria-label="Borrar consulta: {threadTitle(thread)}"
+								onclick={() => deleteThread(thread.id)}
+							>
+								×
+							</button>
+						</li>
+					{/each}
+				</ol>
+			{/if}
+		</div>
 		<button class="text-link new-chat" type="button" onclick={startNewChat}>Nueva consulta</button>
 	</aside>
 </div>
