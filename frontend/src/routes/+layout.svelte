@@ -6,6 +6,8 @@
 	import type { LayoutProps } from './$types';
 	import type { SubmitFunction } from './consultas/$types';
 	import { ICON_PATHS } from '$lib/icons';
+	import type { ChatCitation } from '$lib/chat-history';
+	import QueryAnswer from '$lib/components/QueryAnswer.svelte';
 	import Toaster from '$lib/components/Toaster.svelte';
 
 	let { children }: LayoutProps = $props();
@@ -44,14 +46,12 @@
 	let closeButton: HTMLButtonElement | undefined = $state();
 	let panelOpen = $state(false);
 	let panelQuestion = $state('');
-	let citationsOpen = $state(false);
-	const VISIBLE_CITATIONS = 3;
 	let panelPending = $state(false);
 	let panelError = $state('');
 	let panelResult: {
 		question: string;
 		answer: string;
-		citations: { title: string | null; url: string }[];
+		citations: ChatCitation[];
 	} | null = $state(null);
 	let queryInput: HTMLTextAreaElement | undefined = $state();
 	let launcherButton: HTMLButtonElement | undefined = $state();
@@ -91,7 +91,6 @@
 		const question = String((formData.get('question') ?? '') as string).trim();
 		panelQuestion = question;
 		panelResult = null;
-		citationsOpen = false;
 		panelPending = true;
 		panelError = '';
 		if (queryInput) queryInput.value = '';
@@ -106,11 +105,21 @@
 						question: String(data.question ?? ''),
 						answer: typeof data.answer === 'string' ? data.answer : '',
 						citations: raw
-							.map((c) => {
-								const e = c as { title?: unknown; url?: unknown };
-								return { title: typeof e.title === 'string' ? e.title : null, url: typeof e.url === 'string' ? e.url : '' };
+							.filter((c) => {
+								const e = c as Partial<ChatCitation>;
+								return typeof e.mention_id === 'number' && typeof e.url === 'string' && e.url !== '';
 							})
-							.filter((c) => c.url !== '')
+							.map((c): ChatCitation => {
+								const e = c as Partial<ChatCitation>;
+								return {
+									mention_id: e.mention_id as number,
+									title: typeof e.title === 'string' ? e.title : null,
+									url: e.url as string,
+									source: typeof e.source === 'string' ? e.source : undefined,
+									published_at: typeof e.published_at === 'string' ? e.published_at : null,
+									sentiment: typeof e.sentiment === 'string' ? e.sentiment : null
+								};
+							})
 					};
 				}
 			} else if (result.type === 'error') {
@@ -311,54 +320,23 @@
 				</header>
 				<div class="floating-query-body">
 					<div class="floating-query-answer" aria-live="polite">
-						{#if panelError}
-							<p class="floating-error" role="alert">{panelError}</p>
-						{/if}
 						{#if panelQuestion}
-							<div class="query-question">
-								<span>Tu pregunta</span>
-								<p>{panelQuestion}</p>
+							<QueryAnswer
+								question={panelQuestion}
+								answer={panelResult?.answer ?? null}
+								citations={panelResult?.citations ?? []}
+								pending={panelPending}
+								error={panelError || null}
+							/>
+						{:else if !panelPending}
+							<div class="floating-query-welcome">
+								<span class="query-welcome-icon" aria-hidden="true">
+									<svg class="od-icon" viewBox="0 0 24 24"><path d={ICON_PATHS.query} /></svg>
+								</span>
+								<h3>¿Qué quieres investigar?</h3>
+								<p>Explora las menciones y abre la evidencia de cada resultado.</p>
 							</div>
-							{#if panelPending}
-								<p class="thinking" role="status">Pensando…</p>
-							{/if}
-							<article class="answer">
-								<h3>Respuesta</h3>
-								<p>{panelResult?.answer ?? ''}</p>
-							</article>
-							{#if (panelResult?.citations?.length ?? 0) > 0}
-								<div class="evidence">
-									<ul>
-										{#each (panelResult?.citations ?? []).slice(0, citationsOpen ? undefined : VISIBLE_CITATIONS) as citation (citation.url + citation.title)}
-											<li>
-												<a href={citation.url} target="_blank" rel="noopener noreferrer">
-													{citation.title ?? citation.url}
-												</a>
-											</li>
-										{/each}
-									</ul>
-									{#if (panelResult?.citations?.length ?? 0) > VISIBLE_CITATIONS}
-										<button
-											type="button"
-											class="text-link citations-toggle"
-											onclick={() => (citationsOpen = !citationsOpen)}
-										>
-											{citationsOpen
-												? 'ocultar'
-												: `…${(panelResult?.citations?.length ?? 0) - VISIBLE_CITATIONS} fuentes más — ver`}
-										</button>
-									{/if}
-								</div>
-							{/if}
-						{:else if !panelPending && !panelResult}
-						<div class="floating-query-welcome">
-							<span class="query-welcome-icon" aria-hidden="true">
-								<svg class="od-icon" viewBox="0 0 24 24"><path d={ICON_PATHS.query} /></svg>
-							</span>
-							<h3>¿Qué quieres investigar?</h3>
-							<p>Explora las menciones y abre la evidencia de cada resultado.</p>
-						</div>
-					{/if}
+						{/if}
 					</div>
 
 					<form

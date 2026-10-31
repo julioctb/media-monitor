@@ -4,17 +4,20 @@
 	import { browser } from '$app/environment';
 	import { enhance } from '$app/forms';
 
+	import QueryAnswer from '$lib/components/QueryAnswer.svelte';
+	import { ICON_PATHS } from '$lib/icons';
 	import {
 		appendTurn,
 		createThread,
 		loadThreads,
 		saveThreads,
 		threadTitle,
+		type ChatCitation,
 		type ChatThread
 	} from '$lib/chat-history';
-	import { formatDisplayDateTime, sentimentLabel, sourceLabel } from '$lib/format';
+	import { formatDisplayDateTime } from '$lib/format';
 
-	let { form: result }: PageProps = $props();
+	let { data, form: result }: PageProps = $props();
 
 	let threads = $state<ChatThread[]>(browser ? loadThreads(localStorage) : []);
 	let activeId = $state<string | null>(null);
@@ -23,16 +26,12 @@
 	// server-echoed question (result.question) feeds the history, not the input.
 	let draft = $state('');
 	let pending = $state(false);
-
-	// Preguntas ejemplo del welcome (mockup queryView div.suggestions): el
-	// click rellena el composer y devuelve el foco para editar y enviar.
-	const SUGGESTED_QUESTIONS = [
-		'¿Qué se reportó hoy sobre seguridad?',
-		'¿Qué se publicó esta semana sobre la BUAP?',
-		'¿Quién aparece en las notas sobre transporte?'
-	];
 	let questionField: HTMLTextAreaElement | undefined;
+	let scrollEl: HTMLDivElement | undefined;
 
+	// Los chips del welcome vienen del digest diario real (loader); el click
+	// rellena el composer y devuelve el foco para editar y enviar, como el
+	// patrón de suggestion button del mockup (preguntas sugeridas).
 	function applyPrompt(question: string) {
 		draft = question;
 		questionField?.focus();
@@ -42,7 +41,7 @@
 		pending = true;
 		return async ({ result, update }) => {
 			pending = false;
-			// Keep our own reset semantics: the effect above persists the turn
+			// Keep our own reset semantics: the effect below persists the turn
 			// from `form`, and the draft is cleared only on a real answer.
 			await update({ reset: false });
 			if (result.type === 'success' && !result.data?.error) draft = '';
@@ -74,13 +73,55 @@
 		saveThreads(localStorage, threads);
 	});
 
+	interface Turn {
+		question: string;
+		answer: string | null;
+		citations: ChatCitation[];
+		error: string | null;
+	}
+	// Un turno = pregunta del usuario + su respuesta (assistant) o aviso de
+	// error (notice), en el orden en que se guardaron.
+	const turns = $derived.by<Turn[]>(() => {
+		if (!active) return [];
+		const out: Turn[] = [];
+		for (const message of active.messages) {
+			if (message.role === 'user') {
+				out.push({ question: message.text, answer: null, citations: [], error: null });
+			} else if (out.length > 0) {
+				const last = out[out.length - 1];
+				if (message.role === 'assistant') {
+					last.answer = message.text;
+					last.citations = message.citations ?? [];
+				} else {
+					last.error = message.text;
+				}
+			}
+		}
+		return out;
+	});
+
+	// El mockup hace scroll al inicio del scroll-area tras cada respuesta.
+	let lastTurnAt = '';
+	$effect(() => {
+		const at = active?.updatedAt ?? '';
+		if (!active || at === lastTurnAt) return;
+		lastTurnAt = at;
+		if (pending) return;
+		// jsdom no implementa Element.scrollTo; el guard cubre ese caso.
+		if (typeof scrollEl?.scrollTo === 'function') scrollEl.scrollTo({ top: 0 });
+	});
+
 	function startNewChat() {
 		activeId = null;
+		lastTurnAt = '';
 	}
 
 	function deleteThread(id: string) {
 		threads = threads.filter((thread) => thread.id !== id);
-		if (activeId === id) activeId = null;
+		if (activeId === id) {
+			activeId = null;
+			lastTurnAt = '';
+		}
 		saveThreads(localStorage, threads);
 	}
 </script>
@@ -97,26 +138,94 @@
 	</p>
 </header>
 
-<div class="workspace">
-	<aside class="panel history" aria-labelledby="history-heading">
-		<div class="history-head">
-			<h2 id="history-heading">Historial</h2>
-			<button class="new-chat" type="button" onclick={startNewChat}>Nuevo chat</button>
+<div class="query-layout">
+	<section class="panel query-box" class:has-answer={turns.length > 0} aria-labelledby="chat-heading">
+		<header class="query-chat-header">
+			<span class="query-chat-mark" aria-hidden="true">
+				<svg class="od-icon" viewBox="0 0 24 24"><path d={ICON_PATHS.query} /></svg>
+			</span>
+			<div>
+				<h2 id="chat-heading">De la pregunta a la fuente</h2>
+				<p>Consulta los registros del monitoreo</p>
+			</div>
+		</header>
+
+		<div class="query-chat-scroll" bind:this={scrollEl}>
+			{#if turns.length === 0}
+				<div class="query-welcome">
+					<span class="query-welcome-icon" aria-hidden="true">
+						<svg class="od-icon" viewBox="0 0 24 24"><path d={ICON_PATHS.query} /></svg>
+					</span>
+					<h3>¿Qué quieres investigar?</h3>
+					<p>Explora las menciones y abre la evidencia de cada resultado.</p>
+					<div class="suggestions" aria-label="Preguntas sugeridas">
+						{#if data.suggestions.length > 0}
+							<p class="small muted">
+								Sugerencias basadas en la síntesis del {data.suggestionDate}
+							</p>
+							{#each data.suggestions as question (question)}
+								<button type="button" onclick={() => applyPrompt(question)}>
+									{question}
+								</button>
+							{/each}
+						{:else}
+							<p class="small muted">No hay asuntos sintetizados para esta fecha.</p>
+						{/if}
+					</div>
+				</div>
+			{:else}
+				<div id="query-answer" aria-live="polite">
+					{#each turns as turn, i (i)}
+						<QueryAnswer
+							question={turn.question}
+							answer={turn.answer}
+							citations={turn.citations}
+							error={turn.error}
+							pending={pending && i === turns.length - 1}
+						/>
+					{/each}
+				</div>
+			{/if}
 		</div>
+
+		<form method="POST" class="query-composer" use:enhance={submitEnhance}>
+			<label class="sr-only" for="question">Escribe tu pregunta</label>
+			<div class="query-composer-field">
+				<textarea
+					id="question"
+					name="question"
+					rows="2"
+					maxlength="1000"
+					required
+					placeholder="Pregunta sobre tu monitoreo..."
+					bind:value={draft}
+					bind:this={questionField}
+				></textarea>
+				<button class="button primary" type="submit" aria-label="Enviar consulta" disabled={pending}>
+					<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true"><path d={ICON_PATHS.arrow} /></svg>
+				</button>
+			</div>
+			<p>Cada respuesta cita las notas que la sustentan.</p>
+		</form>
+	</section>
+
+	<aside class="panel aside-panel query-history" aria-labelledby="history-heading">
+		<h2 id="history-heading">Historial de preguntas</h2>
+		<p class="small muted">El historial se guarda solo en este navegador.</p>
 		{#if threads.length === 0}
-			<p class="history-empty">Todavía no hay consultas guardadas.</p>
+			<p class="small muted query-history-empty">Aún no hay preguntas guardadas.</p>
 		{:else}
-			<ul class="history-list">
+			<ol class="query-history-list">
 				{#each threads as thread (thread.id)}
-					<li class="history-item" class:active={thread.id === activeId}>
+					<li>
 						<button
-							class="history-open"
 							type="button"
 							aria-label="Abrir consulta: {threadTitle(thread)}"
+							aria-current={thread.id === activeId ? 'true' : undefined}
 							onclick={() => (activeId = thread.id)}
 						>
-							<span class="history-title">{threadTitle(thread)}</span>
-							<span class="history-preview">{formatDisplayDateTime(thread.updatedAt)}</span>
+							<span>{threadTitle(thread)}</span>
+							<time datetime={thread.updatedAt}>{formatDisplayDateTime(thread.updatedAt)}</time>
 						</button>
 						<button
 							class="delete-chat"
@@ -128,84 +237,10 @@
 						</button>
 					</li>
 				{/each}
-			</ul>
+			</ol>
 		{/if}
-		<p class="storage-note">El historial se guarda solo en este navegador.</p>
+		<button class="text-link new-chat" type="button" onclick={startNewChat}>Nueva consulta</button>
 	</aside>
-
-	<section class="panel chat" aria-labelledby="chat-heading">
-		<div class="chat-head">
-			<h2 id="chat-heading">{active ? threadTitle(active) : 'Nueva consulta'}</h2>
-			<p class="chat-subtitle">
-				Las respuestas se generan solo con notas ingestadas y muestran sus citas.
-			</p>
-		</div>
-
-		<div class="messages" aria-live="polite">
-			{#if !active || active.messages.length === 0}
-				<div class="welcome">
-					<strong>Explora la cobertura</strong>
-					Haz una pregunta sobre las notas registradas. La respuesta debe incluir citas
-					verificables.
-					<div class="suggestions" aria-label="Preguntas sugeridas">
-						{#each SUGGESTED_QUESTIONS as question (question)}
-							<button type="button" onclick={() => applyPrompt(question)}>{question}</button>
-						{/each}
-					</div>
-				</div>
-			{:else}
-					{#each active.messages as message, i (`${message.at}-${i}`)}
-						<article class="message {message.role}">
-							<span class="message-label">
-								{message.role === 'user'
-									? 'Tu pregunta'
-									: message.role === 'assistant'
-										? 'Respuesta con citas'
-										: 'Estado de la consulta'}
-							</span>
-							<p>{message.text}</p>
-							{#if message.role === 'assistant' && message.citations && message.citations.length > 0}
-								<ol class="citations">
-									{#each message.citations as citation (citation.mention_id)}
-										<li>
-											<a href={citation.url} target="_blank" rel="noopener noreferrer">
-												{citation.title ?? citation.url}
-											</a>
-											{#if citation.source}
-												<span class="citation-meta">
-													{sourceLabel(citation.source)} ·
-													{formatDisplayDateTime(citation.published_at)}{#if citation.sentiment}
-														· {sentimentLabel(citation.sentiment)}{/if}
-												</span>
-											{/if}
-										</li>
-									{/each}
-								</ol>
-							{/if}
-						</article>
-					{/each}
-			{/if}
-		</div>
-
-		<form method="POST" class="composer" use:enhance={submitEnhance}>
-			<label for="question">Tu pregunta</label>
-			<textarea
-				id="question"
-				name="question"
-				maxlength="1000"
-				required
-				bind:value={draft}
-				bind:this={questionField}
-				placeholder="Por ejemplo: ¿Qué se publicó sobre la BUAP esta semana?"
-			></textarea>
-			<div class="composer-actions">
-				<p class="composer-note">Cada respuesta cita las notas que la sustentan.</p>
-				<button class="send" type="submit" disabled={pending}>
-					{pending ? 'Consultando…' : 'Enviar pregunta'}
-				</button>
-			</div>
-		</form>
-	</section>
 </div>
 
 {#if result?.person}
