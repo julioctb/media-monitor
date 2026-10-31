@@ -231,8 +231,9 @@ it('defaults the period to yesterday and today; ?period=all escapes it', async (
 	});
 
 	await load(route('http://localhost/feed'));
-	const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
-	const today = new Date().toISOString().slice(0, 10);
+	// Misma fuente de verdad que el loader: fecha zoned (America/Puebla), no UTC.
+	const yesterday = zonedToday(-1);
+	const today = zonedToday();
 	const pageCall = fetchMock.mock.calls
 		.map((call) => new URL(String(call[0]), 'http://localhost'))
 		.filter((u) => u.pathname === '/api/mentions')
