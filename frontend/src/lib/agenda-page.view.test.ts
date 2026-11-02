@@ -3,6 +3,7 @@ import { mount, unmount, tick } from 'svelte';
 import { afterEach, expect, it } from 'vitest';
 
 import type { AgendaItem } from '$lib/api';
+import { formatDateLong } from '$lib/format';
 
 import AgendaPage from '../routes/agenda/+page.svelte';
 
@@ -13,6 +14,17 @@ import AgendaPage from '../routes/agenda/+page.svelte';
  * forms, about details.
  */
 
+/** Calendar fixtures must land in the CURRENT month grid: derive the
+ * event day from the machine's today (same local-date convention as the
+ * page's todayKey) so a fixed month literal cannot outlive the calendar. */
+const EVENT_DATE = (() => {
+	const t = new Date();
+	return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(
+		t.getDate()
+	).padStart(2, '0')}`;
+})();
+const EVENT_DAY = String(Number(EVENT_DATE.slice(8, 10)));
+
 const mounted: Array<Record<string, unknown>> = [];
 
 function item(overrides: Partial<AgendaItem>): AgendaItem {
@@ -21,7 +33,7 @@ function item(overrides: Partial<AgendaItem>): AgendaItem {
 		client_id: 1,
 		title: 'Taller de cáncer de mama',
 		kind: 'activity',
-		event_date: '2026-10-27',
+		event_date: EVENT_DATE,
 		date_label: null,
 		time_label: '11:00',
 		location: 'Aula Magna B · Derecho',
@@ -100,10 +112,13 @@ it('opens the day detail from a calendar day and clears it back to the month', a
 	dayButton?.click();
 	await tick();
 	const body = () => (document.body.textContent ?? '').replace(/\s+/g, ' ');
-	expect(body()).toContain('Actividades del 27 de octubre de 2026');
+	// Same computation the page uses for the heading: no duplicated
+	// long-date literals that rot at a month boundary.
+	const dayHeading = `Actividades del ${formatDateLong(`${EVENT_DATE}T12:00:00Z`)}`;
+	expect(body()).toContain(dayHeading);
 	expect(body()).toContain('Ver todo el mes');
 	// Dated cards now render: schedule-row date box + kind pill.
-	expect(document.querySelector('.activity .date-box strong')?.textContent).toBe('27');
+	expect(document.querySelector('.activity .date-box strong')?.textContent).toBe(EVENT_DAY);
 	expect(document.querySelector('.activity .tone-badge')?.textContent).toBe('Actividad');
 	const clear = [...document.querySelectorAll('button')].find(
 		(b) => b.textContent?.trim() === 'Ver todo el mes'
@@ -111,7 +126,7 @@ it('opens the day detail from a calendar day and clears it back to the month', a
 	clear?.click();
 	await tick();
 	expect(body()).not.toContain('Ver todo el mes');
-	expect(body()).not.toContain('Actividades del 27 de octubre de 2026');
+	expect(body()).not.toContain(dayHeading);
 });
 
 it('hides the pending bucket without undated items', () => {

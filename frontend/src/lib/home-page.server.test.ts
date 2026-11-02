@@ -23,9 +23,23 @@ function todayInMexicoCity(): string {
 }
 
 const TODAY = todayInMexicoCity();
-const PREV = '2026-10-19';
-const OLDER_A = '2026-09-18';
-const OLDER_B = '2026-08-05';
+
+/** Relative calendar fixtures: fixed month literals rot at every month
+ * boundary, so the history months are derived from TODAY instead. */
+function monthShift(dayIso: string, months: number, dayOfMonth: number): string {
+	const [year, month] = dayIso.split('-').map(Number);
+	const total = year * 12 + (month - 1) + months;
+	return `${Math.floor(total / 12)}-${String((total % 12) + 1).padStart(2, '0')}-${String(
+		dayOfMonth
+	).padStart(2, '0')}`;
+}
+function monthFirst(dayIso: string): string {
+	return `${dayIso.slice(0, 7)}-01`;
+}
+
+const PREV = monthShift(TODAY, -1, 19);
+const OLDER_A = monthShift(TODAY, -2, 18);
+const OLDER_B = monthShift(TODAY, -3, 5);
 const UPDATED_ISO = '2026-10-19T21:05:00Z';
 
 function settingsRow() {
@@ -217,26 +231,30 @@ it('filters the history with ?before and anchors the previous month', async () =
 		...sideRoutes()
 	});
 
-	const paged = await loadHome('?before=2026-10-01');
-	// Only the months before October remain visible…
+	const paged = await loadHome(`?before=${monthFirst(PREV)}`);
+	// Only the months before PREV's month remain visible…
 	expect((paged['days'] as { summary_date: string }[]).map((d) => d.summary_date)).toEqual([
 		OLDER_A,
 		OLDER_B
 	]);
 	// …and the next anchor is the first day of the newest visible month.
-	expect(paged['olderBefore']).toBe('2026-09-01');
+	expect(paged['olderBefore']).toBe(monthFirst(OLDER_A));
 
 	const unfiltered = await loadHome();
 	// Full view: the link points at the current-month edge (older months exist).
-	expect(unfiltered['olderBefore']).toBe('2026-10-01');
+	expect(unfiltered['olderBefore']).toBe(monthFirst(TODAY));
 });
 
 it('hides the month link when no older month exists', async () => {
+	// The link hides only when every stored day falls inside the current
+	// month: derive an earlier same-month day from TODAY (the 1st stays).
+	const dayOfMonth = Number(TODAY.slice(8, 10));
+	const SAME_MONTH = `${TODAY.slice(0, 8)}${String(Math.max(dayOfMonth - 1, 1)).padStart(2, '0')}`;
 	stubFetch({
 		'/api/settings': settingsRow(),
 		'/api/clients/1/summaries': [
 			{ summary_date: TODAY, mode: 'heuristic' },
-			{ summary_date: PREV, mode: 'llm' }
+			{ summary_date: SAME_MONTH, mode: 'llm' }
 		],
 		[`/api/clients/1/summaries/${TODAY}`]: summaryRow(TODAY, UPDATED_ISO),
 		...sideRoutes()
