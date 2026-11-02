@@ -7,8 +7,10 @@ import {
 	getEvent,
 	getEventCoverage,
 	getFeedStats,
+	getPerson,
 	listEvents,
 	listMentions,
+	listPersons,
 	testAi,
 	updateClientSettings
 } from './api';
@@ -249,6 +251,25 @@ describe('api client', () => {
 		});
 	});
 
+	it.each([undefined, null, '', '   ', 'fixture-only-replacement'])(
+		'preserves the independent reviewer partial-update key contract %j (transport control)',
+		async (key) => {
+			const masked = { digest_reviewer_provider: 'openai', digest_reviewer_base_url: 'https://reviewer.invalid/v1',
+				digest_reviewer_model: 'fixture-reviewer', digest_reviewer_api_key: '', digest_reviewer_api_key_set: true };
+			const fetchMock = stubFetch(async () => jsonResponse(200, masked));
+			const payload = { digest_reviewer_provider: 'openai' as const,
+				digest_reviewer_base_url: 'https://reviewer.invalid/v1', digest_reviewer_model: 'fixture-reviewer',
+				...(key === undefined ? {} : { digest_reviewer_api_key: key }) };
+			expect(await updateClientSettings(payload, { baseUrl: 'https://api-fixture.invalid/' })).toEqual(masked);
+			const [url, init] = fetchMock.mock.calls[0];
+			expect(url).toBe('https://api-fixture.invalid/api/settings');
+			expect(init?.method).toBe('PUT');
+			expect(JSON.parse(String(init?.body))).toEqual(payload);
+			expect(await getClientSettings({ baseUrl: 'https://api-fixture.invalid/' })).toEqual(masked);
+			expect(fetchMock).toHaveBeenCalledTimes(2);
+		}
+	);
+
 	it('probes the ai provider with the selected engine', async () => {
 		const fetchMock = stubFetch(async () =>
 			jsonResponse(200, {
@@ -300,4 +321,31 @@ describe('api client', () => {
 		expect(urls).toContain('http://localhost:8000/api/clients/1/events/9');
 		expect(urls).toContain('http://api:8000/api/clients/1/events/9/coverage');
 	});
+	it('encodes bounded person timeline pagination while preserving options-only calls', async () => {
+		const body = { id: 7, timeline: [], timeline_total: 3 };
+		const fetchMock = stubFetch(async () => jsonResponse(200, body));
+
+		await expect(
+			getPerson(7, { limit: 1, offset: 2, order: 'oldest' }, { baseUrl: 'http://api:8000/' })
+		).resolves.toEqual(body);
+		await getPerson(8, { baseUrl: 'http://fixture.invalid' });
+
+		expect(fetchMock.mock.calls[0][0]).toBe(
+			'http://api:8000/api/clients/1/persons/7?limit=1&offset=2&order=oldest'
+		);
+		expect(fetchMock.mock.calls[1][0]).toBe(
+			'http://fixture.invalid/api/clients/1/persons/8'
+		);
+	});
+	it.each([[], {}, { items: undefined }])('normalizes legacy person collections %j', async (body) => {
+		stubFetch(async () => jsonResponse(200, body));
+		await expect(listPersons()).resolves.toEqual([]);
+	});
+
+	it.each(['array', 'envelope'])('preserves person sources and collection compatibility: %s', async (shape) => {
+		const items = [{ id: 7, name: 'Ana', sources: ['news_rss', 'x_twitter'] }];
+		stubFetch(async () => jsonResponse(200, shape === 'array' ? items : { items, total: 9 }));
+		await expect(listPersons()).resolves.toEqual(items);
+	});
+
 });

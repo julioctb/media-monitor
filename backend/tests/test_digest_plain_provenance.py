@@ -4,6 +4,8 @@ from copy import deepcopy
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
+import pytest
+
 from app.models import MentionSource
 from app.summaries.digest import render_plain_text
 from app.summaries.evidence import freeze_sources, make_binding
@@ -173,3 +175,43 @@ def test_plain_export_does_not_imply_derived_dates_are_referenced():
     plain = render_plain_text(content, "Lectura de prueba.")
     assert "Vencimiento de prueba [No respaldada]" in plain
     assert "26 oct. [No respaldada]" in plain
+
+
+@pytest.mark.parametrize("linked", [True, False])
+@pytest.mark.parametrize("prefix", ["Atención sugerida: ", "Acción sugerida: ", ""])
+def test_action_label_is_shown_once_after_original_binding_resolution(linked, prefix):
+    content = _with_sources()
+    body = "Confirmar el alcance; la Acción sugerida: no es un hecho."
+    pick = content["brief"]["decisiones"][0]
+    pick["accion_sugerida"] = prefix + body
+    pick["condicion"] = "Atención sugerida: es una cita conservada."
+    if linked:
+        _bind(content, pick, "accion_sugerida", pick["accion_sugerida"], [0])
+    original = deepcopy(content)
+
+    plain = render_plain_text(content, "Lectura de prueba.")
+
+    marker = "Fuentes vinculadas: #0" if linked else "No respaldada"
+    assert f"  Acción sugerida: {body} [{marker}]" in plain
+    assert "Acción sugerida: Atención sugerida:" not in plain
+    assert "Acción sugerida: Acción sugerida:" not in plain
+    assert (
+        "Condición: Atención sugerida: es una cita conservada. [No respaldada]" in plain
+    )
+    assert ("https://source-one.test/nota" in plain) is linked
+    assert content == original
+
+
+def test_equivalent_display_cannot_upgrade_a_stale_action_binding():
+    content = _with_sources()
+    pick = content["brief"]["decisiones"][0]
+    original_text = "Atención sugerida: Confirmar el alcance."
+    _bind(content, pick, "accion_sugerida", original_text, [0])
+    pick["accion_sugerida"] = "Confirmar el alcance."
+    original = deepcopy(content)
+
+    plain = render_plain_text(content, "Lectura de prueba.")
+
+    assert "Acción sugerida: Confirmar el alcance. [No respaldada]" in plain
+    assert "FUENTES VINCULADAS" not in plain
+    assert content == original

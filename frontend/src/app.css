@@ -896,40 +896,8 @@ h4 {
   border-bottom: 0;
 }
 /* --- Small shared bits --- */
-.count {
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
-}
 .missing {
   color: var(--color-muted);
-}
-.profile-stat {
-  padding: 14px 12px;
-  border: 1px solid var(--color-line);
-  border-radius: 12px;
-  background: #fff;
-  text-align: center;
-}
-.profile-stat strong {
-  display: block;
-  font: 600 29px/1 var(--font-display);
-  font-variant-numeric: tabular-nums;
-}
-.profile-stat span {
-  display: block;
-  margin-top: 7px;
-  color: var(--color-ink-2);
-  font-size: 12px;
-}
-.profile-stat.positive-stat strong {
-  color: color-mix(in oklch, var(--color-success) 70%, var(--color-ink));
-  border-color: var(--color-success);
-}
-.profile-stat.negative-stat strong {
-  color: color-mix(in oklch, var(--color-danger) 75%, var(--color-ink));
-}
-.profile-stat.neutral-stat strong {
-  color: var(--color-ink-2);
 }
 /* Mockup global .empty: centered, borderless, muted copy (h3 back to ink). */
 .empty {
@@ -946,18 +914,6 @@ h4 {
   margin: 18px 0 0;
   color: var(--color-muted);
   font-size: 12px;
-}
-.monogram {
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  background: var(--color-surface);
-  color: var(--color-ink);
-  font-size: 12px;
-  font-weight: 700;
 }
 
 /* --- Responsive: mockup breakpoints 800 / 560 --- */
@@ -1700,7 +1656,7 @@ html {
   margin-top: 38px;
 }
 .block > h2,
-.person-timeline > h2 {
+.person-timeline > h3 {
   margin: 0 0 16px;
   font-size: 21px;
   font-weight: 600;
@@ -4551,18 +4507,10 @@ button.text-link {
 }
 
 /* ============================================================
-   Persons view v3 — «Panel de monitoreo informativo».
-   1:1 con la vista directory (people) del mockup de referencia
-   (app.js peopleView / directoryResults; cascada final de
-   styles.css → tailwind.css). Desviaciones honestas por datos
-   reales: búsqueda server-side única con submit (el mockup
-   filtra al instante), selector de orden tras el botón
-   «Filtrar» (único control real), columna «Fuentes» sin
-   payload (—), paginación de 25 en cliente. Slots del mockup
-   omitidos por no existir el dato en la app: Seguir y
-   segmentado en seguimiento, filtros por tipo/fuente/identidad
-   (por validar / homónimos). Breakpoints 1100 / 768 / 600 / 480
-   + hover.
+   Persons directory and modal profile: current V3 tokens/anatomy.
+   The directory sorts/filters a bounded 200-person pool locally;
+   only the modal timeline uses independent server pagination.
+   Existing cookie-backed follow state remains authoritative.
    ============================================================ */
 .directory-panel {
   margin-top: 24px;
@@ -4589,29 +4537,25 @@ button.text-link {
   color: var(--color-muted);
   font-size: 14px;
 }
-.directory-header .directory-search {
+.directory-search-form {
+  flex: none;
+  width: min(100%, 300px);
+}
+.directory-search {
   display: grid;
   gap: 6px;
-  width: min(100%, 300px);
-  flex: none;
-  /* Mockup .directory-toolbar label: 11px/600 muted. */
-  font-size: 11px;
+  width: 100%;
+  font-size: 12px;
   font-weight: 600;
   color: var(--color-muted);
 }
-.directory-header .directory-search .search {
-  flex: 1;
+.directory-search .search {
   min-width: 0;
   background: #fff;
 }
-.directory-header .directory-search input {
+.directory-search .search input {
   height: 44px;
   font-size: 14px;
-}
-/* The app searches server-side, so the mockup's field keeps a submit. */
-.directory-search-row {
-  display: flex;
-  gap: 8px;
 }
 .directory-segmented {
   flex: none;
@@ -4645,8 +4589,17 @@ button.text-link {
   gap: 20px;
   padding: 0 28px 24px;
 }
-/* Sortable columns (Identidad/Menciones/Última aparición): the th text IS the
-   control; the caret mirrors aria-sort. Mobile-only chip fallback below. */
+/* Productive mobile filters retain the existing follow and mention-sort state. */
+.directory-filter-toggle,
+.directory-mobile-sort {
+  display: none;
+}
+.directory-filters {
+  display: grid;
+  min-width: 0;
+  gap: 12px;
+}
+/* Only the Menciones header sorts; the caret mirrors aria-sort. */
 .directory-table th .directory-sort {
   display: inline-flex;
   align-items: center;
@@ -4721,7 +4674,7 @@ button.text-link {
 .directory-method p {
   line-height: 1.7;
 }
-/* Ficha (page + dialog): mockup .directory-detail-heading + evidence heading. */
+/* Complete profile in the shared modal chrome. */
 .directory-detail-heading {
   display: flex;
   align-items: center;
@@ -4729,16 +4682,15 @@ button.text-link {
   gap: 16px;
   flex-wrap: wrap;
 }
-.directory-detail-heading h1,
-.directory-detail-heading .daily-dialog-title,
+.directory-detail-heading .daily-dialog-eyebrow,
+.directory-detail-heading .daily-dialog-meta,
 .directory-detail-heading h2 {
   margin: 0;
 }
-.directory-evidence-heading {
-  margin-top: 24px;
-}
-.detail-dialog .person-head {
-  margin: 0 0 16px;
+.directory-detail-heading > div {
+  min-width: 0;
+  flex: 1;
+  overflow-wrap: anywhere;
 }
 .directory-table-wrap {
   width: 100%;
@@ -4817,12 +4769,22 @@ button.text-link {
 }
 .directory-name {
   display: block;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
   color: var(--color-ink);
   font-size: 14px;
   font-weight: 600;
   line-height: 1.45;
   text-decoration: none;
   overflow-wrap: anywhere;
+}
+.person-aliases {
+  margin: 4px 0 0;
+  color: var(--color-muted);
+  font-size: 12px;
 }
 .person-empty {
   margin: 24px 28px 28px;
@@ -4834,16 +4796,9 @@ button.text-link {
   line-height: 1.6;
 }
 
-/* --- /persons/[id]: ficha --- */
-.person-head {
-  margin: 16px 0 24px;
-}
-.person-head .eyebrow {
-  margin: 0 0 6px;
-}
 .directory-detail-meta {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
   margin: 24px 0;
 }
@@ -4854,6 +4809,7 @@ button.text-link {
 .directory-detail-meta dd {
   margin: 4px 0 0;
   font-size: 14px;
+  overflow-wrap: anywhere;
 }
 .person-timeline {
   margin-top: 4px;
@@ -4939,10 +4895,6 @@ button.text-link {
   font-weight: 600;
   line-height: 1.5;
 }
-.mention-timeline-content h4 a {
-  color: var(--color-ink);
-  text-decoration: none;
-}
 .mention-role {
   margin: 8px 0 0;
   color: var(--color-ink-2);
@@ -4988,10 +4940,6 @@ button.text-link {
   .directory-table tbody tr:hover {
     background: var(--color-surface);
   }
-  .mention-timeline-content h4 a:hover {
-    text-decoration: underline;
-    text-underline-offset: 3px;
-  }
 }
 @media (max-width: 768px) {
   .directory-header {
@@ -5000,9 +4948,40 @@ button.text-link {
     gap: 16px;
     padding: 20px 20px 16px;
   }
-  .directory-header .directory-search {
+  .directory-search-form,
+  .directory-search {
     width: 100%;
     max-width: none;
+  }
+  .directory-filter-toggle,
+  .directory-mobile-sort {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 8px 14px;
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-control);
+    background: #fff;
+    color: var(--color-accent);
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .directory-filter-toggle {
+    margin-bottom: 12px;
+  }
+  .directory-filter-toggle[aria-expanded="true"] {
+    background: var(--color-surface);
+  }
+  .directory-filters {
+    display: none;
+  }
+  .directory-filters.is-open {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .directory-segmented {
+    flex-wrap: wrap;
   }
   .directory-toolbar {
     padding: 0 20px 20px;

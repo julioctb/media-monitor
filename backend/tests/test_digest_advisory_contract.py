@@ -1,16 +1,23 @@
-"""Offline advisory transport contracts, not model/editorial quality tests."""
+"""Historical advisory receivers and current-plan transport, not model quality."""
 
 import copy
 import json
 from datetime import datetime, timedelta, timezone
 
 import pytest
-
 from app.models import Client, Event, MentionSource, queries
 from app.summaries import build_daily_summary
 from app.summaries.digest import render_plain_text
 from app.summaries.digest_schema import narrative_response_schema
 from app.summaries.evidence import resolved_provenance
+
+from tests.digest_current_fixtures import CONTEXTUAL_ATTENTION, CONTEXTUAL_CONDITION
+from tests.digest_legacy_fixtures import historical_summary
+from tests.digest_plan_fixtures import (
+    advisory_completion,
+    review_completion,
+    reviewed_factory,
+)
 
 
 CURRENT = datetime(2026, 10, 14, 18, tzinfo=timezone.utc)
@@ -77,18 +84,32 @@ def payload(**overrides):
     return value
 
 
-def build(session, client, value):
-    return build_daily_summary(
-        session,
-        client_id=client.id,
-        day=CURRENT.date(),
-        generate=lambda prompt: json.dumps(value),
+def build_historical(session, client, value):
+    return historical_summary(
+        session, client_id=client.id, day=CURRENT.date(), payload=value
     )
 
 
-def test_public_build_accepts_independent_attention_with_own_zero_receipts(session):
+def build_plan(session, client, *, selections=((0, "decision"),)):
+    row = build_daily_summary(
+        session,
+        client_id=client.id,
+        day=CURRENT.date(),
+        generator_factory=reviewed_factory(
+            lambda prompt: advisory_completion(prompt, selections)
+        ),
+    )
+    assert row.content["generation"]["status"] == "plan_applied"
+    assert row.content["generation"]["review"]["status"] == "passed"
+    assert row.mode == "llm"
+    assert row.content["generation"]["status"] == "plan_applied"
+    assert row.content["generation"]["review"]["status"] == "passed"
+    return row
+
+
+def test_historical_receiver_retains_independent_attention_with_own_zero_receipts(session):
     client = seed(session)
-    row = build(session, client, payload())
+    row = build_historical(session, client, payload())
     assert row.content["comparison"]["available"] is False
     assert row.content["comparison"]["evidence"] is None
     pick = row.content["brief"]["decisiones"][0]
@@ -112,12 +133,12 @@ def test_public_build_accepts_independent_attention_with_own_zero_receipts(sessi
 
 
 @pytest.mark.parametrize("field", FIELDS)
-def test_attention_comparison_uses_own_current_and_original_prior_zero(session, field):
+def test_historical_attention_comparison_uses_own_current_and_original_prior_zero(session, field):
     client = seed(session, prior=True)
     value = payload(
         comparison_references={f"seleccion.0.{field}": {"current": [0], "prior": [0]}}
     )
-    row = build(session, client, value)
+    row = build_historical(session, client, value)
     pick = row.content["brief"]["decisiones"][0]
     binding = pick["provenance"][field]
     assert binding["state"] == "unbacked"
@@ -133,9 +154,9 @@ def test_attention_comparison_uses_own_current_and_original_prior_zero(session, 
     ] == [0]
 
 
-def test_plain_attention_has_separate_labels_receipts_and_used_only_sources(session):
+def test_historical_plain_attention_has_separate_labels_receipts_and_used_only_sources(session):
     client = seed(session, prior=True)
-    row = build(
+    row = build_historical(
         session,
         client,
         payload(
@@ -164,15 +185,12 @@ def test_plain_attention_has_separate_labels_receipts_and_used_only_sources(sess
 
 
 @pytest.mark.parametrize("prior", [False, True])
-def test_guarded_whole_pick_recovery_keeps_original_optional_prose(session, prior):
+def test_guarded_plan_recovery_rerenders_identical_advisory_choices(session, prior):
     client = seed(session, prior=prior)
-    value = payload()
-    if prior:
-        value["comparison_references"] = {
-            f"seleccion.0.{field}": {"current": [0], "prior": [0]} for field in TEXTS
-        }
-    first = build(session, client, value)
+    first = build_plan(session, client)
     original = copy.deepcopy(first.content["brief"]["decisiones"])
+    plan = copy.deepcopy(first.content["generation"]["plan"])
+    assert first.content["generation"]["status"] == "plan_applied"
 
     def failed(prompt):
         raise RuntimeError("Offline synthetic failure")
@@ -184,6 +202,8 @@ def test_guarded_whole_pick_recovery_keeps_original_optional_prose(session, prio
         generate=failed,
     )
     assert recovered.mode == "llm"
+    assert recovered.content["generation"]["status"] == "plan_recovered"
+    assert recovered.content["generation"]["plan"] == plan
     assert recovered.content["brief"]["decisiones"] == original
 
 
@@ -192,8 +212,8 @@ def test_advisory_instructions_reach_both_offline_attempts_with_registered_profi
     session, monkeypatch, role
 ):
     import httpx
+    from dataclasses import replace
     from app.models import ClientSettings, Person
-    from app.settings_runtime import EffectiveSettings
     from app.summaries import builder
 
     client = seed(session)
@@ -212,36 +232,55 @@ def test_advisory_instructions_reach_both_offline_attempts_with_registered_profi
         )
         session.commit()
     requests = []
+    retry_proposal = False
 
     def post(url, **kwargs):
         requests.append(copy.deepcopy(kwargs["json"]))
-        if len(requests) == 1:
+        if retry_proposal and len(requests) == 1:
             return httpx.Response(400, request=httpx.Request("POST", url))
+        prompt = kwargs["json"]["messages"][1]["content"]
+        completion = (
+            advisory_completion(prompt, ((0, "decision"),))
+            if retry_proposal or len(requests) == 1
+            else review_completion(prompt)
+        )
         return httpx.Response(
             200,
             request=httpx.Request("POST", url),
-            json={"choices": [{"message": {"content": json.dumps(payload())}}]},
+            json={"choices": [{"message": {"content": completion}}]},
         )
 
     monkeypatch.setattr(builder.httpx, "post", post)
     monkeypatch.setattr(builder.time, "sleep", lambda seconds: None)
-    generator = builder.summary_generator(
-        EffectiveSettings(
-            client_id=client.id,
-            ai_provider="openai",
-            ai_api_key="synthetic-not-a-secret",
-            ai_base_url="https://offline.invalid",
-        )
+    effective = builder.resolve_effective_settings(session, client.id)
+    effective = replace(
+        effective,
+        ai_provider="openai",
+        ai_api_key="synthetic-not-a-secret",
+        ai_base_url="https://offline.invalid",
     )
-    row = build_daily_summary(
-        session, client_id=client.id, day=CURRENT.date(), generate=generator
-    )
+    monkeypatch.setattr(builder, "resolve_effective_settings", lambda *_args: effective)
+    # Let the builder create the real factual factory; a prebuilt default
+    # factory would incorrectly retain the historical narrative instructions.
+    row = build_daily_summary(session, client_id=client.id, day=CURRENT.date())
     assert row.mode == "llm"
+    assert row.content["generation"]["status"] == "plan_applied"
+    assert row.content["generation"]["review"]["status"] == "passed"
+    assert len(row.content["brief"]["decisiones"]) == 1
+    assert len(requests) == 2
+    assert "candidate" in json.loads(requests[1]["messages"][1]["content"])
+    # A guided/plain proposal retry consumes both physical requests, so its
+    # otherwise valid contextual proposal cannot acquire an unexecuted review.
+    retry_proposal = True
+    requests.clear()
+    row = build_daily_summary(session, client_id=client.id, day=CURRENT.date())
+    assert row.mode == "heuristic"
+    assert row.content["generation"]["reason"] == "semantic_review_unavailable"
     assert len(requests) == 2
     assert requests[0]["messages"] == requests[1]["messages"]
     assert "response_format" in requests[0] and "response_format" not in requests[1]
     system, user = [message["content"] for message in requests[0]["messages"]]
-    view = json.JSONDecoder().raw_decode(user.split("\n", 1)[1])[0]
+    view = json.loads(user)
     assert view.get("focus_person") == (
         {"name": "Persona sintética", "role": role, "org": None} if role else None
     )
@@ -253,38 +292,51 @@ def test_advisory_instructions_reach_both_offline_attempts_with_registered_profi
         "negociación",
         "costos reputacionales",
         "atribución y la negación",
-        "motivos o escenarios inferidos como interpretación",
+        "motivos o escenarios inferidos son interpretación",
         "sin propaganda",
         "no es necesariamente lector, protagonista, afectado ni responsable",
         "Sin focus_person",
         "no atribuyas facultades de gobierno a una candidatura",
-        "accion_sugerida",
-        "condicion",
-        "prerrequisito o limitación",
-        "no son autorización ni plazos inferidos",
-        "seleccion.<index>.accion_sugerida",
-        "seleccion.<index>.condicion",
+        "no redactes nuevos hechos ni títulos factuales",
+        "Redacta headline_analysis y analysis en cada selección",
+        "no asignes facultades, responsables ni plazos no documentados",
+        "verify_record: contrastar el registro original antes de dar por adoptados acuerdos o compromisos",
         "mínimo tres decisiones cuando existan al menos tres candidatas sustantivas",
-        "headline admite hasta 3",
+        "sin rellenar con ceremonias o difusión",
     ):
         assert instruction in system
     assert "Eres editor" not in system and "Español periodístico" not in system
     assert "igual que las positivas y neutras" not in system
+    schema = requests[0]["response_format"]["json_schema"]["schema"]
+    assert view["response_schema"] == schema
+    assert schema["additionalProperties"] is False
+    pick_schema = schema["$defs"]["_Pick"]
+    assert set(pick_schema["properties"]) == {
+        "index",
+        "categoria",
+        "frame",
+        "action",
+        "analysis",
+    }
+    assert "verify_record" in pick_schema["properties"]["action"]["enum"]
+    assert pick_schema["additionalProperties"] is False
+    assert row.content["generation"]["status"] == "source_fallback"
+    assert row.content["brief"]["decisiones"] == []
 
 
 @pytest.mark.parametrize("field", FIELDS)
 @pytest.mark.parametrize("value", [None, "", " \n ", "absent"])
-def test_optional_attention_omission_does_not_add_null_keys_or_stale_advice(
+def test_historical_optional_attention_omission_does_not_add_null_keys_or_stale_advice(
     session, field, value
 ):
     client = seed(session)
-    build(session, client, payload())
+    build_historical(session, client, payload())
     fresh = payload()
     if value == "absent":
         fresh["seleccion"][0].pop(field)
     else:
         fresh["seleccion"][0][field] = value
-    row = build(session, client, fresh)
+    row = build_historical(session, client, fresh)
     pick = row.content["brief"]["decisiones"][0]
     assert field not in pick and field not in pick["provenance"]
     other = FIELDS[1] if field == FIELDS[0] else FIELDS[0]
@@ -296,7 +348,7 @@ def test_optional_attention_omission_does_not_add_null_keys_or_stale_advice(
 
 @pytest.mark.parametrize("field", FIELDS)
 @pytest.mark.parametrize("bad", [True, 0, [], {}])
-def test_malformed_optional_prose_skips_only_that_entry(session, field, bad):
+def test_historical_malformed_optional_prose_skips_only_that_entry(session, field, bad):
     client = seed(session)
     entries = [
         {"index": 0, "categoria": "riesgo", **TEXTS, field: bad},
@@ -307,19 +359,19 @@ def test_malformed_optional_prose_skips_only_that_entry(session, field, bad):
             "condicion": "Con acta",
         },
     ]
-    row = build(session, client, payload(seleccion=entries))
+    row = build_historical(session, client, payload(seleccion=entries))
     assert row.content["brief"]["riesgos"] == []
     assert row.content["brief"]["decisiones"][0]["condicion"] == "Con acta"
 
 
 @pytest.mark.parametrize("field", FIELDS)
 @pytest.mark.parametrize("bad", [[True], ["0"], [1], [-1], None, "0"])
-def test_bad_current_attention_refs_retain_unbacked_prose_without_reason_borrowing(
+def test_historical_bad_current_attention_refs_retain_unbacked_prose_without_reason_borrowing(
     session, field, bad
 ):
     client = seed(session, count=2)
     references = {f"seleccion.0.razon": [0], f"seleccion.0.{field}": bad}
-    row = build(session, client, payload(references=references))
+    row = build_historical(session, client, payload(references=references))
     pick = row.content["brief"]["decisiones"][0]
     assert pick[field] == TEXTS[field]
     assert (
@@ -336,12 +388,12 @@ def test_bad_current_attention_refs_retain_unbacked_prose_without_reason_borrowi
 @pytest.mark.parametrize("field", FIELDS)
 @pytest.mark.parametrize("namespace", ["current", "prior"])
 @pytest.mark.parametrize("bad", [[True], ["0"], [1], [], None])
-def test_explicit_bad_comparison_attention_never_downgrades_to_current_only(
+def test_historical_explicit_bad_comparison_attention_never_downgrades_to_current_only(
     session, field, namespace, bad
 ):
     client = seed(session, prior=True, count=2)
     refs = {"current": [0], "prior": [0], namespace: bad}
-    row = build(
+    row = build_historical(
         session, client, payload(comparison_references={f"seleccion.0.{field}": refs})
     )
     pick = row.content["brief"]["decisiones"][0]
@@ -352,12 +404,15 @@ def test_explicit_bad_comparison_attention_never_downgrades_to_current_only(
 
 
 @pytest.mark.parametrize("change", ["current", "prior", "legacy"])
-def test_recovery_guards_and_genuine_legacy_picks_remain_unchanged(session, change):
+def test_recovery_guards_refuse_changed_context_or_unreceipted_legacy_prose(session, change):
     from sqlalchemy import select
     from app.models import Mention
 
     client = seed(session, prior=change == "prior")
-    first = build(session, client, payload())
+    first = (
+        build_historical(session, client, payload())
+        if change == "legacy" else build_plan(session, client)
+    )
     if change == "legacy":
         content = copy.deepcopy(first.content)
         content.pop("comparison")
@@ -381,28 +436,40 @@ def test_recovery_guards_and_genuine_legacy_picks_remain_unchanged(session, chan
         previous.content = content
     session.commit()
 
+    rejected = json.dumps(payload())
+
     def failed(prompt):
+        if change == "legacy":
+            return rejected
         raise RuntimeError("Offline synthetic failure")
 
     row = build_daily_summary(
         session, client_id=client.id, day=CURRENT.date(), generate=failed
     )
+    assert row.mode == "heuristic" and row.content["brief"]["decisiones"] == []
+    assert row.content["generation"]["status"] == "source_fallback"
+    assert row.content["generation"]["plan"] is None
     if change == "legacy":
-        assert row.mode == "llm" and row.content["brief"]["decisiones"] == expected
-        assert "comparison" not in row.content
-    else:
-        assert row.mode == "heuristic" and row.content["brief"]["decisiones"] == []
+        assert row.content["generation"]["raw_proposal"] == rejected
+        assert row.content["generation"]["reason"] == "noncompliant_response"
+        assert row.content["brief"]["decisiones"] != expected
+        assert TEXTS["razon"] not in row.content["plain_text"]
+        from app.models import DailySummaryRevision
+        assert session.scalars(select(DailySummaryRevision).where(
+            DailySummaryRevision.client_id == client.id,
+            DailySummaryRevision.narrative == payload()["headline"],
+        )).first() is not None
 
 
 @pytest.mark.parametrize(
     "selection",
     [None, [], "invalid", [{"index": 0, "categoria": "decision", "condicion": False}]],
 )
-def test_unassessed_or_explicit_empty_selection_never_invents_attention(
+def test_historical_unassessed_or_explicit_empty_selection_never_invents_attention(
     session, selection
 ):
     client = seed(session)
-    row = build(
+    row = build_historical(
         session,
         client,
         {"headline": "Informe sin sugerencias.", "seleccion": selection},
@@ -417,7 +484,10 @@ def test_unassessed_or_explicit_empty_selection_never_invents_attention(
     )
 
 
-def test_accepted_tail_attention_survives_in_place_remapping_and_compilation(session):
+@pytest.mark.parametrize("historical", [False, True])
+def test_tail_attention_survives_in_place_remapping_and_compilation(
+    session, historical
+):
     client = seed(session, count=11, prior=True)
     value = payload(
         seleccion=[{"index": 10, "categoria": "riesgo", **TEXTS}],
@@ -426,23 +496,40 @@ def test_accepted_tail_attention_survives_in_place_remapping_and_compilation(ses
             "seleccion.10.condicion": {"current": [10], "prior": [10]}
         },
     )
-    row = build(session, client, value)
+    row = (
+        build_historical(session, client, value)
+        if historical
+        else build_plan(session, client, selections=((10, "riesgo"),))
+    )
     pick = row.content["brief"]["riesgos"][0]
     assert pick["index"] == 0
     story = row.content["noticias"][pick["index"]]
     assert story["source_refs"] == [10]
     assert row.content["tarjetas"][pick["index"]]["source_refs"] == [10]
-    for field, text in TEXTS.items():
-        assert pick[field] == text
-        assert resolved_provenance(row.content, pick, field, allowed=[10])[
-            "source_refs"
-        ] == [10]
-    assert pick["provenance"]["condicion"]["comparison"]["prior"] == [10]
+    if historical:
+        for field, text in TEXTS.items():
+            assert pick[field] == text
+            assert resolved_provenance(row.content, pick, field, allowed=[10])[
+                "source_refs"
+            ] == [10]
+        assert pick["provenance"]["condicion"]["comparison"]["prior"] == [10]
+        assert "generation" not in row.content
+    else:
+        assert row.content["generation"]["status"] == "plan_applied"
+        assert row.content["generation"]["plan"]["seleccion"][0]["index"] == 10
+        assert pick["accion_sugerida"] == CONTEXTUAL_ATTENTION
+        assert pick["condicion"] == CONTEXTUAL_CONDITION
+        for field in ("razon", "accion_sugerida", "condicion"):
+            assert resolved_provenance(row.content, pick, field, allowed=[10])[
+                "source_refs"
+            ] == [10]
+            assert "comparison" not in pick["provenance"][field]
     assert any("notas" in card for card in row.content["tarjetas"])
 
 
-def test_fresh_api_generation_restore_and_rejected_requests_preserve_optional_pick_and_source_tables(
-    tmp_path, monkeypatch
+@pytest.mark.parametrize("historical", [False, True])
+def test_api_restore_and_rejected_requests_preserve_picks_and_source_tables(
+    tmp_path, monkeypatch, historical
 ):
     from fastapi.testclient import TestClient
     from sqlalchemy import create_engine, select
@@ -471,6 +558,16 @@ def test_fresh_api_generation_restore_and_rejected_requests_preserve_optional_pi
     with factory() as session:
         client = seed(session, prior=True)
         client_id = client.id
+        if historical:
+            build_historical(
+                session,
+                client,
+                payload(
+                    comparison_references={
+                        "seleccion.0.condicion": {"current": [0], "prior": [0]}
+                    }
+                ),
+            )
     app = create_app()
 
     def fresh_db():
@@ -478,36 +575,54 @@ def test_fresh_api_generation_restore_and_rejected_requests_preserve_optional_pi
             yield session
 
     app.dependency_overrides[get_db] = fresh_db
-    value = payload(
-        comparison_references={"seleccion.0.condicion": {"current": [0], "prior": [0]}}
-    )
     monkeypatch.setattr(
         routes,
         "build_daily_summary",
         lambda session, **kwargs: build_daily_summary(
-            session, **kwargs, generate=lambda prompt: json.dumps(value)
+            session,
+            **kwargs,
+            generator_factory=reviewed_factory(
+                lambda prompt: advisory_completion(prompt, ((0, "decision"),))
+            ),
         ),
     )
     try:
         with TestClient(app) as api:
             before = tables()
-            generated = api.post(
-                f"/api/clients/{client_id}/summaries/generate",
-                json={"date": CURRENT.date().isoformat()},
+            generated = (
+                api.get(f"/api/clients/{client_id}/summaries/{CURRENT.date()}")
+                if historical
+                else api.post(
+                    f"/api/clients/{client_id}/summaries/generate",
+                    json={"date": CURRENT.date().isoformat()},
+                )
             )
             assert generated.status_code == 200
             read = api.get(f"/api/clients/{client_id}/summaries/{CURRENT.date()}")
             assert read.status_code == 200 and read.json() == generated.json()
             content = read.json()["content"]
             expected = copy.deepcopy(content["brief"]["decisiones"])
-            for field in FIELDS:
-                assert expected[0][field] == TEXTS[field]
-                assert (
-                    resolved_provenance(content, expected[0], field, allowed=[0])[
-                        "state"
-                    ]
-                    == "linked"
-                )
+            if historical:
+                for field in FIELDS:
+                    assert expected[0][field] == TEXTS[field]
+                    assert (
+                        resolved_provenance(content, expected[0], field, allowed=[0])[
+                            "state"
+                        ]
+                        == "linked"
+                    )
+                assert "generation" not in content
+            else:
+                assert content["generation"]["status"] == "plan_applied"
+                assert expected[0]["accion_sugerida"] == CONTEXTUAL_ATTENTION
+                assert expected[0]["condicion"] == CONTEXTUAL_CONDITION
+                for field in ("razon", "accion_sugerida", "condicion"):
+                    assert (
+                        resolved_provenance(content, expected[0], field, allowed=[0])[
+                            "state"
+                        ]
+                        == "linked"
+                    )
             with factory() as session:
                 session.add(
                     DailySummaryRevision(
@@ -531,7 +646,26 @@ def test_fresh_api_generation_restore_and_rejected_requests_preserve_optional_pi
             ).json()
             assert restored["content"]["brief"]["decisiones"] == expected
             assert restored["content"]["provenance"]["headline"]["state"] == "unbacked"
-            assert "prior:#0" in restored["content"]["plain_text"]
+            if historical:
+                assert "prior:#0" in restored["content"]["plain_text"]
+                assert "generation" not in restored["content"]
+            else:
+                assert "prior:#" not in restored["content"]["plain_text"]
+                assert (
+                    restored["content"]["generation"]["status"] == "revision_restored"
+                )
+                assert restored["content"]["generation"]["plan"] is None
+            assert restored["content"]["evidence"] == content["evidence"]
+            assert restored["content"]["comparison"] == content["comparison"]
+            assert restored["content"]["tarjetas"] == content["tarjetas"]
+            assert restored["content"]["headline"] == restored["narrative"]
+            assert restored["content"]["brief"]["headline"] == restored["narrative"]
+            assert (
+                api.post(
+                    restore_url, json={"day": CURRENT.date().isoformat(), "seq": 9}
+                ).json()
+                == restored
+            )
             after = tables()
             mutable = {DailySummary.__tablename__, DailySummaryRevision.__tablename__}
             assert {

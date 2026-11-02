@@ -10,6 +10,8 @@ from app.models.queries import get_settings
 from app.summaries.regeneration import generate_candidate
 from sqlalchemy import select
 
+from tests.digest_plan_fixtures import advisory_completion, reviewed_factory
+
 DAY = date(2026, 10, 14)
 WINDOW = {
     "from": "2026-10-13T21:00:00-06:00",
@@ -17,15 +19,26 @@ WINDOW = {
 }
 
 
+def typed_value(value):
+    if isinstance(value, dict):
+        frozen = [(typed_value(key), typed_value(item)) for key, item in value.items()]
+    elif isinstance(value, (list, tuple)):
+        frozen = [typed_value(item) for item in value]
+    else:
+        frozen = copy.deepcopy(value)
+    return (type(value), frozen)
+
+
 def snapshot_tables(session):
-    return copy.deepcopy(
-        {
-            table.name: session.execute(
+    return {
+        table.name: [
+            typed_value(tuple(row))
+            for row in session.execute(
                 select(table).order_by(*table.primary_key.columns)
             ).all()
-            for table in Base.metadata.sorted_tables
-        }
-    )
+        ]
+        for table in Base.metadata.sorted_tables
+    }
 
 
 @pytest.fixture()
@@ -68,30 +81,35 @@ def baseline(session):
     return session.get_bind(), client.id, foreign.id
 
 
-def completion(_prompt):
-    return json.dumps(
-        {
-            "headline": "Fresh analysis",
-            "agenda": [
-                {
-                    "when": "15 de octubre",
-                    "title": "Synthetic hearing",
-                    "status": "confirmed",
-                    "source": "Synthetic newsroom",
-                }
-            ],
-        }
-    )
+def completion(prompt):
+    return advisory_completion(prompt, [(0, "decision")])
 
 
 def test_candidate_preserves_every_source_table(session, baseline):
     engine, client_id, _ = baseline
     before = snapshot_tables(session)
     candidate = generate_candidate(
-        engine, client_id=client_id, day=DAY, generate=completion
+        engine,
+        client_id=client_id,
+        day=DAY,
+        generator_factory=reviewed_factory(completion),
     )
     assert candidate["mode"] == "llm"
-    assert candidate["narrative"] == "Fresh analysis"
+    assert (
+        "Interpretación política: El asunto documentado puede abrir un espacio de interlocución institucional."
+        in candidate["narrative"]
+    )
+    assert (
+        "A public budget hearing was announced for October 15."
+        in candidate["narrative"]
+    )
+    assert (
+        candidate["narrative"]
+        == candidate["content"]["headline"]
+        == candidate["content"]["brief"]["headline"]
+    )
+    assert candidate["content"]["generation"]["status"] == "plan_applied"
+    assert candidate["content"]["agenda"] == []
     assert snapshot_tables(session) == before
 
 
@@ -100,7 +118,13 @@ def test_failed_current_call_cannot_publish_recovered_prose(session, baseline, f
     from app.summaries.builder import build_daily_summary
 
     engine, client_id, _ = baseline
-    build_daily_summary(session, client_id=client_id, day=DAY, generate=completion)
+    initial = build_daily_summary(
+        session,
+        client_id=client_id,
+        day=DAY,
+        generator_factory=reviewed_factory(completion),
+    )
+    assert initial.mode == "llm"
     before = snapshot_tables(session)
 
     def failed(_prompt):
@@ -122,7 +146,10 @@ def test_stored_cut_timezone_survives_current_settings_drift(session, baseline):
     session.commit()
     before = snapshot_tables(session)
     candidate = generate_candidate(
-        engine, client_id=client_id, day=DAY, generate=completion
+        engine,
+        client_id=client_id,
+        day=DAY,
+        generator_factory=reviewed_factory(completion),
     )
     assert candidate["content"]["window"] == WINDOW
     assert candidate["content"]["timezone"] == "America/Mexico_City"
@@ -184,6 +211,54 @@ def test_missing_targets_never_activate_generation(session, baseline, foreign_ta
     assert snapshot_tables(session) == before
 
 
+def test_explicit_phase_factory_preserves_clone_and_records_separate_review(
+    session, baseline, monkeypatch
+):
+    import httpx
+
+    from app.summaries import builder
+    from tests.test_digest_advisory_review import contextual_plan, passed_review
+
+    engine, client_id, _ = baseline
+    before = snapshot_tables(session)
+    phases, budgets = [], []
+
+    def respond(url, **options):
+        packet = json.loads(options["json"]["messages"][1]["content"])
+        value = (
+            passed_review(packet)
+            if "scope" in packet
+            else contextual_plan(json.dumps(packet))
+        )
+        return httpx.Response(
+            200,
+            request=httpx.Request("POST", url),
+            json={"choices": [{"message": {"content": json.dumps(value)}}]},
+        )
+
+    def factory(effective, *, phase, budget, system_prompt, response_schema):
+        phases.append(phase)
+        budgets.append(budget)
+        return builder._openai_generator(
+            effective,
+            budget=budget,
+            system_prompt=system_prompt,
+            response_schema=response_schema,
+        )
+
+    monkeypatch.setattr(builder.httpx, "post", respond)
+    candidate = generate_candidate(
+        engine, client_id=client_id, day=DAY, generator_factory=factory
+    )
+    assert candidate["mode"] == "llm"
+    assert phases == ["proposal", "review"]
+    assert budgets[0] is budgets[1]
+    assert budgets[0].used == 2
+    assert [call["phase"] for call in candidate["calls"]] == phases
+    assert candidate["content"]["generation"]["review"]["status"] == "passed"
+    assert snapshot_tables(session) == before
+
+
 def test_non_sqlite_source_is_rejected_before_connecting():
     from types import SimpleNamespace
 
@@ -194,4 +269,9 @@ def test_non_sqlite_source_is_rejected_before_connecting():
             raise AssertionError("Shared database must never be opened")
 
     with pytest.raises(ValueError, match="SQLite"):
-        generate_candidate(ForbiddenSource(), client_id=1, day=DAY, generate=completion)
+        generate_candidate(
+            ForbiddenSource(),
+            client_id=1,
+            day=DAY,
+            generator_factory=reviewed_factory(completion),
+        )

@@ -5,10 +5,18 @@ import json
 from datetime import datetime, timezone
 
 import pytest
-
-from app.models import Client, ClientSettings, MentionPerson, MentionSource, Person, queries
+from app.models import (
+    Client,
+    ClientSettings,
+    MentionPerson,
+    MentionSource,
+    Person,
+    queries,
+)
 from app.settings_runtime import EffectiveSettings
 from app.summaries import builder
+
+from tests.digest_plan_fixtures import advisory_completion, reviewed_factory
 
 
 PUBLISHED = datetime(2026, 10, 9, 18, tzinfo=timezone.utc)
@@ -31,14 +39,16 @@ def seed_person(session, *, name="Persona Alfa", role="Candidata", org="Organiza
 
 
 def prompt_json(prompt):
-    return json.JSONDecoder().raw_decode(prompt.split("\n", 1)[1])[0]
+    return (
+        json.loads(prompt)
+        if prompt.startswith("{")
+        else json.JSONDecoder().raw_decode(prompt.split("\n", 1)[1])[0]
+    )
 
 
 def test_build_passes_focus_person_even_without_person_mentions(session):
     client, person = seed_person(session)
-    session.add(ClientSettings(
-        client_id=client.id, digest_focus_person_id=person.id
-    ))
+    session.add(ClientSettings(client_id=client.id, digest_focus_person_id=person.id))
     session.flush()
     queries.insert_mention(
         session,
@@ -52,17 +62,25 @@ def test_build_passes_focus_person_even_without_person_mentions(session):
 
     def generate(prompt):
         captured.append(prompt_json(prompt))
-        return json.dumps({"headline": "Narrativa sintética sin proveedor externo."})
+        return advisory_completion(prompt)
 
     row = builder.build_daily_summary(
-        session, client_id=client.id, day=PUBLISHED.date(), generate=generate
+        session,
+        client_id=client.id,
+        day=PUBLISHED.date(),
+        generator_factory=reviewed_factory(generate),
     )
+    assert row.content["generation"]["status"] == "plan_applied"
+    assert row.content["generation"]["review"]["status"] == "passed"
 
     assert len(captured) == 1
     assert captured[0].get("focus_person") == {
-        "name": "Persona Alfa", "role": "Candidata", "org": "Organización Alfa"
+        "name": "Persona Alfa",
+        "role": "Candidata",
+        "org": "Organización Alfa",
     }
-    assert captured[0]["personas"] == []
+    assert captured[0]["registered_people"] == []
+    assert "personas" not in captured[0]
     assert row.mode == "llm"
     assert "focus_person" not in row.content
 
@@ -189,16 +207,22 @@ def test_build_omits_unresolvable_focus_without_substitute(session, focus_kind):
 
     def generate(prompt):
         captured.append(prompt)
-        return json.dumps({"headline": "Informe general sintético."})
+        return advisory_completion(prompt)
 
     row = builder.build_daily_summary(
-        session, client_id=client.id, day=PUBLISHED.date(), generate=generate
+        session,
+        client_id=client.id,
+        day=PUBLISHED.date(),
+        generator_factory=reviewed_factory(generate),
     )
+    assert row.content["generation"]["status"] == "plan_applied"
+    assert row.content["generation"]["review"]["status"] == "passed"
 
     assert len(captured) == 1
     payload = prompt_json(captured[0])
-    assert payload["personas"]
-    assert payload["personas"][0]["name"] == alternative.name
+    assert payload["registered_people"]
+    assert payload["registered_people"][0]["name"] == alternative.name
+    assert "personas" not in payload
     assert "focus_person" not in payload
     assert "persona principal bajo seguimiento" not in captured[0]
     assert foreign.name not in captured[0]
@@ -206,14 +230,21 @@ def test_build_omits_unresolvable_focus_without_substitute(session, focus_kind):
     assert "focus_person" not in row.content
 
 
-@pytest.mark.parametrize("skip_reason", ["empty_window", "no_generator"])
-def test_build_resolves_focus_only_inside_generation_gate(session, monkeypatch, skip_reason):
+@pytest.mark.parametrize(
+    "skip_reason", ["empty_window", "no_generator", "not_callable"]
+)
+def test_build_resolves_focus_only_inside_generation_gate(
+    session, monkeypatch, skip_reason
+):
     client, person = seed_person(session)
     session.add(ClientSettings(client_id=client.id, digest_focus_person_id=person.id))
-    if skip_reason == "no_generator":
+    if skip_reason in {"no_generator", "not_callable"}:
         queries.insert_mention(
-            session, client_id=client.id, source=MentionSource.news_rss,
-            url="https://example.test/no-generator", title="Se anuncia la consulta",
+            session,
+            client_id=client.id,
+            source=MentionSource.news_rss,
+            url="https://example.test/no-generator",
+            title="Se anuncia la consulta",
             published_at=PUBLISHED,
         )
     session.flush()
@@ -229,13 +260,76 @@ def test_build_resolves_focus_only_inside_generation_gate(session, monkeypatch, 
         return json.dumps({"headline": "No se debe generar."})
 
     monkeypatch.setattr(builder, "_focus_person_context", resolve_focus)
-    monkeypatch.setattr(builder, "summary_generator", lambda effective: None)
+    monkeypatch.setattr(builder, "summary_generator", lambda effective, **kwargs: None)
     row = builder.build_daily_summary(
-        session, client_id=client.id, day=PUBLISHED.date(),
-        generate=generate if skip_reason == "empty_window" else None,
+        session,
+        client_id=client.id,
+        day=PUBLISHED.date(),
+        generate=(
+            generate
+            if skip_reason == "empty_window"
+            else "invalid callable"
+            if skip_reason == "not_callable"
+            else None
+        ),
     )
 
     assert lookups == []
     assert prompts == []
     assert row.mode == "heuristic"
     assert "focus_person" not in row.content
+
+
+@pytest.mark.parametrize(
+    "change", ["unchanged", "role", "missing_plan", "invalid_plan", "boolean_inventory"]
+)
+def test_recovery_resolves_focus_only_for_a_valid_plan(session, monkeypatch, change):
+    client, person = seed_person(session)
+    session.add(ClientSettings(client_id=client.id, digest_focus_person_id=person.id))
+    queries.insert_mention(
+        session,
+        client_id=client.id,
+        source=MentionSource.news_rss,
+        url="https://example.test/focus-recovery",
+        title="Consulta sin acuerdo adoptado",
+        published_at=PUBLISHED,
+    )
+    first = builder.build_daily_summary(
+        session,
+        client_id=client.id,
+        day=PUBLISHED.date(),
+        generator_factory=reviewed_factory(advisory_completion),
+    )
+    assert first.content["generation"]["status"] == "plan_applied"
+    assert first.content["generation"]["review"]["status"] == "passed"
+    assert first.mode == "llm"
+    if change == "role":
+        person.role = "Rectora"
+    elif change in {"missing_plan", "invalid_plan"}:
+        saved = copy.deepcopy(first.content)
+        saved["generation"]["plan"] = None if change == "missing_plan" else {}
+        first.content = saved
+    elif change == "boolean_inventory":
+        saved = copy.deepcopy(first.content)
+        saved["coverage"]["total"] = True
+        first.content = saved
+    session.commit()
+    lookups = []
+    original = builder._focus_person_context
+
+    def resolve_focus(*args):
+        lookups.append(args)
+        return original(*args)
+
+    monkeypatch.setattr(builder, "_focus_person_context", resolve_focus)
+    monkeypatch.setattr(builder, "summary_generator", lambda effective, **kwargs: None)
+    row = builder.build_daily_summary(
+        session, client_id=client.id, day=PUBLISHED.date()
+    )
+    assert len(lookups) == (
+        0 if change in {"missing_plan", "invalid_plan", "boolean_inventory"} else 1
+    )
+    assert row.mode == ("llm" if change == "unchanged" else "heuristic")
+    assert row.content["generation"]["status"] == (
+        "plan_recovered" if change == "unchanged" else "source_fallback"
+    )

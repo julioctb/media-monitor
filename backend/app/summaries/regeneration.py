@@ -47,11 +47,14 @@ def generate_candidate(
     *,
     client_id: int,
     day: date,
-    generate: Callable[[str], str],
+    generate: Callable[[str], str] | None = None,
+    generator_factory: Callable | None = None,
 ) -> dict:
     """Run all builder hooks in a fresh, disposable SQLite clone."""
-    if not callable(generate):
+    if not callable(generate) and not callable(generator_factory):
         raise TypeError("An explicit generation callable is required")
+    if generate is not None and generator_factory is not None:
+        raise TypeError("Choose one explicit generation callable or factory")
     if source_engine.dialect.name != "sqlite":
         raise ValueError("Candidate sources must be owned SQLite snapshots")
     clone = create_engine("sqlite://", poolclass=StaticPool)
@@ -77,22 +80,47 @@ def generate_candidate(
             session.commit()
             calls = []
 
-            def tracked(prompt: str) -> str:
-                session.commit()
-                call = {"prompt": prompt, "completion": None, "error": None}
-                calls.append(call)
-                try:
-                    text = generate(prompt)
-                    call["completion"] = text
-                except Exception as exc:
-                    call["error"] = type(exc).__name__
-                    raise
-                return text
+            def track(adapter, phase):
+                def tracked(prompt: str) -> str:
+                    session.commit()
+                    call = {
+                        "phase": phase,
+                        "prompt": prompt,
+                        "completion": None,
+                        "error": None,
+                    }
+                    calls.append(call)
+                    try:
+                        text = adapter(prompt)
+                        call["completion"] = text
+                    except Exception as exc:
+                        call["error"] = type(exc).__name__
+                        raise
+                    return text
+
+                return tracked
+
+            def tracked_factory(effective, **options):
+                adapter = generator_factory(effective, **options)
+                return track(adapter, options["phase"]) if callable(adapter) else None
 
             row = build_daily_summary(
-                session, client_id=client_id, day=day, generate=tracked
+                session,
+                client_id=client_id,
+                day=day,
+                generate=track(generate, "proposal") if callable(generate) else None,
+                generator_factory=tracked_factory
+                if callable(generator_factory)
+                else None,
             )
-            if row.mode != "llm" or len(calls) != 1 or calls[0]["error"]:
+            receipt = row.content.get("generation", {})
+            if (
+                row.mode != "llm"
+                or receipt.get("status") != "plan_applied"
+                or (receipt.get("review") or {}).get("status") != "passed"
+                or [call["phase"] for call in calls] != ["proposal", "review"]
+                or any(call["error"] for call in calls)
+            ):
                 raise CandidateGenerationError(calls)
             return {
                 "content": copy.deepcopy(row.content),

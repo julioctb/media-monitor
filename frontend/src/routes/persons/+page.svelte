@@ -1,7 +1,8 @@
 <script lang="ts">
-	import PersonsDetailDialog from '$lib/components/PersonsDetailDialog.svelte';
+	import PersonDetailDialog from '$lib/components/PersonDetailDialog.svelte';
 	import SourceBadge from '$lib/components/SourceBadge.svelte';
-	import { BTN_PRIMARY_CLS } from '$lib/ui';
+	import { monogram } from '$lib/digest-stats';
+	import { PERSONS_PAGE_SIZE } from '$lib/persons';
 	import { ICON_PATHS } from '$lib/icons';
 	import {
 		channelClassFor,
@@ -11,15 +12,9 @@
 	} from '$lib/format';
 	import { prefs, seedPrefsFromServer } from '$lib/prefs';
 	import type { PageProps } from './$types';
-	import type { PersonDetail, PersonSummary } from '$lib/api';
+	import type { PersonSummary } from '$lib/api';
 
-	interface Props extends PageProps {
-		/** Bridge override for view tests (isolated fixtures). */
-		loadFicha?: (id: number) => Promise<PersonDetail>;
-	}
-
-	let { data, loadFicha }: Props = $props();
-
+	let { data }: PageProps = $props();
 	// Single prefs seed: the store hydrates from the server-parsed cookie at
 	// instance init, so the first paint already carries the follow state and
 	// hydration matches SSR (same pattern as /events).
@@ -27,7 +22,7 @@
 	seedPrefsFromServer(data.prefs);
 
 	/** Mockup directoryResults: 25 identities per page. */
-	const PAGE_SIZE = 25;
+	const PAGE_SIZE = PERSONS_PAGE_SIZE;
 
 	type SortDir = 'asc' | 'desc';
 	// The «Menciones» column is clickable (Julio: that column only; the
@@ -35,7 +30,8 @@
 	let sortDir = $state<SortDir>('desc');
 	let following = $state<'all' | 'followed'>('all');
 	let page = $state(1);
-	let openFichaId = $state<number | null>(null);
+	let selected = $state<PersonSummary | null>(null);
+	let filtersOpen = $state(false);
 	// A new server payload (new query) restarts the visible window.
 	$effect(() => {
 		data.q;
@@ -94,14 +90,6 @@
 		return out;
 	}
 
-	function initials(name: string): string {
-		return name
-			.split(/\s+/)
-			.filter(Boolean)
-			.slice(0, 2)
-			.map((word) => word[0]?.toUpperCase() ?? '')
-			.join('');
-	}
 </script>
 
 <svelte:head>
@@ -123,29 +111,21 @@
 				{followedCount} en seguimiento
 			</p>
 		</div>
-		<form method="get" role="search" class="directory-search">
-			<span>Buscar por nombre</span>
-			<span class="directory-search-row">
+		<form method="get" role="search" class="directory-search-form">
+			<label class="directory-search" for="directory-search">
+				<span>Buscar por nombre</span>
 				<span class="search">
-					<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true">
-						<path d={ICON_PATHS.search} />
-					</svg>
-					<span class="sr-only">Buscar personajes por nombre o variante</span>
-					<input
-						type="search"
-						id="q"
-						name="q"
-						value={data.q}
-						placeholder="Nombre o variante…"
-						autocomplete="off"
-					/>
+					<svg class="od-icon" viewBox="0 0 24 24" aria-hidden="true"><path d={ICON_PATHS.search} /></svg>
+					<input id="directory-search" type="search" name="q" value={data.q} placeholder="Nombre o variante…" autocomplete="off" />
 				</span>
-				<button class={BTN_PRIMARY_CLS} type="submit">Buscar</button>
-			</span>
+			</label>
 		</form>
 	</div>
 
 	<div class="directory-toolbar">
+		<button type="button" class="directory-filter-toggle" aria-controls="directory-productive-filters"
+			aria-expanded={filtersOpen} onclick={() => (filtersOpen = !filtersOpen)}>Filtrar</button>
+		<div id="directory-productive-filters" class="directory-filters directory-productive-filters" class:is-open={filtersOpen}>
 		<div class="directory-segmented" role="group" aria-label="Filtrar por seguimiento">
 			<button
 				type="button"
@@ -163,6 +143,11 @@
 			>
 				En seguimiento
 			</button>
+		</div>
+		<button type="button" class="directory-mobile-sort" onclick={toggleMentionsSort}
+			aria-label={`Ordenar menciones ${sortDir === 'desc' ? 'de menor a mayor' : 'de mayor a menor'}`}>
+			Menciones: {sortDir === 'desc' ? 'de mayor a menor' : 'de menor a mayor'}
+		</button>
 		</div>
 	</div>
 
@@ -208,22 +193,11 @@
 							<td data-label="Nombre">
 								<div class="directory-person-cell">
 									<span class="directory-monogram" aria-hidden="true"
-										>{initials(person.name)}</span
+										>{monogram(person.name)}</span
 									>
 									<div class="directory-person-copy">
-										<a
-											class="directory-name"
-											href={`/persons/${person.id}`}
-											onclick={(event) => {
-												// Mockup: the row opens the «Ficha de identidad»
-												// dialog; the href keeps the deep link (middle
-												// click, new tab, no-JS).
-												event.preventDefault();
-												openFichaId = person.id;
-											}}
-										>
-											{person.name}</a
-										>
+										<button class="directory-name" type="button" aria-haspopup="dialog"
+											onclick={() => (selected = person)}>{person.name}</button>
 									</div>
 								</div>
 							</td>
@@ -292,7 +266,7 @@
 	<summary>Cómo se organiza este directorio</summary>
 	<p>
 		Los conteos representan registros que mencionan a la persona, no repeticiones de su nombre
-		dentro del mismo texto. Cada ficha mantiene el historial completo de menciones.
+		dentro del mismo texto. El directorio carga hasta 200 identidades por búsqueda; el orden ascendente, el seguimiento y sus conteos se aplican a ese conjunto. La ficha consulta el historial en páginas independientes.
 	</p>
 </details>
 
@@ -302,8 +276,8 @@
 	     so the button was redundant. -->
 	<div class="empty">
 		<h3>No hay identidades con estos filtros</h3>
-		<p>Prueba otro nombre o amplía los filtros. El ejemplo actual solo contiene organizaciones.</p>
+		<p>Prueba otro nombre o cambia el filtro de seguimiento.</p>
 	</div>
 {/snippet}
 
-<PersonsDetailDialog personId={openFichaId} onclose={() => (openFichaId = null)} {loadFicha} />
+<PersonDetailDialog person={selected} onclose={() => (selected = null)} />

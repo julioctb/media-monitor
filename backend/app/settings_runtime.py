@@ -13,7 +13,8 @@ and never within a cycle.
 """
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
+from urllib.parse import urlsplit
 
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
@@ -54,6 +55,11 @@ class EffectiveSettings:
     ai_base_url: str | None = None
     ai_model: str | None = None
     ai_model_fast: str | None = None
+    digest_reviewer_provider: str = "inherit"
+    digest_reviewer_base_url: str | None = None
+    digest_reviewer_model: str | None = None
+    digest_reviewer_api_key: str | None = field(default=None, repr=False)
+    digest_reviewer_revision: str | None = None
     enrich_max_per_cycle: int = 50
     fetch_max_per_cycle: int = 20
 
@@ -65,6 +71,31 @@ class EffectiveSettings:
         model — same provider/base_url/key either way.
         """
         return self.ai_model_fast or self.ai_model
+
+
+def resolve_review_settings(effective: EffectiveSettings) -> EffectiveSettings | None:
+    """Review-only snapshot, with no generator/default credential completion."""
+    if effective.digest_reviewer_provider == "inherit":
+        return effective
+    if effective.digest_reviewer_provider != "openai":
+        return None
+    base = (effective.digest_reviewer_base_url or "").strip()
+    model = (effective.digest_reviewer_model or "").strip()
+    key = (effective.digest_reviewer_api_key or "").strip()
+    try:
+        url = urlsplit(base)
+        if not (url.scheme in {"http", "https"} and url.netloc and model and key):
+            return None
+    except ValueError:
+        return None
+    return replace(
+        effective,
+        ai_provider="openai",
+        ai_base_url=base,
+        ai_model=model,
+        ai_api_key=key,
+        ai_model_fast=None,
+    )
 
 
 # Cycle-scoped cache: client_id -> snapshot. Overwritten by every
@@ -157,6 +188,11 @@ def resolve_effective_settings(session: Session, client_id: int) -> EffectiveSet
         ai_base_url=row.ai_base_url,
         ai_model=row.ai_model,
         ai_model_fast=row.ai_model_fast,
+        digest_reviewer_provider=row.digest_reviewer_provider,
+        digest_reviewer_base_url=row.digest_reviewer_base_url,
+        digest_reviewer_model=row.digest_reviewer_model,
+        digest_reviewer_api_key=row.digest_reviewer_api_key,
+        digest_reviewer_revision=row.digest_reviewer_revision,
         enrich_max_per_cycle=row.enrich_max_per_cycle,
         fetch_max_per_cycle=row.fetch_max_per_cycle,
     )

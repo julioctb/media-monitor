@@ -10,6 +10,7 @@
 	} from '$lib/format';
 	import { isNewsSource } from '$lib/digest-stats';
 	import { ICON_PATHS } from '$lib/icons';
+	import { personDirectoryHref } from '$lib/persons';
 	import type { Mention } from '$lib/api';
 	import NewsEntry from '$lib/components/NewsEntry.svelte';
 
@@ -119,7 +120,7 @@
 			<span class={`topic-chip ${topicBadgeClass(topic.label)}`}>{topicLabel(topic.label)}</span>
 		{/each}
 		{#each (mention.persons ?? []) as person (person.id)}
-			<a href={`/persons/${person.id}`} title="Ver persona">Persona: {person.name}</a>
+			<a href={personDirectoryHref(person.name)} title="Ver persona en el directorio">Persona: {person.name}</a>
 		{/each}
 		{#if event}
 			{#if onEvent}

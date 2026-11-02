@@ -1,10 +1,82 @@
 # El contrato de la narrativa del digest: del `if` defensivo al schema
 
-Decision de diseño para `backend/app/summaries/digest.py` → `apply_narrative`.
-La escena completa: `build_daily_summary` (builder.py) genera los facts
-deterministas, le pide la narrativa al LLM y funde la respuesta sobre los
-facts. Este documento explica el contrato y por qué se migra a modelos
-Pydantic.
+El receptor histórico `backend/app/summaries/digest.py` → `apply_narrative`
+conserva su contrato tolerante. **La generación nueva ya no admite prosa factual
+libre del modelo:** desde S22, `build_daily_summary` construye un banco tipado,
+solicita elecciones acotadas y redacta las citas/lecturas mediante código.
+Las secciones históricas siguientes describen el receptor, no una certificación
+factual ni la frontera vigente de aceptación del proveedor.
+
+## 0. Generación vigente: plan acotado y resultado honesto (S22)
+
+- El banco conserva el catálogo `evidence.v1` y sus límites de 300 caracteres.
+  El original capturado se amplía, por identidad y pertenencia al cliente, hasta
+  4.000 caracteres separados; un resumen derivado no se convierte en original.
+- El proveedor recibe un plan cerrado de cinco campos: `basis_fingerprint`,
+  `headline_index`, `headline_frame`, `items` y `seleccion`. El detalle está en
+  `docs/digest-factual-contract.md`. Escoge noticias, pasajes y marcos/acciones;
+  no puede introducir titulares, fechas, autorías, jerarquías, compromisos ni
+  razones libres junto a una referencia válida. La selección sigue siendo del
+  modelo, sin relleno ni categorías inferidas por volumen o tono. Se conserva la
+  instrucción condicional de mínimo tres decisiones cuando existan al menos tres
+  candidatas sustantivas, sin completar con ceremonias o difusión.
+- El código conserva citas literales, identifica publicación (no fecha del acto),
+  distingue autor capturado de propiedad de cuenta y rotula la lectura política
+  y la atención sugerida. Sus vinculaciones se registran como `derived`, no como
+  prosa escrita por el modelo. No se crean entradas de agenda desde este plan.
+- Cada ejecución comparte `RequestBudget`: máximo **dos solicitudes físicas**,
+  timeout de **120 segundos por solicitud** y sin redirecciones. El esquema va
+  tanto en `response_format` del primer intento como en el paquete de entrada;
+  el reintento simple conserva el contrato aunque no admita generación guiada.
+  Los valores históricos de la fábrica sin estas opciones permanecen intactos.
+- Una respuesta inválida se conserva en `generation.raw_proposal`; no se adopta
+  en los campos del informe. `status=source_fallback` significa material original
+  disponible sin análisis nuevo aceptado y `mode=heuristic`, nunca éxito del LLM.
+  `plan_applied` indica plan validado y `plan_recovered` su nueva renderización
+  contra el mismo banco/contexto. No se recupera prosa antigua por mera igualdad
+  de publicaciones. No hay una aprobación editorial humana por cada informe.
+- El orden editorial puede cambiar índices de presentación. El banco y el plan
+  se retienen bajo `generation.input_basis` en su espacio de entrada original,
+  no como supuesto banco validado del orden final. La restauración de una revisión
+  marca `revision_restored`, invalida el plan vigente y conserva el intento previo
+  como historia: el texto restaurado sin referencias sigue visible y no respaldado.
+- Este mecanismo es portable entre adaptadores compatibles, no una garantía de
+  capacidad o calidad idéntica en cualquier modelo. Integridad, procedencia y
+  literalidad **no prueban verdad externa ni inferencias políticas**; el estado
+  permanece «Veracidad no evaluada». Los marcos cerrados reducen libertad de
+  redacción a cambio de una superficie factual comprobable automáticamente.
+
+Las rutas históricas de lectura/merge y su política de prosa sin referencias no
+se endurecen. El rechazo de un formato de generación nuevo no equivale a declarar
+falsa una publicación ni autoriza borrar originales o revisiones históricas.
+
+### Compatibilidad del productor vigente (T10.3.2)
+
+- `focus_person` se consulta dentro de la compuerta de material utilizable y
+  generador invocable. Sin proveedor, solo un plan anterior válido puede requerir
+  resolver la identidad para comprobar recuperación; un corte vacío no la consulta.
+- El corte vacío conserva «no se registraron menciones», temas sin nota y pendientes.
+  El fallback mantiene el resumen determinista de cobertura y su título original
+  dominante, pero señala «Análisis político no disponible» y no rellena categorías.
+- El paquete incluye `cut`, `story_metadata` con índices originales, indicadores
+  medidos, cobertura, conteos de redes y personas registradas, separados del banco
+  factual. `comparison` conserva el espacio `prior:`, la fecha y ventana reales;
+  `prior_coverage` no es evidencia factual ni una conclusión anterior. Los resúmenes
+  derivados se identifican como tales. Esta información orienta prioridades, no
+  acredita relaciones factuales entre cortes ni veracidad.
+- La recuperación valida inventario completo, catálogo, comparación y contexto
+  efectivamente suministrado, incluida la ventana previa. Una recepción histórica
+  tolerante no se convierte en aceptación nueva por conservar las mismas fuentes.
+- La fábrica factual conserva exactamente la respuesta original, incluso sus
+  delimitadores; el decodificador estricto rechaza un bloque sin cierre. La fábrica
+  histórica sin el nuevo esquema conserva su normalización anterior.
+- En el texto plano, los enlaces incrustados se sustituyen explícitamente por
+  `[enlace omitido]` con aviso de presentación y conservación del original. No se
+  alteran citas, catálogo, cuerpos ni bindings almacenados; la procedencia se
+  resuelve antes de esa transformación. Los enlaces reales del catálogo permanecen.
+- Las pruebas de producción usan planes válidos con selecciones expresas. Las de
+  prosa histórica, notas opcionales y tolerancia se ejecutan contra el receptor
+  existente, sin una excepción de aceptación ni un traductor de prosa a planes.
 
 ## 1. Las capas (intactas, no se tocan)
 

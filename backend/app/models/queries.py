@@ -9,18 +9,17 @@ import re
 import unicodedata
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
 from urllib.parse import urlsplit
-
-from datetime import date, datetime, timedelta, timezone
+from uuid import uuid4
 from zoneinfo import ZoneInfo
-
-from app.models.field import FieldOperator, FieldReport, FieldReportStatus
 
 from sqlalchemy import and_, delete, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
+from app.ingest.matching import fold_text
 from app.models import (
     AgendaItem,
     AlertSettings,
@@ -40,8 +39,8 @@ from app.models import (
     SavedSearch,
     Sentiment,
 )
+from app.models.field import FieldOperator, FieldReport, FieldReportStatus
 from app.models.mention import make_url_hash
-from app.ingest.matching import fold_text
 from app.models.settings import AI_PROVIDERS, X_MODES
 
 
@@ -955,6 +954,53 @@ def _validate_optional_str(value: object, field: str, *, is_url: bool = False) -
     return cleaned
 
 
+def _validate_reviewer_provider(value: object) -> str:
+    if value not in ("inherit", "openai"):
+        raise ValueError(
+            "Elige heredar la configuración o una API compatible con OpenAI."
+        )
+    return value
+
+
+def _validate_reviewer_text(value: object, field: str, limit: int) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ValueError("La configuración del revisor debe ser texto o nula.")
+    cleaned = value.strip() or None
+    if cleaned is not None and len(cleaned) > limit:
+        raise ValueError("El valor de configuración del revisor es demasiado largo.")
+    if cleaned and field.endswith("base_url"):
+        try:
+            url = urlsplit(cleaned)
+            valid_url = url.scheme in {"http", "https"} and bool(url.netloc)
+        except ValueError:
+            valid_url = False
+        if not valid_url:
+            raise ValueError(
+                "La URL del revisor debe ser absoluta y usar HTTP o HTTPS."
+            )
+    return cleaned
+
+
+def _reviewer_identity(row: ClientSettings) -> tuple:
+    """In-memory comparison only; never store credentials or their hashes."""
+    if row.digest_reviewer_provider == "inherit":
+        return (
+            "inherit",
+            row.ai_provider,
+            row.ai_base_url,
+            row.ai_model,
+            row.ai_api_key,
+        )
+    return (
+        row.digest_reviewer_provider,
+        row.digest_reviewer_base_url,
+        row.digest_reviewer_model,
+        row.digest_reviewer_api_key,
+    )
+
+
 _VALIDATORS = {
     "client_name": _validate_client_name,
     "timezone": _validate_timezone,
@@ -974,6 +1020,16 @@ _VALIDATORS = {
     "ai_base_url": lambda v: _validate_optional_str(v, "ai_base_url", is_url=True),
     "ai_model": lambda v: _validate_optional_str(v, "ai_model"),
     "ai_model_fast": lambda v: _validate_optional_str(v, "ai_model_fast"),
+    "digest_reviewer_provider": _validate_reviewer_provider,
+    "digest_reviewer_base_url": lambda v: _validate_reviewer_text(
+        v, "digest_reviewer_base_url", 500
+    ),
+    "digest_reviewer_model": lambda v: _validate_reviewer_text(
+        v, "digest_reviewer_model", 100
+    ),
+    "digest_reviewer_api_key": lambda v: _validate_reviewer_text(
+        v, "digest_reviewer_api_key", 500
+    ),
     "enrich_max_per_cycle": _validate_enrich_max,
     "fetch_max_per_cycle": _validate_fetch_max,
 }
@@ -989,15 +1045,21 @@ def upsert_settings(
     updates).
     """
     row = get_settings(session, client_id)
+    previous_reviewer = _reviewer_identity(row)
+    validated = {}
     for field, value in changes.items():
         validator = _VALIDATORS.get(field)
         if validator is None:
             continue
         new_value = validator(value)
-        if field == "x_api_key" and new_value is None:
+        if field in {"x_api_key", "digest_reviewer_api_key"} and new_value is None:
             # Masked-key semantics: ''/null keeps the stored key.
             continue
+        validated[field] = new_value
+    for field, new_value in validated.items():
         setattr(row, field, new_value)
+    if _reviewer_identity(row) != previous_reviewer:
+        row.digest_reviewer_revision = str(uuid4())
     # Legacy single hour and the cut list mirror each other when only one
     # of the two is updated, so either write path keeps a coherent row.
     if "digest_hour" in changes and "digest_hours" not in changes:
@@ -1390,6 +1452,7 @@ def client_coverage_summary(
 # ----------------------------------------------------------------- persons (F3)
 
 PERSON_SORTS = ("mentions", "recent")
+PERSON_TIMELINE_ORDERS = ("recent", "oldest")
 
 
 def list_persons(
@@ -1545,8 +1608,10 @@ def person_timeline(
     person_id: int,
     client_id: int,
     limit: int = 100,
+    offset: int = 0,
+    order: str = "recent",
 ) -> list[dict]:
-    """Chronological footprint of one person (newest first).
+    """Bounded chronological footprint, newest first unless ``order`` changes it.
 
     Each row: the mention (id/title/url/source/timestamps/sentiment), the
     per-mention role/org and verbatim quote (`context`), the canonical
@@ -1554,6 +1619,14 @@ def person_timeline(
     classifier's verdict for that mention (None when unclassified). The
     F3 exit gate: everything the chat answer needs, no inference.
     """
+    if order not in PERSON_TIMELINE_ORDERS:
+        raise ValueError(f"order must be one of {PERSON_TIMELINE_ORDERS}")
+    activity_at = func.coalesce(Mention.published_at, Mention.ingested_at)
+    ordering = (
+        (activity_at.desc(), Mention.id.desc())
+        if order == "recent"
+        else (activity_at.asc(), Mention.id.asc())
+    )
     stmt = (
         select(MentionPerson, Mention)
         .join(Mention, Mention.id == MentionPerson.mention_id)
@@ -1561,11 +1634,9 @@ def person_timeline(
             MentionPerson.person_id == person_id,
             Mention.client_id == client_id,
         )
-        .order_by(
-            func.coalesce(Mention.published_at, Mention.ingested_at).desc(),
-            Mention.id.desc(),
-        )
+        .order_by(*ordering)
         .limit(limit)
+        .offset(max(0, offset))
     )
     links = session.execute(stmt).all()
     mention_ids = [mention.id for _, mention in links]

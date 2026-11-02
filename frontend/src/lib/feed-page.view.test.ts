@@ -387,7 +387,7 @@ it('labels lone mentions, news authors and person chips per the mockup', async (
 	expect(target.querySelector('.feed-item .feed-author')?.textContent?.trim()).toBe('Autor: No indicado');
 	// persona: label mockup conservando el link a la ficha
 	const personLink = target.querySelector('.feed-item .chips a');
-	expect(personLink?.getAttribute('href')).toBe('/persons/3');
+	expect(personLink?.getAttribute('href')).toBe('/persons?q=Ana+L%C3%B3pez');
 	expect(personLink?.textContent?.trim()).toBe('Persona: Ana López');
 });
 
@@ -488,7 +488,7 @@ it('renders the v3 aside additions: persons row, upcoming date-box and the panel
 	row!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 	await tick();
 	const { goto } = await import('$app/navigation');
-	expect(vi.mocked(goto).mock.calls.at(-1)).toEqual(['/persons/3']);
+	expect(vi.mocked(goto).mock.calls.at(-1)).toEqual(['/persons?q=Ana+L%C3%B3pez']);
 
 	const agenda = asidePanel(target, 'Próximas fechas');
 	expect(agenda).toBeTruthy();

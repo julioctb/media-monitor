@@ -210,6 +210,12 @@ export interface ClientSettings {
   ai_base_url: string | null;
   ai_model: string | null;
   ai_model_fast: string | null;
+  /** Optional S30 reviewer contract; readback never includes the stored secret. */
+  digest_reviewer_provider?: 'inherit' | 'openai';
+  digest_reviewer_base_url?: string | null;
+  digest_reviewer_model?: string | null;
+  digest_reviewer_api_key?: string;
+  digest_reviewer_api_key_set?: boolean;
   /** Paid-mode X source; see x-mode-settings. */
   x_mode: XMode;
   /** Always "" on the wire: the API masks the stored key. */
@@ -241,6 +247,11 @@ export interface ClientSettingsInput {
   ai_base_url?: string | null;
   ai_model?: string | null;
   ai_model_fast?: string | null;
+  digest_reviewer_provider?: 'inherit' | 'openai';
+  digest_reviewer_base_url?: string | null;
+  digest_reviewer_model?: string | null;
+  /** Nonblank replaces; null, blank or omitted preserves the stored key. */
+  digest_reviewer_api_key?: string | null;
   x_mode?: XMode;
   /** Non-empty stores the key; ''/absent keeps the stored one. */
   x_api_key?: string;
@@ -696,8 +707,14 @@ export interface PersonTimelineItem {
 }
 
 export interface PersonDetail extends PersonSummary {
+  /** This is one bounded page, not necessarily the person's complete history. */
   timeline: PersonTimelineItem[];
+  timeline_total?: number;
+  timeline_limit?: number;
+  timeline_offset?: number;
+  timeline_order?: "recent" | "oldest";
 }
+
 
 export async function listPersons(
   query: {
@@ -728,12 +745,48 @@ export async function listPersons(
   return Array.isArray(result) ? result : (result.items ?? []);
 }
 
+export interface PersonTimelineQuery {
+  limit?: number;
+  offset?: number;
+  order?: "recent" | "oldest";
+}
+
+function isRequestOptions(
+  value: PersonTimelineQuery | RequestOptions,
+): value is RequestOptions {
+  return "baseUrl" in value || "fetch" in value;
+}
+
 export function getPerson(
   id: number,
-  options: RequestOptions = {},
+  options?: RequestOptions,
+): Promise<PersonDetail>;
+export function getPerson(
+  id: number,
+  query: PersonTimelineQuery,
+  options?: RequestOptions,
+): Promise<PersonDetail>;
+export function getPerson(
+  id: number,
+  queryOrOptions: PersonTimelineQuery | RequestOptions = {},
+  explicitOptions?: RequestOptions,
 ): Promise<PersonDetail> {
+  let query: PersonTimelineQuery;
+  let options: RequestOptions;
+  if (isRequestOptions(queryOrOptions)) {
+    query = {};
+    options = explicitOptions ?? queryOrOptions;
+  } else {
+    query = queryOrOptions;
+    options = explicitOptions ?? {};
+  }
+  const qs = buildQuery({
+    limit: query.limit,
+    offset: query.offset,
+    order: query.order,
+  });
   return request<PersonDetail>(
-    `/api/clients/1/persons/${id}`,
+    `/api/clients/1/persons/${id}${qs}`,
     { method: "GET" },
     options,
   );

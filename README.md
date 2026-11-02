@@ -117,6 +117,65 @@ frontend.
 change them, edit `docker-compose.yml` (or run the dashboard natively with
 your own env).
 
+### Independent report reviewer
+
+Settings → **LLM → Revisor de informes** has its own save action. It updates only
+`digest_reviewer_provider`, `digest_reviewer_base_url`, `digest_reviewer_model`
+and `digest_reviewer_api_key` through the tenant-scoped `PUT /api/settings`.
+Saving does not test a connection or send report material to a provider.
+
+- `inherit` (the migration/default mode) preserves the generator's existing
+  review route. `openai` selects a separate **OpenAI-compatible chat completions
+  API**, not an arbitrary vendor's native API. Supply its complete base URL,
+  model identifier and credential; there are no provider/model presets.
+- The independent destination is used **only for report review**. Proposal
+  generation, enrichment, questions and the fast event-arbitration model retain
+  their existing configuration. Direct `generate=` injection still never
+  activates a configured reviewer. A custom phase factory receives the
+  review-specific detached settings only when that configuration is valid.
+- Proposal generation and inherited review retain the generator's Qwen
+  `chat_template_kwargs.enable_thinking=false`. Only the built-in dedicated
+  review route omits those generator-specific kwargs, leaving the reviewer
+  provider's defaults intact. This separation is not a claim that those defaults
+  improve compatibility, reasoning or reviewer quality.
+- An incomplete/unknown dedicated configuration never borrows generator
+  credentials, endpoint or model defaults. Missing, failed, rejected or
+  budget-exhausted review leaves the source-based factual fallback, not an
+  approved political analysis. Both phases still share at most **two physical
+  requests**, including guided/plain retries, at **120 seconds per request**
+  with redirects disabled; configuring another destination adds no attempts.
+- GET and PUT responses always return `digest_reviewer_api_key: ""` and the
+  boolean `digest_reviewer_api_key_set`. A nonblank key replaces the stored
+  value; absent/blank/whitespace/null keeps it. There is no secret-clear
+  operation. The input is never prefilled, is cleared after every submission
+  completion (including failure), and reviewer action errors do not echo backend
+  diagnostics. General unsaved drafts, their API key and hidden mounted tab
+  controls remain independent from reviewer saves. As with existing v1 credentials, storage is
+  plaintext in the tenant settings row, **not encryption at rest**. Legacy
+  generator-key readback behavior is unchanged by this feature.
+- Approval recovery is bound to an internal random configuration revision in
+  `generation.reviewer_revision`, outside the unchanged review receipt.
+  Changing an effective review destination, model, mode or key invalidates
+  cached approval, including inherited generator changes. Same-value saves,
+  blank-key retention and unrelated fast-model changes do not rotate it.
+  Dedicated review additionally requires
+  `generation.reviewer_transport_policy: "provider-default-v1"`; older dedicated
+  approvals lose recovery eligibility without rewriting history or changing the
+  strict review receipt. Inherited recovery retains its existing rules.
+  Historical unmarked approval is eligible only in the initial inherited
+  configuration and must still pass all existing material/context checks.
+  This cache identity is neither a credential hash nor report versioning.
+
+Additive Alembic revision `0032` follows `0031`; existing settings default to
+`inherit`, with empty dedicated fields and no credential seeding or historical
+report rewrite. Synthetic API/transport/form tests establish routing and
+failure handling, not live external-provider compatibility, reviewer quality,
+or permission to send data to a newly configured external service.
+
+This composed candidate is not live activation of the panel/API. Source and
+offline checks do not establish the actual target's schema, backfill safety,
+hydrated-browser behavior or external-reviewer qualification.
+
 ## Source setup
 
 ### X / Twitter (third-party provider)

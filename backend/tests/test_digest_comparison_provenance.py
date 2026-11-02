@@ -1,7 +1,6 @@
-"""Two-cut receipts through public generation, merge and source resolution."""
+"""Historical two-cut receipts through persistence, merge and source resolution."""
 
 import copy
-import json
 
 import pytest
 
@@ -9,6 +8,7 @@ from app.summaries import build_daily_summary
 from app.summaries.evidence import resolved_provenance
 from app.summaries.digest import apply_narrative, render_plain_text
 from tests.test_digest_comparison import CURRENT, _client, _failed, _mention, _prior
+from tests.digest_legacy_fixtures import historical_summary
 
 
 def comparison_build(session, payload):
@@ -22,16 +22,13 @@ def comparison_build(session, payload):
         title="Firma del acuerdo presupuestario",
         event_id=old.event_id,
     )
-    row = build_daily_summary(
-        session,
-        client_id=owner.id,
-        day=CURRENT.date(),
-        generate=lambda prompt: json.dumps(payload),
+    row = historical_summary(
+        session, client_id=owner.id, day=CURRENT.date(), payload=payload
     )
     return owner, row, prior
 
 
-def test_public_build_keeps_separate_zero_receipts_backward_safe(session):
+def test_historical_receiver_keeps_separate_zero_receipts_backward_safe(session):
     payload = {
         "headline": "Comparación de los cortes.",
         "items": [
@@ -87,7 +84,7 @@ def test_public_build_keeps_separate_zero_receipts_backward_safe(session):
 
 
 @pytest.mark.parametrize("linked", [True, False])
-def test_public_same_context_recovery_preserves_two_namespace_receipts(session, linked):
+def test_historical_reload_preserves_two_namespace_receipts(session, linked):
     refs = (
         {"current": [0], "prior": [0]}
         if linked
@@ -102,10 +99,12 @@ def test_public_same_context_recovery_preserves_two_namespace_receipts(session, 
         },
     )
     original = copy.deepcopy(first.content)
-    row = build_daily_summary(
-        session, client_id=owner.id, day=CURRENT.date(), generate=_failed
-    )
+    # Reload stored historical prose, not a fresh-generation acceptance path.
+    from app.models import queries
+    session.expire_all()
+    row = queries.get_daily_summary(session, owner.id, CURRENT.date())
     assert row.mode == "llm"
+    assert "generation" not in row.content
     for target, old, field, scope in [
         (row.content, original, "headline", None),
         (row.content["noticias"][0], original["noticias"][0], "angulo_nuevo", [0]),
@@ -443,13 +442,9 @@ def test_public_recovery_rejects_identically_malformed_comparison_context(sessio
         title="Firma del acuerdo actual",
         event_id=old.event_id,
     )
-    first = build_daily_summary(
-        session,
-        client_id=owner.id,
-        day=CURRENT.date(),
-        generate=lambda _: json.dumps(
-            {"headline": "Análisis sobre contexto inválido."}
-        ),
+    first = historical_summary(
+        session, client_id=owner.id, day=CURRENT.date(),
+        payload={"headline": "Análisis sobre contexto inválido."},
     )
     assert first.mode == "llm"
     result = build_daily_summary(
@@ -459,10 +454,10 @@ def test_public_recovery_rejects_identically_malformed_comparison_context(sessio
     assert result.narrative != "Análisis sobre contexto inválido."
 
 
-def test_public_order_and_tail_compilation_keep_original_namespace_ownership(session):
+def test_historical_order_and_tail_compilation_keep_original_namespace_ownership(session):
     from datetime import timedelta
     from app.models import Event
-    from tests.test_digest_comparison import PRIOR, _view
+    from tests.test_digest_comparison import PRIOR
 
     owner = _client(session)
     for index in range(11):
@@ -493,15 +488,14 @@ def test_public_order_and_tail_compilation_keep_original_namespace_ownership(ses
         )
     build_daily_summary(session, client_id=owner.id, day=PRIOR.date())
 
-    def generate(prompt):
-        view = _view(prompt)
-        news = view["noticias"]
+    def archived_payload(content):
+        news = content["noticias"]
         refs = {
             f"items.{i}.summary": {
                 "current": note["source_refs"],
                 "prior": [
-                    int(ref.split(":")[1])
-                    for story in view["comparison"]["stories"]
+                    ref
+                    for story in content["comparison"]["stories"]
                     if i in story["current_indexes"]
                     for ref in story["source_refs"]
                 ],
@@ -509,8 +503,7 @@ def test_public_order_and_tail_compilation_keep_original_namespace_ownership(ses
             for i, note in enumerate(news)
         }
         refs["seleccion.10.razon"] = refs["items.10.summary"]
-        return json.dumps(
-            {
+        return {
                 "headline": "Análisis con once historias.",
                 "items": [
                     {"index": i, "summary": f"Comparación de la historia {i}."}
@@ -525,10 +518,9 @@ def test_public_order_and_tail_compilation_keep_original_namespace_ownership(ses
                 ],
                 "comparison_references": refs,
             }
-        )
 
-    row = build_daily_summary(
-        session, client_id=owner.id, day=CURRENT.date(), generate=generate
+    row = historical_summary(
+        session, client_id=owner.id, day=CURRENT.date(), payload=archived_payload
     )
     content = row.content
     assert content["noticias"][0]["summary"] == "Comparación de la historia 10."

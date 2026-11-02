@@ -126,6 +126,15 @@ class ClientSettings(IntPk, Base):
     # JSON-strict calls. Falls back to ai_model when unset — one provider,
     # two model classes (odd/tasks/event-identity-llm-arbitrator.md).
     ai_model_fast: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    # Review-only OpenAI-compatible destination; inherit preserves legacy routing.
+    digest_reviewer_provider: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="inherit", server_default="inherit"
+    )
+    digest_reviewer_base_url: Mapped[str | None] = mapped_column(String(500))
+    digest_reviewer_model: Mapped[str | None] = mapped_column(String(100))
+    digest_reviewer_api_key: Mapped[str | None] = mapped_column(String(500))
+    # Random cache identity, never a credential hash or a report version.
+    digest_reviewer_revision: Mapped[str | None] = mapped_column(String(36))
     # F2c: max LLM enrichments per ingest cycle; the overflow is backfill work.
     enrich_max_per_cycle: Mapped[int] = mapped_column(
         Integer, nullable=False, default=50, server_default="50"
@@ -148,3 +157,7 @@ class ClientSettings(IntPk, Base):
     def x_api_key_set(self) -> bool:
         """Whether a paid-mode X key is stored (the key itself never leaves)."""
         return bool(self.x_api_key)
+
+    @property
+    def digest_reviewer_api_key_set(self) -> bool:
+        return bool(self.digest_reviewer_api_key)

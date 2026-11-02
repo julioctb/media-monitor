@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from 'vitest';
 
-import { actions } from '../routes/settings/+page.server';
+import { actions, load } from '../routes/settings/+page.server';
 import { normalizeFacebookPageRef } from '$lib/facebook-page';
 
 /**
@@ -82,6 +82,20 @@ async function save(entries: Record<string, string | string[]>) {
 function failureOf(result: { status?: number; data?: Record<string, unknown> }) {
 	return { status: result.status ?? -1, data: result.data ?? {} };
 }
+
+it('redacts reviewer credentials from load props while preserving the watchlist guard', async () => {
+	const row = { ...SETTINGS_ROW, watchlist: null,
+		digest_reviewer_provider: 'openai', digest_reviewer_api_key: 'fixture-only-loaded-secret',
+		digest_reviewer_api_key_set: true };
+	vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) =>
+		new Response(JSON.stringify(new URL(String(input)).pathname === '/api/settings' ? row : []),
+			{ headers: { 'content-type': 'application/json' } })));
+	const data = await load({} as never) as { settings: Record<string, unknown> };
+	expect(data.settings.digest_reviewer_api_key).toBe('');
+	expect(data.settings.digest_reviewer_api_key_set).toBe(true);
+	expect(data.settings.watchlist).toEqual([]);
+	expect(JSON.stringify(data)).not.toContain('fixture-only-loaded-secret');
+});
 
 it('serializes digest hours as a deduped sorted array', async () => {
 	stubFetch(SETTINGS_ROW);
@@ -355,6 +369,62 @@ it('rejects foreign domains and empty input', () => {
 	expect(normalizeFacebookPageRef('https://ejemplo.com/econsulta')).toBeNull();
 	expect(normalizeFacebookPageRef('')).toBeNull();
 	expect(normalizeFacebookPageRef('   ')).toBeNull();
+});
+
+it('saves only the four independent reviewer fields without dispatching a probe', async () => {
+	const fetchMock = stubFetch(SETTINGS_ROW);
+	const action = actions['save-reviewer'];
+	expect(action).toBeTypeOf('function');
+	const result = await action({ request: formRequest({
+		digest_reviewer_provider: 'openai',
+		digest_reviewer_base_url: ' https://reviewer.invalid/v1 ',
+		digest_reviewer_model: ' fixture-reviewer ',
+		digest_reviewer_api_key: ' fixture-only-new-key ',
+		ai_provider: 'openai', ai_model: 'must-not-change', ai_api_key: 'must-not-change',
+		watchlist: ['999'], retention_days: '1', digest_reviewer_revision: 'must-not-travel'
+	}) } as never);
+	expect(result).toMatchObject({ action: 'save-reviewer', ok: true });
+	expect(savedBodies).toEqual([{
+		digest_reviewer_provider: 'openai', digest_reviewer_base_url: 'https://reviewer.invalid/v1',
+		digest_reviewer_model: 'fixture-reviewer', digest_reviewer_api_key: 'fixture-only-new-key'
+	}]);
+	expect(fetchMock).toHaveBeenCalledTimes(1);
+	expect(JSON.stringify(result)).not.toContain('fixture-only-new-key');
+});
+
+it.each(['', 'local', 'hybrid'])('rejects reviewer mode %j before any API request', async (provider) => {
+	const fetchMock = stubFetch(SETTINGS_ROW);
+	const result = await actions['save-reviewer']({ request: formRequest({
+		digest_reviewer_provider: provider, digest_reviewer_api_key: 'fixture-only-invalid-key'
+	}) } as never);
+	expect(result).toMatchObject({ status: 400, data: { action: 'save-reviewer', ok: false } });
+	expect(fetchMock).not.toHaveBeenCalled();
+	expect(JSON.stringify(result)).not.toContain('fixture-only-invalid-key');
+});
+
+it.each([422, 503, 0])('returns a secret-safe reviewer failure for API status %i', async (status) => {
+	const secret = 'fixture-only-echoed-key';
+	vi.stubGlobal('fetch', vi.fn(async () => {
+		if (status === 0) throw new Error(`offline ${secret}`);
+		return new Response(JSON.stringify({ detail: [{ msg: `invalid ${secret}`, input: secret }] }),
+			{ status, headers: { 'content-type': 'application/json' } });
+	}));
+	const outcome = actions['save-reviewer']({ request: formRequest({
+		digest_reviewer_provider: 'openai', digest_reviewer_api_key: secret
+	}) } as never);
+	await expect(outcome).resolves.toMatchObject({ status: status || 502, data: {
+		action: 'save-reviewer', ok: false,
+		message: 'No se pudo guardar el revisor. Revisa el modo, la URL y el modelo.'
+	} });
+	expect(JSON.stringify(await outcome)).not.toContain(secret);
+});
+
+it.each([undefined, '', '   '])('preserves the reviewer blank-key sentinel %j', async (key) => {
+	stubFetch(SETTINGS_ROW);
+	await actions['save-reviewer']({ request: formRequest({ digest_reviewer_provider: 'inherit',
+		...(key === undefined ? {} : { digest_reviewer_api_key: key }) }) } as never);
+	expect(savedBodies).toEqual([{ digest_reviewer_provider: 'inherit',
+		digest_reviewer_base_url: null, digest_reviewer_model: null, digest_reviewer_api_key: '' }]);
 });
 
 // -- X source mode (free/paid) and its masked API key --

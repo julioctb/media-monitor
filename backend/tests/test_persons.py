@@ -471,16 +471,100 @@ class TestPersonTimeline:
             session, person_id=person.id, client_id=other.id
         ) == []
 
-    def test_respects_limit(self, session) -> None:
+    def test_respects_limit_offset_and_order(self, session) -> None:
         client_id = _client(session)
         for i in range(4):
             m = _mention(session, client_id, i + 1, raw_enrichment=_enrichment([{"name": "Ana"}]))
             persons.persist_persons_from_enrichment(session, m)
         session.commit()
         (person,) = session.query(Person).all()
-        assert len(queries.person_timeline(
-            session, person_id=person.id, client_id=client_id, limit=2
-        )) == 2
+
+        recent_page = queries.person_timeline(
+            session,
+            person_id=person.id,
+            client_id=client_id,
+            limit=2,
+            offset=1,
+        )
+        assert [row["mention_id"] for row in recent_page] == [3, 2]
+
+        oldest_page = queries.person_timeline(
+            session,
+            person_id=person.id,
+            client_id=client_id,
+            limit=2,
+            order="oldest",
+        )
+        assert [row["mention_id"] for row in oldest_page] == [1, 2]
+
+    def test_rejects_invalid_order(self, session) -> None:
+        client_id = _client(session)
+        with pytest.raises(ValueError):
+            queries.person_timeline(
+                session,
+                person_id=1,
+                client_id=client_id,
+                order="sideways",
+            )
+
+    def test_equal_activity_and_missing_publication_dates_have_stable_pages(
+        self, session
+    ) -> None:
+        client_id = _client(session)
+        for index in range(3):
+            mention = _mention(
+                session,
+                client_id,
+                index + 1,
+                raw_enrichment=_enrichment([{"name": "Ana"}]),
+            )
+            persons.persist_persons_from_enrichment(session, mention)
+            mention.published_at = None
+            mention.ingested_at = T0
+        session.commit()
+        person = session.query(Person).one()
+        for order, expected in [("recent", [3, 2, 1]), ("oldest", [1, 2, 3])]:
+            pages = [
+                queries.person_timeline(
+                    session,
+                    person_id=person.id,
+                    client_id=client_id,
+                    limit=1,
+                    offset=offset,
+                    order=order,
+                )[0]["mention_id"]
+                for offset in range(3)
+            ]
+            assert pages == expected
+
+    def test_foreign_link_does_not_change_owned_sources_timeline_or_total(
+        self, session
+    ) -> None:
+        client_id = _client(session)
+        mention = _mention(
+            session, client_id, 1, raw_enrichment=_enrichment([{"name": "Ana"}])
+        )
+        persons.persist_persons_from_enrichment(session, mention)
+        session.flush()
+        person = session.query(Person).one()
+        other = Client(name="other")
+        session.add(other)
+        session.flush()
+        foreign = _mention(session, other.id, 99)
+        foreign.source = MentionSource.x_twitter
+        session.add(MentionPerson(mention_id=foreign.id, person_id=person.id))
+        session.commit()
+        rows = queries.person_timeline(
+            session, person_id=person.id, client_id=client_id, limit=1
+        )
+        assert [row["mention_id"] for row in rows] == [mention.id]
+        assert (
+            queries.person_mention_count(
+                session, person_id=person.id, client_id=client_id
+            )
+            == 1
+        )
+        assert queries.list_persons(session, client_id)[0]["sources"] == ["news_rss"]
 
 
 # ----------------------------------------------------------------- backfill

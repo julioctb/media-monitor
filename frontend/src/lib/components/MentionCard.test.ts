@@ -150,7 +150,7 @@ describe('MentionCard', () => {
 		expect(card.textContent).toContain('Academia');
 	});
 
-	it('renders the person chips as links to the person page', () => {
+	it('links person chips to the name-filtered modal directory, never a removed detail route', () => {
 		const { card } = renderCard({
 			mention: mentionFixture({
 				persons: [
@@ -160,10 +160,11 @@ describe('MentionCard', () => {
 			} as never)
 		});
 
-		const chips = [...card.querySelectorAll('a[href="/persons/12"]')];
+		const chips = [...card.querySelectorAll('a[href="/persons?q=Lilia+Cedillo"]')];
 		expect(chips).toHaveLength(1);
 		expect(chips[0]?.textContent).toContain('Lilia Cedillo');
-		expect(card.querySelector('a[href="/persons/13"]')?.textContent).toContain('Margarito Rojas');
+		expect(card.querySelector('a[href="/persons?q=Margarito+Rojas"]')?.textContent).toContain('Margarito Rojas');
+		expect(card.querySelector('a[href^="/persons/"]')).toBeNull();
 	});
 
 	it('renders no person chips without linked persons', () => {

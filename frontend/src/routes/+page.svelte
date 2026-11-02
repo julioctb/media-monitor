@@ -14,6 +14,8 @@
 	} from '$lib/format';
 	import DigestEvidence from '$lib/components/DigestEvidence.svelte';
 	import DetailDialog from '$lib/components/DetailDialog.svelte';
+	import PersonDetailDialog from '$lib/components/PersonDetailDialog.svelte';
+	import { personDirectoryHref } from '$lib/persons';
 	import { createEvidenceContext } from '$lib/digest-evidence';
 	import { digestV3View, type BriefEntryView, type BriefFechaView } from '$lib/digest-v3';
 	import type { PageProps } from './$types';
@@ -354,7 +356,7 @@
 					{#if data.persons.length > 0}
 						{#each data.persons as person (person.id)}
 							<div class="daily-actor">
-								<strong><a href="/persons/{person.id}">{person.name}</a></strong>
+								<strong><a href={personDirectoryHref(person.name)}>{person.name}</a></strong>
 								<span class="daily-actor-meta">
 									{[person.role ?? person.org, `${person.mention_count} menciones`]
 										.filter(Boolean)
@@ -513,44 +515,8 @@
 		{/if}
 	</DetailDialog>
 
-	<!-- Mockup dailyPerson dialog: las menciones textuales del personaje,
-	     mismas filas que su ficha (misma API, carga del servidor). -->
-	<DetailDialog
-		titleId="person-detail-title"
-		title={personPick?.name ?? 'Personaje'}
-		open={personPick}
-		variant="person-detail"
-		onclose={() => (personPick = null)}
-	>
-		{#if personPick}
-			<p class="daily-dialog-meta">
-				{[personPick.role ?? personPick.org, `${personPick.mention_count} menciones`]
-					.filter(Boolean)
-					.join(' · ') || 'Entidad mencionada'}
-			</p>
-			<h3>Menciones textuales</h3>
-			{#if personPick.timeline?.length}
-				{#each personPick.timeline as item (item.mention_id)}
-					<article class="daily-dialog-record">
-						{#if item.title}<h4>{item.title}</h4>{/if}
-						{#if item.context}<div class="evidence-text">{item.context}</div>{/if}
-						<p class="daily-dialog-meta">
-							{sourceLabel(item.source)}
-							· {formatDisplayDateTime(item.published_at ?? item.ingested_at)}
-						</p>
-						<a class="text-link" href={item.url} target="_blank" rel="noreferrer">
-							Leer registro original
-						</a>
-					</article>
-				{/each}
-			{:else}
-				<p class="daily-empty-note">Sin menciones registradas en el corte.</p>
-			{/if}
-			<div class="dialog-actions">
-				<a class="text-link" href="/persons/{personPick.id}">Ver ficha completa</a>
-			</div>
-		{/if}
-	</DetailDialog>
+	<!-- One complete person-detail implementation shared with the directory. -->
+	<PersonDetailDialog person={personPick} onclose={() => (personPick = null)} />
 
 	<!-- Origen de una fecha de agenda (reclamo): el click de la fila abre la
 	     ficha con la fuente de la que la síntesis la extrajo. Sin URL en el

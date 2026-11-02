@@ -3,12 +3,63 @@
 from datetime import timedelta
 
 import pytest
-
 from app.models import Event, MentionSource
+from app.summaries.builder import SYSTEM_PROMPT, build_daily_summary
 from app.summaries.digest import build_digest_facts, render_plain_text, validate_digest
 from app.summaries.evidence import freeze_sources, resolved_provenance
-from app.summaries.builder import SYSTEM_PROMPT, build_daily_summary
+
+from tests.digest_plan_fixtures import advisory_completion, reviewed_factory
 from tests.test_digest_facts import DAY, NOON, TZ, _client, _mention
+
+
+def test_constrained_packet_carries_original_indexed_nonfactual_context(
+    session, monkeypatch
+):
+    import json
+
+    from app.summaries import builder
+    from tests.digest_plan_fixtures import advisory_completion, reviewed_factory
+
+    start, end = builder.day_window(DAY, TZ)
+    monkeypatch.setattr(
+        builder, "resolve_digest_window", lambda *args, **kwargs: (start, end, False)
+    )
+
+    owner = _client(session)
+    _mention(
+        session, owner, "https://publisher.test/context", title="Consulta regional"
+    )
+    captured = []
+
+    def generate(prompt):
+        captured.append(json.loads(prompt))
+        return advisory_completion(prompt)
+
+    row = build_daily_summary(
+        session, client_id=owner, day=DAY, generator_factory=reviewed_factory(generate)
+    )
+    assert row.content["generation"]["status"] == "plan_applied"
+    assert row.content["generation"]["review"]["status"] == "passed"
+    packet = captured[0]
+    assert packet["cut"] == {
+        "date": DAY.isoformat(),
+        "timezone": TZ,
+        "window_start": None,
+        "window": {
+            "from": "2026-10-17T00:00:00-06:00",
+            "to": "2026-10-18T00:00:00-06:00",
+        },
+    }
+    assert packet["story_metadata"][0]["index"] == 0
+    assert packet["story_metadata"][0]["media_diversity"] == {
+        "identified_outlet_count": 1
+    }
+    assert packet["story_metadata"][0]["veracity"] == "not_evaluated"
+    assert "confidence" not in packet["story_metadata"][0]
+    assert packet["coverage"] == row.content["coverage"]
+    assert packet["comparison"]["available"] is False
+    assert "summary" not in packet["story_metadata"][0]
+    assert row.mode == "llm"
 
 
 def _event(session, owner, title):
@@ -179,34 +230,71 @@ def test_zero_export_and_legacy_export_are_explicit_distinct_branches():
     assert "Nota del análisis: Nota antigua. [No respaldada]" in new_plain
 
 
-@pytest.mark.parametrize("references,state", [({}, "unbacked"), ({"items.0.confidence_note": [0]}, "linked")])
-def test_public_generation_projects_metrics_not_truth_and_retains_optional_note(session, references, state):
+@pytest.mark.parametrize(
+    "references,state", [({}, "unbacked"), ({"items.0.confidence_note": [0]}, "linked")]
+)
+def test_public_generation_projects_metrics_not_truth_and_retains_optional_note(
+    session, references, state
+):
     import json
 
     owner = _client(session)
     article = _mention(session, owner, "https://publisher.test/1")
     frozen = freeze_sources([article])
 
-    def generate(prompt):
-        view = json.loads(prompt.split("\n", 1)[1])
-        assert view["indicators_version"] == 1
-        assert view["noticias"][0]["media_diversity"] == {"identified_outlet_count": 1}
-        assert view["noticias"][0]["veracity"] == "not_evaluated"
-        assert "confidence" not in view["noticias"][0]
-        assert "datos verificados" not in prompt
-        assert "HECHOS verificados" not in SYSTEM_PROMPT
-        assert "justifica la confianza" not in SYSTEM_PROMPT
-        return json.dumps({
-            "headline": "Síntesis válida.", "indicators_version": 99,
-            "items": [{"index": 0, "summary": "Prosa válida sin cita.",
-                       "confidence_note": "Observación del análisis.",
-                       "confidence": "alta", "media_diversity": {"identified_outlet_count": 999},
-                       "veracity": "verified"}], "references": references,
-        })
+    captured = []
 
-    row = build_daily_summary(session, client_id=owner, day=DAY, generate=generate)
+    def generate(prompt):
+        captured.append(json.loads(prompt))
+        return advisory_completion(prompt)
+
+    row = build_daily_summary(
+        session, client_id=owner, day=DAY, generator_factory=reviewed_factory(generate)
+    )
+    assert row.content["generation"]["status"] == "plan_applied"
+    assert row.content["generation"]["review"]["status"] == "passed"
     assert row.mode == "llm"
-    content = row.content
+    view = captured[0]
+    assert view["indicators_version"] == 1
+    assert view["story_metadata"][0]["media_diversity"] == {
+        "identified_outlet_count": 1
+    }
+    assert view["story_metadata"][0]["veracity"] == "not_evaluated"
+    assert "confidence" not in view["story_metadata"][0]
+    assert "HECHOS verificados" not in SYSTEM_PROMPT
+    assert "justifica la confianza" not in SYSTEM_PROMPT
+    assert "confidence_note" not in row.content["noticias"][0]
+    # S6 historical prose still travels through the tolerant receiver, never
+    # through the closed current producer or a compatibility acceptance flag.
+    import copy
+
+    from app.summaries.builder import build_tarjetas
+    from app.summaries.digest import apply_narrative
+
+    content = copy.deepcopy(row.content)
+    assert (
+        apply_narrative(
+            content,
+            {
+                "headline": "Síntesis válida.",
+                "indicators_version": 99,
+                "items": [
+                    {
+                        "index": 0,
+                        "summary": "Prosa válida sin cita.",
+                        "confidence_note": "Observación del análisis.",
+                        "confidence": "alta",
+                        "media_diversity": {"identified_outlet_count": 999},
+                        "veracity": "verified",
+                    }
+                ],
+                "references": references,
+            },
+        )
+        == []
+    )
+    content["tarjetas"] = build_tarjetas(content["noticias"], content=content)
+    content["plain_text"] = render_plain_text(content, "Síntesis válida.")
     item, card = content["noticias"][0], content["tarjetas"][0]
     assert content["evidence"] == frozen
     assert content["indicators_version"] == 1
@@ -215,24 +303,40 @@ def test_public_generation_projects_metrics_not_truth_and_retains_optional_note(
         assert target["veracity"] == "not_evaluated"
         assert "confidence" not in target
         assert target["confidence_note"] == "Observación del análisis."
-        assert resolved_provenance(content, target, "confidence_note", allowed=[0])["state"] == state
+        assert (
+            resolved_provenance(content, target, "confidence_note", allowed=[0])[
+                "state"
+            ]
+            == state
+        )
     assert item["summary"] == "Prosa válida sin cita."
     assert "Nota del análisis: Observación del análisis." in content["plain_text"]
 
 
-@pytest.mark.parametrize("legacy,changed", [(True, False), (False, False), (True, True)])
-def test_recovery_keeps_fresh_metrics_and_compatible_prose_not_old_levels(session, legacy, changed):
+@pytest.mark.parametrize(
+    "legacy,changed", [(True, False), (False, False), (True, True)]
+)
+def test_recovery_keeps_fresh_metrics_and_compatible_prose_not_old_levels(
+    session, legacy, changed
+):
     import copy
-    import json
 
     owner = _client(session)
     article = _mention(session, owner, "https://publisher.test/recovery")
-    row = build_daily_summary(session, client_id=owner, day=DAY, generate=lambda prompt: json.dumps({
-        "headline": "Síntesis recuperable.",
-        "items": [{"index": 0, "summary": "Prosa recuperable.", "confidence_note": "Nota recuperable."}],
-        "seleccion": [{"index": 0, "categoria": "decision", "razon": "Razón recuperable."}],
-        "references": {"items.0.confidence_note": [0], "seleccion.0.razon": [0]},
-    }))
+    row = build_daily_summary(
+        session,
+        client_id=owner,
+        day=DAY,
+        generator_factory=reviewed_factory(
+            lambda prompt: advisory_completion(prompt, [(0, "decision")])
+        ),
+    )
+    assert row.content["generation"]["status"] == "plan_applied"
+    assert row.content["generation"]["review"]["status"] == "passed"
+    assert row.mode == "llm"
+    expected_headline = row.narrative
+    expected_summary = row.content["noticias"][0]["summary"]
+    expected_reason = row.content["brief"]["decisiones"][0]["razon"]
     previous = copy.deepcopy(row.content)
     if legacy:
         previous.pop("indicators_version")
@@ -245,7 +349,9 @@ def test_recovery_keeps_fresh_metrics_and_compatible_prose_not_old_levels(sessio
     if changed:
         article.content = "Material cambiado."
         session.commit()
-    result = build_daily_summary(session, client_id=owner, day=DAY, generate=lambda prompt: "invalid json")
+    result = build_daily_summary(
+        session, client_id=owner, day=DAY, generate=lambda prompt: "invalid json"
+    )
     assert result.content["indicators_version"] == 1
     for target in (result.content["noticias"][0], result.content["tarjetas"][0]):
         assert target["media_diversity"] == {"identified_outlet_count": 1}
@@ -256,28 +362,48 @@ def test_recovery_keeps_fresh_metrics_and_compatible_prose_not_old_levels(sessio
         assert "Prosa recuperable." not in result.content["plain_text"]
     else:
         assert result.mode == "llm"
-        assert result.narrative == "Síntesis recuperable."
+        assert result.narrative == expected_headline
+        assert result.content["generation"]["status"] == "plan_recovered"
         item = result.content["noticias"][0]
-        assert item["summary"] == "Prosa recuperable."
-        assert resolved_provenance(result.content, item, "confidence_note", allowed=[0])["source_refs"] == [0]
-        assert result.content["brief"]["decisiones"][0]["razon"] == "Razón recuperable."
+        assert item["summary"] == expected_summary
+        assert resolved_provenance(result.content, item, "summary", allowed=[0])[
+            "source_refs"
+        ] == [0]
+        assert result.content["brief"]["decisiones"][0]["razon"] == expected_reason
         assert result.content["evidence"] == previous["evidence"]
 
 
 def test_public_compilation_keeps_each_bullets_media_count_including_zero(session):
-    import json
 
     owner = _client(session)
     for index in range(11):
-        _mention(session, owner, f"https://same.test/{index}", title=f"Historia {index}",
-                 source=MentionSource.x_twitter if index == 9 else MentionSource.news_rss)
-    row = build_daily_summary(session, client_id=owner, day=DAY, generate=lambda prompt: json.dumps({
-        "headline": "Síntesis.", "seleccion": [{"index": 10, "categoria": "decision"}],
-    }))
+        _mention(
+            session,
+            owner,
+            f"https://same.test/{index}",
+            title=f"Historia {index}",
+            source=MentionSource.x_twitter if index == 9 else MentionSource.news_rss,
+        )
+    row = build_daily_summary(
+        session,
+        client_id=owner,
+        day=DAY,
+        generator_factory=reviewed_factory(
+            lambda prompt: advisory_completion(prompt, [(10, "decision")])
+        ),
+    )
+    assert row.content["generation"]["status"] == "plan_applied"
+    assert row.content["generation"]["review"]["status"] == "passed"
+    assert row.mode == "llm"
     content = row.content
     compiled = content["tarjetas"][-1]
-    assert compiled["notas_refs"] == [{"source_refs": [i], "material_ref": i} for i in (7, 8, 9)]
-    assert [entry["media_diversity"]["identified_outlet_count"] for entry in compiled["notas_indicators"]] == [1, 1, 0]
+    assert compiled["notas_refs"] == [
+        {"source_refs": [i], "material_ref": i} for i in (7, 8, 9)
+    ]
+    assert [
+        entry["media_diversity"]["identified_outlet_count"]
+        for entry in compiled["notas_indicators"]
+    ] == [1, 1, 0]
     assert "media_diversity" not in compiled
     assert content["tarjetas"][1]["material_ref"] == 0
     assert content["tarjetas"][1]["media_diversity"] == {"identified_outlet_count": 1}

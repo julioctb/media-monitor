@@ -31,6 +31,101 @@ from app.models import (
 )
 
 
+def test_reviewer_settings_are_tenant_scoped_write_only_and_partial(api, db):
+    """Synthetic credentials only; saving settings never tests a provider."""
+    client_id = first_client_id(db)
+    other = Client(name="reviewer-isolation-fixture")
+    db.add(other)
+    db.commit()
+    other_before = queries.get_settings(db, other.id)
+    assert (
+        api.put(
+            "/api/settings",
+            json={
+                "ai_provider": "openai",
+                "ai_model": "qwen-generator-fixture",
+                "ai_model_fast": "fast-arbitrator-fixture",
+                "ai_base_url": "https://generator-fixture.invalid/v1",
+                "ai_api_key": "synthetic-generator-key-only",
+                "watchlist": [9],
+                "digest_hours": [8, 21],
+                "retention_days": 90,
+            },
+        ).status_code
+        == 200
+    )
+    before = api.get("/api/settings").json()
+    assert before["digest_reviewer_provider"] == "inherit"
+    assert before["digest_reviewer_api_key"] == ""
+    assert before["digest_reviewer_api_key_set"] is False
+    body = {
+        "digest_reviewer_provider": "openai",
+        "digest_reviewer_base_url": "https://reviewer-fixture.invalid/v1",
+        "digest_reviewer_model": "reviewer-fixture-model",
+        "digest_reviewer_api_key": "synthetic-reviewer-key-only",
+    }
+    response = api.put("/api/settings", json=body)
+    assert response.status_code == 200
+    saved = response.json()
+    assert saved["digest_reviewer_api_key"] == ""
+    assert saved["digest_reviewer_api_key_set"] is True
+    assert "synthetic-reviewer-key-only" not in response.text
+    readback = api.get("/api/settings").json()
+    # SQLite drops the UTC offset on DB round-trip, not the stored wall time.
+    assert readback.pop("updated_at").removesuffix("Z") == saved[
+        "updated_at"
+    ].removesuffix("Z")
+    assert readback == {
+        key: value for key, value in saved.items() if key != "updated_at"
+    }
+    unaffected = {
+        key: value
+        for key, value in before.items()
+        if not key.startswith("digest_reviewer_") and key != "updated_at"
+    }
+    assert {key: saved[key] for key in unaffected} == unaffected
+    row = queries.get_settings(db, client_id)
+    revision = row.digest_reviewer_revision
+    assert isinstance(revision, str) and revision
+    for blank in ("", "   ", None, " synthetic-reviewer-key-only "):
+        kept = api.put("/api/settings", json={"digest_reviewer_api_key": blank})
+        assert kept.status_code == 200
+        assert kept.json()["digest_reviewer_api_key_set"] is True
+        db.refresh(row)
+        assert row.digest_reviewer_api_key == "synthetic-reviewer-key-only"
+        assert row.digest_reviewer_revision == revision
+    replaced = api.put(
+        "/api/settings", json={"digest_reviewer_api_key": "synthetic-replacement-only"}
+    )
+    assert replaced.status_code == 200
+    db.refresh(row)
+    assert row.digest_reviewer_revision != revision
+    assert "synthetic-replacement-only" not in replaced.text
+    api.app.dependency_overrides[get_client_id] = lambda: other.id
+    isolated = api.get("/api/settings").json()
+    assert isolated["digest_reviewer_provider"] == "inherit"
+    assert isolated["digest_reviewer_api_key_set"] is False
+    db.refresh(other_before)
+    assert other_before.digest_reviewer_revision is None
+
+
+def test_reviewer_validation_does_not_echo_credentials(api, db):
+    for changes in (
+        {"digest_reviewer_provider": "native-vendor-api"},
+        {"digest_reviewer_base_url": "file:///fixture"},
+        {"digest_reviewer_api_key": "synthetic-overlong-key-" * 30},
+        {"digest_reviewer_api_key": ["synthetic-non-string-key-only"]},
+    ):
+        secret = changes.get("digest_reviewer_api_key", "synthetic-key-error-only")
+        response = api.put(
+            "/api/settings", json={"digest_reviewer_api_key": secret, **changes}
+        )
+        assert response.status_code == 422
+        assert str(secret) not in response.text
+        assert "synthetic-non-string-key-only" not in response.text
+    assert api.get("/api/settings").json()["digest_reviewer_api_key_set"] is False
+
+
 def now_utc() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -859,6 +954,68 @@ class TestPersonsAPI:
         assert body["timeline"][0]["event_title"] is None
         assert body["timeline"][0]["political_label"] is None
 
+    def test_detail_timeline_page_applies_offset_and_order(self, api, db) -> None:
+        from app.models import Person
+
+        client_id = first_client_id(db)
+        base = now_utc() - timedelta(hours=3)
+        for index in range(3):
+            seed_person_mention(
+                db,
+                client_id,
+                f"https://ordered.example/{index}",
+                [{"name": "Ana", "statement": f"Declaración {index}"}],
+                published=base + timedelta(hours=index),
+            )
+        person = db.query(Person).filter_by(name_key="ana").one()
+        response = api.get(
+            f"/api/clients/{client_id}/persons/{person.id}",
+            params={"limit": 1, "offset": 1, "order": "oldest"},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert [item["url"] for item in body["timeline"]] == [
+            "https://ordered.example/1"
+        ]
+        assert body["mention_count"] == 3
+        assert body["timeline_total"] == 3
+        assert body["timeline_limit"] == 1
+        assert body["timeline_offset"] == 1
+        assert body["timeline_order"] == "oldest"
+
+    @pytest.mark.parametrize(
+        "params, expected_limit, expected_offset, expected_length",
+        [
+            ({"limit": 999, "offset": -4}, 200, 0, 3),
+            ({"limit": 0, "offset": 0}, 1, 0, 1),
+            ({"limit": 25, "offset": 999}, 25, 999, 0),
+        ],
+    )
+    def test_detail_bounds_do_not_change_timeline_total(
+        self, api, db, params, expected_limit, expected_offset, expected_length
+    ) -> None:
+        from app.models import Person
+
+        client_id = first_client_id(db)
+        self._seed_two(db, client_id)
+        person = db.query(Person).filter_by(name_key="xochitl galvez").one()
+        response = api.get(
+            f"/api/clients/{client_id}/persons/{person.id}", params=params
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["timeline_total"] == body["mention_count"] == 3
+        assert body["timeline_limit"] == expected_limit
+        assert body["timeline_offset"] == expected_offset
+        assert len(body["timeline"]) == expected_length
+        assert (
+            api.get(
+                f"/api/clients/{client_id}/persons/{person.id}",
+                params={"order": "invalid"},
+            ).status_code
+            == 422
+        )
+
     def test_detail_404_other_client_and_missing(self, api, db) -> None:
         from app.models import Person
 
@@ -1054,6 +1211,7 @@ class TestSummaryRevisions:
     ):
         from app.models import DailySummaryRevision
         from app.summaries.builder import build_daily_summary
+        from tests.digest_legacy_fixtures import historical_summary
 
         client_id = first_client_id(db)
         day = date(2026, 10, 23)
@@ -1080,12 +1238,10 @@ class TestSummaryRevisions:
             payload["comparison_references"] = {
                 "headline": {"current": [0], "prior": [0]}
             }
-        build_daily_summary(
-            db, client_id=client_id, day=day, generate=lambda p: json.dumps(payload)
-        )
+        historical_summary(db, client_id=client_id, day=day, payload=payload)
         payload["headline"] = "Primera versión" if same_text else "Nueva versión"
-        current = build_daily_summary(
-            db, client_id=client_id, day=day, generate=lambda p: json.dumps(payload)
+        current = historical_summary(
+            db, client_id=client_id, day=day, payload=payload
         )
         before = json.loads(json.dumps(current.content))
         from app.summaries.evidence import resolved_provenance
@@ -1152,6 +1308,8 @@ class TestSummaryRevisions:
         assert response.json()["content"] == content
         assert content["tarjetas"] == before["tarjetas"]
         assert content["brief"]["headline"] == row["narrative"]
+        assert content["headline"] == row["narrative"]
+        assert "generation" not in content
         assert api.post(url, json={"day": day.isoformat(), "seq": 1}).json() == row
         assert api.post(url, json={"day": day.isoformat(), "seq": 9}).status_code == 404
         assert "Texto privado ajeno" not in json.dumps(row)

@@ -647,10 +647,49 @@ def render_plain_text(content: dict, narrative: str) -> str:
     """Sectioned plain text (RAG chunk + readable fallback), es mirrors UI."""
     # Late import: presentation helper vive en builder (T8.C) y el import
     # module-level sería cycle builder->digest->builder.
+    import re
+
     from app.summaries.builder import _zone, display_title
 
     emitted_refs: set[int] = set()
     emitted_prior: set[int] = set()
+
+    def source_label(value):
+        # Display labels only: never change catalogue keys or channel scope.
+        labels = {
+            "news_rss": "Noticias RSS",
+            "gdelt": "GDELT",
+            "x_twitter": "X (Twitter)",
+            "x": "X (Twitter)",
+            "facebook_page": "Facebook",
+            "facebook": "Facebook",
+            "rss_custom": "RSS personalizado",
+            "scraper": "Extracción web",
+            "field_report": "Reporte de campo",
+            "telegram_web": "Telegram",
+            "telegram": "Telegram",
+            "instagram_web": "Instagram",
+            "instagram": "Instagram",
+        }
+        if not isinstance(value, str) or not value.strip():
+            return "Fuente no identificada"
+        if value.startswith(("https://", "http://")):
+            return value
+        return labels.get(value, value.replace("_", " ").title())
+
+    def presentation(value):
+        # Elision belongs only to this reading copy. Binding resolution uses
+        # the untouched literal below; stored quotations/catalogues stay exact.
+        generation = content.get("generation")
+        if (
+            not isinstance(generation, dict)
+            or generation.get("contract") != "factual-plan-v1"
+        ):
+            return value
+        displayed = re.sub(r"https?://[^\s«»<>]+", "[enlace omitido]", value)
+        if displayed != value:
+            displayed += " (presentación con enlaces omitidos; original conservado)"
+        return displayed
 
     def marked(target, field, *, text=None, allowed=None, feminine=False):
         value = target.get(field) if text is None else text
@@ -659,6 +698,7 @@ def render_plain_text(content: dict, narrative: str) -> str:
         binding = resolved_provenance(
             content, target, field, text=value, allowed=allowed
         )
+        value = presentation(value)
         if binding["state"] == "linked":
             refs = binding["source_refs"]
             emitted_refs.update(refs)
@@ -714,7 +754,9 @@ def render_plain_text(content: dict, narrative: str) -> str:
             lines.append(
                 f"  Ángulo nuevo: {marked(item, 'angulo_nuevo', allowed=scope)}"
             )
-        sources = ", ".join(f"{s.get('source')}" for s in item.get("sources") or [])
+        sources = ", ".join(
+            source_label(s.get("source")) for s in item.get("sources") or []
+        )
         if sources:
             lines.append(f"  Fuentes: {sources}")
     temas = content.get("temas_sin_nota") or []
@@ -752,7 +794,7 @@ def render_plain_text(content: dict, narrative: str) -> str:
             else ""
         )
         count = data.get("count") if isinstance(data, dict) else data
-        lines.append(f"- {source}: {count}{note}")
+        lines.append(f"- {source_label(source)}: {count}{note}")
         cuentas = data.get("cuentas") if isinstance(data, dict) else None
         for entry in cuentas or []:
             scope = channel_refs(content, source, entry.get("cuenta"))
@@ -793,8 +835,16 @@ def render_plain_text(content: dict, narrative: str) -> str:
                     return display_title(entry["title"]) or entry["title"]
             return f"#{index}"
 
+        # Only wholly absent metadata retains the historical comparative label.
+        delta_heading = "Qué cambió"
+        if "comparison" in content:
+            from app.summaries.evidence import comparison_context
+
+            context = comparison_context(content)
+            if context is None or not context["snapshot"]["available"]:
+                delta_heading = "Novedades del corte"
         secciones = (
-            ("Qué cambió", brief.get("delta"), None),
+            (delta_heading, brief.get("delta"), None),
             ("Riesgos", brief.get("riesgos"), "razon"),
             ("Decisión / atención", brief.get("decisiones"), "razon"),
             ("Ruido", brief.get("ruido"), "razon"),
@@ -846,6 +896,14 @@ def render_plain_text(content: dict, narrative: str) -> str:
                 ):
                     text = marked(entry, field, allowed=scope, feminine=True)
                     if text:
+                        if field == "accion_sugerida":
+                            # Resolve exact stored prose before display-only elision.
+                            text = re.sub(
+                                r"^(?:Atención sugerida|Acción sugerida):\s*",
+                                "",
+                                text,
+                                count=1,
+                            )
                         lines.append(f"  {label}: {text}")
         fechas = brief.get("fechas") or []
         if fechas:
@@ -907,7 +965,7 @@ def render_plain_text(content: dict, narrative: str) -> str:
                 if emitted_prior
                 else f"#{source['index']}"
             )
-            lines.append(f"- {source_id}: {title} — {source['outlet']}")
+            lines.append(f"- {source_id}: {presentation(title)} — {source['outlet']}")
             if source.get("published_at"):
                 try:
                     published = datetime.fromisoformat(source["published_at"])
@@ -919,9 +977,11 @@ def render_plain_text(content: dict, narrative: str) -> str:
                 lines.append(f"  Fecha de publicación: {stamp}")
             lines.append(f"  URL: {source['url']}")
             if source.get("summary"):
-                lines.append(f"  Resumen derivado almacenado: {source['summary']}")
+                lines.append(
+                    f"  Resumen derivado almacenado: {presentation(source['summary'])}"
+                )
             if source.get("excerpt"):
-                lines.append(f"  Extracto capturado: {source['excerpt']}")
+                lines.append(f"  Extracto capturado: {presentation(source['excerpt'])}")
     return "\n".join(lines)
 
 

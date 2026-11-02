@@ -97,6 +97,39 @@
 	/** Gates the X section's submit while its request is in flight. */
 	let xSaving = $state(false);
 
+	// Independent reviewer draft: refetches must not reset either edit surface.
+	// svelte-ignore state_referenced_locally
+	let reviewer = $state({
+		provider: data.settings.digest_reviewer_provider ?? 'inherit',
+		baseUrl: data.settings.digest_reviewer_base_url ?? '',
+		model: data.settings.digest_reviewer_model ?? ''
+	});
+	// Never hydrate a reviewer credential, even if a response includes one.
+	let reviewerKey = $state('');
+	let reviewerSaving = $state(false);
+	let reviewerUpdateFailed = $state(false);
+	const reviewerFeedback = $derived(
+		reviewerUpdateFailed
+			? { ok: false, message: 'No se pudo actualizar la pantalla del revisor. Vuelve a intentarlo.' }
+			: form?.action === 'save-reviewer' ? form : null
+	);
+
+	const handleReviewerSubmit: SubmitFunction = () => {
+		reviewerSaving = true;
+		reviewerUpdateFailed = false;
+		return async ({ update }) => {
+			try {
+				await update({ reset: false });
+			} catch {
+				// Never display an exception that could echo a submitted credential.
+				reviewerUpdateFailed = true;
+			} finally {
+				reviewerKey = '';
+				reviewerSaving = false;
+			}
+		};
+	};
+
 	/* ------------------------- Config workspace tabs ------------------------- */
 	// Tab ids mirror the section anchors, so old #hash deep links keep working.
 	const TABS = [
@@ -1214,6 +1247,60 @@
 					{/if}
 				</div>
 			</section>
+		</form>
+
+		<!-- Reviewer save is separate from the general draft and its savebar. -->
+		<form
+			method="POST"
+			action="?/save-reviewer"
+			class="panel config-section-card"
+			hidden={activeTab !== 'llm'}
+			aria-labelledby="reviewer-title"
+			aria-busy={reviewerSaving}
+			use:enhance={handleReviewerSubmit}
+		>
+			<div class="panel-head config-section-head">
+				<h2 id="reviewer-title">Revisor de informes</h2>
+			</div>
+			<p>Configura solo la revisión de informes, sin cambiar el modelo principal ni las tareas ligeras.</p>
+			<div class="config-form-grid">
+				<div>
+					<label for="reviewer-provider" class={LABEL_CLS}>Modo del revisor</label>
+					<select id="reviewer-provider" name="digest_reviewer_provider" bind:value={reviewer.provider} class={INPUT_CLS}>
+						<option value="inherit">Heredar configuración general</option>
+						<option value="openai">API compatible con OpenAI</option>
+					</select>
+				</div>
+				<div>
+					<label for="reviewer-url" class={LABEL_CLS}>URL del servicio del revisor</label>
+					<input id="reviewer-url" name="digest_reviewer_base_url" type="url" bind:value={reviewer.baseUrl} class={INPUT_CLS} />
+				</div>
+				<div>
+					<label for="reviewer-model" class={LABEL_CLS}>Identificador del modelo revisor</label>
+					<input id="reviewer-model" name="digest_reviewer_model" type="text" bind:value={reviewer.model} class={INPUT_CLS} />
+				</div>
+				<div class="config-secret-field">
+					<label for="reviewer-key">API key del revisor</label>
+					<div class="config-secret-control">
+						<input id="reviewer-key" name="digest_reviewer_api_key" type="password" bind:value={reviewerKey} autocomplete="off" />
+					</div>
+					<span>{data.settings.digest_reviewer_api_key_set ? 'Clave del revisor guardada' : 'Sin clave del revisor guardada'}. Deja el campo vacío para conservarla.</span>
+				</div>
+			</div>
+			{#if reviewer.provider === 'inherit'}
+				<p>La revisión hereda la configuración general; los datos dedicados no se utilizan en este modo.</p>
+			{:else}
+				<p>La API dedicada requiere URL, modelo y una clave guardada. Una configuración incompleta no utiliza las credenciales generales.</p>
+			{/if}
+			<p>Guardar no prueba la conexión ni ejecuta modelos.</p>
+			{#if reviewerFeedback}
+				<div class="config-feedback{reviewerFeedback.ok ? '' : ' config-error'}" role={reviewerFeedback.ok ? 'status' : 'alert'}>
+					{reviewerFeedback.message}
+				</div>
+			{/if}
+			<button type="submit" class="button primary" disabled={reviewerSaving}>
+				{reviewerSaving ? 'Guardando revisor…' : 'Guardar revisor'}
+			</button>
 		</form>
 	</div>
 

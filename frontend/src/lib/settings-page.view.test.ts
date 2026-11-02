@@ -1,6 +1,16 @@
 // @vitest-environment jsdom
 import { flushSync, mount, unmount } from 'svelte';
-import { afterEach, expect, it } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
+import { fromStore, writable } from 'svelte/store';
+import type { PageProps, SubmitFunction } from '../routes/settings/$types';
+
+const enhanced = vi.hoisted(() => new Map<HTMLFormElement, SubmitFunction>());
+vi.mock('$app/forms', () => ({
+	enhance: (form: HTMLFormElement, submit: SubmitFunction) => {
+		enhanced.set(form, submit);
+		return { destroy: () => enhanced.delete(form) };
+	}
+}));
 
 import type { ClientSettings, Keyword, PersonSummary } from '$lib/api';
 
@@ -50,18 +60,30 @@ function renderPage(
 	settings: ClientSettings,
 	persons: PersonSummary[] = [],
 	keywords: Keyword[] = []
-): { text: () => string; target: HTMLDivElement } {
+): { text: () => string; target: HTMLDivElement; refresh: (settings: ClientSettings, form?: PageProps['form']) => void } {
 	const target = document.createElement('div');
 	document.body.appendChild(target);
+	const dataStore = writable<PageProps['data']>({
+		settings: { ...settings, digest_reviewer_api_key: settings.digest_reviewer_api_key ?? '' },
+		scrapersAvailable: [], keywords, persons
+	});
+	const formStore = writable<PageProps['form']>(null);
+	const pageData = fromStore(dataStore);
+	const pageForm = fromStore(formStore);
 	const instance = mount(SettingsPage, {
 		target,
-		props: { params: {}, data: { settings, scrapersAvailable: [], keywords, persons }, form: null }
+		props: { params: {}, get data() { return pageData.current; }, get form() { return pageForm.current; } }
 	});
 	mounted.push(instance as unknown as Record<string, unknown>);
 	// Flush initial bindings/effects before inspecting or interacting with controls.
 	flushSync();
 	// Markup wraps lines: collapse whitespace so copy asserts survive reflows.
-	return { text: () => (target.textContent ?? '').replace(/\s+/g, ' '), target };
+	return { text: () => (target.textContent ?? '').replace(/\s+/g, ' '), target,
+		refresh: (settings, form = null) => flushSync(() => {
+			dataStore.set({ settings: { ...settings, digest_reviewer_api_key: settings.digest_reviewer_api_key ?? '' },
+				scrapersAvailable: [], keywords, persons });
+			formStore.set(form);
+		}) };
 }
 
 /** Click a workspace/sub-nav button by its exact label. */
@@ -381,6 +403,102 @@ it('discard restores the loaded values and clears the pending flag', () => {
 	} finally {
 		window.confirm = confirm;
 	}
+});
+
+const REVIEWER_NAMES = ['digest_reviewer_api_key', 'digest_reviewer_base_url',
+	'digest_reviewer_model', 'digest_reviewer_provider'];
+
+it('renders an independent reviewer form under LLM with exactly four safe controls', () => {
+	const { target } = renderPage(pageSettings({ digest_reviewer_provider: 'openai',
+		digest_reviewer_base_url: 'https://reviewer.invalid/v1', digest_reviewer_model: 'fixture-reviewer',
+		digest_reviewer_api_key: 'fixture-only-must-not-render', digest_reviewer_api_key_set: true }));
+	clickLabeled(target, '.config-tabs button', 'LLM');
+	const reviewer = target.querySelector<HTMLFormElement>('form[action="?/save-reviewer"]');
+	expect(reviewer).toBeInstanceOf(HTMLFormElement);
+	expect(reviewer!.hidden).toBe(false);
+	expect(reviewer!.textContent).toContain('Revisor de informes');
+	expect(reviewer!.parentElement?.classList.contains('config-body')).toBe(true);
+	expect(reviewer!.parentElement?.closest('form')).toBeNull();
+	expect(target.querySelector('form form')).toBeNull();
+	expect([...new FormData(reviewer!).keys()].sort()).toEqual(REVIEWER_NAMES);
+	expect(new FormData(reviewer!).get('digest_reviewer_api_key')).toBe('');
+	expect(reviewer!.querySelector<HTMLInputElement>('[name="digest_reviewer_api_key"]')?.type).toBe('password');
+	expect(reviewer!.textContent).toContain('Clave del revisor guardada');
+	expect(target.innerHTML).not.toContain('fixture-only-must-not-render');
+	expect(reviewer!.querySelector('[formaction]')).toBeNull();
+	const general = target.querySelector<HTMLFormElement>('form[action="?/save"]')!;
+	expect([...new FormData(general).keys()].some((name) => name.startsWith('digest_reviewer_'))).toBe(false);
+	expect(general.querySelector('[formaction="?/test-ai"]')).not.toBeNull();
+	clickLabeled(target, '.config-tabs button', 'Operación');
+	expect(reviewer!.hidden).toBe(true);
+	expect([...new FormData(reviewer!).keys()].sort()).toEqual(REVIEWER_NAMES);
+	expect(general.querySelector('[name="ai_model"]')).not.toBeNull();
+	expect(target.querySelector('.config-savebar')?.textContent).toContain('Sin cambios pendientes');
+});
+
+function editControl(target: ParentNode, name: string, value: string): void {
+	const input = target.querySelector<HTMLInputElement | HTMLSelectElement>(`[name="${name}"]`)!;
+	flushSync(() => {
+		input.value = value;
+		input.dispatchEvent(new Event(input instanceof HTMLSelectElement ? 'change' : 'input', { bubbles: true }));
+	});
+}
+
+it.each(['success', 'failure', 'error', 'redirect', 'throw'])('clears only the reviewer secret after %s and releases its own pending state', async (kind) => {
+	const initial = pageSettings({ ai_model: 'fixture-generator', digest_reviewer_provider: 'openai' });
+	const { target, refresh } = renderPage(initial);
+	clickLabeled(target, '.config-tabs button', 'LLM');
+	editControl(target, 'ai_model', 'unsaved-generator');
+	editControl(target, 'digest_reviewer_model', 'unsaved-reviewer');
+	editControl(target, 'digest_reviewer_base_url', 'https://draft.invalid/v1');
+	editControl(target, 'digest_reviewer_api_key', 'fixture-only-submitted-key');
+	const reviewer = target.querySelector<HTMLFormElement>('form[action="?/save-reviewer"]')!;
+	const submit = enhanced.get(reviewer);
+	expect(submit).toBeTypeOf('function');
+	let pendingCallback: ReturnType<SubmitFunction>;
+	flushSync(() => { pendingCallback = submit!({ formElement: reviewer, formData: new FormData(reviewer) } as never); });
+	const callback = await pendingCallback!;
+	expect(callback).toBeTypeOf('function');
+	if (typeof callback !== 'function') throw new Error('Reviewer submit callback missing');
+	expect(reviewer.querySelector<HTMLButtonElement>('button[type="submit"]')!.disabled).toBe(true);
+	expect(target.querySelector<HTMLButtonElement>('button[form="settings-save"]')!.disabled).toBe(false);
+	const message = kind === 'success' ? 'Configuración del revisor guardada.' : 'No se pudo guardar el revisor. Revisa el modo, la URL y el modelo.';
+	const actionData = { action: 'save-reviewer', ok: kind === 'success', message,
+		engine: null, model: null, latency_ms: null, label: null } as const;
+	const update = vi.fn(async () => {
+		if (kind === 'throw') throw new Error('fixture-only-submitted-key');
+		refresh({ ...initial, ai_model: 'refetched-generator', digest_reviewer_api_key_set: true }, actionData);
+	});
+	await expect(callback({
+		update, result: { type: kind === 'throw' ? 'success' : kind, status: kind === 'failure' ? 422 : 200, data: actionData }
+	} as never)).resolves.toBeUndefined();
+	flushSync();
+	expect(update).toHaveBeenCalledWith({ reset: false });
+	expect(new FormData(reviewer).get('digest_reviewer_api_key')).toBe('');
+	expect(new FormData(reviewer).get('digest_reviewer_model')).toBe('unsaved-reviewer');
+	expect(new FormData(reviewer).get('digest_reviewer_base_url')).toBe('https://draft.invalid/v1');
+	expect(reviewer.querySelector<HTMLButtonElement>('button[type="submit"]')!.disabled).toBe(false);
+	expect(target.querySelector<HTMLInputElement>('[name="ai_model"]')!.value).toBe('unsaved-generator');
+	expect(target.querySelector('.config-savebar')?.textContent).toContain('Cambios pendientes de guardar');
+	expect(reviewer.querySelector('[role="status"], [role="alert"]')?.textContent).toContain(kind === 'throw'
+		? 'No se pudo actualizar la pantalla del revisor. Vuelve a intentarlo.' : message);
+	expect(target.querySelectorAll('.config-feedback')).toHaveLength(1);
+	expect(target.textContent).not.toContain('fixture-only-submitted-key');
+	clickLabeled(target, '.config-tabs button', 'Fuentes');
+	clickLabeled(target, '.config-tabs button', 'LLM');
+	expect(target.querySelector<HTMLInputElement>('[name="ai_model"]')!.value).toBe('unsaved-generator');
+});
+
+it('keeps reviewer edits independent from the general savebar and defaults to inheritance', () => {
+	const { target } = renderPage(pageSettings());
+	clickLabeled(target, '.config-tabs button', 'LLM');
+	const reviewer = target.querySelector<HTMLFormElement>('form[action="?/save-reviewer"]')!;
+	expect(new FormData(reviewer).get('digest_reviewer_provider')).toBe('inherit');
+	editControl(reviewer, 'digest_reviewer_model', 'reviewer-draft');
+	expect(target.querySelector('.config-savebar')?.textContent).toContain('Sin cambios pendientes');
+	editControl(reviewer, 'digest_reviewer_provider', 'openai');
+	expect(reviewer.textContent).toContain('Una configuración incompleta no utiliza las credenciales generales');
+	expect([...new FormData(reviewer).keys()].sort()).toEqual(REVIEWER_NAMES);
 });
 
 it('ignores the legacy keyword focus and keeps keyword CRUD independent', () => {

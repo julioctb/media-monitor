@@ -23,6 +23,7 @@
 	import { CHANNEL_LABELS, type FeedChannel } from '$lib/feed-filters';
 	import { ICON_PATHS } from '$lib/icons';
 	import { markSeen, prefs, seedPrefsFromServer, toggleSaved } from '$lib/prefs';
+	import { personDirectoryHref } from '$lib/persons';
 	import { notify, notifyPersist } from '$lib/toast.svelte';
 	import { INPUT_CLS } from '$lib/ui';
 	import type { PageProps } from './$types';
@@ -959,7 +960,7 @@
 						<button
 							type="button"
 							class="feed-person-row"
-							onclick={() => goto(`/persons/${person.id}`)}
+							onclick={() => goto(personDirectoryHref(person.name))}
 						>
 							<span>{person.name}</span>
 							<span>{person.mentions} {person.mentions === 1 ? 'mención' : 'menciones'}</span>
@@ -977,7 +978,7 @@
 								<button
 									type="button"
 									class="feed-person-row"
-									onclick={() => goto(`/persons/${person.id}`)}
+									onclick={() => goto(personDirectoryHref(person.name))}
 								>
 									<span>{person.name}</span>
 									<span>{person.mentions} {person.mentions === 1 ? 'mención' : 'menciones'}</span>

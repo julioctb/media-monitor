@@ -1,7 +1,7 @@
 """Persons API: deduplicated entity list + per-person timeline (F3).
 
 GET /clients/{id}/persons          → ranked list (mentions|recent), `q` filter.
-GET /clients/{id}/persons/{pid}    → one person + full mention timeline.
+GET /clients/{id}/persons/{pid}    → one person + bounded mention timeline page.
 
 Both tenant-scoped through queries; the timeline is the raw-material feed
 for the F4 chat answers (quote + source + url + sentiment + political label).
@@ -61,15 +61,26 @@ def person_detail(
     person_id: int,
     session: SessionDep,
     limit: int = 100,
+    offset: int = 0,
+    order: Literal["recent", "oldest"] = "recent",
 ) -> PersonDetailOut:
-    """One person with the full mention timeline (newest first)."""
+    """One person with a bounded mention timeline page."""
     _client_or_404(session, client_id)
     person = queries.get_client_person(session, person_id=person_id, client_id=client_id)
     if person is None:
         raise HTTPException(status_code=404, detail="person not found")
     limit = max(1, min(200, limit))
+    offset = max(0, offset)
     timeline = queries.person_timeline(
-        session, person_id=person.id, client_id=client_id, limit=limit
+        session,
+        person_id=person.id,
+        client_id=client_id,
+        limit=limit,
+        offset=offset,
+        order=order,
+    )
+    timeline_total = queries.person_mention_count(
+        session, person_id=person.id, client_id=client_id
     )
     return PersonDetailOut(
         id=person.id,
@@ -80,8 +91,10 @@ def person_detail(
         aliases=person.aliases or [],
         first_seen_at=person.first_seen_at,
         last_seen_at=person.last_seen_at,
-        mention_count=queries.person_mention_count(
-            session, person_id=person.id, client_id=client_id
-        ),
+        mention_count=timeline_total,
         timeline=[PersonTimelineItem.model_validate(row) for row in timeline],
+        timeline_total=timeline_total,
+        timeline_limit=limit,
+        timeline_offset=offset,
+        timeline_order=order,
     )

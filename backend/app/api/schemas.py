@@ -224,6 +224,11 @@ class ClientSettingsOut(BaseModel):
     ai_model: str | None
     ai_model_fast: str | None
     enrich_max_per_cycle: int
+    digest_reviewer_provider: str
+    digest_reviewer_base_url: str | None
+    digest_reviewer_model: str | None
+    digest_reviewer_api_key: str
+    digest_reviewer_api_key_set: bool
     fetch_max_per_cycle: int
     updated_at: datetime
 
@@ -239,10 +244,10 @@ class ClientSettingsOut(BaseModel):
             return parse_digest_hours(value)
         return value
 
-    @field_validator("x_api_key", mode="before")
+    @field_validator("x_api_key", "digest_reviewer_api_key", mode="before")
     @classmethod
-    def _mask_x_api_key(cls, value: object) -> str:
-        """Never serialize the stored key; the UI reads x_api_key_set."""
+    def _mask_write_only_api_keys(cls, value: object) -> str:
+        """Never serialize these stored keys; expose only their set flags."""
         return ""
 
 
@@ -271,6 +276,12 @@ class ClientSettingsUpdate(BaseModel):
     ai_model: str | None = None
     ai_model_fast: str | None = None
     enrich_max_per_cycle: int | None = Field(default=None, ge=1, le=1000)
+    digest_reviewer_provider: str | None = None
+    digest_reviewer_base_url: str | None = None
+    digest_reviewer_model: str | None = None
+    # Validate at the persistence boundary: FastAPI's schema error includes
+    # rejected input, which must never echo a malformed credential value.
+    digest_reviewer_api_key: object = None
     fetch_max_per_cycle: int | None = Field(default=None, ge=1, le=1000)
 
     @field_validator("digest_hours")
@@ -532,7 +543,13 @@ class PersonTimelineItem(BaseModel):
 
 
 class PersonDetailOut(PersonOut):
+    """Person identity plus one explicitly bounded timeline page."""
+
     timeline: list[PersonTimelineItem] = []
+    timeline_total: int
+    timeline_limit: int
+    timeline_offset: int
+    timeline_order: Literal["recent", "oldest"]
 
 
 class AskCitationOut(BaseModel):
@@ -574,6 +591,7 @@ class AgendaItemOut(BaseModel):
     source: str | None
     url: str | None
     notes: str | None
+    event_id: int | None = None
     created_at: datetime
 
 

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { mount, tick, unmount } from "svelte";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type {
 	DailySummary,
@@ -82,6 +82,7 @@ function summaryFixture(): DailySummary {
 
 afterEach(() => {
   while (mounted.length) void unmount(mounted.pop() as never);
+  vi.unstubAllGlobals();
 });
 
 const PLACEHOLDER = "En espera de generar el resumen del día";
@@ -418,9 +419,9 @@ describe('home daily structure (v3 mockup)', () => {
     expect(actions?.textContent).toContain('Plazo documentado');
     expect(actions?.textContent).toContain('No consta un plazo en los registros.');
 
-    // Actors: static non-attribution note; the name links to the person page.
+    // Actors: static non-attribution note; the name links to the filtered modal directory.
     expect(text()).toContain('Una mención no atribuye responsabilidad.');
-    expect(container.querySelector('.daily-actor strong a')?.getAttribute('href')).toBe('/persons/4');
+    expect(container.querySelector('.daily-actor strong a')?.getAttribute('href')).toBe('/persons?q=Lilia+Cedillo');
     // Missing links (mockup affordances): panel-level directory link plus a
     // per-actor explicit CTA to the ficha.
     const actorsPanel = container.querySelector('.daily-actors');
@@ -485,8 +486,18 @@ describe('home daily structure (v3 mockup)', () => {
     expect(text).toContain('Veracidad no evaluada');
   });
 
-  it('opens the person popup with its mentions from the load', async () => {
-    const { container } = renderPage(populatedDayData());
+  it('opens the shared complete person modal through the same-origin gateway', async () => {
+    const data = populatedDayData();
+    const detail = data.persons[0] as unknown as PersonSummary & { timeline: unknown[] };
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      expect(String(input)).toBe('/api/persons/4?limit=25&offset=0&order=recent');
+      return new Response(JSON.stringify(detail), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const { container } = renderPage(data);
 
     const cta = [...container.querySelectorAll<HTMLButtonElement>('.daily-actor button')].find((b) =>
       (b.textContent ?? '').includes('Ver mención y fuente')
@@ -500,11 +511,11 @@ describe('home daily structure (v3 mockup)', () => {
     expect(dialog).toBeTruthy();
     const text = (dialog?.textContent ?? '').replace(/\s+/g, ' ');
     expect(text).toContain('Lilia Cedillo');
-    expect(text).toContain('Menciones textuales');
+    expect(text).toContain('Cronología de menciones');
     expect(text).toContain('La rectora encabezó el acto.');
     expect(text).toContain('Leer registro original');
-    expect(text).toContain('Ver ficha completa');
-    expect(dialog?.querySelector('.dialog-actions a')?.getAttribute('href')).toBe('/persons/4');
+    expect(dialog?.querySelector('a[href^="/persons/"]')).toBeNull();
+    expect(fetchMock).toHaveBeenCalledOnce();
   });
 
   it('opens the fecha-origin dialog from the agenda row', async () => {

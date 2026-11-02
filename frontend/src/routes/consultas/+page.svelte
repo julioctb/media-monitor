@@ -16,6 +16,7 @@
 		type ChatThread
 	} from '$lib/chat-history';
 	import { formatDisplayTime } from '$lib/format';
+	import { personDirectoryHref } from '$lib/persons';
 
 	let { data, form: result }: PageProps = $props();
 
@@ -249,7 +250,7 @@
 {#if result?.person}
 	<p class="footnote">
 		Pregunta vinculada a:
-		<a href={`/persons/${result.person.id}`} class="underline hover:text-ink">
+		<a href={personDirectoryHref(result.person.name)} class="underline hover:text-ink">
 			{result.person.name}
 		</a>
 	</p>
