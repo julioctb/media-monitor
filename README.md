@@ -124,6 +124,23 @@ Settings → **LLM → Revisor de informes** has its own save action. It updates
 and `digest_reviewer_api_key` through the tenant-scoped `PUT /api/settings`.
 Saving does not test a connection or send report material to a provider.
 
+**Probar conexión** uses a separate empty form and no-body
+`POST /api/settings/test-reviewer` with the non-secret `X-Reviewer-Probe: 1` intent marker. Cross-origin page-action submissions are rejected. Save reviewer changes first: the test reads
+only the tenant's saved configuration and never creates or updates a settings
+row. Inheritance uses the saved general API configuration; dedicated mode uses
+only its saved URL/model/key. One click sends one short chat request (64 output
+tokens maximum), without report material, retries, redirects or environment
+proxies. Each HTTP I/O phase has a 10-second timeout, not a strict aggregate
+wall-clock deadline. The request can incur provider cost. The result shows safe
+status and elapsed milliseconds, never provider bodies or credentials. Failures
+additionally report the provider's HTTP status and its machine `error.code`
+token (bounded, non-secret) — never the provider's free-text message. A saved
+base URL that already ends in `/chat/completions` is rejected before any
+request is sent, and the settings form warns about that suffix while editing. A
+reasoning-only response is explicitly identified as connection/model acceptance
+without final text; success is not reviewer-quality qualification. The general
+AI probe and its existing behavior are unchanged.
+
 - `inherit` (the migration/default mode) preserves the generator's existing
   review route. `openai` selects a separate **OpenAI-compatible chat completions
   API**, not an arbitrary vendor's native API. Supply its complete base URL,

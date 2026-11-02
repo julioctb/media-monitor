@@ -371,6 +371,76 @@ it('rejects foreign domains and empty input', () => {
 	expect(normalizeFacebookPageRef('   ')).toBeNull();
 });
 
+it('allows same-host probes regardless of the URL the dev server reports', async () => {
+	const fetchMock = stubFetch({ ok: true, message: 'Conexión correcta.', latency_ms: 5 });
+	// Dev servers may rebuild request.url from a canonical host while the
+	// browser Origin and the connection Host header agree on another
+	// legitimate host (127.0.0.1 vs localhost). The guard must compare the
+	// Origin against the Host header, not the reconstructed URL.
+	const request = new Request('http://localhost:5180/settings?/test-reviewer', { method: 'POST',
+		headers: { origin: 'http://127.0.0.1:5180', host: '127.0.0.1:5180' } });
+	const result = await actions['test-reviewer']({ request } as never);
+	expect(result).toMatchObject({ action: 'test-reviewer', ok: true, message: 'Conexión correcta.' });
+	expect(fetchMock).toHaveBeenCalledTimes(1);
+});
+
+it('still rejects a probe whose Origin host does not match the connection Host', async () => {
+	const fetchMock = stubFetch({ ok: true, message: 'unexpected', latency_ms: 0 });
+	const request = new Request('http://localhost:5180/settings?/test-reviewer', { method: 'POST',
+		headers: { origin: 'https://untrusted.invalid', host: 'localhost:5180' } });
+	const result = await actions['test-reviewer']({ request } as never);
+	expect(result).toMatchObject({ status: 403, data: { action: 'test-reviewer', ok: false } });
+	expect(fetchMock).not.toHaveBeenCalled();
+});
+
+it('rejects cross-origin reviewer probes before any API request', async () => {
+	const fetchMock = stubFetch({ ok: true, message: 'unexpected', latency_ms: 0 });
+	const request = new Request('http://localhost/settings', { method: 'POST',
+		headers: { origin: 'https://untrusted.invalid' } });
+	const result = await actions['test-reviewer']({ request } as never);
+	expect(result).toMatchObject({ status: 403, data: { action: 'test-reviewer', ok: false } });
+	expect(fetchMock).not.toHaveBeenCalled();
+});
+
+it('forwards non-secret reviewer probe diagnostics through the action', async () => {
+	const fetchMock = stubFetch({ ok: false,
+		message: 'El proveedor rechazó la prueba; revisa el modelo y la URL base.',
+		latency_ms: 458, status_code: 400, error_code: 'Model Not Exist' });
+	const request = new Request('http://localhost/settings', { method: 'POST', headers: { origin: 'http://localhost' } });
+	const result = await actions['test-reviewer']({ request } as never);
+	expect(result).toMatchObject({ action: 'test-reviewer', ok: false,
+		message: 'El proveedor rechazó la prueba; revisa el modelo y la URL base.',
+		latency_ms: 458, status_code: 400, error_code: 'Model Not Exist' });
+	expect(fetchMock).toHaveBeenCalledTimes(1);
+});
+
+it('tests only saved reviewer configuration without reading drafts or saving settings', async () => {
+	const fetchMock = stubFetch({ ok: true, message: 'Conexión correcta.', latency_ms: 12 });
+	const formData = vi.fn(async () => { throw new Error('synthetic-unsaved-token'); });
+	const request = new Request('http://localhost/settings', { method: 'POST', headers: { origin: 'http://localhost' } });
+	request.formData = formData;
+	const result = await actions['test-reviewer']({ request } as never);
+	expect(result).toMatchObject({ action: 'test-reviewer', ok: true, message: 'Conexión correcta.', latency_ms: 12 });
+	expect(formData).not.toHaveBeenCalled();
+	expect(fetchMock).toHaveBeenCalledTimes(1);
+	const [url, init] = fetchMock.mock.calls[0];
+	expect(new URL(String(url)).pathname).toBe('/api/settings/test-reviewer');
+	expect(init).toEqual({ method: 'POST', headers: { 'X-Reviewer-Probe': '1' } });
+	expect(savedBodies).toEqual([]);
+});
+
+it.each([503, 0])('does not echo reviewer probe diagnostics for API status %i', async (status) => {
+	const secret = 'synthetic-provider-error-key';
+	vi.stubGlobal('fetch', vi.fn(async () => {
+		if (!status) throw new Error(secret);
+		return new Response(JSON.stringify({ detail: secret }), { status });
+	}));
+	const result = await actions['test-reviewer']({ request: formRequest({}) } as never);
+	expect(result).toMatchObject({ status: status || 502, data: { action: 'test-reviewer', ok: false,
+		message: 'No se pudo probar la conexión del revisor. Vuelve a intentarlo.' } });
+	expect(JSON.stringify(result)).not.toContain(secret);
+});
+
 it('saves only the four independent reviewer fields without dispatching a probe', async () => {
 	const fetchMock = stubFetch(SETTINGS_ROW);
 	const action = actions['save-reviewer'];

@@ -1,28 +1,31 @@
 """Settings endpoints: read/update client configuration + AI probe.
 
 PUT validates through queries.upsert_settings; ValueError maps to 422.
-The connectivity probe (AI completion) ALWAYS answers 200 with an
+The general connectivity probe (AI completion) ALWAYS answers 200 with an
 ok/error payload — it exists to be rendered inline by the dashboard, not
 to raise.
 """
 
 import json
 import time
+from urllib.parse import urlsplit
 
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
+from sqlalchemy import select
 
 from app.api.deps import ClientIdDep, SessionDep
 from app.api.schemas import AiProbeRequest, ClientSettingsOut, ClientSettingsUpdate
 from app.enrich.llm import strip_code_fence
+from app.llm_chat import NO_THINK_CHAT_KWARGS
 from app.models import queries
+from app.models.settings import DEFAULT_OPENAI_BASE_URL, ClientSettings
 from app.sentiment.api_analyzer import (
     DEFAULT_OPENAI_MODEL,
     ApiSentimentAnalyzer,
 )
+from app.settings_runtime import EffectiveSettings, resolve_review_settings
 from app.summaries.digest_schema import NarrativePayload, narrative_response_schema
-from app.models.settings import DEFAULT_OPENAI_BASE_URL
-from app.llm_chat import NO_THINK_CHAT_KWARGS
 
 router = APIRouter(tags=["settings"])
 
@@ -61,6 +64,178 @@ def update_client_settings(
         return queries.upsert_settings(session, client_id, changes)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+def _reviewer_probe_client() -> httpx.Client:
+    return httpx.Client(
+        timeout=AI_PROBE_TIMEOUT_S, follow_redirects=False, trust_env=False
+    )
+
+
+def _provider_error_code(response: httpx.Response) -> str | None:
+    """Machine-readable provider error code only; never its free-text message."""
+    try:
+        payload = response.json()
+    except ValueError:
+        return None
+    error = payload.get("error") if isinstance(payload, dict) else None
+    code = error.get("code") if isinstance(error, dict) else None
+    if not isinstance(code, str):
+        return None
+    code = code.strip()
+    return code[:200] or None
+
+
+@router.post("/settings/test-reviewer")
+def test_reviewer_endpoint(
+    request: Request, session: SessionDep, client_id: ClientIdDep
+) -> dict:
+    """Probe saved configuration; the marker blocks simple cross-site form POSTs."""
+    if request.headers.get("X-Reviewer-Probe") != "1":
+        raise HTTPException(
+            403, detail="La prueba debe iniciarse desde la configuración del revisor."
+        )
+    row = session.scalar(
+        select(ClientSettings).where(ClientSettings.client_id == client_id)
+    )
+    failure = {
+        "ok": False,
+        "message": "Configura y guarda el revisor antes de probar.",
+        "latency_ms": None,
+        "status_code": None,
+        "error_code": None,
+    }
+    if row is None:
+        return failure
+    fields = (
+        "ai_provider",
+        "ai_api_key",
+        "ai_base_url",
+        "ai_model",
+        "digest_reviewer_provider",
+        "digest_reviewer_base_url",
+        "digest_reviewer_model",
+        "digest_reviewer_api_key",
+    )
+    saved = EffectiveSettings(
+        client_id=client_id, **{name: getattr(row, name) for name in fields}
+    )
+    effective = resolve_review_settings(saved)
+    if (
+        effective is None
+        or effective.ai_provider != "openai"
+        or not effective.ai_api_key
+    ):
+        return failure
+    inherited = saved.digest_reviewer_provider == "inherit"
+    base = (
+        (effective.ai_base_url or (DEFAULT_OPENAI_BASE_URL if inherited else ""))
+        .strip()
+        .rstrip("/")
+    )
+    model = effective.ai_model or (DEFAULT_OPENAI_MODEL if inherited else None)
+    try:
+        url = urlsplit(base)
+        if (
+            url.scheme not in {"http", "https"}
+            or not url.hostname
+            or url.username is not None
+            or url.password is not None
+            or url.query
+            or url.fragment
+            or any(char.isspace() for char in base)
+        ):
+            return failure
+        url.port  # Validate an explicitly supplied port before dispatch.
+    except ValueError:
+        return failure
+    if url.path.lower().endswith("/chat/completions"):
+        # A base URL that already points at the chat operation would duplicate
+        # the suffix; reject deterministically instead of spending a request.
+        return {
+            "ok": False,
+            "message": "La URL base ya incluye /chat/completions; guarda solo la URL base del servicio.",
+            "latency_ms": None,
+            "status_code": None,
+            "error_code": None,
+        }
+    if not model:
+        return failure
+    body = {
+        "model": model,
+        "messages": [{"role": "user", "content": "Responde solo OK."}],
+        "max_tokens": 64,
+    }
+    if inherited:
+        body["chat_template_kwargs"] = dict(NO_THINK_CHAT_KWARGS)
+    started = time.perf_counter()
+    client = None
+    status_code: int | None = None
+    error_code: str | None = None
+    try:
+        client = _reviewer_probe_client()
+        response = client.post(
+            f"{base}/chat/completions",
+            headers={"Authorization": f"Bearer {effective.ai_api_key}"},
+            json=body,
+            timeout=AI_PROBE_TIMEOUT_S,
+            follow_redirects=False,
+        )
+        status_code = response.status_code
+        if not response.is_success:
+            error_code = _provider_error_code(response)
+        if response.status_code in {401, 403}:
+            message = "El proveedor rechazó la clave o sus permisos."
+        elif response.is_redirect:
+            message = "El servicio devolvió una redirección; revisa la URL base."
+        elif response.status_code == 429:
+            message = "El proveedor alcanzó su límite de solicitudes o cuota."
+        elif not response.is_success:
+            message = "El proveedor rechazó la prueba; revisa el modelo y la URL base."
+        else:
+            try:
+                message_data = response.json()["choices"][0]["message"]
+                content = message_data.get("content")
+                reasoning = message_data.get("reasoning_content") or message_data.get(
+                    "reasoning"
+                )
+                if isinstance(content, str) and content.strip():
+                    return {
+                        "ok": True,
+                        "message": "Conexión correcta: el modelo respondió a la prueba.",
+                        "latency_ms": int((time.perf_counter() - started) * 1000),
+                        "status_code": status_code,
+                        "error_code": None,
+                    }
+                if isinstance(reasoning, str) and reasoning.strip():
+                    return {
+                        "ok": True,
+                        "message": "Conexión correcta: el servicio aceptó el modelo, pero la prueba breve no obtuvo texto final.",
+                        "latency_ms": int((time.perf_counter() - started) * 1000),
+                        "status_code": status_code,
+                        "error_code": None,
+                    }
+            except (ValueError, KeyError, IndexError, TypeError, AttributeError):
+                pass
+            message = "El servicio respondió sin un mensaje de chat válido."
+    except httpx.TimeoutException:
+        message = "El servicio no respondió dentro del tiempo de espera."
+    except Exception:
+        # Provider exceptions can contain URLs, credentials or response bodies.
+        message = "No se pudo contactar el servicio del revisor."
+    finally:
+        if client is not None:
+            try:
+                client.close()
+            except Exception:
+                pass
+    return {
+        "ok": False,
+        "message": message,
+        "latency_ms": int((time.perf_counter() - started) * 1000),
+        "status_code": status_code,
+        "error_code": error_code,
+    }
 
 
 def probe_ai(payload: AiProbeRequest, *, client: httpx.Client | None = None) -> dict:

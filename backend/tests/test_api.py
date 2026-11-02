@@ -126,6 +126,465 @@ def test_reviewer_validation_does_not_echo_credentials(api, db):
     assert api.get("/api/settings").json()["digest_reviewer_api_key_set"] is False
 
 
+def test_reviewer_connection_uses_saved_dedicated_settings_without_writes(
+    api, db, monkeypatch, caplog
+):
+    from app.api import settings as settings_api
+    from tests.test_political_analysis_regeneration import snapshot_tables
+
+    owner = first_client_id(db)
+    queries.upsert_settings(
+        db,
+        owner,
+        {
+            "ai_provider": "openai",
+            "ai_base_url": "https://generator.invalid/v1",
+            "ai_model": "generator-fixture",
+            "ai_api_key": "synthetic-generator-key",
+            "digest_reviewer_provider": "openai",
+            "digest_reviewer_base_url": "https://reviewer.invalid/custom/v1/",
+            "digest_reviewer_model": "reviewer-fixture",
+            "digest_reviewer_api_key": "synthetic-reviewer-key",
+        },
+    )
+    foreign = Client(name="probe-unrelated-tenant")
+    db.add(foreign)
+    db.commit()
+    queries.get_settings(db, foreign.id)
+    before = snapshot_tables(db)
+    calls = []
+
+    def transport(request):
+        calls.append(request)
+        return httpx.Response(
+            200, json={"choices": [{"message": {"content": "Available"}}]}
+        )
+
+    client = httpx.Client(
+        transport=httpx.MockTransport(transport), follow_redirects=True
+    )
+    monkeypatch.setattr(
+        settings_api, "_reviewer_probe_client", lambda: client, raising=False
+    )
+    response = api.post(
+        "/api/settings/test-reviewer",
+        headers={"X-Reviewer-Probe": "1"},
+        json={
+            "digest_reviewer_base_url": "https://untrusted-draft.invalid/v1",
+            "digest_reviewer_api_key": "synthetic-unsaved-key",
+        },
+    )
+    assert response.status_code == 200
+    result = response.json()
+    assert set(result) == {"ok", "message", "latency_ms", "status_code", "error_code"}
+    assert result["ok"] is True
+    assert result["message"] == "Conexión correcta: el modelo respondió a la prueba."
+    assert result["status_code"] == 200 and result["error_code"] is None
+    assert isinstance(result["latency_ms"], int) and result["latency_ms"] >= 0
+    assert len(calls) == 1
+    request = calls[0]
+    assert str(request.url) == "https://reviewer.invalid/custom/v1/chat/completions"
+    assert request.headers["Authorization"] == "Bearer synthetic-reviewer-key"
+    body = json.loads(request.content)
+    assert body == {
+        "model": "reviewer-fixture",
+        "messages": [{"role": "user", "content": "Responde solo OK."}],
+        "max_tokens": 64,
+    }
+    assert set(request.extensions["timeout"].values()) == {10.0}
+    assert client.is_closed
+    assert snapshot_tables(db) == before
+    for secret in (
+        "synthetic-generator-key",
+        "synthetic-reviewer-key",
+        "synthetic-unsaved-key",
+    ):
+        assert secret not in response.text and secret not in caplog.text
+
+
+@pytest.mark.parametrize("mode", ["inherit", "defaults"])
+def test_reviewer_connection_inherits_only_saved_general_settings(
+    api, db, monkeypatch, mode
+):
+    from app.api import settings as settings_api
+    from tests.test_political_analysis_regeneration import snapshot_tables
+
+    queries.upsert_settings(
+        db,
+        first_client_id(db),
+        {
+            "ai_provider": "openai",
+            "ai_base_url": None if mode == "defaults" else "http://127.0.0.1:8888/v1",
+            "ai_model": None if mode == "defaults" else "saved-general-model",
+            "ai_api_key": "synthetic-general-key",
+            "digest_reviewer_provider": "inherit",
+            "digest_reviewer_base_url": "https://ignored-reviewer.invalid/v1",
+            "digest_reviewer_model": "ignored-reviewer",
+            "digest_reviewer_api_key": "synthetic-ignored-key",
+        },
+    )
+    before = snapshot_tables(db)
+    calls = []
+
+    def transport(request):
+        calls.append(request)
+        return httpx.Response(200, json={"choices": [{"message": {"content": "OK"}}]})
+
+    client = httpx.Client(transport=httpx.MockTransport(transport))
+    monkeypatch.setattr(settings_api, "_reviewer_probe_client", lambda: client)
+    response = api.post(
+        "/api/settings/test-reviewer", headers={"X-Reviewer-Probe": "1"}
+    )
+    assert response.status_code == 200 and response.json()["ok"] is True
+    assert len(calls) == 1
+    body = json.loads(calls[0].content)
+    assert body["model"] == (
+        settings_api.DEFAULT_OPENAI_MODEL
+        if mode == "defaults"
+        else "saved-general-model"
+    )
+    assert body["chat_template_kwargs"] == {"enable_thinking": False}
+    assert calls[0].headers["Authorization"] == "Bearer synthetic-general-key"
+    expected = (
+        settings_api.DEFAULT_OPENAI_BASE_URL
+        if mode == "defaults"
+        else "http://127.0.0.1:8888/v1"
+    )
+    assert str(calls[0].url) == expected.rstrip("/") + "/chat/completions"
+    assert snapshot_tables(db) == before
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        "absent",
+        "local",
+        "no-key",
+        "dedicated-incomplete",
+        "userinfo",
+        "bad-port",
+        "query",
+    ],
+)
+def test_reviewer_connection_invalid_saved_configuration_is_read_only_and_never_dispatches(
+    api, db, monkeypatch, case
+):
+    from app.api import settings as settings_api
+    from app.models import ClientSettings
+    from tests.test_political_analysis_regeneration import snapshot_tables
+
+    if case != "absent":
+        changes: dict[str, object] = {
+            "ai_provider": "openai",
+            "ai_base_url": "https://general.invalid/v1",
+            "ai_model": "general",
+            "ai_api_key": "synthetic-key",
+            "digest_reviewer_provider": "inherit",
+        }
+        if case == "local":
+            changes["ai_provider"] = "local"
+        elif case == "no-key":
+            changes["ai_api_key"] = None
+        elif case == "dedicated-incomplete":
+            changes["digest_reviewer_provider"] = "openai"
+        queries.upsert_settings(db, first_client_id(db), changes)
+        if case in {"userinfo", "bad-port", "query"}:
+            row = db.scalar(
+                select(ClientSettings).where(
+                    ClientSettings.client_id == first_client_id(db)
+                )
+            )
+            row.ai_base_url = {
+                "userinfo": "https://user:synthetic-key@host.invalid/v1",
+                "bad-port": "https://host.invalid:invalid/v1",
+                "query": "https://host.invalid/v1?key=synthetic-key",
+            }[case]
+            db.commit()
+    before = snapshot_tables(db)
+    calls = []
+
+    def unexpected():
+        calls.append(True)
+        raise RuntimeError("synthetic-key")
+
+    monkeypatch.setattr(settings_api, "_reviewer_probe_client", unexpected)
+    response = api.post(
+        "/api/settings/test-reviewer", headers={"X-Reviewer-Probe": "1"}
+    )
+    assert response.status_code == 200 and response.json()["ok"] is False
+    assert response.json()["latency_ms"] is None
+    assert calls == []
+    assert "synthetic-key" not in response.text
+    assert snapshot_tables(db) == before
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        "auth",
+        "forbidden",
+        "quota",
+        "server",
+        "redirect",
+        "timeout",
+        "json",
+        "empty",
+        "shape",
+        "reasoning",
+    ],
+)
+def test_reviewer_connection_is_one_shot_and_never_echoes_provider_failures(
+    api, db, monkeypatch, caplog, case
+):
+    from app.api import settings as settings_api
+    from tests.test_political_analysis_regeneration import snapshot_tables
+
+    secret = "synthetic-private-probe-key"
+    queries.upsert_settings(
+        db,
+        first_client_id(db),
+        {
+            "digest_reviewer_provider": "openai",
+            "digest_reviewer_base_url": "https://reviewer.invalid/v1",
+            "digest_reviewer_model": "fixture-model",
+            "digest_reviewer_api_key": secret,
+        },
+    )
+    before = snapshot_tables(db)
+    calls = []
+
+    def transport(request):
+        calls.append(request)
+        if case == "timeout":
+            raise httpx.ReadTimeout(secret, request=request)
+        if case == "json":
+            return httpx.Response(200, text=secret)
+        if case in {"empty", "reasoning"}:
+            return httpx.Response(
+                200,
+                json={
+                    "choices": [
+                        {
+                            "message": {
+                                "content": "",
+                                "reasoning_content": "checking"
+                                if case == "reasoning"
+                                else None,
+                            }
+                        }
+                    ]
+                },
+            )
+        if case == "shape":
+            return httpx.Response(200, json={"choices": [secret]})
+        status = {
+            "auth": 401,
+            "forbidden": 403,
+            "quota": 429,
+            "server": 503,
+            "redirect": 302,
+        }[case]
+        return httpx.Response(
+            status,
+            text=secret,
+            headers={"Location": "https://redirect.invalid/" + secret},
+        )
+
+    client = httpx.Client(
+        transport=httpx.MockTransport(transport), follow_redirects=True
+    )
+    monkeypatch.setattr(settings_api, "_reviewer_probe_client", lambda: client)
+    response = api.post(
+        "/api/settings/test-reviewer", headers={"X-Reviewer-Probe": "1"}
+    )
+    assert response.status_code == 200
+    assert response.json()["ok"] is (case == "reasoning")
+    assert len(calls) == 1 and client.is_closed
+    assert secret not in response.text and secret not in caplog.text
+    assert snapshot_tables(db) == before
+
+
+
+def test_reviewer_connection_rejects_duplicated_completion_url_without_dispatch(
+    api, db, monkeypatch
+):
+    from app.api import settings as settings_api
+    from tests.test_political_analysis_regeneration import snapshot_tables
+
+    queries.upsert_settings(
+        db,
+        first_client_id(db),
+        {
+            "digest_reviewer_provider": "openai",
+            "digest_reviewer_base_url": "https://reviewer.invalid/v1/chat/completions",
+            "digest_reviewer_model": "fixture-model",
+            "digest_reviewer_api_key": "synthetic-key",
+        },
+    )
+    before = snapshot_tables(db)
+    calls = []
+
+    def unexpected():
+        calls.append(True)
+        raise RuntimeError("synthetic-key")
+
+    monkeypatch.setattr(settings_api, "_reviewer_probe_client", unexpected)
+    response = api.post(
+        "/api/settings/test-reviewer", headers={"X-Reviewer-Probe": "1"}
+    )
+    assert response.status_code == 200
+    result = response.json()
+    assert result["ok"] is False
+    assert "/chat/completions" in result["message"]
+    assert result["status_code"] is None and result["error_code"] is None
+    assert result["latency_ms"] is None
+    assert calls == []
+    assert "synthetic-key" not in response.text
+    assert snapshot_tables(db) == before
+
+
+def test_reviewer_connection_surfaces_non_secret_provider_diagnostics(
+    api, db, monkeypatch, caplog
+):
+    from app.api import settings as settings_api
+    from tests.test_political_analysis_regeneration import snapshot_tables
+
+    secret = "synthetic-private-probe-key"
+    provider_message = f"Model fixture-model does not exist for key {secret}"
+    queries.upsert_settings(
+        db,
+        first_client_id(db),
+        {
+            "digest_reviewer_provider": "openai",
+            "digest_reviewer_base_url": "https://reviewer.invalid/v1",
+            "digest_reviewer_model": "fixture-model",
+            "digest_reviewer_api_key": secret,
+        },
+    )
+    before = snapshot_tables(db)
+    client = httpx.Client(
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(
+                400, json={"error": {"code": "Model Not Exist", "message": provider_message}}
+            )
+        )
+    )
+    monkeypatch.setattr(settings_api, "_reviewer_probe_client", lambda: client)
+    response = api.post(
+        "/api/settings/test-reviewer", headers={"X-Reviewer-Probe": "1"}
+    )
+    result = response.json()
+    assert result["ok"] is False
+    assert result["status_code"] == 400
+    assert result["error_code"] == "Model Not Exist"
+    assert provider_message not in response.text and provider_message not in caplog.text
+    assert secret not in response.text and secret not in caplog.text
+    assert client.is_closed
+    assert snapshot_tables(db) == before
+
+
+def test_reviewer_connection_reports_status_without_code_for_opaque_error_bodies(
+    api, db, monkeypatch
+):
+    from app.api import settings as settings_api
+
+    queries.upsert_settings(
+        db,
+        first_client_id(db),
+        {
+            "digest_reviewer_provider": "openai",
+            "digest_reviewer_base_url": "https://reviewer.invalid/v1",
+            "digest_reviewer_model": "fixture-model",
+            "digest_reviewer_api_key": "synthetic-key",
+        },
+    )
+    client = httpx.Client(
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(503, text="synthetic-opaque-body")
+        )
+    )
+    monkeypatch.setattr(settings_api, "_reviewer_probe_client", lambda: client)
+    response = api.post(
+        "/api/settings/test-reviewer", headers={"X-Reviewer-Probe": "1"}
+    )
+    result = response.json()
+    assert result["ok"] is False
+    assert result["status_code"] == 503
+    assert result["error_code"] is None
+    assert "synthetic-opaque-body" not in response.text
+
+
+def test_reviewer_connection_factory_disables_proxy_inheritance_and_redirects(
+    api, db, monkeypatch
+):
+    from app.api import settings as settings_api
+
+    queries.upsert_settings(
+        db,
+        first_client_id(db),
+        {
+            "digest_reviewer_provider": "openai",
+            "digest_reviewer_base_url": "https://reviewer.invalid/v1",
+            "digest_reviewer_model": "fixture-model",
+            "digest_reviewer_api_key": "synthetic-key",
+        },
+    )
+    captured = []
+    client = httpx.Client(
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(
+                200, json={"choices": [{"message": {"content": "OK"}}]}
+            )
+        )
+    )
+
+    def factory(**kwargs):
+        captured.append(kwargs)
+        return client
+
+    monkeypatch.setattr(settings_api.httpx, "Client", factory)
+    response = api.post(
+        "/api/settings/test-reviewer", headers={"X-Reviewer-Probe": "1"}
+    )
+    assert response.json()["ok"] is True
+    assert captured == [
+        {"timeout": 10.0, "follow_redirects": False, "trust_env": False}
+    ]
+
+
+def test_reviewer_connection_requires_an_explicit_server_side_intent_marker(
+    api, db, monkeypatch
+):
+    from app.api import settings as settings_api
+
+    queries.upsert_settings(
+        db,
+        first_client_id(db),
+        {
+            "digest_reviewer_provider": "openai",
+            "digest_reviewer_base_url": "https://reviewer.invalid/v1",
+            "digest_reviewer_model": "fixture",
+            "digest_reviewer_api_key": "synthetic-key",
+        },
+    )
+    calls = []
+
+    def factory():
+        calls.append(True)
+        return httpx.Client(
+            transport=httpx.MockTransport(
+                lambda request: httpx.Response(
+                    200, json={"choices": [{"message": {"content": "OK"}}]}
+                )
+            )
+        )
+
+    monkeypatch.setattr(settings_api, "_reviewer_probe_client", factory)
+    response = api.post("/api/settings/test-reviewer")
+    assert response.status_code == 403
+    assert calls == []
+
+
 def now_utc() -> datetime:
     return datetime.now(timezone.utc)
 

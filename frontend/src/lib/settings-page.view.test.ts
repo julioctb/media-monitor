@@ -405,6 +405,26 @@ it('discard restores the loaded values and clears the pending flag', () => {
 	}
 });
 
+it('offers a credential-free saved reviewer connection test without changing save ownership', () => {
+	const { target, text } = renderPage(pageSettings({ digest_reviewer_provider: 'openai',
+		digest_reviewer_base_url: 'https://reviewer.invalid/v1', digest_reviewer_model: 'fixture-reviewer',
+		digest_reviewer_api_key_set: true }));
+	clickLabeled(target, '.config-tabs button', 'LLM');
+	const button = target.querySelector<HTMLButtonElement>('button[form="reviewer-probe"]');
+	expect(button).toBeInstanceOf(HTMLButtonElement);
+	expect(button!.textContent).toBe('Probar conexión');
+	const probe = target.querySelector<HTMLFormElement>('form[action="?/test-reviewer"]')!;
+	expect(probe.method).toBe('post');
+	expect(button!.form).toBe(probe);
+	expect([...new FormData(probe).keys()]).toEqual([]);
+	expect(target.querySelector('form form')).toBeNull();
+	expect(button!.disabled).toBe(false);
+	const save = target.querySelector<HTMLFormElement>('form[action="?/save-reviewer"]')!;
+	expect(save.querySelector<HTMLButtonElement>('button[type="submit"]')!.form).toBe(save);
+	expect(text()).toContain('Guarda los cambios antes de probar; se usa la configuración guardada.');
+	expect(text()).toContain('puede generar un costo');
+});
+
 const REVIEWER_NAMES = ['digest_reviewer_api_key', 'digest_reviewer_base_url',
 	'digest_reviewer_model', 'digest_reviewer_provider'];
 
@@ -464,7 +484,7 @@ it.each(['success', 'failure', 'error', 'redirect', 'throw'])('clears only the r
 	expect(target.querySelector<HTMLButtonElement>('button[form="settings-save"]')!.disabled).toBe(false);
 	const message = kind === 'success' ? 'Configuración del revisor guardada.' : 'No se pudo guardar el revisor. Revisa el modo, la URL y el modelo.';
 	const actionData = { action: 'save-reviewer', ok: kind === 'success', message,
-		engine: null, model: null, latency_ms: null, label: null } as const;
+		engine: null, model: null, latency_ms: null, status_code: null, error_code: null, label: null } as const;
 	const update = vi.fn(async () => {
 		if (kind === 'throw') throw new Error('fixture-only-submitted-key');
 		refresh({ ...initial, ai_model: 'refetched-generator', digest_reviewer_api_key_set: true }, actionData);
@@ -487,6 +507,100 @@ it.each(['success', 'failure', 'error', 'redirect', 'throw'])('clears only the r
 	clickLabeled(target, '.config-tabs button', 'Fuentes');
 	clickLabeled(target, '.config-tabs button', 'LLM');
 	expect(target.querySelector<HTMLInputElement>('[name="ai_model"]')!.value).toBe('unsaved-generator');
+});
+
+it.each(['digest_reviewer_provider', 'digest_reviewer_base_url', 'digest_reviewer_model', 'digest_reviewer_api_key'])('requires saving reviewer draft %s before testing', (field) => {
+	const { target } = renderPage(pageSettings({ digest_reviewer_provider: 'openai',
+		digest_reviewer_base_url: 'https://saved.invalid/v1', digest_reviewer_model: 'saved-model' }));
+	clickLabeled(target, '.config-tabs button', 'LLM');
+	expect(target.querySelector<HTMLButtonElement>('button[form="reviewer-probe"]')!.disabled).toBe(false);
+	editControl(target, field, field === 'digest_reviewer_provider' ? 'inherit' : 'unsaved-value');
+	expect(target.querySelector<HTMLButtonElement>('button[form="reviewer-probe"]')!.disabled).toBe(true);
+	const probe = target.querySelector<HTMLFormElement>('form[action="?/test-reviewer"]')!;
+	expect([...new FormData(probe).keys()]).toEqual([]);
+	expect(target.querySelector<HTMLFormElement>('form[action="?/save-reviewer"]')!.querySelector<HTMLButtonElement>('button[type="submit"]')!.disabled).toBe(false);
+});
+
+it.each(['success', 'failure', 'error', 'redirect', 'throw'])('releases reviewer probe state after %s without resetting general drafts', async (kind) => {
+	const initial = pageSettings({ ai_model: 'saved-generator' });
+	const { target, refresh } = renderPage(initial);
+	clickLabeled(target, '.config-tabs button', 'LLM');
+	editControl(target, 'ai_model', 'unsaved-generator');
+	const probe = target.querySelector<HTMLFormElement>('form[action="?/test-reviewer"]')!;
+	const button = target.querySelector<HTMLButtonElement>('button[form="reviewer-probe"]')!;
+	const save = target.querySelector<HTMLFormElement>('form[action="?/save-reviewer"]')!;
+	expect(button.disabled).toBe(false);
+	const submit = enhanced.get(probe)!;
+	let pending: ReturnType<SubmitFunction>;
+	flushSync(() => { pending = submit({ formElement: probe, formData: new FormData(probe) } as never); });
+	const callback = await pending!;
+	if (typeof callback !== 'function') throw new Error('Probe callback missing');
+	expect(button.disabled).toBe(true);
+	expect(button.textContent).toBe('Probando…');
+	expect(save.querySelector<HTMLButtonElement>('button[type="submit"]')!.disabled).toBe(true);
+	const actionData = { action: 'test-reviewer', ok: kind === 'success', message: 'Resultado de prueba.',
+		engine: null, model: null, latency_ms: 12, status_code: null, error_code: null, label: null } as const;
+	const update = vi.fn(async () => {
+		if (kind === 'throw') throw new Error('synthetic-do-not-display');
+		refresh({ ...initial, ai_model: 'refetched-generator' }, actionData);
+	});
+	await expect(callback({ update, result: { type: kind === 'throw' ? 'success' : kind, status: 200, data: actionData } } as never)).resolves.toBeUndefined();
+	flushSync();
+	expect(update).toHaveBeenCalledWith({ reset: false, invalidateAll: false });
+	expect(button.disabled).toBe(false);
+	expect(save.querySelector<HTMLButtonElement>('button[type="submit"]')!.disabled).toBe(false);
+	expect(target.querySelector<HTMLInputElement>('[name="ai_model"]')!.value).toBe('unsaved-generator');
+	expect(target.textContent).not.toContain('synthetic-do-not-display');
+	expect(save.querySelector('[role="status"], [role="alert"]')?.textContent).toContain(kind === 'throw'
+		? 'No se pudo actualizar la prueba del revisor. Vuelve a intentarlo.' : 'Resultado de prueba.');
+});
+
+it.each([false, true])('shows a saved reviewer password indicator without submitting it (stored=%s)', (stored) => {
+	const initial = pageSettings({ digest_reviewer_api_key_set: stored });
+	const { target, refresh } = renderPage(initial);
+	clickLabeled(target, '.config-tabs button', 'LLM');
+	const form = target.querySelector<HTMLFormElement>('form[action="?/save-reviewer"]')!;
+	const field = form.querySelector<HTMLInputElement>('[name="digest_reviewer_api_key"]')!;
+	expect(field.type).toBe('password');
+	expect(field.placeholder).toBe(stored ? '••••••••' : 'Sin clave guardada');
+	expect(field.value).toBe('');
+	expect(new FormData(form).get('digest_reviewer_api_key')).toBe('');
+	editControl(target, 'digest_reviewer_api_key', 'synthetic-replacement');
+	expect(field.type).toBe('password');
+	expect(new FormData(form).get('digest_reviewer_api_key')).toBe('synthetic-replacement');
+	editControl(target, 'digest_reviewer_api_key', '');
+	refresh({ ...initial, digest_reviewer_api_key_set: !stored });
+	expect(field.placeholder).toBe(stored ? 'Sin clave guardada' : '••••••••');
+	expect(field.value).toBe('');
+	expect(new FormData(form).get('digest_reviewer_api_key')).toBe('');
+});
+
+it('renders non-secret provider diagnostics only when present', () => {
+	const settings = pageSettings({ digest_reviewer_provider: 'openai' });
+	const { target, text, refresh } = renderPage(settings);
+	clickLabeled(target, '.config-tabs button', 'LLM');
+	refresh(settings, { action: 'test-reviewer', ok: false,
+		message: 'El proveedor rechazó la prueba; revisa el modelo y la URL base.',
+		engine: null, model: null, latency_ms: 458, label: null,
+		status_code: null, error_code: null } as never);
+	expect(text()).not.toContain('Diagnóstico del proveedor');
+	refresh(settings, { action: 'test-reviewer', ok: false,
+		message: 'El proveedor rechazó la prueba; revisa el modelo y la URL base.',
+		engine: null, model: null, latency_ms: 458, label: null,
+		status_code: 400, error_code: 'Model Not Exist' } as never);
+	expect(text()).toContain('Diagnóstico del proveedor: HTTP 400 · Model Not Exist.');
+	expect(text()).toContain('Tiempo de respuesta: 458 ms.');
+});
+
+it('warns before saving when the reviewer URL already includes /chat/completions', () => {
+	const { target, text } = renderPage(pageSettings({ digest_reviewer_provider: 'openai',
+		digest_reviewer_base_url: 'https://api.example.com/v1' }));
+	clickLabeled(target, '.config-tabs button', 'LLM');
+	expect(text()).not.toContain('La URL ya incluye');
+	editControl(target, 'digest_reviewer_base_url', 'https://api.example.com/v1/chat/completions');
+	expect(text()).toContain('La URL ya incluye /chat/completions; guarda solo la URL base del servicio.');
+	editControl(target, 'digest_reviewer_base_url', 'https://api.example.com/v1');
+	expect(text()).not.toContain('La URL ya incluye');
 });
 
 it('keeps reviewer edits independent from the general savebar and defaults to inheritance', () => {

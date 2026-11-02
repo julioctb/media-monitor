@@ -12,6 +12,7 @@ import {
 	listMentions,
 	listPersons,
 	testAi,
+	testReviewerConnection,
 	updateClientSettings
 } from './api';
 
@@ -269,6 +270,17 @@ describe('api client', () => {
 			expect(fetchMock).toHaveBeenCalledTimes(2);
 		}
 	);
+
+	it('probes stored reviewer settings with an empty POST body', async () => {
+		const result = { ok: false, message: 'El proveedor rechazó la prueba; revisa el modelo y la URL base.',
+			latency_ms: 458, status_code: 400, error_code: 'Model Not Exist' };
+		const fetchMock = stubFetch(async () => jsonResponse(200, result));
+		expect(await testReviewerConnection()).toEqual(result);
+		const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+		expect(url).toBe('http://localhost:8000/api/settings/test-reviewer');
+		expect(init).toEqual({ method: 'POST', headers: { 'X-Reviewer-Probe': '1' } });
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+	});
 
 	it('probes the ai provider with the selected engine', async () => {
 		const fetchMock = stubFetch(async () =>

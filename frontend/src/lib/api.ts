@@ -552,6 +552,21 @@ export function testAi(
   );
 }
 
+export interface ReviewerConnectionResult {
+  ok: boolean;
+  message: string;
+  latency_ms: number | null;
+  /** Provider HTTP status of the probe; null when no exchange completed. */
+  status_code: number | null;
+  /** Provider machine error code only; never its free-text message. */
+  error_code: string | null;
+}
+
+/** Test stored reviewer settings only; never forward form drafts or credentials. */
+export function testReviewerConnection(options: RequestOptions = {}): Promise<ReviewerConnectionResult> {
+  return request<ReviewerConnectionResult>("/api/settings/test-reviewer", { method: "POST", headers: { "X-Reviewer-Probe": "1" } }, options);
+}
+
 /* ----------------------------- saved searches ----------------------------- */
 
 /** One persisted monitoring query (social-listening core). */

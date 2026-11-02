@@ -68,6 +68,24 @@ a provider test. The V3 reviewer form is outside the general settings form and
 posts exactly its four reviewer fields. Completion clears the submitted secret
 on success and error without resetting general unsaved drafts or unmounting tabs.
 
+The separate **Probar conexión** button submits an empty associated form to
+`?/test-reviewer`, then no-body `POST /api/settings/test-reviewer` with the
+non-secret `X-Reviewer-Probe: 1` intent marker. The page action rejects foreign
+origins before contacting the API; the API rejects unmarked requests. It is disabled
+while reviewer changes are unsaved or another reviewer action is pending. The
+probe reads saved settings without lazy insertion or persistence; it does not
+use unsaved destinations or credentials. It sends at most one short chat request
+with a 64-token output cap and a 10-second per-I/O timeout, with redirects,
+retries and environment proxies disabled. Dedicated requests omit Qwen-specific
+kwargs; inheritance retains the general route's no-thinking options. User-visible
+feedback is credential-safe and reports latency, plus the provider's HTTP
+status and machine `error.code` token on failure (bounded, non-secret;
+free-text provider messages stay discarded); a reasoning-only response is
+identified separately from final text. A saved base URL already ending in
+`/chat/completions` fails fast without dispatching, and the form warns live
+while the draft URL carries that suffix. Clicking may incur provider cost and does
+not qualify factual/editorial review or refresh report approvals.
+
 ## What the reviewer receives and must assess
 
 `review_packet` contains the exact compiled candidate (excluding generation audit

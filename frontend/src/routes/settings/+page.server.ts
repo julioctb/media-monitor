@@ -7,6 +7,7 @@ import {
 	listKeywords,
 	listPersons,
 	testAi,
+	testReviewerConnection,
 	updateClientSettings
 } from '$lib/api';
 import type { AiNarrativeProbeResult } from '$lib/api';
@@ -16,20 +17,23 @@ import type { Actions, PageServerLoad } from './$types';
 
 /** Uniform action result: every branch carries the same keys for the view. */
 interface SettingsActionResult {
-	action: 'save' | 'save-reviewer' | 'save-x' | 'test-ai';
+	action: 'save' | 'save-reviewer' | 'save-x' | 'test-ai' | 'test-reviewer';
 	ok: boolean;
 	/** Banner text on save; probe outcome/error on the test action. */
 	message: string;
 	engine: string | null;
 	model: string | null;
 	latency_ms: number | null;
+	/** Non-secret reviewer probe diagnostics; null when unknown or no exchange. */
+	status_code: number | null;
+	error_code: string | null;
 	label: string | null;
 	/** Digest-narrative probe; null for local providers / older backends. */
 	narrative?: AiNarrativeProbeResult | null;
 }
 
 type ActionResultExtras = Partial<
-	Pick<SettingsActionResult, 'engine' | 'model' | 'latency_ms' | 'label' | 'narrative'>
+	Pick<SettingsActionResult, 'engine' | 'model' | 'latency_ms' | 'status_code' | 'error_code' | 'label' | 'narrative'>
 >;
 
 /** Probe-shaped defaults so callers only pass the fields they know. */
@@ -43,6 +47,8 @@ function actionResult(
 		engine: null,
 		model: null,
 		latency_ms: null,
+		status_code: null,
+		error_code: null,
 		label: null,
 		...extras,
 		action,
@@ -53,6 +59,26 @@ function actionResult(
 
 function failure(action: SettingsActionResult['action'], status: number, message: string) {
 	return fail(status, actionResult(action, false, message));
+}
+
+/**
+ * Cross-site guard for the empty probe form. The Origin header's host must
+ * match the Host the browser actually connected to; dev servers may rebuild
+ * request.url from a canonical host (localhost), so the URL is only a
+ * fallback when no Host header is present.
+ */
+function foreignReviewerProbeOrigin(request: Request): boolean {
+	if (request.headers.get('sec-fetch-site') === 'cross-site') return true;
+	const origin = request.headers.get('origin');
+	if (origin === null) return false;
+	let originHost: string;
+	try {
+		originHost = new URL(origin).host;
+	} catch {
+		return true;
+	}
+	const host = request.headers.get('host');
+	return originHost !== (host ?? new URL(request.url).host);
 }
 
 function failureFrom(cause: unknown, action: SettingsActionResult['action'], fallback: string) {
@@ -268,6 +294,22 @@ export const actions: Actions = {
 			);
 		} catch (cause) {
 			return failureFrom(cause, 'test-ai', 'No se pudo contactar la prueba del proveedor.');
+		}
+	},
+
+	'test-reviewer': async ({ request }) => {
+		if (foreignReviewerProbeOrigin(request)) {
+			return failure('test-reviewer', 403,
+				'La prueba debe iniciarse desde esta página de configuración.');
+		}
+		try {
+			const probe = await testReviewerConnection();
+			return actionResult('test-reviewer', probe.ok, probe.message,
+				{ latency_ms: probe.latency_ms, status_code: probe.status_code ?? null, error_code: probe.error_code ?? null });
+		} catch (cause) {
+			// Never forward backend diagnostics that might contain credentials.
+			return failure('test-reviewer', errorStatus(cause, 502),
+				'No se pudo probar la conexión del revisor. Vuelve a intentarlo.');
 		}
 	},
 

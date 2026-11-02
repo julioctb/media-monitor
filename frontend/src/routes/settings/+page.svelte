@@ -108,10 +108,34 @@
 	let reviewerKey = $state('');
 	let reviewerSaving = $state(false);
 	let reviewerUpdateFailed = $state(false);
+	let reviewerTesting = $state(false);
+	let reviewerProbeUpdateFailed = $state(false);
+	const reviewerDirty = $derived(
+		reviewer.provider !== (data.settings.digest_reviewer_provider ?? 'inherit') ||
+		reviewer.baseUrl.trim() !== (data.settings.digest_reviewer_base_url ?? '').trim() ||
+		reviewer.model.trim() !== (data.settings.digest_reviewer_model ?? '').trim() ||
+		reviewerKey.trim() !== ''
+	);
+	const handleReviewerProbe: SubmitFunction = () => {
+		reviewerTesting = true;
+		reviewerProbeUpdateFailed = false;
+		reviewerUpdateFailed = false;
+		return async ({ update }) => {
+			try {
+				await update({ reset: false, invalidateAll: false });
+			} catch {
+				reviewerProbeUpdateFailed = true;
+			} finally {
+				reviewerTesting = false;
+			}
+		};
+	};
 	const reviewerFeedback = $derived(
 		reviewerUpdateFailed
 			? { ok: false, message: 'No se pudo actualizar la pantalla del revisor. Vuelve a intentarlo.' }
-			: form?.action === 'save-reviewer' ? form : null
+			: reviewerProbeUpdateFailed
+				? { ok: false, message: 'No se pudo actualizar la prueba del revisor. Vuelve a intentarlo.' }
+				: form?.action === 'save-reviewer' || (form?.action === 'test-reviewer' && !reviewerDirty) ? form : null
 	);
 
 	const handleReviewerSubmit: SubmitFunction = () => {
@@ -1249,6 +1273,9 @@
 			</section>
 		</form>
 
+		<!-- This associated form has no named controls or credential payload. -->
+		<form id="reviewer-probe" method="POST" action="?/test-reviewer"
+			hidden={activeTab !== 'llm'} use:enhance={handleReviewerProbe}></form>
 		<!-- Reviewer save is separate from the general draft and its savebar. -->
 		<form
 			method="POST"
@@ -1256,7 +1283,7 @@
 			class="panel config-section-card"
 			hidden={activeTab !== 'llm'}
 			aria-labelledby="reviewer-title"
-			aria-busy={reviewerSaving}
+			aria-busy={reviewerSaving || reviewerTesting}
 			use:enhance={handleReviewerSubmit}
 		>
 			<div class="panel-head config-section-head">
@@ -1274,6 +1301,9 @@
 				<div>
 					<label for="reviewer-url" class={LABEL_CLS}>URL del servicio del revisor</label>
 					<input id="reviewer-url" name="digest_reviewer_base_url" type="url" bind:value={reviewer.baseUrl} class={INPUT_CLS} />
+					{#if reviewer.provider === 'openai' && reviewer.baseUrl.trim().toLowerCase().endsWith('/chat/completions')}
+						<p class="config-feedback config-error" role="alert">La URL ya incluye /chat/completions; guarda solo la URL base del servicio.</p>
+					{/if}
 				</div>
 				<div>
 					<label for="reviewer-model" class={LABEL_CLS}>Identificador del modelo revisor</label>
@@ -1282,7 +1312,8 @@
 				<div class="config-secret-field">
 					<label for="reviewer-key">API key del revisor</label>
 					<div class="config-secret-control">
-						<input id="reviewer-key" name="digest_reviewer_api_key" type="password" bind:value={reviewerKey} autocomplete="off" />
+						<input id="reviewer-key" name="digest_reviewer_api_key" type="password" bind:value={reviewerKey} autocomplete="off"
+							placeholder={data.settings.digest_reviewer_api_key_set ? '••••••••' : 'Sin clave guardada'} />
 					</div>
 					<span>{data.settings.digest_reviewer_api_key_set ? 'Clave del revisor guardada' : 'Sin clave del revisor guardada'}. Deja el campo vacío para conservarla.</span>
 				</div>
@@ -1296,11 +1327,21 @@
 			{#if reviewerFeedback}
 				<div class="config-feedback{reviewerFeedback.ok ? '' : ' config-error'}" role={reviewerFeedback.ok ? 'status' : 'alert'}>
 					{reviewerFeedback.message}
+					{#if form?.action === 'test-reviewer' && form.latency_ms !== null && !reviewerProbeUpdateFailed}
+						<p>Tiempo de respuesta: {form.latency_ms} ms.</p>
+					{/if}
+					{#if form?.action === 'test-reviewer' && (form.status_code !== null || form.error_code !== null) && !reviewerProbeUpdateFailed}
+						<p>Diagnóstico del proveedor: HTTP {form.status_code ?? '—'}{form.error_code ? ` · ${form.error_code}` : ''}.</p>
+					{/if}
 				</div>
 			{/if}
-			<button type="submit" class="button primary" disabled={reviewerSaving}>
+			<button type="submit" class="button primary" disabled={reviewerSaving || reviewerTesting}>
 				{reviewerSaving ? 'Guardando revisor…' : 'Guardar revisor'}
 			</button>
+			<button type="submit" form="reviewer-probe" class="button"
+				disabled={reviewerDirty || reviewerSaving || reviewerTesting}>{reviewerTesting ? 'Probando…' : 'Probar conexión'}</button>
+			<p>Guarda los cambios antes de probar; se usa la configuración guardada.</p>
+			<p>La prueba envía una solicitud breve al proveedor y puede generar un costo. No evalúa la calidad del revisor.</p>
 		</form>
 	</div>
 
