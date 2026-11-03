@@ -483,6 +483,41 @@ def test_reviewer_connection_surfaces_non_secret_provider_diagnostics(
     assert snapshot_tables(db) == before
 
 
+def test_reviewer_connection_reports_insufficient_balance_specifically(
+    api, db, monkeypatch
+):
+    from app.api import settings as settings_api
+
+    queries.upsert_settings(
+        db,
+        first_client_id(db),
+        {
+            "digest_reviewer_provider": "openai",
+            "digest_reviewer_base_url": "https://reviewer.invalid/v1",
+            "digest_reviewer_model": "fixture-model",
+            "digest_reviewer_api_key": "synthetic-key",
+        },
+    )
+    client = httpx.Client(
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(
+                402,
+                json={"error": {"code": "invalid_request_error",
+                                "message": "Insufficient Balance"}},
+            )
+        )
+    )
+    monkeypatch.setattr(settings_api, "_reviewer_probe_client", lambda: client)
+    response = api.post(
+        "/api/settings/test-reviewer", headers={"X-Reviewer-Probe": "1"}
+    )
+    result = response.json()
+    assert result["ok"] is False
+    assert "saldo insuficiente" in result["message"].lower()
+    assert result["status_code"] == 402
+    assert result["error_code"] == "invalid_request_error"
+
+
 def test_reviewer_connection_reports_status_without_code_for_opaque_error_bodies(
     api, db, monkeypatch
 ):

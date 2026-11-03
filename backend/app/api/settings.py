@@ -186,6 +186,13 @@ def test_reviewer_endpoint(
             error_code = _provider_error_code(response)
         if response.status_code in {401, 403}:
             message = "El proveedor rechazó la clave o sus permisos."
+        elif response.status_code == 402:
+            # Documented by OpenAI-compatible providers (DeepSeek) as
+            # Insufficient Balance: billing, not configuration.
+            message = (
+                "Saldo insuficiente en la cuenta del proveedor; "
+                "recarga el saldo y prueba de nuevo."
+            )
         elif response.is_redirect:
             message = "El servicio devolvió una redirección; revisa la URL base."
         elif response.status_code == 429:
