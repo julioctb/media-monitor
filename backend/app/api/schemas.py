@@ -229,6 +229,7 @@ class ClientSettingsOut(BaseModel):
     digest_reviewer_model: str | None
     digest_reviewer_api_key: str
     digest_reviewer_api_key_set: bool
+    digest_reviewer_guided_mode: str
     fetch_max_per_cycle: int
     updated_at: datetime
 
@@ -282,6 +283,8 @@ class ClientSettingsUpdate(BaseModel):
     # Validate at the persistence boundary: FastAPI's schema error includes
     # rejected input, which must never echo a malformed credential value.
     digest_reviewer_api_key: object = None
+    # Guided envelope for the dedicated reviewer; default json_schema.
+    digest_reviewer_guided_mode: str | None = None
     fetch_max_per_cycle: int | None = Field(default=None, ge=1, le=1000)
 
     @field_validator("digest_hours")

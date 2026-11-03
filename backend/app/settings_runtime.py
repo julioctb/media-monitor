@@ -59,6 +59,7 @@ class EffectiveSettings:
     digest_reviewer_base_url: str | None = None
     digest_reviewer_model: str | None = None
     digest_reviewer_api_key: str | None = field(default=None, repr=False)
+    digest_reviewer_guided_mode: str = "json_schema"
     digest_reviewer_revision: str | None = None
     enrich_max_per_cycle: int = 50
     fetch_max_per_cycle: int = 20
@@ -192,6 +193,7 @@ def resolve_effective_settings(session: Session, client_id: int) -> EffectiveSet
         digest_reviewer_base_url=row.digest_reviewer_base_url,
         digest_reviewer_model=row.digest_reviewer_model,
         digest_reviewer_api_key=row.digest_reviewer_api_key,
+        digest_reviewer_guided_mode=row.digest_reviewer_guided_mode,
         digest_reviewer_revision=row.digest_reviewer_revision,
         enrich_max_per_cycle=row.enrich_max_per_cycle,
         fetch_max_per_cycle=row.fetch_max_per_cycle,

@@ -126,6 +126,9 @@ Saving does not test a connection or send report material to a provider.
 
 **Probar conexión** uses a separate empty form and no-body
 `POST /api/settings/test-reviewer` with the non-secret `X-Reviewer-Probe: 1` intent marker. Cross-origin page-action submissions are rejected. Save reviewer changes first: the test reads
+The reviewer form also picks the guided envelope (`json_schema` default,
+`json_object` for DeepSeek-compatible providers, `plain` unguided); invalid
+values are rejected before the API call.
 only the tenant's saved configuration and never creates or updates a settings
 row. Inheritance uses the saved general API configuration; dedicated mode uses
 only its saved URL/model/key. One click sends one short chat request (64 output

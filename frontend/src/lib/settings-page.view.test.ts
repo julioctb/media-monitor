@@ -425,10 +425,20 @@ it('offers a credential-free saved reviewer connection test without changing sav
 	expect(text()).toContain('puede generar un costo');
 });
 
-const REVIEWER_NAMES = ['digest_reviewer_api_key', 'digest_reviewer_base_url',
-	'digest_reviewer_model', 'digest_reviewer_provider'];
+const REVIEWER_NAMES = ['digest_reviewer_api_key', 'digest_reviewer_base_url', 'digest_reviewer_guided_mode', 'digest_reviewer_model', 'digest_reviewer_provider'];
 
-it('renders an independent reviewer form under LLM with exactly four safe controls', () => {
+it('offers the reviewer guided-mode selector bound to the saved value', () => {
+	const { target } = renderPage(pageSettings({ digest_reviewer_provider: 'openai',
+		digest_reviewer_guided_mode: 'json_object' }));
+	clickLabeled(target, '.config-tabs button', 'LLM');
+	const select = target.querySelector<HTMLSelectElement>('[name="digest_reviewer_guided_mode"]');
+	expect(select).toBeInstanceOf(HTMLSelectElement);
+	expect(select!.value).toBe('json_object');
+	expect([...select!.options].map((o) => o.value).sort()).toEqual(['json_object', 'json_schema', 'plain']);
+	expect(target.textContent).toContain('Usa json_object cuando el proveedor no admita json_schema');
+});
+
+it('renders an independent reviewer form under LLM with exactly five safe controls', () => {
 	const { target } = renderPage(pageSettings({ digest_reviewer_provider: 'openai',
 		digest_reviewer_base_url: 'https://reviewer.invalid/v1', digest_reviewer_model: 'fixture-reviewer',
 		digest_reviewer_api_key: 'fixture-only-must-not-render', digest_reviewer_api_key_set: true }));
@@ -509,12 +519,13 @@ it.each(['success', 'failure', 'error', 'redirect', 'throw'])('clears only the r
 	expect(target.querySelector<HTMLInputElement>('[name="ai_model"]')!.value).toBe('unsaved-generator');
 });
 
-it.each(['digest_reviewer_provider', 'digest_reviewer_base_url', 'digest_reviewer_model', 'digest_reviewer_api_key'])('requires saving reviewer draft %s before testing', (field) => {
+it.each(['digest_reviewer_provider', 'digest_reviewer_base_url', 'digest_reviewer_model', 'digest_reviewer_api_key', 'digest_reviewer_guided_mode'])('requires saving reviewer draft %s before testing', (field) => {
 	const { target } = renderPage(pageSettings({ digest_reviewer_provider: 'openai',
 		digest_reviewer_base_url: 'https://saved.invalid/v1', digest_reviewer_model: 'saved-model' }));
 	clickLabeled(target, '.config-tabs button', 'LLM');
 	expect(target.querySelector<HTMLButtonElement>('button[form="reviewer-probe"]')!.disabled).toBe(false);
-	editControl(target, field, field === 'digest_reviewer_provider' ? 'inherit' : 'unsaved-value');
+	editControl(target, field, field === 'digest_reviewer_provider' ? 'inherit'
+		: field === 'digest_reviewer_guided_mode' ? 'json_object' : 'unsaved-value');
 	expect(target.querySelector<HTMLButtonElement>('button[form="reviewer-probe"]')!.disabled).toBe(true);
 	const probe = target.querySelector<HTMLFormElement>('form[action="?/test-reviewer"]')!;
 	expect([...new FormData(probe).keys()]).toEqual([]);

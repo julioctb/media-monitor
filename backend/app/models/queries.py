@@ -41,7 +41,7 @@ from app.models import (
 )
 from app.models.field import FieldOperator, FieldReport, FieldReportStatus
 from app.models.mention import make_url_hash
-from app.models.settings import AI_PROVIDERS, X_MODES
+from app.models.settings import REVIEWER_GUIDED_MODES, AI_PROVIDERS, X_MODES
 
 
 def list_ingest_runs(
@@ -954,6 +954,14 @@ def _validate_optional_str(value: object, field: str, *, is_url: bool = False) -
     return cleaned
 
 
+def _validate_reviewer_guided_mode(value: object) -> str:
+    if value not in REVIEWER_GUIDED_MODES:
+        raise ValueError(
+            "El modo guiado del revisor debe ser json_schema, json_object o plain."
+        )
+    return value  # type: ignore[return-value]
+
+
 def _validate_reviewer_provider(value: object) -> str:
     if value not in ("inherit", "openai"):
         raise ValueError(
@@ -998,6 +1006,7 @@ def _reviewer_identity(row: ClientSettings) -> tuple:
         row.digest_reviewer_base_url,
         row.digest_reviewer_model,
         row.digest_reviewer_api_key,
+        row.digest_reviewer_guided_mode,
     )
 
 
@@ -1021,6 +1030,7 @@ _VALIDATORS = {
     "ai_model": lambda v: _validate_optional_str(v, "ai_model"),
     "ai_model_fast": lambda v: _validate_optional_str(v, "ai_model_fast"),
     "digest_reviewer_provider": _validate_reviewer_provider,
+    "digest_reviewer_guided_mode": _validate_reviewer_guided_mode,
     "digest_reviewer_base_url": lambda v: _validate_reviewer_text(
         v, "digest_reviewer_base_url", 500
     ),

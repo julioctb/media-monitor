@@ -441,7 +441,15 @@ it.each([503, 0])('does not echo reviewer probe diagnostics for API status %i', 
 	expect(JSON.stringify(result)).not.toContain(secret);
 });
 
-it('saves only the four independent reviewer fields without dispatching a probe', async () => {
+it('rejects an unknown reviewer guided mode with 400 before the API', async () => {
+	const fetchMock = stubFetch(SETTINGS_ROW);
+	const result = await actions['save-reviewer']({ request: formRequest({
+		digest_reviewer_provider: 'openai', digest_reviewer_guided_mode: 'yaml' }) } as never);
+	expect(result).toMatchObject({ status: 400, data: { action: 'save-reviewer', ok: false } });
+	expect(fetchMock).not.toHaveBeenCalled();
+});
+
+it('saves only the five independent reviewer fields without dispatching a probe', async () => {
 	const fetchMock = stubFetch(SETTINGS_ROW);
 	const action = actions['save-reviewer'];
 	expect(action).toBeTypeOf('function');
@@ -449,6 +457,7 @@ it('saves only the four independent reviewer fields without dispatching a probe'
 		digest_reviewer_provider: 'openai',
 		digest_reviewer_base_url: ' https://reviewer.invalid/v1 ',
 		digest_reviewer_model: ' fixture-reviewer ',
+		digest_reviewer_guided_mode: 'json_object',
 		digest_reviewer_api_key: ' fixture-only-new-key ',
 		ai_provider: 'openai', ai_model: 'must-not-change', ai_api_key: 'must-not-change',
 		watchlist: ['999'], retention_days: '1', digest_reviewer_revision: 'must-not-travel'
@@ -456,7 +465,8 @@ it('saves only the four independent reviewer fields without dispatching a probe'
 	expect(result).toMatchObject({ action: 'save-reviewer', ok: true });
 	expect(savedBodies).toEqual([{
 		digest_reviewer_provider: 'openai', digest_reviewer_base_url: 'https://reviewer.invalid/v1',
-		digest_reviewer_model: 'fixture-reviewer', digest_reviewer_api_key: 'fixture-only-new-key'
+		digest_reviewer_model: 'fixture-reviewer', digest_reviewer_guided_mode: 'json_object',
+		digest_reviewer_api_key: 'fixture-only-new-key'
 	}]);
 	expect(fetchMock).toHaveBeenCalledTimes(1);
 	expect(JSON.stringify(result)).not.toContain('fixture-only-new-key');
@@ -494,7 +504,8 @@ it.each([undefined, '', '   '])('preserves the reviewer blank-key sentinel %j', 
 	await actions['save-reviewer']({ request: formRequest({ digest_reviewer_provider: 'inherit',
 		...(key === undefined ? {} : { digest_reviewer_api_key: key }) }) } as never);
 	expect(savedBodies).toEqual([{ digest_reviewer_provider: 'inherit',
-		digest_reviewer_base_url: null, digest_reviewer_model: null, digest_reviewer_api_key: '' }]);
+		digest_reviewer_base_url: null, digest_reviewer_model: null,
+		digest_reviewer_guided_mode: 'json_schema', digest_reviewer_api_key: '' }]);
 });
 
 // -- X source mode (free/paid) and its masked API key --

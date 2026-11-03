@@ -214,6 +214,8 @@ export interface ClientSettings {
   digest_reviewer_provider?: 'inherit' | 'openai';
   digest_reviewer_base_url?: string | null;
   digest_reviewer_model?: string | null;
+  /** Guided envelope for the dedicated reviewer (json_schema default). */
+  digest_reviewer_guided_mode?: 'json_schema' | 'json_object' | 'plain';
   digest_reviewer_api_key?: string;
   digest_reviewer_api_key_set?: boolean;
   /** Paid-mode X source; see x-mode-settings. */
@@ -250,6 +252,7 @@ export interface ClientSettingsInput {
   digest_reviewer_provider?: 'inherit' | 'openai';
   digest_reviewer_base_url?: string | null;
   digest_reviewer_model?: string | null;
+  digest_reviewer_guided_mode?: 'json_schema' | 'json_object' | 'plain';
   /** Nonblank replaces; null, blank or omitted preserves the stored key. */
   digest_reviewer_api_key?: string | null;
   x_mode?: XMode;

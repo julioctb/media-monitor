@@ -320,11 +320,17 @@ export const actions: Actions = {
 		if (provider !== 'inherit' && provider !== 'openai') {
 			return failure('save-reviewer', 400, 'Elige el modo del revisor de informes.');
 		}
+		const guidedMode = text(form, 'digest_reviewer_guided_mode') || 'json_schema';
+		if (!['json_schema', 'json_object', 'plain'].includes(guidedMode)) {
+			return failure('save-reviewer', 400,
+				'El modo guiado del revisor debe ser json_schema, json_object o plain.');
+		}
 		try {
 			await updateClientSettings({
 				digest_reviewer_provider: provider,
 				digest_reviewer_base_url: optionalText(form, 'digest_reviewer_base_url'),
 				digest_reviewer_model: optionalText(form, 'digest_reviewer_model'),
+				digest_reviewer_guided_mode: guidedMode as 'json_schema' | 'json_object' | 'plain',
 				digest_reviewer_api_key: text(form, 'digest_reviewer_api_key')
 			});
 			return actionResult('save-reviewer', true, 'Configuración del revisor guardada.');

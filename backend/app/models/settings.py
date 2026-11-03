@@ -37,6 +37,9 @@ AI_PROVIDERS = ("local", "openai")
 # Enum values enforced at validation time (queries._validate_x_mode);
 # no DB CHECK so the migration stays dialect-agnostic.
 X_MODES = ("free", "paid")
+# Review-only guided envelope for providers without json_schema support
+# (DeepSeek documents json_object only). json_schema stays the default.
+REVIEWER_GUIDED_MODES = ("json_schema", "json_object", "plain")
 
 
 class ClientSettings(IntPk, Base):
@@ -133,6 +136,11 @@ class ClientSettings(IntPk, Base):
     digest_reviewer_base_url: Mapped[str | None] = mapped_column(String(500))
     digest_reviewer_model: Mapped[str | None] = mapped_column(String(100))
     digest_reviewer_api_key: Mapped[str | None] = mapped_column(String(500))
+    # Guided response envelope for the dedicated reviewer transport.
+    digest_reviewer_guided_mode: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="json_schema",
+        server_default="json_schema",
+    )
     # Random cache identity, never a credential hash or a report version.
     digest_reviewer_revision: Mapped[str | None] = mapped_column(String(36))
     # F2c: max LLM enrichments per ingest cycle; the overflow is backfill work.

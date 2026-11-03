@@ -1400,6 +1400,7 @@ def _openai_generator(
     system_prompt: str | None = None,
     response_schema: dict | None = None,
     transport_policy: str = "generator",
+    guided_mode: str = "json_schema",
 ) -> Callable[[str], str]:
     """Callable prompt->payload for the configured provider.
 
@@ -1409,6 +1410,8 @@ def _openai_generator(
     """
     if transport_policy not in {"generator", "provider_default"}:
         raise ValueError("Unknown summary transport policy")
+    if guided_mode not in {"json_schema", "json_object", "plain"}:
+        raise ValueError("Unknown guided mode")
     base_url = (effective.ai_base_url or DEFAULT_OPENAI_BASE_URL).rstrip("/")
     model = effective.ai_model or DEFAULT_OPENAI_MODEL
     api_key = effective.ai_api_key or ""
@@ -1429,21 +1432,27 @@ def _openai_generator(
             }
             if transport_policy == "generator":
                 body["chat_template_kwargs"] = dict(NO_THINK_CHAT_KWARGS)
-            if attempt == 0:
+            if attempt == 0 and guided_mode != "plain":
                 # Guided generation (docs/contrato-narrativa-del-digest.md
-                # §4). Retries go plain: a provider without json_schema
-                # support degrades to the old behavior instead of failing.
-                body["response_format"] = {
-                    "type": "json_schema",
-                    "json_schema": {
-                        "name": "digest_factual_plan"
-                        if response_schema is not None
-                        else "digest_narrative",
-                        "schema": response_schema
-                        if response_schema is not None
-                        else narrative_response_schema(),
-                    },
-                }
+                # §4). Retries go plain: a provider without guided support
+                # degrades to the old behavior instead of failing.
+                # json_object: providers without json_schema (DeepSeek)
+                # still get a provider-guaranteed JSON envelope in ONE
+                # request, keeping the shared budget intact.
+                if guided_mode == "json_object":
+                    body["response_format"] = {"type": "json_object"}
+                else:
+                    body["response_format"] = {
+                        "type": "json_schema",
+                        "json_schema": {
+                            "name": "digest_factual_plan"
+                            if response_schema is not None
+                            else "digest_narrative",
+                            "schema": response_schema
+                            if response_schema is not None
+                            else narrative_response_schema(),
+                        },
+                    }
             try:
                 request_options: dict[str, Any] = {"timeout": TIMEOUT_S}
                 if budget is not None:
@@ -1499,6 +1508,7 @@ def summary_generator(
     system_prompt: str | None = None,
     response_schema: dict | None = None,
     transport_policy: str = "generator",
+    guided_mode: str = "json_schema",
 ) -> Callable[[str], str] | None:
     """LLM narrative callable for the effective settings, else None.
 
@@ -1514,6 +1524,7 @@ def summary_generator(
         system_prompt=system_prompt,
         response_schema=response_schema,
         transport_policy=transport_policy,
+        guided_mode=guided_mode,
     )
 
 
@@ -1819,6 +1830,11 @@ def build_daily_summary(
                 "provider_default"
                 if phase == "review" and reviewer_transport_policy is not None
                 else "generator"
+            ),
+            guided_mode=(
+                review_effective.digest_reviewer_guided_mode
+                if phase == "review" and reviewer_transport_policy is not None
+                else "json_schema"
             ),
         )
 

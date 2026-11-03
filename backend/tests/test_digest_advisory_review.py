@@ -259,6 +259,7 @@ def test_dedicated_review_failure_never_dispatches_third_request(
         ("openai", "model", False),
         ("openai", "url", False),
         ("openai", "mode", False),
+        ("openai", "guided_mode", False),
         ("openai", "unmarked", False),
         ("openai", "generator", True),
         ("inherit", "same", True),
@@ -310,6 +311,8 @@ def test_recovery_is_bound_to_effective_reviewer_revision(
             if mode == "openai"
             else {"ai_provider": "local"}
         )
+    elif change == "guided_mode":
+        changes = {"digest_reviewer_guided_mode": "json_object"}
     elif change == "generator":
         changes = {"ai_model": "other-generator-fixture"}
     elif change == "fast_model":

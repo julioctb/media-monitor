@@ -102,7 +102,8 @@
 	let reviewer = $state({
 		provider: data.settings.digest_reviewer_provider ?? 'inherit',
 		baseUrl: data.settings.digest_reviewer_base_url ?? '',
-		model: data.settings.digest_reviewer_model ?? ''
+		model: data.settings.digest_reviewer_model ?? '',
+		guidedMode: data.settings.digest_reviewer_guided_mode ?? 'json_schema'
 	});
 	// Never hydrate a reviewer credential, even if a response includes one.
 	let reviewerKey = $state('');
@@ -114,6 +115,7 @@
 		reviewer.provider !== (data.settings.digest_reviewer_provider ?? 'inherit') ||
 		reviewer.baseUrl.trim() !== (data.settings.digest_reviewer_base_url ?? '').trim() ||
 		reviewer.model.trim() !== (data.settings.digest_reviewer_model ?? '').trim() ||
+		reviewer.guidedMode !== (data.settings.digest_reviewer_guided_mode ?? 'json_schema') ||
 		reviewerKey.trim() !== ''
 	);
 	const handleReviewerProbe: SubmitFunction = () => {
@@ -1308,6 +1310,15 @@
 				<div>
 					<label for="reviewer-model" class={LABEL_CLS}>Identificador del modelo revisor</label>
 					<input id="reviewer-model" name="digest_reviewer_model" type="text" bind:value={reviewer.model} class={INPUT_CLS} />
+				</div>
+				<div>
+					<label for="reviewer-guided-mode" class={LABEL_CLS}>Modo guiado del revisor</label>
+					<select id="reviewer-guided-mode" name="digest_reviewer_guided_mode" bind:value={reviewer.guidedMode} class={INPUT_CLS}>
+						<option value="json_schema">json_schema · estricto (predeterminado)</option>
+						<option value="json_object">json_object · compatible</option>
+						<option value="plain">plain · sin formato guiado</option>
+					</select>
+					<p>Usa json_object cuando el proveedor no admita json_schema (DeepSeek).</p>
 				</div>
 				<div class="config-secret-field">
 					<label for="reviewer-key">API key del revisor</label>

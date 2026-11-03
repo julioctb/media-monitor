@@ -126,6 +126,22 @@ def test_reviewer_validation_does_not_echo_credentials(api, db):
     assert api.get("/api/settings").json()["digest_reviewer_api_key_set"] is False
 
 
+def test_reviewer_guided_mode_roundtrip_and_validation(api, db):
+    api.put("/api/settings", json={
+        "digest_reviewer_provider": "openai",
+        "digest_reviewer_base_url": "https://reviewer.invalid/v1",
+        "digest_reviewer_model": "fixture",
+        "digest_reviewer_api_key": "synthetic-key",
+        "digest_reviewer_guided_mode": "json_object",
+    })
+    current = api.get("/api/settings")
+    assert current.status_code == 200
+    assert current.json()["digest_reviewer_guided_mode"] == "json_object"
+    rejected = api.put("/api/settings", json={"digest_reviewer_guided_mode": "yaml"})
+    assert rejected.status_code == 422
+    assert api.get("/api/settings").json()["digest_reviewer_guided_mode"] == "json_object"
+
+
 def test_reviewer_connection_uses_saved_dedicated_settings_without_writes(
     api, db, monkeypatch, caplog
 ):

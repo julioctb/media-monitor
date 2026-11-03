@@ -71,6 +71,19 @@ on success and error without resetting general unsaved drafts or unmounting tabs
 The separate **Probar conexión** button submits an empty associated form to
 `?/test-reviewer`, then no-body `POST /api/settings/test-reviewer` with the
 non-secret `X-Reviewer-Probe: 1` intent marker. The page action rejects foreign
+
+### Guided envelope per provider (`digest_reviewer_guided_mode`)
+
+The dedicated reviewer transport selects its guided envelope independently of
+the proposal generator: `json_schema` (default, strict), `json_object`
+(providers without schema-mode support — DeepSeek documents `json_object`
+only), or `plain`. The setting is validated (`422` on unknown values),
+persisted via migration `0033`, and bound into the reviewer revision
+identity, so changing it invalidates recovery eligibility for previously
+approved reports. The proposal phase always keeps `json_schema`; inheritance
+ignores the field. On the wire the review request carries exactly one
+envelope in one physical request — no guided retry that would burn the
+shared 2-request budget.
 origins before contacting the API; the API rejects unmarked requests. It is disabled
 while reviewer changes are unsaved or another reviewer action is pending. The
 probe reads saved settings without lazy insertion or persistence; it does not
