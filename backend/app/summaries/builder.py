@@ -2137,6 +2137,15 @@ def build_daily_summary(
                 plan=None,
             )
             trace["rejected_plan"] = accepted_plan
+            # Auditability: the reviewer judged this exact candidate and the
+            # receipt's reasons reference its paths, but the fallback below
+            # replaces the composition. Keep the judged candidate bound to
+            # the receipt's identifiers so every rejection stays verifiable.
+            trace["review_context"] = {
+                "candidate": copy.deepcopy(packet["candidate"]),
+                "scope": packet["scope"],
+                "input_fingerprint": packet["input_fingerprint"],
+            }
             content = copy.deepcopy(safe_content)
             content["generation"] = trace
             accepted_plan = None

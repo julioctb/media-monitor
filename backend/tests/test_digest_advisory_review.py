@@ -442,6 +442,176 @@ def test_public_pipeline_reviews_actual_compiled_candidate_with_shared_budget(
     }
 
 
+def test_dedicated_reviewer_guided_mode_reaches_the_wire(session, monkeypatch):
+    client, _ = _material(session)
+    configure(session, client)
+    configure_reviewer(session, client, digest_reviewer_guided_mode="json_object")
+    calls = []
+
+    def respond(url, **options):
+        calls.append(copy.deepcopy(options))
+        packet = json.loads(options["json"]["messages"][1]["content"])
+        value = (
+            contextual_plan(json.dumps(packet))
+            if len(calls) == 1
+            else passed_review(packet)
+        )
+        return httpx.Response(
+            200,
+            request=httpx.Request("POST", url),
+            json={"choices": [{"message": {"content": json.dumps(value, ensure_ascii=False)}}]},
+        )
+
+    monkeypatch.setattr(builder.httpx, "post", respond)
+    row = builder.build_daily_summary(session, client_id=client.id, day=DAY.date())
+    assert row.mode == "llm" and len(calls) == 2
+    # Proposal keeps the strict generator envelope.
+    assert calls[0]["json"]["response_format"]["type"] == "json_schema"
+    # The dedicated reviewer carries its configured envelope in ONE request.
+    assert calls[1]["json"]["response_format"] == {"type": "json_object"}
+    assert calls[1]["json"]["model"] == "reviewer-fixture-model"
+
+
+def test_inherit_reviewer_ignores_stored_guided_mode_on_the_wire(session, monkeypatch):
+    client, _ = _material(session)
+    configure(session, client)
+    configure_reviewer(session, client,
+                       digest_reviewer_guided_mode="json_object")  # stored but inert
+    from app.models import queries as queries_module
+    row = queries_module.get_settings(session, client.id)
+    row.digest_reviewer_provider = "inherit"
+    session.commit()
+    calls = []
+
+    def respond(url, **options):
+        calls.append(copy.deepcopy(options))
+        packet = json.loads(options["json"]["messages"][1]["content"])
+        value = (
+            contextual_plan(json.dumps(packet))
+            if len(calls) == 1
+            else passed_review(packet)
+        )
+        return httpx.Response(
+            200,
+            request=httpx.Request("POST", url),
+            json={"choices": [{"message": {"content": json.dumps(value, ensure_ascii=False)}}]},
+        )
+
+    monkeypatch.setattr(builder.httpx, "post", respond)
+    row_result = builder.build_daily_summary(session, client_id=client.id, day=DAY.date())
+    assert row_result.mode == "llm" and len(calls) == 2
+    # Inheritance routes BOTH phases through the generator envelope.
+    assert all(c["json"]["response_format"]["type"] == "json_schema" for c in calls)
+
+
+def test_reviewer_guided_mode_selects_the_provider_envelope(monkeypatch):
+    from app.settings_runtime import EffectiveSettings
+    from app.summaries.builder import summary_generator
+
+    def role_settings():
+        return EffectiveSettings(
+            client_id=1, ai_provider="openai", ai_api_key="synthetic",
+            ai_base_url="https://fixture.invalid/v1", ai_model="fixture",
+        )
+
+    schema = {"type": "object", "properties": {"ok": {"type": "boolean"}}}
+    sent = []
+
+    def respond(url, **options):
+        sent.append(options["json"])
+        return httpx.Response(
+            200,
+            request=httpx.Request("POST", url),
+            json={"choices": [{"message": {"content": "{\"ok\": true}"}}]},
+        )
+
+    monkeypatch.setattr(builder.httpx, "post", respond)
+    for mode, expected in (("json_object", {"type": "json_object"}), ("plain", None)):
+        sent.clear()
+        generate = summary_generator(
+            role_settings(), system_prompt="s", response_schema=schema,
+            guided_mode=mode,
+        )
+        assert generate("prompt")
+        assert sent[0].get("response_format") == expected, mode
+    # Default keeps the strict json_schema path for capable providers.
+    sent.clear()
+    generate = summary_generator(role_settings(), system_prompt="s", response_schema=schema)
+    assert generate("prompt")
+    assert sent[0]["response_format"]["type"] == "json_schema"
+
+
+def test_rejected_review_preserves_the_judged_candidate_for_audit(
+    session, monkeypatch
+):
+    client, _ = _material(session)
+    configure(session, client)
+
+    def respond(url, **options):
+        packet = json.loads(options["json"]["messages"][1]["content"])
+        if "scope" not in packet:
+            value = contextual_plan(json.dumps(packet))
+        else:
+            value = {
+                "input_fingerprint": packet["input_fingerprint"],
+                "passed": False,
+                "checks": {key: key != "attribution" for key in packet["required_checks"]},
+                "assessments": [
+                    {
+                        "path": path,
+                        "passed": path != "noticias.0.title",
+                        "reason": "Caso sintético conforme."
+                        if path != "noticias.0.title"
+                        else "Título registrado sin atribución esencial.",
+                    }
+                    for path in packet["scope"]
+                ],
+            }
+        return httpx.Response(
+            200,
+            request=httpx.Request("POST", url),
+            json={"choices": [{"message": {"content": json.dumps(value, ensure_ascii=False)}}]},
+        )
+
+    monkeypatch.setattr(builder.httpx, "post", respond)
+    row = builder.build_daily_summary(session, client_id=client.id, day=DAY.date())
+    gen = row.content["generation"]
+    assert gen["review"]["status"] == "rejected"
+    context = gen["review_context"]
+    # The judged candidate survives the fallback strip...
+    assert context["candidate"]["brief"]["decisiones"], "judged candidate lost"
+    # ...while the stored report keeps the fallback composition.
+    assert gen["plan"] is None and row.content["brief"]["decisiones"] == []
+    # Binding identifiers match the receipt, so reasons are auditable.
+    assert context["scope"] == gen["review"]["scope"]
+    assert context["input_fingerprint"] == gen["review"]["input_fingerprint"]
+    assert "title" in context["candidate"]["noticias"][0]
+    assert gen["rejected_plan"] is not None
+
+
+def test_passed_review_stores_no_review_context(session, monkeypatch):
+    client, _ = _material(session)
+    configure(session, client)
+
+    def respond(url, **options):
+        packet = json.loads(options["json"]["messages"][1]["content"])
+        value = (
+            contextual_plan(json.dumps(packet))
+            if "scope" not in packet
+            else passed_review(packet)
+        )
+        return httpx.Response(
+            200,
+            request=httpx.Request("POST", url),
+            json={"choices": [{"message": {"content": json.dumps(value, ensure_ascii=False)}}]},
+        )
+
+    monkeypatch.setattr(builder.httpx, "post", respond)
+    row = builder.build_daily_summary(session, client_id=client.id, day=DAY.date())
+    assert row.content["generation"]["review"]["status"] == "passed"
+    assert "review_context" not in row.content["generation"]
+
+
 def test_changed_context_prevents_recovery_but_preserves_previous_review(
     session, monkeypatch
 ):
