@@ -23,9 +23,27 @@ function todayInMexicoCity(): string {
 }
 
 const TODAY = todayInMexicoCity();
-const PREV = '2026-10-19';
-const OLDER_A = '2026-09-18';
-const OLDER_B = '2026-08-05';
+
+// History fixtures are derived arithmetically from TODAY's month: a fixed
+// calendar month rots the day it was written (the «ver mes anterior» window
+// rolls over on the 1st) — keep every anchor relative to NOW.
+function monthDay(offset: number, day: number): string {
+	const now = new Date();
+	const first = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + offset, 1));
+	const last = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0));
+	first.setUTCDate(Math.min(day, last.getUTCDate()));
+	return first.toISOString().slice(0, 10);
+}
+function monthFirst(offset: number): string {
+	const now = new Date();
+	return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + offset, 1))
+		.toISOString()
+		.slice(0, 10);
+}
+
+const PREV = monthDay(0, 19);
+const OLDER_A = monthDay(-1, 18);
+const OLDER_B = monthDay(-2, 5);
 const UPDATED_ISO = '2026-10-19T21:05:00Z';
 
 function settingsRow() {
@@ -217,18 +235,18 @@ it('filters the history with ?before and anchors the previous month', async () =
 		...sideRoutes()
 	});
 
-	const paged = await loadHome('?before=2026-10-01');
-	// Only the months before October remain visible…
+	const paged = await loadHome(`?before=${monthFirst(0)}`);
+	// Only the months before the current one remain visible…
 	expect((paged['days'] as { summary_date: string }[]).map((d) => d.summary_date)).toEqual([
 		OLDER_A,
 		OLDER_B
 	]);
 	// …and the next anchor is the first day of the newest visible month.
-	expect(paged['olderBefore']).toBe('2026-09-01');
+	expect(paged['olderBefore']).toBe(monthFirst(-1));
 
 	const unfiltered = await loadHome();
 	// Full view: the link points at the current-month edge (older months exist).
-	expect(unfiltered['olderBefore']).toBe('2026-10-01');
+	expect(unfiltered['olderBefore']).toBe(monthFirst(0));
 });
 
 it('hides the month link when no older month exists', async () => {
