@@ -3,8 +3,14 @@
 Estado: PR1+PR2 COMPLETOS Y VERIFICADOS (25/oct); T6 marcada en doc 16/nov
 tras verificación: 920fa81a es ancestro de feat/digest-brief-v3 (rama UI
 stacked ya fusionada), focused vitest 21/21 (DigestV3 + digest-v3).
-Pendiente: decisión push/PR (Julio) — rama 83 commits ahead de origin,
-0 behind. Abiertas solo transversales P1-P3.
+ENTREGA RESUELTA 16/nov (decisión Julio): sin PR — push de respaldo de la
+rama + fast-forward de main a 1457113b (origin/main = origin/feat/digest-brief-v3 = 1457113b;
+incluye los 2 commits pre-existentes de main). Gates previos: backend 1450
+passed, svelte-check 0/0, vitest 360/360 (2 fixtures de fecha vencidos en
+home-page.server.test.ts corregidos a meses relativos, commit 1457113b),
+build OK. Asses nativo del rango 3905ceff..1457113b: riesgo medio, reviewDue
+false (under_budget), auto-verificación del escritor. Pushear no despliega
+(producción corre desde otro worktree con imágenes baked).
 
 ## Problema (verificado en DB, 25/oct)
 
