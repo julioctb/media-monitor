@@ -11,11 +11,11 @@ aparezca duplicada en el feed, y que el feed muestre el evento canónico.
   event => sin chip aunque el clustering ya agrupa (evento 673 tiene 549/555/557).
 
 ## Tareas
-- [ ] T1 test RED: ingest de URL news.google.com resuelve publisher y dedupea contra el mismo publisher ya ingestado
-- [ ] T2 backend: exponer resolve_publisher_url en article_fetch + pipeline canonicaliza antes de insert (fallback URL original)
-- [ ] T3 backend: MentionOut.event_id/event_title, attach batcheado en list endpoint (patrón persons), test
-- [ ] T4 frontend: tipo Mention event fields + pasar event a MentionCard en feed, test vitest
-- [ ] T5 deploy api+worker+dashboard, verificación: chip visible en evento 673, sin duplicados nuevos en ciclo siguiente
+- [x] T1 test RED: ingest de URL news.google.com resuelve publisher y dedupea contra el mismo publisher ya ingestado
+- [x] T2 backend: exponer resolve_publisher_url en article_fetch + pipeline canonicaliza antes de insert (fallback URL original)
+- [x] T3 backend: MentionOut.event_id/event_title, attach batcheado en list endpoint (patrón persons), test
+- [x] T4 frontend: tipo Mention event fields + pasar event a MentionCard en feed, test vitest
+- [x] T5 deploy api+worker+dashboard, verificación: chip visible en evento 673, sin duplicados nuevos en ciclo siguiente
 
 ## Route / verificación
 - Route: inline (fix acotado, archivos conocidos). Verification: writer self (medium) + parent spot check.
@@ -26,3 +26,11 @@ aparezca duplicada en el feed, y que el feed muestre el evento canónico.
 - T1–T4 OK: commits 88b0fcf (canonicalización GN→publisher en pipeline, fallback seguro) y bf672b4 (event_id/event_title en MentionOut + attach batcheado + chip en feed). Suite 391 passed, vitest 48, svelte-check limpio.
 - T5 verificado 25/oct: 0 grupos de URL duplicada en 48h; 47/47 menciones últimas 24h con URL de publisher (canonicalización activa en pipeline); worker ciclando (última ingesta 00:06 UTC). Chip ya verificado en deploy (50 chips / 37 links en HTML). FEATURE COMPLETA.
 - Incidente paralelo: Postgres crash exit 2 01:03 UTC + recovery; 3er crash en 3 días. VM Docker al 1360% CPU crónico (host 6d sin reinicio). Load host 63→33.
+
+## Cierre 16/nov (auditoría de obsolescencia)
+
+Checkboxes alineados con el cierre ya declarado por Julio en `da1a88bb`
+(24/oct): "T5 verificado 25/oct — FEATURE COMPLETA". Evidencia en código:
+`resolve_publisher_url` (article_fetch.py:230) llamada en pipeline.py:156;
+`MentionOut.event_id/event_title` (schemas.py:70-71); chip de evento en
+MentionCard.svelte (MentionEventRef).

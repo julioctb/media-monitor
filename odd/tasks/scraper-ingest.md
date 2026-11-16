@@ -24,12 +24,12 @@ solo sitemap.html). Sus notas sobre BUAP no aparecen.
 - Migración alembic: add column scrapers JSON default '[]'.
 
 ## Tareas
-- [ ] T1 tests: test_scrapers.py (parsers con fixtures, adapter filtra nav/unknown keys, settings roundtrip API) — RED primero
-- [ ] T2 backend: enum+columna+migración+settings_runtime+queries validator
-- [ ] T3 scrapers.py: registry + 2 parsers + adapter (GREEN)
-- [ ] T4 worker build_adapters + API schemas/endpoint
-- [ ] T5 frontend: tipos api.ts + card en settings (+page.server.ts save)
-- [ ] T6 deploy: compose build api worker dashboard, up -d, ciclo verificado en logs con menciones scraper
+- [x] T1 tests: test_scrapers.py (parsers con fixtures, adapter filtra nav/unknown keys, settings roundtrip API) — RED primero
+- [x] T2 backend: enum+columna+migración+settings_runtime+queries validator
+- [x] T3 scrapers.py: registry + 2 parsers + adapter (GREEN)
+- [x] T4 worker build_adapters + API schemas/endpoint
+- [x] T5 frontend: tipos api.ts + card en settings (+page.server.ts save)
+- [x] T6 deploy: compose build api worker dashboard, up -d, ciclo verificado en logs con menciones scraper
 
 ## Route / verificación
 - Route: delegated writer (writer trigger: ~10 archivos). Verification: writer self-check (medium).
@@ -42,3 +42,11 @@ solo sitemap.html). Sus notas sobre BUAP no aparecen.
 - T1–T5 OK (writer deleg_73be23d7, 4 commits; suite 388 passed; svelte-check limpio).
 - T6 OK: deploy 2026-10-15 ~07:11 UTC (mig 0017 aplicada), ciclo 07:31 UTC: laredaccion 32 links, e_consulta 86 links, 4 menciones scraper en DB (todas BUAP-related). Fix adicional c8546c1 label alerts. Rebuild final en curso (proc_bbad8458c2f2). Pendente user: merge/push.
 
+
+## Cierre 16/nov (auditoría de obsolescencia) — COMPLETA vía elpopular-scraper + columnistas
+
+`SCRAPER_REGISTRY` (app/ingest/scrapers.py) con 3 parsers (diario_laredaccion,
+e_consulta, elpopular); wiring y validador known/unknown en worker.py:128-136
+(T2 aterrizó como diseño settings-driven, sin enum/columna); `test_scrapers.py`
+(T1); card en settings/+page.svelte (T5); deploy y ciclos verificados en vivo
+(elpopular T8). 

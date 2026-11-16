@@ -14,14 +14,14 @@ mapea 1:1 a datos existentes (ver tabla en el plan). Sin tablas ni endpoints
 nuevos: `daily_summaries.content` pasa a `schema: 2`.
 
 ## Tareas
-- [ ] T1 settings `digest_hour` (modelo+0018+runtime+worker+test)
-- [ ] T2 `summaries/digest.py` schema v2 + `validate_digest` (test)
-- [ ] T3 `build_digest_facts` determinista (test)
-- [ ] T4 `confidence_for` / `gaps_for` (test)
-- [ ] T5 composer en `builder.py`: LLM acotado + fallback, content v2, plain_text
-- [ ] T6 frontend `DigestSections` + home hero + summary v2 (test vitest)
-- [ ] T7 `ask.build_context` prioriza digest reciente (test)
-- [ ] T8 deploy compose + verificación end-to-end (schema==2 en API, home render)
+- [x] T1 settings `digest_hour` (modelo+0018+runtime+worker+test)
+- [x] T2 `summaries/digest.py` schema v2 + `validate_digest` (test)
+- [x] T3 `build_digest_facts` determinista (test)
+- [x] T4 `confidence_for` / `gaps_for` (test)
+- [x] T5 composer en `builder.py`: LLM acotado + fallback, content v2, plain_text
+- [x] T6 frontend `DigestSections` + home hero + summary v2 (test vitest)
+- [x] T7 `ask.build_context` prioriza digest reciente (test)
+- [x] T8 deploy compose + verificación end-to-end (schema==2 en API, home render)
 
 ## Route / verificación
 - Route: inline (plan ultra-especificado, tareas bite-sized, sesión con contexto
@@ -44,3 +44,13 @@ nuevos: `daily_summaries.content` pasa a `schema: 2`.
 - Nota para después: menciones scraper sin published_at no entran a ninguna
   ventana de digest (behavior v1 del day-window); el ingest debería
   fallback a ingested_at. Fuera de scope de este feature.
+
+## Cierre 16/nov (auditoría de obsolescencia) — COMPLETA vía digest v3/v3.1
+
+Toda la feature aterrizó por otras vías: T1 `digest_hour` (evolucionó a
+multi-cut `digest_hours`, settings_runtime.py:38-41); T3/T4
+`build_digest_facts` + `confidence_for`/`gaps_for` (digest.py:99,108); T5
+composer v3 con fallback heurístico sobre el mismo esqueleto; T6
+`DigestSections.svelte` en producción; T8 desplegado (digests v3 sirviéndose).
+T2 SUPERSEDA: schema v2 → v3.1 (digest_schema.py). Feature absorbida por
+digest-brief-v3 + multi-cut.

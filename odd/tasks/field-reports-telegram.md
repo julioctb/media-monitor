@@ -39,12 +39,12 @@ descartado con el cambio de canal.
 
 ## Tasks tentativas (al arrancar; RED first donde aplique)
 
-- [ ] T1 backend: modelo `field_reports` + `field_operators` (número, nombre, activo) + estado del reporte (`draft/review/published/rejected`). Diseño fino de schema pendiente al arrancar.
-- [ ] T2 bot: polling worker de Telegram (`getUpdates` long-poll) — idempotencia por update_id, token en `.env`, nunca commiteada. Sin URL pública ni webhook.
-- [ ] T3 bot: máquina de conversación del intake guiado (por chat id; timeout/reset de sesión; reply keyboards por paso).
-- [ ] T4 backend: paso de enriquecimiento LLM (provider a definir; normaliza, clasifica, dedupe, flags) — escribe sugerencias, no cambia estado a published.
-- [ ] T5 frontend: cola de revisión en admin — lista con identidad del operador, diff de lo sugerido por LLM, aprobar/editar/rechazar.
-- [ ] T6 integración feed: reporte publicado entra al feed marcado como fuente `field`.
+- [x] T1 backend: modelo `field_reports` + `field_operators` (número, nombre, activo) + estado del reporte (`draft/review/published/rejected`). Diseño fino de schema pendiente al arrancar.
+- [x] T2 bot: polling worker de Telegram (`getUpdates` long-poll) — idempotencia por update_id, token en `.env`, nunca commiteada. Sin URL pública ni webhook.
+- [x] T3 bot: máquina de conversación del intake guiado (por chat id; timeout/reset de sesión; reply keyboards por paso).
+- [x] T4 backend: paso de enriquecimiento LLM (provider a definir; normaliza, clasifica, dedupe, flags) — escribe sugerencias, no cambia estado a published.
+- [x] T5 frontend: cola de revisión en admin — lista con identidad del operador, diff de lo sugerido por LLM, aprobar/editar/rechazar.
+- [x] T6 integración feed: reporte publicado entra al feed marcado como fuente `field`.
 - [ ] Fase 2: fotos (media WhatsApp) y notas de voz + transcripción.
 
 ## Constraints
@@ -64,3 +64,15 @@ descartado con el cambio de canal.
 ## Route (al arrancar)
 
 Por definir; historial del repo sugiere delegated writer (backend+frontend+tests) con suites completas y spot-check del parent. Comandos de verificación del repo: `.venv/bin/python -m pytest backend/tests -q` y `cd frontend && npm run check && npx vitest run && npm run build`.
+
+## Cierre 16/nov (auditoría de obsolescencia) — T1-T6 COMPLETAS (vía field_bot + whatsapp-field-reports como espejo)
+
+T1 `models/field.py` (FieldOperator + FieldReport con estados exactos
+draft/review/published/rejected); T2 `field_bot.py` poll() getUpdates con
+offset update_id idempotente (:166-175); T3 máquina de conversación con
+sesiones en field_bot.py; T4 `field_enrich.py` — solo escribe sugerencias,
+nunca cambia estado (comentario en models/field.py:12); T5 cola de revisión en
+routes/campo (aprobar/rechazar + /campo/operadores); T6 reportes publicados
+entran al feed como fuente field (verificado en whatsapp-field-reports).
+Fase 2: fotos COMPLETA (whatsapp-field-reports B); transcripción de notas de
+voz PENDIENTE.
