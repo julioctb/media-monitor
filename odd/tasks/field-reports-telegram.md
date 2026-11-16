@@ -39,12 +39,12 @@ descartado con el cambio de canal.
 
 ## Tasks tentativas (al arrancar; RED first donde aplique)
 
-- [x] T1 backend: modelo `field_reports` + `field_operators` (número, nombre, activo) + estado del reporte (`draft/review/published/rejected`). Diseño fino de schema pendiente al arrancar.
-- [x] T2 bot: polling worker de Telegram (`getUpdates` long-poll) — idempotencia por update_id, token en `.env`, nunca commiteada. Sin URL pública ni webhook.
-- [x] T3 bot: máquina de conversación del intake guiado (por chat id; timeout/reset de sesión; reply keyboards por paso).
-- [x] T4 backend: paso de enriquecimiento LLM (provider a definir; normaliza, clasifica, dedupe, flags) — escribe sugerencias, no cambia estado a published.
-- [x] T5 frontend: cola de revisión en admin — lista con identidad del operador, diff de lo sugerido por LLM, aprobar/editar/rechazar.
-- [x] T6 integración feed: reporte publicado entra al feed marcado como fuente `field`.
+- [x] T1 backend: modelo `field_reports` + `field_operators` (número, nombre, activo) + estado del reporte (`draft/review/published/rejected`). Diseño fino de schema pendiente al arrancar. — HECHO: models/field.py — FieldOperator (:51) + FieldReport (:79) con estados exactos draft/review/published/rejected (check :83)
+- [x] T2 bot: polling worker de Telegram (`getUpdates` long-poll) — idempotencia por update_id, token en `.env`, nunca commiteada. Sin URL pública ni webhook. — HECHO: field_bot.py — poll() getUpdates (:166) con offset update_id+1 idempotente (:175), token por env, sin webhook
+- [x] T3 bot: máquina de conversación del intake guiado (por chat id; timeout/reset de sesión; reply keyboards por paso). — HECHO: máquina de conversación con sesiones por chat y estados (awaiting_confirm :112, sesión :123) en field_bot.py
+- [x] T4 backend: paso de enriquecimiento LLM (provider a definir; normaliza, clasifica, dedupe, flags) — escribe sugerencias, no cambia estado a published. — HECHO: field_enrich.py escribe solo sugerencias; "only writes suggestions; it never moves state" (models/field.py:12)
+- [x] T5 frontend: cola de revisión en admin — lista con identidad del operador, diff de lo sugerido por LLM, aprobar/editar/rechazar. — HECHO: cola en routes/campo — estados "en revisión"/"rechazado" (:15-17), forms aprobar/reject (:122), subruta /campo/operadores
+- [x] T6 integración feed: reporte publicado entra al feed marcado como fuente `field`. — HECHO: reportes publicados entran al feed como fuente field (verificado en whatsapp-field-reports, intake espejo)
 - [ ] Fase 2: fotos (media WhatsApp) y notas de voz + transcripción.
 
 ## Constraints

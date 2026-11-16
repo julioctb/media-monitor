@@ -24,12 +24,12 @@ solo sitemap.html). Sus notas sobre BUAP no aparecen.
 - Migración alembic: add column scrapers JSON default '[]'.
 
 ## Tareas
-- [x] T1 tests: test_scrapers.py (parsers con fixtures, adapter filtra nav/unknown keys, settings roundtrip API) — RED primero
-- [x] T2 backend: enum+columna+migración+settings_runtime+queries validator
-- [x] T3 scrapers.py: registry + 2 parsers + adapter (GREEN)
-- [x] T4 worker build_adapters + API schemas/endpoint
-- [x] T5 frontend: tipos api.ts + card en settings (+page.server.ts save)
-- [x] T6 deploy: compose build api worker dashboard, up -d, ciclo verificado en logs con menciones scraper
+- [x] T1 tests: test_scrapers.py (parsers con fixtures, adapter filtra nav/unknown keys, settings roundtrip API) — RED primero — HECHO: backend/tests/test_scrapers.py (parsers con fixtures, adapter)
+- [x] T2 backend: enum+columna+migración+settings_runtime+queries validator — HECHO con diseño evolucionado: lista scrapers en settings + validador known/unknown en worker.py:133-136 (settings-driven, sin enum/columna)
+- [x] T3 scrapers.py: registry + 2 parsers + adapter (GREEN) — HECHO: SCRAPER_REGISTRY en ingest/scrapers.py con 3 parsers (diario_laredaccion, e_consulta, elpopular — el 3ro vía elpopular-scraper)
+- [x] T4 worker build_adapters + API schemas/endpoint — HECHO: build_adapters construye ScrapersAdapter desde settings (worker.py:128-136)
+- [x] T5 frontend: tipos api.ts + card en settings (+page.server.ts save) — HECHO: card y tipos en settings/+page.svelte y lib/api.ts
+- [x] T6 deploy: compose build api worker dashboard, up -d, ciclo verificado en logs con menciones scraper — HECHO: rebuild api+worker+dashboard y ciclos verificados en logs (elpopular-scraper T8: "scraper elpopular: N links")
 
 ## Route / verificación
 - Route: delegated writer (writer trigger: ~10 archivos). Verification: writer self-check (medium).

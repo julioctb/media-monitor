@@ -14,14 +14,14 @@ mapea 1:1 a datos existentes (ver tabla en el plan). Sin tablas ni endpoints
 nuevos: `daily_summaries.content` pasa a `schema: 2`.
 
 ## Tareas
-- [x] T1 settings `digest_hour` (modelo+0018+runtime+worker+test)
-- [x] T2 `summaries/digest.py` schema v2 + `validate_digest` (test)
-- [x] T3 `build_digest_facts` determinista (test)
-- [x] T4 `confidence_for` / `gaps_for` (test)
-- [x] T5 composer en `builder.py`: LLM acotado + fallback, content v2, plain_text
-- [x] T6 frontend `DigestSections` + home hero + summary v2 (test vitest)
-- [x] T7 `ask.build_context` prioriza digest reciente (test)
-- [x] T8 deploy compose + verificación end-to-end (schema==2 en API, home render)
+- [x] T1 settings `digest_hour` (modelo+0018+runtime+worker+test) — HECHO: digest_hour en settings_runtime.py:38, evolucionó a multi-cut digest_hours (:41); test_settings_digest_hour.py existe
+- [x] T2 `summaries/digest.py` schema v2 + `validate_digest` (test) — SUPERSEDA: el schema evolucionó a v3.1 (digest_schema.py, digest-brief-v3 T1/4e41cca4); las rows v2 siguen validando por compat (5919587f)
+- [x] T3 `build_digest_facts` determinista (test) — HECHO: build_digest_facts determinista es la base del digest v3 (b99eeeba), integrada a build_daily_summary
+- [x] T4 `confidence_for` / `gaps_for` (test) — HECHO: confidence_for en digest.py:99 y gaps_for en :108
+- [x] T5 composer en `builder.py`: LLM acotado + fallback, content v2, plain_text — HECHO: composer v3 = 1 llamada LLM acotada (prosa+selección) + fallback heurístico sobre el mismo esqueleto (a9cbd874)
+- [x] T6 frontend `DigestSections` + home hero + summary v2 (test vitest) — HECHO: DigestSections.svelte + DigestV3.svelte renderizando en producción (920fa81a)
+- [x] T7 `ask.build_context` prioriza digest reciente (test) — HECHO: ask.py:245 define build_context; :295-303 prioriza el digest más reciente (order_by summary_date desc, frescura ≤2 días)
+- [x] T8 deploy compose + verificación end-to-end (schema==2 en API, home render) — HECHO: producción sirve digests schema v3 a diario; regen real verificada end-to-end (digest-brief-v3 T5, 24-oct)
 
 ## Route / verificación
 - Route: inline (plan ultra-especificado, tareas bite-sized, sesión con contexto

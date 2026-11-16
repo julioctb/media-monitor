@@ -11,11 +11,11 @@ aparezca duplicada en el feed, y que el feed muestre el evento canónico.
   event => sin chip aunque el clustering ya agrupa (evento 673 tiene 549/555/557).
 
 ## Tareas
-- [x] T1 test RED: ingest de URL news.google.com resuelve publisher y dedupea contra el mismo publisher ya ingestado
-- [x] T2 backend: exponer resolve_publisher_url en article_fetch + pipeline canonicaliza antes de insert (fallback URL original)
-- [x] T3 backend: MentionOut.event_id/event_title, attach batcheado en list endpoint (patrón persons), test
-- [x] T4 frontend: tipo Mention event fields + pasar event a MentionCard en feed, test vitest
-- [x] T5 deploy api+worker+dashboard, verificación: chip visible en evento 673, sin duplicados nuevos en ciclo siguiente
+- [x] T1 test RED: ingest de URL news.google.com resuelve publisher y dedupea contra el mismo publisher ya ingestado — HECHO en 88b0fcf (canonicalización GN→publisher en pipeline, fallback seguro); suite 391 passed
+- [x] T2 backend: exponer resolve_publisher_url en article_fetch + pipeline canonicaliza antes de insert (fallback URL original) — HECHO: resolve_publisher_url en ingest/article_fetch.py:230, llamada en pipeline.py:156 antes del insert (88b0fcf)
+- [x] T3 backend: MentionOut.event_id/event_title, attach batcheado en list endpoint (patrón persons), test — HECHO: MentionOut.event_id/event_title en api/schemas.py:70-71 + attach batcheado (bf672b4)
+- [x] T4 frontend: tipo Mention event fields + pasar event a MentionCard en feed, test vitest — HECHO: chip de evento en MentionCard.svelte (MentionEventRef, bf672b4)
+- [x] T5 deploy api+worker+dashboard, verificación: chip visible en evento 673, sin duplicados nuevos en ciclo siguiente — HECHO y verificado en vivo 25/oct por Julio (da1a88bb): 0 duplicados en 48h, 47/47 URLs publisher, 50 chips/37 links en HTML del feed
 
 ## Route / verificación
 - Route: inline (fix acotado, archivos conocidos). Verification: writer self (medium) + parent spot check.
