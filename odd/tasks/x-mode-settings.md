@@ -29,8 +29,8 @@ Julio lo pidió (22/oct): switch que respete el diseño + campo para la API + te
 - Formularios SvelteKit: reglas del skill (use:enhance, reset:false, getAll por input nuevo).
 
 ## Tasks
-- [ ] T1 — Backend: columnas + migración + settings chain + worker free/paid+fallback + dead path env + masking + tests (RED→GREEN). Commit feat.
-- [ ] T2 — Frontend: sección Configuración según mockup + action wiring + tests (check + vitest). Commit feat.
+- [x] T1 — Backend: columnas + migración + settings chain + worker free/paid+fallback + dead path env + masking + tests (RED→GREEN). Commit feat. → merge 78655c5d (feat/x-mode-settings); `x_mode` en settings_runtime.py (:48 default free, :181 desde row); cierre de doc 16/nov: tests/test_x_mode_settings.py 12/12 passed.
+- [x] T2 — Frontend: sección Configuración según mockup + action wiring + tests (check + vitest). Commit feat. → settings/+page.server.ts, +page.svelte y api.ts sirven x_mode; cierre de doc 16/nov: settings-page.view.test.ts 12/12 passed.
 - [x] T3 — Deploy 3 servicios + verificación: PUT round-trip (x_mode paid + key, GET sin key expuesta, vacío conserva), ciclo logs (`adapter x_twitter` con key dummy inválida → warning fallback `adapter x_index`), UI sirve. Orquestador. → completado (ver evidence); el ciclo live corrió en free (default); el camino paid-live queda para cuando Julio cargue su key real.
 
 ## Verification evidence
